@@ -22,11 +22,13 @@ export default function WorkerBilling({ inventory }) {
     if (item) {
       const existingItemIndex = cart.findIndex(cartItem => cartItem.barcode === barcode);
       if (existingItemIndex >= 0) {
+        // Increment quantity if already in the cart
         const updatedCart = [...cart];
         updatedCart[existingItemIndex].quantity += 1;
         setCart(updatedCart);
       } else {
-        setCart([...cart, { ...item, id: Date.now(), barcode, discountPct: 0, quantity: 1 }]);
+        // Add new item. Notice the fallback to 'PCS' if item.unit is missing!
+        setCart([...cart, { ...item, id: Date.now(), barcode, discountPct: 0, quantity: 1, unit: item.unit || 'PCS' }]);
       }
     } else {
       alert(`Item with barcode ${barcode} not found in inventory!`);
@@ -48,9 +50,9 @@ export default function WorkerBilling({ inventory }) {
 
   return (
     <div className="flex flex-col items-center" onClick={handleBackgroundClick}>
-      <div className="w-full max-w-5xl bg-white border border-gray-400 rounded-none shadow-none">
+      {/* Increased max-width to max-w-6xl to fit the extra columns comfortably */}
+      <div className="w-full max-w-6xl bg-white border border-gray-400 rounded-none shadow-none">
         
-        {/* Windows-style Header Panel */}
         <div className="bg-[#f3f3f3] p-4 text-black flex justify-between items-center border-b border-gray-400">
           <div>
             <h1 className="text-xl font-light">Store Checkout</h1>
@@ -67,34 +69,60 @@ export default function WorkerBilling({ inventory }) {
           <button type="submit">Scan</button>
         </form>
 
-        {/* Windows-style Datagrid Table */}
         <div className="p-0 overflow-x-auto min-h-[400px]">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[#e6e6e6] text-black text-xs uppercase border-b border-gray-400">
-                <th className="p-3 font-medium border-r border-gray-300 w-1/2">Item Name</th>
-                <th className="p-3 font-medium border-r border-gray-300">Rate (₹)</th>
-                <th className="p-3 font-medium border-r border-gray-300">Qty</th>
-                <th className="p-3 font-medium border-r border-gray-300 w-28">Discount (%)</th>
-                <th className="p-3 font-medium text-right">Final Price (₹)</th>
+                <th className="p-3 font-medium border-r border-gray-300 w-16 text-center">S.No</th>
+                <th className="p-3 font-medium border-r border-gray-300 w-1/3">Item Name</th>
+                <th className="p-3 font-medium border-r border-gray-300 w-20 text-center">Qty</th>
+                <th className="p-3 font-medium border-r border-gray-300 w-24">Unit</th>
+                <th className="p-3 font-medium border-r border-gray-300 text-right">MRP (₹)</th>
+                <th className="p-3 font-medium border-r border-gray-300 w-28 text-center">Discount (%)</th>
+                <th className="p-3 font-medium border-r border-gray-300 text-right">Final Price</th>
+                <th className="p-3 font-medium text-right bg-[#e6e6e6]">Line Total</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {cart.length === 0 ? (
-                <tr><td colSpan="5" className="p-8 text-center text-gray-500 text-sm">No items scanned yet. Start scanning to add to the bill.</td></tr>
+                <tr><td colSpan="8" className="p-8 text-center text-gray-500 text-sm">No items scanned yet. Start scanning to add to the bill.</td></tr>
               ) : (
-                cart.map((item) => {
-                  const finalPrice = (item.price * (1 - item.discountPct / 100)) * item.quantity;
+                cart.map((item, index) => {
+                  // Math calculations separated out for clarity
+                  const finalPrice = item.price * (1 - item.discountPct / 100);
+                  const lineTotal = finalPrice * item.quantity;
+                  
                   return (
-                    // Subtle hover effect like file explorer
                     <tr key={item.id} className="hover:bg-[#f0f0f0]">
-                      <td className="p-3 border-r border-gray-200 text-sm">{item.name} <span className="text-gray-400 text-xs ml-2">#{item.barcode}</span></td>
-                      <td className="p-3 border-r border-gray-200 text-sm">{item.price.toFixed(2)}</td>
-                      <td className="p-3 border-r border-gray-200 text-sm">{item.quantity}</td>
-                      <td className="p-3 border-r border-gray-200">
-                        <input type="number" min="0" max="100" value={item.discountPct === 0 ? '' : item.discountPct} onChange={(e) => updateDiscount(item.id, e.target.value)} placeholder="0" className="w-full px-2 py-1 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-sm rounded-none" />
+                      {/* 1. Serial No */}
+                      <td className="p-3 border-r border-gray-200 text-sm text-center text-gray-500">{index + 1}</td>
+                      
+                      {/* 2. Item Name */}
+                      <td className="p-3 border-r border-gray-200 text-sm">
+                        {item.name} <br/><span className="text-gray-400 text-xs">#{item.barcode}</span>
                       </td>
-                      <td className="p-3 text-right text-sm">{finalPrice.toFixed(2)}</td>
+                      
+                      {/* 3. Quantity */}
+                      <td className="p-3 border-r border-gray-200 text-sm text-center font-medium">{item.quantity}</td>
+                      
+                      {/* 4. Unit */}
+                      <td className="p-3 border-r border-gray-200 text-sm text-gray-600">{item.unit}</td>
+                      
+                      {/* 5. MRP (Default selling price) */}
+                      <td className="p-3 border-r border-gray-200 text-sm text-right">{item.price.toFixed(2)}</td>
+                      
+                      {/* 6. Discount */}
+                      <td className="p-3 border-r border-gray-200">
+                        <input type="number" min="0" max="100" value={item.discountPct === 0 ? '' : item.discountPct} onChange={(e) => updateDiscount(item.id, e.target.value)} placeholder="0" className="w-full px-2 py-1 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-sm rounded-none text-center" />
+                      </td>
+                      
+                      {/* 7. Final Price (After Discount) */}
+                      <td className="p-3 border-r border-gray-200 text-right text-sm">{finalPrice.toFixed(2)}</td>
+                      
+                      {/* 8. Line Total (Quantity * Final Price) */}
+                      <td className="p-3 text-right text-sm font-semibold text-[#0078D7] bg-[#fafafa]">
+                        {lineTotal.toFixed(2)}
+                      </td>
                     </tr>
                   );
                 })
