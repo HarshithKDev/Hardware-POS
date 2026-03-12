@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 
-export default function EntryFlow() {
-  // useState (useState - a React Hook that lets you add a state variable to your component)
+export default function EntryFlow({ onLoginSuccess }) {
   const [step, setStep] = useState(1);
   const [location, setLocation] = useState(null); 
   const [role, setRole] = useState(null);         
@@ -19,97 +18,57 @@ export default function EntryFlow() {
   };
 
   const handleLogin = (e) => {
-    e.preventDefault(); // (preventDefault - a method that stops the default action of an element from happening, like a form submitting and refreshing the page)
+    e.preventDefault(); 
     
     if (role === 'owner' && password === 'owner') {
-      alert(`Logged in as Owner at ${location}`);
+      onLoginSuccess('owner', location);
     } else if (role === 'worker' && password === 'worker') {
-      alert(`Logged in as Worker at ${location}`);
+      onLoginSuccess('worker', location);
     } else {
       setError('Incorrect password. Please try again.');
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-xl shadow-md p-8 border border-gray-100">
+    // Solid Windows Blue background
+    <div className="min-h-screen bg-[#0078D7] flex flex-col items-center justify-center p-4">
+      {/* Sharp, square, flat white container */}
+      <div className="w-full max-w-md bg-white p-8 border border-gray-400 shadow-[2px_2px_0px_rgba(0,0,0,0.2)] rounded-none">
         
         {step === 1 && (
-          <div className="animate-fade-in">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-6 text-center">Select Location</h2>
-            <div className="space-y-4">
-              <button 
-                onClick={() => handleLocationSelect('Warehouse')}
-                className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-lg font-medium transition-colors"
-              >
-                Warehouse
-              </button>
-              <button 
-                onClick={() => handleLocationSelect('Store')}
-                className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-lg font-medium transition-colors"
-              >
-                Store
-              </button>
+          <div>
+            <h2 className="text-2xl font-light text-black mb-6">Select Location</h2>
+            <div className="space-y-3">
+              <button onClick={() => handleLocationSelect('Warehouse')} className="w-full py-3 bg-[#cccccc] hover:bg-[#b3b3b3] text-black border border-gray-400 text-lg transition-colors rounded-none text-left px-4">Warehouse</button>
+              <button onClick={() => handleLocationSelect('Store')} className="w-full py-3 bg-[#cccccc] hover:bg-[#b3b3b3] text-black border border-gray-400 text-lg transition-colors rounded-none text-left px-4">Store</button>
             </div>
           </div>
         )}
 
         {step === 2 && (
-          <div className="animate-fade-in">
-            <button 
-              onClick={() => setStep(1)} 
-              className="text-sm text-gray-500 hover:text-gray-800 mb-4 flex items-center"
-            >
-              ← Back
-            </button>
-            <h2 className="text-2xl font-semibold text-gray-800 mb-2 text-center">Select Role</h2>
-            <p className="text-center text-gray-500 mb-6">Location: {location}</p>
-            <div className="space-y-4">
-              <button 
-                onClick={() => handleRoleSelect('owner')}
-                className="w-full py-4 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-lg font-medium transition-colors"
-              >
-                Owner
-              </button>
-              <button 
-                onClick={() => handleRoleSelect('worker')}
-                className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-lg font-medium transition-colors border border-slate-300"
-              >
-                Worker
-              </button>
+          <div>
+            <button onClick={() => setStep(1)} className="text-sm text-[#0078D7] hover:underline mb-4 flex items-center">← Back</button>
+            <h2 className="text-2xl font-light text-black mb-2">Select Role</h2>
+            <p className="text-gray-600 mb-6 text-sm">Location: {location}</p>
+            <div className="space-y-3">
+              <button onClick={() => handleRoleSelect('owner')} className="w-full py-3 bg-[#cccccc] hover:bg-[#b3b3b3] text-black border border-gray-400 text-lg transition-colors rounded-none text-left px-4">Owner</button>
+              <button onClick={() => handleRoleSelect('worker')} className="w-full py-3 bg-[#cccccc] hover:bg-[#b3b3b3] text-black border border-gray-400 text-lg transition-colors rounded-none text-left px-4">Worker</button>
             </div>
           </div>
         )}
 
         {step === 3 && (
-          <div className="animate-fade-in">
-            <button 
-              onClick={() => { setStep(2); setError(''); setPassword(''); }} 
-              className="text-sm text-gray-500 hover:text-gray-800 mb-4 flex items-center"
-            >
-              ← Back
-            </button>
-            <h2 className="text-2xl font-semibold text-gray-800 mb-2 text-center">Enter Password</h2>
-            <p className="text-center text-gray-500 mb-6 capitalize">{location} • {role}</p>
+          <div>
+            <button onClick={() => { setStep(2); setError(''); setPassword(''); }} className="text-sm text-[#0078D7] hover:underline mb-4 flex items-center">← Back</button>
+            <h2 className="text-2xl font-light text-black mb-2">Enter Password</h2>
+            <p className="text-gray-600 mb-6 text-sm capitalize">{location} • {role}</p>
             
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password"
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg"
-                  autoFocus // (autoFocus - an HTML attribute that automatically focuses the input field when the page loads)
-                />
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" className="w-full px-3 py-2 border border-gray-400 focus:outline-none focus:border-[#0078D7] focus:ring-1 focus:ring-[#0078D7] text-lg rounded-none" autoFocus />
               </div>
-              {error && <p className="text-red-500 text-sm">{error}</p>}
-              <button 
-                type="submit"
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-              >
-                Login
-              </button>
+              {error && <p className="text-[#e81123] text-sm">{error}</p>}
+              <button type="submit" className="w-full py-3 bg-[#0078D7] hover:bg-[#005a9e] text-white text-lg font-medium transition-colors rounded-none border border-[#005a9e]">Login</button>
             </form>
           </div>
         )}

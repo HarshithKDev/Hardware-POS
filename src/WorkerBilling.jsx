@@ -1,119 +1,100 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-// Temporary dummy database (Database - an organized collection of structured information or data) for the frontend
-const INVENTORY = {
-  '1001': { name: 'Brass Door Handle', price: 450 },
-  '1002': { name: 'Steel Soap Stand', price: 120 },
-  '1003': { name: 'Wood Photo Frame', price: 250 },
-  '1004': { name: 'Screws (Pack of 50)', price: 50 },
-};
-
-export default function WorkerBilling() {
+export default function WorkerBilling({ inventory }) {
   const [cart, setCart] = useState([]); 
   const [barcode, setBarcode] = useState('');
-  
-  // useRef (useRef - a React Hook that lets you reference a value that’s not needed for rendering)
   const scannerInputRef = useRef(null); 
 
-  // useEffect (useEffect - a React Hook that lets you synchronize a component with an external system or trigger side effects)
   useEffect(() => {
     scannerInputRef.current?.focus();
   }, [cart]); 
 
+  const handleBackgroundClick = (e) => {
+    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
+      scannerInputRef.current?.focus();
+    }
+  };
+
   const handleScan = (e) => {
     e.preventDefault(); 
-    const item = INVENTORY[barcode];
+    const item = inventory.find(i => i.barcode === barcode);
     
     if (item) {
-      setCart([...cart, { ...item, id: Date.now(), barcode, discountPct: 0 }]);
+      const existingItemIndex = cart.findIndex(cartItem => cartItem.barcode === barcode);
+      if (existingItemIndex >= 0) {
+        const updatedCart = [...cart];
+        updatedCart[existingItemIndex].quantity += 1;
+        setCart(updatedCart);
+      } else {
+        setCart([...cart, { ...item, id: Date.now(), barcode, discountPct: 0, quantity: 1 }]);
+      }
     } else {
-      alert(`Item with barcode ${barcode} not found!`);
+      alert(`Item with barcode ${barcode} not found in inventory!`);
     }
     setBarcode(''); 
   };
 
   const updateDiscount = (id, newDiscount) => {
     const validDiscount = Math.min(100, Math.max(0, Number(newDiscount)));
-    setCart(cart.map(item => 
-      item.id === id ? { ...item, discountPct: validDiscount } : item
-    ));
+    setCart(cart.map(item => item.id === id ? { ...item, discountPct: validDiscount } : item));
   };
 
   const calculateTotal = () => {
     return cart.reduce((total, item) => {
-      // reduce (reduce - a JavaScript array method that executes a reducer function on each element of the array, resulting in a single output value)
-      const finalPrice = item.price * (1 - item.discountPct / 100);
-      return total + finalPrice;
+      const finalPricePerItem = item.price * (1 - item.discountPct / 100);
+      return total + (finalPricePerItem * item.quantity);
     }, 0);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8 flex flex-col items-center">
-      <div className="w-full max-w-4xl bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <div className="flex flex-col items-center" onClick={handleBackgroundClick}>
+      <div className="w-full max-w-5xl bg-white border border-gray-400 rounded-none shadow-none">
         
-        <div className="bg-slate-800 p-6 text-white flex justify-between items-center">
+        {/* Windows-style Header Panel */}
+        <div className="bg-[#f3f3f3] p-4 text-black flex justify-between items-center border-b border-gray-400">
           <div>
-            <h1 className="text-2xl font-bold">Store Checkout</h1>
-            <p className="text-slate-300 text-sm mt-1">Ready to scan items...</p>
+            <h1 className="text-xl font-light">Store Checkout</h1>
+            <p className="text-gray-500 text-xs mt-1">Ready to scan items...</p>
           </div>
           <div className="text-right">
-            <p className="text-sm text-slate-300">Total Amount</p>
-            <p className="text-3xl font-bold">₹{calculateTotal().toFixed(2)}</p>
+            <p className="text-xs text-gray-500 uppercase">Total Amount</p>
+            <p className="text-3xl font-light text-[#0078D7]">₹{calculateTotal().toFixed(2)}</p>
           </div>
         </div>
 
-        {/* Hidden Form for Barcode Scanner */}
         <form onSubmit={handleScan} className="opacity-0 h-0 w-0 overflow-hidden">
-          <input
-            ref={scannerInputRef}
-            type="text"
-            value={barcode}
-            onChange={(e) => setBarcode(e.target.value)}
-            onBlur={() => scannerInputRef.current?.focus()} // (onBlur - an event that fires when an element has lost focus)
-            autoFocus
-          />
+          <input ref={scannerInputRef} type="text" value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus />
           <button type="submit">Scan</button>
         </form>
 
-        <div className="p-0 overflow-x-auto">
+        {/* Windows-style Datagrid Table */}
+        <div className="p-0 overflow-x-auto min-h-[400px]">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-gray-100 text-gray-600 text-sm uppercase tracking-wider border-b border-gray-200">
-                <th className="p-4 font-semibold">Item Name</th>
-                <th className="p-4 font-semibold">Rate (₹)</th>
-                <th className="p-4 font-semibold w-32">Discount (%)</th>
-                <th className="p-4 font-semibold text-right">Final Price (₹)</th>
+              <tr className="bg-[#e6e6e6] text-black text-xs uppercase border-b border-gray-400">
+                <th className="p-3 font-medium border-r border-gray-300 w-1/2">Item Name</th>
+                <th className="p-3 font-medium border-r border-gray-300">Rate (₹)</th>
+                <th className="p-3 font-medium border-r border-gray-300">Qty</th>
+                <th className="p-3 font-medium border-r border-gray-300 w-28">Discount (%)</th>
+                <th className="p-3 font-medium text-right">Final Price (₹)</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-200">
               {cart.length === 0 ? (
-                <tr>
-                  <td colSpan="4" className="p-8 text-center text-gray-400">
-                    No items scanned yet. Start scanning to add to the bill.
-                  </td>
-                </tr>
+                <tr><td colSpan="5" className="p-8 text-center text-gray-500 text-sm">No items scanned yet. Start scanning to add to the bill.</td></tr>
               ) : (
                 cart.map((item) => {
-                  const finalPrice = item.price * (1 - item.discountPct / 100);
-                  
+                  const finalPrice = (item.price * (1 - item.discountPct / 100)) * item.quantity;
                   return (
-                    <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="p-4 font-medium text-gray-800">{item.name} <br/><span className="text-xs text-gray-400 font-normal">#{item.barcode}</span></td>
-                      <td className="p-4 text-gray-600">{item.price.toFixed(2)}</td>
-                      <td className="p-4">
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={item.discountPct === 0 ? '' : item.discountPct}
-                          onChange={(e) => updateDiscount(item.id, e.target.value)}
-                          placeholder="0"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                    // Subtle hover effect like file explorer
+                    <tr key={item.id} className="hover:bg-[#f0f0f0]">
+                      <td className="p-3 border-r border-gray-200 text-sm">{item.name} <span className="text-gray-400 text-xs ml-2">#{item.barcode}</span></td>
+                      <td className="p-3 border-r border-gray-200 text-sm">{item.price.toFixed(2)}</td>
+                      <td className="p-3 border-r border-gray-200 text-sm">{item.quantity}</td>
+                      <td className="p-3 border-r border-gray-200">
+                        <input type="number" min="0" max="100" value={item.discountPct === 0 ? '' : item.discountPct} onChange={(e) => updateDiscount(item.id, e.target.value)} placeholder="0" className="w-full px-2 py-1 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-sm rounded-none" />
                       </td>
-                      <td className="p-4 text-right font-semibold text-gray-800">
-                        {finalPrice.toFixed(2)}
-                      </td>
+                      <td className="p-3 text-right text-sm">{finalPrice.toFixed(2)}</td>
                     </tr>
                   );
                 })
@@ -123,19 +104,12 @@ export default function WorkerBilling() {
         </div>
 
         {cart.length > 0 && (
-          <div className="p-6 bg-gray-50 border-t border-gray-200">
-            <button 
-              onClick={() => {
-                alert(`Bill generated successfully for ₹${calculateTotal().toFixed(2)}!`);
-                setCart([]); 
-              }}
-              className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-lg font-bold transition-colors shadow-sm"
-            >
-              Complete Sale & Print Bill
+          <div className="p-4 bg-[#f3f3f3] border-t border-gray-400 flex justify-end">
+            <button onClick={() => { alert(`Bill generated successfully for ₹${calculateTotal().toFixed(2)}!`); setCart([]); }} className="px-8 py-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm transition-colors rounded-none border border-[#005a9e]">
+              Complete Sale
             </button>
           </div>
         )}
-
       </div>
     </div>
   );
