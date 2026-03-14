@@ -12,17 +12,21 @@ function App() {
   
   // Cloud Database States
   const [inventory, setInventory] = useState([]); 
-  const [loading, setLoading] = useState(true);
+  
+  // We renamed this to isInitialLoad so it ONLY triggers when the app first opens
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Fetch the live data from Supabase when the app starts
   useEffect(() => {
-    fetchInventory();
+    // We pass "true" here to tell the function this is the first load
+    fetchInventory(true);
   }, []);
 
-  const fetchInventory = async () => {
+  // Now the function accepts an argument. It defaults to false for background refreshes.
+  const fetchInventory = async (initial = false) => {
     try {
-      setLoading(true);
-      // Query the 'inventory' table from our database
+      if (initial) setIsInitialLoad(true);
+      
       const { data, error } = await supabase
         .from('inventory')
         .select('*')
@@ -37,14 +41,14 @@ function App() {
       console.error('Error fetching inventory:', error.message);
       alert('Failed to connect to the cloud database!');
     } finally {
-      setLoading(false);
+      // Only turn off the loading screen if we were the ones who turned it on
+      if (initial) setIsInitialLoad(false);
     }
   };
 
   const handleLoginSuccess = (role, loc) => {
     setUserRole(role);
     setSessionLocation(loc);
-    // Route them automatically based on their role
     if (role === 'owner') {
       setCurrentScreen('dashboard');
     } else {
@@ -58,13 +62,12 @@ function App() {
     setCurrentScreen('login');
   };
 
-  // GATEKEEPER: If no user role exists, ONLY show the login screen
   if (!userRole) {
     return <EntryFlow onLoginSuccess={handleLoginSuccess} />;
   }
 
-  // Show a Windows-style loading screen while fetching data
-  if (loading) {
+  // This loading screen will now ONLY show up once when the user first logs in
+  if (isInitialLoad) {
     return (
       <div className="w-full min-h-screen bg-[#f3f3f3] flex items-center justify-center text-black">
         <p className="text-xl font-light">Loading Database...</p>
@@ -73,10 +76,8 @@ function App() {
   }
 
   return (
-    // Classic Windows light gray background
     <div className="w-full min-h-screen bg-[#f3f3f3] text-black">
       
-      {/* Windows-style Dark Taskbar */}
       <nav className="bg-[#1e1e1e] text-white p-2 flex justify-between items-center print:hidden border-b-2 border-[#0078D7]">
         <div className="flex gap-1 items-center">
           <span className="bg-transparent px-3 py-1 text-sm font-semibold mr-4">
@@ -99,14 +100,12 @@ function App() {
           )}
         </div>
 
-        {/* The classic red close/logout button hover effect */}
         <button onClick={handleLogout} className="px-4 py-2 bg-transparent hover:bg-[#e81123] text-white text-sm transition-colors rounded-none">
           Logout
         </button>
       </nav>
 
       <main className="p-4">
-        {/* We pass inventory, refreshInventory, and sessionLocation down to the child screens */}
         {currentScreen === 'billing' && <WorkerBilling inventory={inventory} refreshInventory={fetchInventory} sessionLocation={sessionLocation} />}
         {currentScreen === 'dashboard' && userRole === 'owner' && <OwnerDashboard inventory={inventory} refreshInventory={fetchInventory} />}
         {currentScreen === 'printer' && userRole === 'owner' && <BarcodePrinter inventory={inventory} />}
