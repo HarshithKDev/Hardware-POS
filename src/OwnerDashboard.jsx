@@ -5,6 +5,10 @@ import WorkerBilling from './WorkerBilling';
 export default function OwnerDashboard({ inventory, refreshInventory }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   
+  // NEW: Sub-tab states for domain-driven navigation
+  const [warehouseSubTab, setWarehouseSubTab] = useState('inventory'); // 'inventory', 'receive', 'transfer'
+  const [storeSubTab, setStoreSubTab] = useState('inventory'); // 'inventory', 'checkout'
+
   const [newItem, setNewItem] = useState({ barcode: '', name: '', price: '', stock_warehouse: '', unit: 'PCS' });
   const [isSubmitting, setIsSubmitting] = useState(false); 
 
@@ -95,7 +99,7 @@ export default function OwnerDashboard({ inventory, refreshInventory }) {
       if (error) throw error;
       setNewWorker({ name: '', password: '' });
       fetchWorkers();
-      showAlert("Worker added!", "Success");
+      showAlert("Worker added successfully.", "Success");
     } catch (error) { showAlert("Failed to add worker.", "Error"); } finally { setIsAddingWorker(false); }
   };
 
@@ -112,12 +116,13 @@ export default function OwnerDashboard({ inventory, refreshInventory }) {
 
   const handleAddItem = async (e) => {
     e.preventDefault(); 
-    if (!newItem.barcode || !newItem.name || !newItem.price) return showAlert("Fill in barcode, name, and price.", "Validation Error");
-    if (inventory.some(item => item.barcode === newItem.barcode)) return showAlert(`Barcode ${newItem.barcode} in use!`, "Duplicate");
+    const cleanBarcode = newItem.barcode.trim();
+    if (!cleanBarcode || !newItem.name || !newItem.price) return showAlert("Fill in barcode, name, and price.", "Validation Error");
+    if (inventory.some(item => item.barcode === cleanBarcode)) return showAlert(`Barcode ${cleanBarcode} is already in use.`, "Duplicate Barcode");
     try {
       setIsSubmitting(true);
       const { error } = await supabase.from('inventory').insert([{ 
-        barcode: newItem.barcode, 
+        barcode: cleanBarcode, 
         name: newItem.name, 
         price: Number(newItem.price), 
         stock_warehouse: Number(newItem.stock_warehouse || 0), 
@@ -127,7 +132,7 @@ export default function OwnerDashboard({ inventory, refreshInventory }) {
       if (error) throw error;
       setNewItem({ barcode: '', name: '', price: '', stock_warehouse: '', unit: 'PCS' });
       refreshInventory(); 
-      showAlert("Product successfully added to the warehouse!", "Success");
+      showAlert("Product successfully added to the warehouse.", "Success");
     } catch (error) { showAlert("Failed to save.", "Error"); } finally { setIsSubmitting(false); }
   };
 
@@ -148,19 +153,19 @@ export default function OwnerDashboard({ inventory, refreshInventory }) {
       if (error) throw error;
       setEditingBarcode(null);
       refreshInventory(); 
-      showAlert("Item updated successfully!", "Success");
+      showAlert("Item updated successfully.", "Success");
     } catch (error) { showAlert("Failed to update.", "Error"); }
   };
 
   const handleDeleteClick = (barcode) => {
-    showConfirm("Delete this item entirely from the database? Cannot be undone.", async () => {
+    showConfirm("WARNING: Deleting this item will permanently remove it from the system. This may cause past receipts containing this item to display blank spaces. Are you absolutely sure you want to delete this instead of just setting the stock to 0?", async () => {
       try {
         const { error } = await supabase.from('inventory').delete().eq('barcode', barcode);
         if (error) throw error;
         refreshInventory();
-        showAlert("Item deleted!", "Success");
+        showAlert("Item deleted.", "Success");
       } catch (error) { showAlert("Failed to delete.", "Error"); }
-    }, "Delete Product");
+    }, "Critical Warning");
   };
 
   const lowStockCount = inventory.filter(item => item.stock_store < 10).length;
@@ -188,6 +193,7 @@ export default function OwnerDashboard({ inventory, refreshInventory }) {
   return (
     <div className="min-h-screen bg-[#f3f3f3] flex text-black relative">
       
+      {/* CUSTOM MODALS */}
       {alertConfig.isOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in">
           <div className="bg-white border border-gray-400 w-96 shadow-[4px_4px_0px_rgba(0,0,0,0.15)] rounded-none">
@@ -213,16 +219,13 @@ export default function OwnerDashboard({ inventory, refreshInventory }) {
 
       <aside className="w-64 bg-[#e6e6e6] p-6 border-r border-gray-400 flex flex-col h-screen sticky top-0 overflow-y-auto">
         <h2 className="text-2xl font-light mb-8 text-black">Admin Panel</h2>
+        
+        {/* CLEANED UP SIDEBAR */}
         <nav className="space-y-1">
           <button onClick={() => setActiveTab('dashboard')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'dashboard' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Dashboard Overview</button>
           
-          <button onClick={() => setActiveTab('warehouse')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'warehouse' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Warehouse Inventory</button>
-          <button onClick={() => setActiveTab('store')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'store' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Store Inventory</button>
-          
-          {/* THE THREE ACTIONS FOR THE OWNER */}
-          <button onClick={() => setActiveTab('receive')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'receive' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Receive Inbound</button>
-          <button onClick={() => setActiveTab('transfer')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'transfer' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Move to Store</button>
-          <button onClick={() => setActiveTab('checkout')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'checkout' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Customer Checkout</button>
+          <button onClick={() => setActiveTab('warehouse')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'warehouse' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Warehouse Management</button>
+          <button onClick={() => setActiveTab('store')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'store' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Store Management</button>
           
           <button onClick={() => setActiveTab('sales')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'sales' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Recent Activity</button>
           <button onClick={() => setActiveTab('staff')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'staff' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Manage Staff</button>
@@ -258,185 +261,184 @@ export default function OwnerDashboard({ inventory, refreshInventory }) {
            </div>
         )}
 
-        {/* WAREHOUSE TAB */}
+        {/* WAREHOUSE TAB (WITH DOMAIN NAVIGATION) */}
         {activeTab === 'warehouse' && (
-          <div className="animate-fade-in">
-            <h1 className="text-3xl font-light text-black mb-8">Warehouse Management</h1>
-            <div className="bg-white p-6 border border-gray-400 rounded-none mb-8">
-              <h2 className="text-lg font-light text-black mb-4">Register New Product</h2>
-              <form onSubmit={handleAddItem} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
-                <div><label className="block text-sm text-gray-600 mb-1">Barcode</label><input type="text" value={newItem.barcode} onChange={e => setNewItem({...newItem, barcode: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
-                <div className="md:col-span-2"><label className="block text-sm text-gray-600 mb-1">Item Name</label><input type="text" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
-                <div><label className="block text-sm text-gray-600 mb-1">Unit</label><select value={newItem.unit} onChange={e => setNewItem({...newItem, unit: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm bg-white"><option value="PCS">PCS</option><option value="GRAMS">GRAMS</option><option value="SQFT">SQFT</option></select></div>
-                <div><label className="block text-sm text-gray-600 mb-1">Price (₹)</label><input type="number" step="0.01" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
-                <div><label className="block text-sm text-gray-600 mb-1">Whse Qty</label><input type="number" value={newItem.stock_warehouse} onChange={e => setNewItem({...newItem, stock_warehouse: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
-                <button type="submit" disabled={isSubmitting} className="w-full py-1.5 bg-[#0078D7] hover:bg-[#005a9e] transition-colors text-white rounded-none border border-[#005a9e] text-sm h-[34px] md:col-span-6 mt-2">Initialize Product in Database</button>
-              </form>
-            </div>
+          <div className="animate-fade-in flex flex-col h-full">
+            <h1 className="text-3xl font-light text-black mb-6">Warehouse Management</h1>
             
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
-              <input type="text" placeholder="Search by Name or Barcode..." value={inventorySearch} onChange={(e) => setInventorySearch(e.target.value)} className="w-full md:w-1/2 px-3 py-2 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-sm rounded-none" />
-              <select value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="w-full md:w-auto px-3 py-2 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-sm rounded-none bg-white">
-                <option value="barcode-asc">Sort: Barcode (Ascending)</option>
-                <option value="name-asc">Sort: Name (A-Z)</option>
-                <option value="stock-asc">Sort: Whse Stock (Low to High)</option>
-                <option value="stock-desc">Sort: Whse Stock (High to Low)</option>
-              </select>
+            <div className="flex gap-2 mb-6 border-b border-gray-400 pb-4">
+              <button onClick={() => setWarehouseSubTab('inventory')} className={`px-6 py-2 text-sm border border-gray-400 rounded-none transition-colors ${warehouseSubTab === 'inventory' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Inventory List</button>
+              <button onClick={() => setWarehouseSubTab('receive')} className={`px-6 py-2 text-sm border border-gray-400 rounded-none transition-colors ${warehouseSubTab === 'receive' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Receive Inbound</button>
+              <button onClick={() => setWarehouseSubTab('transfer')} className={`px-6 py-2 text-sm border border-gray-400 rounded-none transition-colors ${warehouseSubTab === 'transfer' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Move to Store</button>
             </div>
 
-            <div className="bg-white border border-gray-400 rounded-none overflow-hidden">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-[#e6e6e6] text-black text-xs uppercase border-b border-gray-400">
-                    <th className="p-3 font-medium border-r border-gray-300 w-24">Barcode</th>
-                    <th className="p-3 font-medium border-r border-gray-300">Item Name</th>
-                    <th className="p-3 font-medium border-r border-gray-300 w-24 text-center">Unit</th>
-                    <th className="p-3 font-medium border-r border-gray-300 w-24">Price (₹)</th>
-                    <th className="p-3 font-medium border-r border-gray-300 w-32 text-center bg-[#fff4ce]">Whse Stock</th>
-                    <th className="p-3 font-medium w-32 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {processedInventory.map((item) => (
-                    <tr key={item.id} className="hover:bg-[#f0f0f0]">
-                      <td className="p-3 border-r border-gray-200 text-sm font-medium text-[#0078D7]">{item.barcode}</td>
-                      {editingBarcode === item.barcode ? (
-                        <>
-                          <td className="p-2 border-r border-gray-200"><input type="text" value={editFormData.name} onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm rounded-none" /></td>
-                          <td className="p-2 border-r border-gray-200">
-                            <select value={editFormData.unit} onChange={(e) => setEditFormData({...editFormData, unit: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm rounded-none bg-white">
-                              <option value="PCS">PCS</option><option value="GRAMS">GRAMS</option><option value="SQFT">SQFT</option>
-                            </select>
-                          </td>
-                          <td className="p-2 border-r border-gray-200"><input type="number" step="0.01" value={editFormData.price} onChange={(e) => setEditFormData({...editFormData, price: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm rounded-none" /></td>
-                          <td className="p-2 border-r border-gray-200"><input type="number" value={editFormData.stock_warehouse} onChange={(e) => setEditFormData({...editFormData, stock_warehouse: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm text-center rounded-none" /></td>
-                          <td className="p-2 text-center flex gap-2 justify-center">
-                            <button onClick={handleSaveEdit} className="px-3 py-1 bg-[#107c10] text-white text-xs rounded-none hover:bg-[#0b580b] transition-colors">Save</button>
-                            <button onClick={() => setEditingBarcode(null)} className="px-3 py-1 bg-[#e6e6e6] text-black border border-gray-400 text-xs rounded-none hover:bg-[#cccccc] transition-colors">Cancel</button>
-                          </td>
-                        </>
-                      ) : (
-                        <>
-                          <td className="p-3 border-r border-gray-200 text-sm text-black">{item.name}</td>
-                          <td className="p-3 border-r border-gray-200 text-sm text-gray-600 text-center">{item.unit}</td>
-                          <td className="p-3 border-r border-gray-200 text-sm text-black">{Number(item.price).toFixed(2)}</td>
-                          <td className="p-3 border-r border-gray-200 text-sm text-black font-semibold text-center bg-[#fff4ce]/30">{item.stock_warehouse || '0'}</td>
-                          <td className="p-2 text-center flex gap-2 justify-center">
-                            <button onClick={() => handleEditClick(item)} className="px-3 py-1 bg-[#e6e6e6] text-black border border-gray-400 text-xs rounded-none hover:bg-[#cccccc] transition-colors">Edit</button>
-                            <button onClick={() => handleDeleteClick(item.barcode)} className="px-3 py-1 bg-transparent text-[#e81123] border border-[#e81123] text-xs rounded-none hover:bg-[#e81123] hover:text-white transition-colors">Delete</button>
-                          </td>
-                        </>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {warehouseSubTab === 'inventory' && (
+              <div className="animate-fade-in">
+                <div className="bg-white p-6 border border-gray-400 rounded-none mb-8">
+                  <h2 className="text-lg font-light text-black mb-4">Register New Product</h2>
+                  <form onSubmit={handleAddItem} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+                    <div><label className="block text-sm text-gray-600 mb-1">Barcode</label><input type="text" value={newItem.barcode} onChange={e => setNewItem({...newItem, barcode: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
+                    <div className="md:col-span-2"><label className="block text-sm text-gray-600 mb-1">Item Name</label><input type="text" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
+                    <div><label className="block text-sm text-gray-600 mb-1">Unit</label><select value={newItem.unit} onChange={e => setNewItem({...newItem, unit: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm bg-white"><option value="PCS">PCS</option><option value="GRAMS">GRAMS</option><option value="SQFT">SQFT</option></select></div>
+                    <div><label className="block text-sm text-gray-600 mb-1">Price (₹)</label><input type="number" step="0.01" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
+                    <div><label className="block text-sm text-gray-600 mb-1">Whse Qty</label><input type="number" value={newItem.stock_warehouse} onChange={e => setNewItem({...newItem, stock_warehouse: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
+                    <button type="submit" disabled={isSubmitting} className="w-full py-1.5 bg-[#0078D7] hover:bg-[#005a9e] transition-colors text-white rounded-none border border-[#005a9e] text-sm h-[34px] md:col-span-6 mt-2">Add Product to Warehouse</button>
+                  </form>
+                </div>
+                
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
+                  <input type="text" placeholder="Search by Name or Barcode..." value={inventorySearch} onChange={(e) => setInventorySearch(e.target.value)} className="w-full md:w-1/2 px-3 py-2 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-sm rounded-none" />
+                  <select value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="w-full md:w-auto px-3 py-2 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-sm rounded-none bg-white">
+                    <option value="barcode-asc">Sort: Barcode (Ascending)</option>
+                    <option value="name-asc">Sort: Name (A-Z)</option>
+                    <option value="stock-asc">Sort: Whse Stock (Low to High)</option>
+                    <option value="stock-desc">Sort: Whse Stock (High to Low)</option>
+                  </select>
+                </div>
+
+                <div className="bg-white border border-gray-400 rounded-none overflow-hidden">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-[#e6e6e6] text-black text-xs uppercase border-b border-gray-400">
+                        <th className="p-3 font-medium border-r border-gray-300 w-24">Barcode</th>
+                        <th className="p-3 font-medium border-r border-gray-300">Item Name</th>
+                        <th className="p-3 font-medium border-r border-gray-300 w-24 text-center">Unit</th>
+                        <th className="p-3 font-medium border-r border-gray-300 w-24">Price (₹)</th>
+                        <th className="p-3 font-medium border-r border-gray-300 w-32 text-center bg-[#fff4ce]">Whse Stock</th>
+                        <th className="p-3 font-medium w-32 text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {processedInventory.map((item) => (
+                        <tr key={item.id} className="hover:bg-[#f0f0f0]">
+                          <td className="p-3 border-r border-gray-200 text-sm font-medium text-[#0078D7]">{item.barcode}</td>
+                          {editingBarcode === item.barcode ? (
+                            <>
+                              <td className="p-2 border-r border-gray-200"><input type="text" value={editFormData.name} onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm rounded-none" /></td>
+                              <td className="p-2 border-r border-gray-200">
+                                <select value={editFormData.unit} onChange={(e) => setEditFormData({...editFormData, unit: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm rounded-none bg-white">
+                                  <option value="PCS">PCS</option><option value="GRAMS">GRAMS</option><option value="SQFT">SQFT</option>
+                                </select>
+                              </td>
+                              <td className="p-2 border-r border-gray-200"><input type="number" step="0.01" value={editFormData.price} onChange={(e) => setEditFormData({...editFormData, price: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm rounded-none" /></td>
+                              <td className="p-2 border-r border-gray-200"><input type="number" value={editFormData.stock_warehouse} onChange={(e) => setEditFormData({...editFormData, stock_warehouse: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm text-center rounded-none" /></td>
+                              <td className="p-2 text-center flex gap-2 justify-center">
+                                <button onClick={handleSaveEdit} className="px-3 py-1 bg-[#107c10] text-white text-xs rounded-none hover:bg-[#0b580b] transition-colors">Save</button>
+                                <button onClick={() => setEditingBarcode(null)} className="px-3 py-1 bg-[#e6e6e6] text-black border border-gray-400 text-xs rounded-none hover:bg-[#cccccc] transition-colors">Cancel</button>
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td className="p-3 border-r border-gray-200 text-sm text-black">{item.name}</td>
+                              <td className="p-3 border-r border-gray-200 text-sm text-gray-600 text-center">{item.unit}</td>
+                              <td className="p-3 border-r border-gray-200 text-sm text-black">{Number(item.price).toFixed(2)}</td>
+                              <td className="p-3 border-r border-gray-200 text-sm text-black font-semibold text-center bg-[#fff4ce]/30">{item.stock_warehouse || '0'}</td>
+                              <td className="p-2 text-center flex gap-2 justify-center">
+                                <button onClick={() => handleEditClick(item)} className="px-3 py-1 bg-[#e6e6e6] text-black border border-gray-400 text-xs rounded-none hover:bg-[#cccccc] transition-colors">Edit</button>
+                                <button onClick={() => handleDeleteClick(item.barcode)} className="px-3 py-1 bg-transparent text-[#e81123] border border-[#e81123] text-xs rounded-none hover:bg-[#e81123] hover:text-white transition-colors">Delete</button>
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {warehouseSubTab === 'receive' && (
+              <div className="flex-1 animate-fade-in">
+                <WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Warehouse" defaultTab="receive" hideNav={true} />
+              </div>
+            )}
+
+            {warehouseSubTab === 'transfer' && (
+              <div className="flex-1 animate-fade-in">
+                <WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Warehouse" defaultTab="transfer" hideNav={true} />
+              </div>
+            )}
           </div>
         )}
 
-        {/* STORE TAB */}
+        {/* STORE TAB (WITH DOMAIN NAVIGATION) */}
         {activeTab === 'store' && (
-          <div className="animate-fade-in">
-            <h1 className="text-3xl font-light text-black mb-8">Store Shelf Monitor</h1>
-            <p className="text-sm text-gray-600 mb-8 border-l-4 border-[#0078D7] pl-3">This table monitors the live inventory available on the shop floor for retail sale. You can fully edit product details from here.</p>
+          <div className="animate-fade-in flex flex-col h-full">
+            <h1 className="text-3xl font-light text-black mb-6">Store Management</h1>
             
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
-              <input type="text" placeholder="Search Store Shelves..." value={inventorySearch} onChange={(e) => setInventorySearch(e.target.value)} className="w-full md:w-1/2 px-3 py-2 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-sm rounded-none" />
-              <select value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="w-full md:w-auto px-3 py-2 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-sm rounded-none bg-white">
-                <option value="barcode-asc">Sort: Barcode (Ascending)</option>
-                <option value="name-asc">Sort: Name (A-Z)</option>
-                <option value="stock-asc">Sort: Store Stock (Low to High)</option>
-                <option value="stock-desc">Sort: Store Stock (High to Low)</option>
-              </select>
+            <div className="flex gap-2 mb-6 border-b border-gray-400 pb-4">
+              <button onClick={() => setStoreSubTab('inventory')} className={`px-6 py-2 text-sm border border-gray-400 rounded-none transition-colors ${storeSubTab === 'inventory' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Inventory List</button>
+              <button onClick={() => setStoreSubTab('checkout')} className={`px-6 py-2 text-sm border border-gray-400 rounded-none transition-colors ${storeSubTab === 'checkout' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Customer Checkout</button>
             </div>
 
-            <div className="bg-white border border-gray-400 rounded-none overflow-hidden">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-[#e6e6e6] text-black text-xs uppercase border-b border-gray-400">
-                    <th className="p-3 font-medium border-r border-gray-300 w-24">Barcode</th>
-                    <th className="p-3 font-medium border-r border-gray-300">Item Name</th>
-                    <th className="p-3 font-medium border-r border-gray-300 w-24 text-center">Unit</th>
-                    <th className="p-3 font-medium border-r border-gray-300 w-24">Price (₹)</th>
-                    <th className="p-3 font-medium border-r border-gray-300 w-32 text-center bg-[#e6f4ea]">Store Stock</th>
-                    <th className="p-3 font-medium w-32 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {processedInventory.map((item) => (
-                    <tr key={item.id} className={item.stock_store < 10 && editingBarcode !== item.barcode ? 'bg-[#ffebee]' : 'hover:bg-[#f0f0f0]'}>
-                      <td className="p-3 border-r border-gray-200 text-sm font-medium text-[#0078D7]">{item.barcode}</td>
-                      {editingBarcode === item.barcode ? (
-                        <>
-                          <td className="p-2 border-r border-gray-200"><input type="text" value={editFormData.name} onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm rounded-none" /></td>
-                          <td className="p-2 border-r border-gray-200">
-                            <select value={editFormData.unit} onChange={(e) => setEditFormData({...editFormData, unit: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm rounded-none bg-white">
-                              <option value="PCS">PCS</option><option value="GRAMS">GRAMS</option><option value="SQFT">SQFT</option>
-                            </select>
-                          </td>
-                          <td className="p-2 border-r border-gray-200"><input type="number" step="0.01" value={editFormData.price} onChange={(e) => setEditFormData({...editFormData, price: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm rounded-none" /></td>
-                          <td className="p-2 border-r border-gray-200"><input type="number" value={editFormData.stock_store} onChange={(e) => setEditFormData({...editFormData, stock_store: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm text-center rounded-none" /></td>
-                          <td className="p-2 text-center flex gap-2 justify-center">
-                            <button onClick={handleSaveEdit} className="px-3 py-1 bg-[#107c10] text-white text-xs rounded-none hover:bg-[#0b580b] transition-colors">Save</button>
-                            <button onClick={() => setEditingBarcode(null)} className="px-3 py-1 bg-[#e6e6e6] text-black border border-gray-400 text-xs rounded-none hover:bg-[#cccccc] transition-colors">Cancel</button>
-                          </td>
-                        </>
-                      ) : (
-                        <>
-                          <td className="p-3 border-r border-gray-200 text-sm text-black">{item.name}</td>
-                          <td className="p-3 border-r border-gray-200 text-sm text-gray-600 text-center">{item.unit}</td>
-                          <td className="p-3 border-r border-gray-200 text-sm text-black">{Number(item.price).toFixed(2)}</td>
-                          <td className="p-3 border-r border-gray-200 text-sm text-black font-semibold text-center bg-[#e6f4ea]/50">{item.stock_store || '0'}</td>
-                          <td className="p-2 text-center flex gap-2 justify-center">
-                            <button onClick={() => handleEditClick(item)} className="px-3 py-1 bg-[#e6e6e6] text-black border border-gray-400 text-xs rounded-none hover:bg-[#cccccc] transition-colors">Edit</button>
-                            <button onClick={() => handleDeleteClick(item.barcode)} className="px-3 py-1 bg-transparent text-[#e81123] border border-[#e81123] text-xs rounded-none hover:bg-[#e81123] hover:text-white transition-colors">Delete</button>
-                          </td>
-                        </>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+            {storeSubTab === 'inventory' && (
+              <div className="animate-fade-in">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
+                  <input type="text" placeholder="Search Store Shelves..." value={inventorySearch} onChange={(e) => setInventorySearch(e.target.value)} className="w-full md:w-1/2 px-3 py-2 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-sm rounded-none" />
+                  <select value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="w-full md:w-auto px-3 py-2 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-sm rounded-none bg-white">
+                    <option value="barcode-asc">Sort: Barcode (Ascending)</option>
+                    <option value="name-asc">Sort: Name (A-Z)</option>
+                    <option value="stock-asc">Sort: Store Stock (Low to High)</option>
+                    <option value="stock-desc">Sort: Store Stock (High to Low)</option>
+                  </select>
+                </div>
 
-        {/* --- THE THREE ACTION EMBEDS FOR THE OWNER --- */}
-        
-        {activeTab === 'receive' && (
-          <div className="animate-fade-in h-full">
-            <WorkerBilling 
-              inventory={inventory} 
-              refreshInventory={refreshInventory} 
-              sessionLocation="Warehouse" 
-              defaultTab="receive" 
-              hideNav={true} 
-            />
-          </div>
-        )}
+                <div className="bg-white border border-gray-400 rounded-none overflow-hidden">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-[#e6e6e6] text-black text-xs uppercase border-b border-gray-400">
+                        <th className="p-3 font-medium border-r border-gray-300 w-24">Barcode</th>
+                        <th className="p-3 font-medium border-r border-gray-300">Item Name</th>
+                        <th className="p-3 font-medium border-r border-gray-300 w-24 text-center">Unit</th>
+                        <th className="p-3 font-medium border-r border-gray-300 w-24">Price (₹)</th>
+                        <th className="p-3 font-medium border-r border-gray-300 w-32 text-center bg-[#e6f4ea]">Store Stock</th>
+                        <th className="p-3 font-medium w-32 text-center">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {processedInventory.map((item) => (
+                        <tr key={item.id} className={item.stock_store < 10 && editingBarcode !== item.barcode ? 'bg-[#ffebee]' : 'hover:bg-[#f0f0f0]'}>
+                          <td className="p-3 border-r border-gray-200 text-sm font-medium text-[#0078D7]">{item.barcode}</td>
+                          {editingBarcode === item.barcode ? (
+                            <>
+                              <td className="p-2 border-r border-gray-200"><input type="text" value={editFormData.name} onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm rounded-none" /></td>
+                              <td className="p-2 border-r border-gray-200">
+                                <select value={editFormData.unit} onChange={(e) => setEditFormData({...editFormData, unit: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm rounded-none bg-white">
+                                  <option value="PCS">PCS</option><option value="GRAMS">GRAMS</option><option value="SQFT">SQFT</option>
+                                </select>
+                              </td>
+                              <td className="p-2 border-r border-gray-200"><input type="number" step="0.01" value={editFormData.price} onChange={(e) => setEditFormData({...editFormData, price: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm rounded-none" /></td>
+                              <td className="p-2 border-r border-gray-200"><input type="number" value={editFormData.stock_store} onChange={(e) => setEditFormData({...editFormData, stock_store: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm text-center rounded-none" /></td>
+                              <td className="p-2 text-center flex gap-2 justify-center">
+                                <button onClick={handleSaveEdit} className="px-3 py-1 bg-[#107c10] text-white text-xs rounded-none hover:bg-[#0b580b] transition-colors">Save</button>
+                                <button onClick={() => setEditingBarcode(null)} className="px-3 py-1 bg-[#e6e6e6] text-black border border-gray-400 text-xs rounded-none hover:bg-[#cccccc] transition-colors">Cancel</button>
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td className="p-3 border-r border-gray-200 text-sm text-black">{item.name}</td>
+                              <td className="p-3 border-r border-gray-200 text-sm text-gray-600 text-center">{item.unit}</td>
+                              <td className="p-3 border-r border-gray-200 text-sm text-black">{Number(item.price).toFixed(2)}</td>
+                              <td className="p-3 border-r border-gray-200 text-sm text-black font-semibold text-center bg-[#e6f4ea]/50">{item.stock_store || '0'}</td>
+                              <td className="p-2 text-center flex gap-2 justify-center">
+                                <button onClick={() => handleEditClick(item)} className="px-3 py-1 bg-[#e6e6e6] text-black border border-gray-400 text-xs rounded-none hover:bg-[#cccccc] transition-colors">Edit</button>
+                                <button onClick={() => handleDeleteClick(item.barcode)} className="px-3 py-1 bg-transparent text-[#e81123] border border-[#e81123] text-xs rounded-none hover:bg-[#e81123] hover:text-white transition-colors">Delete</button>
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
-        {activeTab === 'transfer' && (
-          <div className="animate-fade-in h-full">
-            <WorkerBilling 
-              inventory={inventory} 
-              refreshInventory={refreshInventory} 
-              sessionLocation="Warehouse" 
-              defaultTab="transfer" 
-              hideNav={true} 
-            />
-          </div>
-        )}
-
-        {activeTab === 'checkout' && (
-          <div className="animate-fade-in h-full">
-            <WorkerBilling 
-              inventory={inventory} 
-              refreshInventory={refreshInventory} 
-              sessionLocation="Store" 
-              defaultTab="checkout" 
-              hideNav={true} 
-            />
+            {storeSubTab === 'checkout' && (
+              <div className="flex-1 animate-fade-in">
+                <WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Store" defaultTab="checkout" hideNav={true} />
+              </div>
+            )}
           </div>
         )}
 

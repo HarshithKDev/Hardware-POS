@@ -49,7 +49,7 @@ export default function EntryFlow({ onLoginSuccess }) {
           <div>
             <h2 className="text-2xl font-light text-black mb-6">Select User</h2>
             <div className="space-y-3">
-              <button onClick={() => handleRoleSelect('owner')} className="w-full py-3 bg-[#1e1e1e] hover:bg-[#333333] text-white border border-gray-600 text-lg transition-colors rounded-none text-left px-4">Admin (Owner)</button>
+              <button onClick={() => handleRoleSelect('owner')} className="w-full py-3 bg-[#1e1e1e] hover:bg-[#333333] text-white border border-gray-600 text-lg transition-colors rounded-none text-left px-4">Admin</button>
               {workers.map((worker) => (
                 <button key={worker.id} onClick={() => handleRoleSelect(worker.name)} className="w-full py-3 bg-[#cccccc] hover:bg-[#b3b3b3] text-black border border-gray-400 text-lg transition-colors rounded-none text-left px-4 capitalize">{worker.name}</button>
               ))}

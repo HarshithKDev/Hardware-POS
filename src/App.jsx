@@ -44,7 +44,6 @@ function App() {
     <div className="w-full min-h-screen bg-[#f3f3f3] text-black">
       <nav className="bg-[#1e1e1e] text-white p-2 flex justify-between items-center print:hidden border-b-2 border-[#0078D7]">
         <div className="flex gap-1 items-center">
-          <span className="bg-transparent px-3 py-1 text-sm font-semibold mr-4 capitalize">👤 {userRole}</span>
           
           {userRole === 'owner' ? (
             <>

@@ -30,25 +30,34 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
 
   const handleScan = (e) => {
     e.preventDefault(); 
-    const item = inventory.find(i => i.barcode === barcode);
+    const cleanBarcode = barcode.trim();
+    if (!cleanBarcode) return;
+
+    const item = inventory.find(i => i.barcode === cleanBarcode);
     if (item) {
-      const existingItemIndex = cart.findIndex(cartItem => cartItem.barcode === barcode);
+      const existingItemIndex = cart.findIndex(cartItem => cartItem.barcode === cleanBarcode);
       if (existingItemIndex >= 0) {
         const updatedCart = [...cart];
-        updatedCart[existingItemIndex].quantity += 1;
+        const currentQty = Number(updatedCart[existingItemIndex].quantity) || 1;
+        updatedCart[existingItemIndex].quantity = currentQty + 1;
         setCart(updatedCart);
       } else {
-        setCart([...cart, { ...item, id: Date.now(), barcode, discountPct: 0, quantity: 1, unit: item.unit || 'PCS' }]);
+        setCart([...cart, { ...item, id: Date.now(), barcode: cleanBarcode, discountPct: 0, quantity: 1, unit: item.unit || 'PCS' }]);
       }
       setTimeout(() => scannerInputRef.current?.focus(), 10);
     } else {
-      showAlert(`Barcode ${barcode} not recognized!`, "Invalid Scan");
+      showAlert(`Barcode ${cleanBarcode} not recognized.`, "Invalid Scan");
     }
     setBarcode(''); 
   };
 
   const updateQuantity = (id, newQty) => {
-    const validQty = Math.max(1, Number(newQty)); 
+    let validQty;
+    if (newQty === '') {
+      validQty = '';
+    } else {
+      validQty = Math.max(1, Number(newQty)); 
+    }
     setCart(cart.map(item => item.id === id ? { ...item, quantity: validQty } : item));
   };
 
@@ -57,11 +66,33 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
     setCart(cart.map(item => item.id === id ? { ...item, discountPct: validDiscount } : item));
   };
 
-  const calculateTotal = () => cart.reduce((total, item) => total + ((item.price * (1 - item.discountPct / 100)) * item.quantity), 0);
+  const calculateTotal = () => cart.reduce((total, item) => {
+    const qty = item.quantity === '' ? 1 : Number(item.quantity);
+    return total + ((item.price * (1 - item.discountPct / 100)) * qty);
+  }, 0);
 
   const handleCompleteTransaction = async () => {
     if (cart.length === 0) return;
     if (!navigator.onLine) return showAlert("You are offline.", "Network Error");
+
+    try {
+      for (const item of cart) {
+        const safeQty = item.quantity === '' ? 1 : Number(item.quantity);
+        if (safeQty <= 0) throw new Error(`Invalid quantity for ${item.name}`);
+
+        const dbItem = inventory.find(i => i.barcode === item.barcode);
+        if (!dbItem) throw new Error(`Item ${item.name} not found in local database.`);
+
+        if (activeTab === 'transfer' && dbItem.stock_warehouse < safeQty) {
+          throw new Error(`Insufficient warehouse stock for: ${item.name}. Have ${dbItem.stock_warehouse}, need ${safeQty}.`);
+        }
+        if (activeTab === 'checkout' && dbItem.stock_store < safeQty) {
+          throw new Error(`Insufficient store stock for: ${item.name}. Have ${dbItem.stock_store}, need ${safeQty}.`);
+        }
+      }
+    } catch (preFlightError) {
+      return showAlert(preFlightError.message, "Stock Error");
+    }
 
     setIsCheckingOut(true);
     try {
@@ -72,26 +103,27 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
       if (activeTab === 'receive') {
         dbAction = 'RECEIVE';
         logLocation = 'Warehouse-Inbound';
-        successMsg = 'Shipment received into warehouse!';
+        successMsg = 'Shipment received into warehouse.';
       } else if (activeTab === 'transfer') {
         dbAction = 'TRANSFER';
         logLocation = 'Warehouse-Transfer';
-        successMsg = 'Items transferred to store shelves!';
+        successMsg = 'Items transferred to store shelves.';
       } else if (activeTab === 'checkout') {
         dbAction = 'SALE';
         logLocation = 'Store';
-        successMsg = 'Sale complete! Printing receipt...';
+        successMsg = 'Sale complete. Printing receipt...';
       }
 
       for (const item of cart) {
+        const safeQty = item.quantity === '' ? 1 : Number(item.quantity);
         const { data: success, error: rpcError } = await supabase.rpc('handle_inventory_action', { 
           p_action: dbAction,
           p_barcode: item.barcode, 
-          p_quantity: item.quantity
+          p_quantity: safeQty
         });
         
         if (rpcError) throw rpcError;
-        if (!success) throw new Error(`Insufficient stock for: ${item.name}`);
+        if (!success) throw new Error(`Database rejected deduction for: ${item.name}`);
       }
 
       const total = calculateTotal();
@@ -100,14 +132,21 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
       
       const newBill = billData[0];
       const itemsToInsert = cart.map(item => ({
-        bill_id: newBill.id, barcode: item.barcode, name: item.name, quantity: item.quantity,
-        unit: item.unit, price_at_sale: item.price * (1 - item.discountPct / 100), discount_pct: item.discountPct
+        bill_id: newBill.id, 
+        barcode: item.barcode, 
+        name: item.name, 
+        quantity: item.quantity === '' ? 1 : Number(item.quantity),
+        unit: item.unit, 
+        price_at_sale: item.price * (1 - item.discountPct / 100), 
+        discount_pct: item.discountPct
       }));
 
       const { error: itemsError } = await supabase.from('bill_items').insert(itemsToInsert);
       if (itemsError) throw itemsError;
 
-      setLastReceipt({ id: newBill.id.split('-')[0], items: [...cart], total, date: new Date(), type: activeTab });
+      const receiptCart = cart.map(item => ({ ...item, quantity: item.quantity === '' ? 1 : Number(item.quantity) }));
+      setLastReceipt({ id: newBill.id.split('-')[0], items: receiptCart, total, date: new Date(), type: activeTab });
+      
       setCart([]);
       if (refreshInventory) refreshInventory();
 
@@ -216,15 +255,18 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {cart.length === 0 ? (<tr><td colSpan="5" className="p-8 text-center text-gray-500 text-sm">No items scanned.</td></tr>) : (
-                      cart.map((item) => (
-                        <tr key={item.id} className="hover:bg-[#f0f0f0]">
-                          <td className="p-3 border-r border-gray-200 text-sm text-black">{item.name} <span className="text-gray-400 text-xs block">#{item.barcode}</span></td>
-                          <td className="p-3 border-r border-gray-200"><input type="number" min="1" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-full px-2 py-1 border border-gray-400 text-sm text-center rounded-none" /></td>
-                          <td className="p-3 border-r border-gray-200 text-sm text-right text-black">{item.price.toFixed(2)}</td>
-                          <td className="p-3 border-r border-gray-200"><input type="number" min="0" max="100" value={item.discountPct === 0 ? '' : item.discountPct} onChange={(e) => updateDiscount(item.id, e.target.value)} placeholder="0" className="w-full px-2 py-1 border border-gray-400 text-sm text-center rounded-none" disabled={activeTab !== 'checkout'} /></td>
-                          <td className="p-3 text-right text-sm font-semibold text-[#0078D7]">₹{((item.price * (1 - item.discountPct / 100)) * item.quantity).toFixed(2)}</td>
-                        </tr>
-                      ))
+                      cart.map((item) => {
+                        const safeQty = item.quantity === '' ? 1 : Number(item.quantity);
+                        return (
+                          <tr key={item.id} className="hover:bg-[#f0f0f0]">
+                            <td className="p-3 border-r border-gray-200 text-sm text-black">{item.name} <span className="text-gray-400 text-xs block">#{item.barcode}</span></td>
+                            <td className="p-3 border-r border-gray-200"><input type="number" min="1" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-full px-2 py-1 border border-gray-400 text-sm text-center rounded-none" /></td>
+                            <td className="p-3 border-r border-gray-200 text-sm text-right text-black">{item.price.toFixed(2)}</td>
+                            <td className="p-3 border-r border-gray-200"><input type="number" min="0" max="100" value={item.discountPct === 0 ? '' : item.discountPct} onChange={(e) => updateDiscount(item.id, e.target.value)} placeholder="0" className="w-full px-2 py-1 border border-gray-400 text-sm text-center rounded-none" disabled={activeTab !== 'checkout'} /></td>
+                            <td className="p-3 text-right text-sm font-semibold text-[#0078D7]">₹{((item.price * (1 - item.discountPct / 100)) * safeQty).toFixed(2)}</td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
@@ -242,29 +284,66 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
         </div>
       </div>
       
+      {/* --- PROFESSIONAL THERMAL PRINTER RECEIPT --- */}
       {lastReceipt && (lastReceipt.type === 'checkout' || lastReceipt.type === 'transfer') && (
-        <div className="hidden print:block text-black font-mono text-xs w-[80mm] mx-auto bg-white p-2">
-          <div className="text-center mb-4">
-            <h1 className="text-lg font-bold">{lastReceipt.type === 'transfer' ? 'INTERNAL TRANSFER' : 'STORE RECEIPT'}</h1>
-            <p>ID: #{lastReceipt.id}</p>
-            <p>{lastReceipt.date.toLocaleString()}</p>
-            <p className="mt-2 border-b border-black border-dashed"></p>
+        <div className="hidden print:block text-black font-mono text-xs w-[80mm] mx-auto bg-white p-4">
+          
+          <div className="text-center mb-3">
+            <h1 className="text-xl font-bold uppercase">{lastReceipt.type === 'transfer' ? 'INTERNAL TRANSFER' : 'HARDWARE STORE'}</h1>
+            {lastReceipt.type === 'checkout' && <p className="text-[10px]">Your Trusted Hardware Partner</p>}
           </div>
-          <table className="w-full mb-4">
+
+          <div className="mb-3 text-[10px] flex justify-between border-b border-black border-dashed pb-2">
+            <div>
+              <p>Bill No: {lastReceipt.id}</p>
+              <p>Date: {lastReceipt.date.toLocaleDateString()}</p>
+            </div>
+            <div className="text-right">
+              <p>Type: {lastReceipt.type === 'transfer' ? 'TRANSFER' : 'CASH SALE'}</p>
+              <p>Time: {lastReceipt.date.toLocaleTimeString()}</p>
+            </div>
+          </div>
+          
+          <table className="w-full mb-3 text-[10px]">
             <thead>
-              <tr className="border-b border-black border-dashed"><th className="text-left font-normal pb-1">Item</th><th className="text-center font-normal pb-1">Qty</th><th className="text-right font-normal pb-1">Amt</th></tr>
+              <tr className="border-b border-black border-dashed">
+                <th className="text-left font-semibold pb-1 w-1/2">Item</th>
+                <th className="text-center font-semibold pb-1 w-1/6">Qty</th>
+                <th className="text-right font-semibold pb-1 w-1/6">Rate</th>
+                <th className="text-right font-semibold pb-1 w-1/6">Amt</th>
+              </tr>
             </thead>
-            <tbody>
-              {lastReceipt.items.map((item, i) => (
-                <tr key={i}>
-                  <td className="py-1 pr-2 truncate max-w-[40mm]">{item.name}</td>
-                  <td className="py-1 text-center align-top">{item.quantity}</td>
-                  <td className="py-1 text-right align-top">{((item.price * (1 - item.discountPct / 100)) * item.quantity).toFixed(2)}</td>
-                </tr>
-              ))}
+            <tbody className="align-top">
+              {lastReceipt.items.map((item, i) => {
+                const finalRate = item.price * (1 - item.discountPct / 100);
+                const lineTotal = finalRate * item.quantity;
+                return (
+                  <tr key={i}>
+                    <td className="py-1 pr-1 break-words">
+                      {item.name}
+                      {item.discountPct > 0 && <span className="block text-[8px] text-gray-600">(-{item.discountPct}%)</span>}
+                    </td>
+                    <td className="py-1 text-center">{item.quantity} {item.unit}</td>
+                    <td className="py-1 text-right">{finalRate.toFixed(2)}</td>
+                    <td className="py-1 text-right">{lineTotal.toFixed(2)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
-          <div className="border-t border-black border-dashed pt-2 flex justify-between font-bold text-sm"><span>TOTAL:</span><span>₹{lastReceipt.total.toFixed(2)}</span></div>
+          
+          <div className="border-t border-black border-dashed pt-2 flex justify-between items-center mb-4">
+            <span className="font-bold text-sm">TOTAL AMOUNT</span>
+            <span className="font-bold text-lg">₹{lastReceipt.total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+          </div>
+
+          {lastReceipt.type === 'checkout' && (
+            <div className="text-center text-[10px] border-t border-black border-dashed pt-2 mt-2">
+              <p>Thank You For Your Business!</p>
+              <p>Goods once sold will not be taken back.</p>
+            </div>
+          )}
+
         </div>
       )}
     </>
