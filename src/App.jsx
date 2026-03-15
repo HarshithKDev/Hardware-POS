@@ -6,44 +6,99 @@ import OwnerDashboard from './OwnerDashboard';
 import BarcodePrinter from './BarcodePrinter';
 
 function App() {
-  const [userRole, setUserRole] = useState(null); 
-  const [currentScreen, setCurrentScreen] = useState('login');
+  // Grab stored session data if it exists, otherwise default to null/login
+  const [userRole, setUserRole] = useState(() => sessionStorage.getItem('posUserRole') || null); 
+  const [currentScreen, setCurrentScreen] = useState(() => sessionStorage.getItem('posCurrentScreen') || 'login');
   const [inventory, setInventory] = useState([]); 
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  
+  const [shopSettings, setShopSettings] = useState(null);
+  const [isSetupNeeded, setIsSetupNeeded] = useState(false);
 
-  useEffect(() => { fetchInventory(true); }, []);
+  useEffect(() => { 
+    fetchInitialData(); 
+  }, []);
 
-  const fetchInventory = async (initial = false) => {
+  // Whenever userRole changes, save it to the browser's session storage
+  useEffect(() => {
+    if (userRole) sessionStorage.setItem('posUserRole', userRole);
+    else sessionStorage.removeItem('posUserRole');
+  }, [userRole]);
+
+  // Whenever the screen changes, save it to the browser's session storage
+  useEffect(() => {
+    sessionStorage.setItem('posCurrentScreen', currentScreen);
+  }, [currentScreen]);
+
+  const fetchInitialData = async () => {
     try {
-      if (initial) setIsInitialLoad(true);
+      setIsInitialLoad(true);
+      
+      const { data: settingsData, error: settingsError } = await supabase.from('shop_settings').select('*').limit(1);
+      if (settingsError && settingsError.code !== 'PGRST116') throw settingsError;
+      
+      if (!settingsData || settingsData.length === 0) {
+        setIsSetupNeeded(true);
+      } else {
+        setShopSettings(settingsData[0]);
+      }
+
+      const { data: invData, error: invError } = await supabase.from('inventory').select('*').order('name', { ascending: true }); 
+      if (invError) throw invError;
+      if (invData) setInventory(invData);
+      
+    } catch (error) { 
+      console.error('Error fetching data:', error.message); 
+    } finally { 
+      setIsInitialLoad(false); 
+    }
+  };
+
+  const fetchInventory = async () => {
+    try {
       const { data, error } = await supabase.from('inventory').select('*').order('name', { ascending: true }); 
       if (error) throw error;
       if (data) setInventory(data);
     } catch (error) { console.error('Error fetching inventory:', error.message); } 
-    finally { if (initial) setIsInitialLoad(false); }
   };
 
   const handleLoginSuccess = (role) => {
     setUserRole(role);
     if (role === 'owner') setCurrentScreen('dashboard');
-    else setCurrentScreen('billing'); // Workers go straight to POS
+    else setCurrentScreen('billing'); 
+  };
+
+  const handleSetupComplete = (newSettings) => {
+    setShopSettings(newSettings);
+    setIsSetupNeeded(false);
   };
 
   const handleLogout = () => {
     setUserRole(null);
     setCurrentScreen('login');
+    // Clear the memory explicitly on logout
+    sessionStorage.removeItem('posUserRole');
+    sessionStorage.removeItem('posCurrentScreen');
   };
-
-  if (!userRole) return <EntryFlow onLoginSuccess={handleLoginSuccess} />;
 
   if (isInitialLoad) {
     return <div className="w-full min-h-screen bg-[#f3f3f3] flex items-center justify-center text-black"><p className="text-xl font-light">Loading Database...</p></div>;
+  }
+
+  if (isSetupNeeded || !userRole) {
+    return <EntryFlow 
+      onLoginSuccess={handleLoginSuccess} 
+      isSetupNeeded={isSetupNeeded} 
+      onSetupComplete={handleSetupComplete} 
+      shopSettings={shopSettings} 
+    />;
   }
 
   return (
     <div className="w-full min-h-screen bg-[#f3f3f3] text-black">
       <nav className="bg-[#1e1e1e] text-white p-2 flex justify-between items-center print:hidden border-b-2 border-[#0078D7]">
         <div className="flex gap-1 items-center">
+          <span className="bg-transparent px-3 py-1 text-sm font-semibold mr-4 capitalize">User: {userRole}</span>
           
           {userRole === 'owner' ? (
             <>
@@ -58,8 +113,8 @@ function App() {
       </nav>
 
       <main className="p-4">
-        {currentScreen === 'billing' && <WorkerBilling inventory={inventory} refreshInventory={fetchInventory} />}
-        {currentScreen === 'dashboard' && userRole === 'owner' && <OwnerDashboard inventory={inventory} refreshInventory={fetchInventory} />}
+        {currentScreen === 'billing' && <WorkerBilling inventory={inventory} refreshInventory={fetchInventory} shopSettings={shopSettings} />}
+        {currentScreen === 'dashboard' && userRole === 'owner' && <OwnerDashboard inventory={inventory} refreshInventory={fetchInventory} shopSettings={shopSettings} />}
         {currentScreen === 'printer' && userRole === 'owner' && <BarcodePrinter inventory={inventory} />}
       </main>
     </div>

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from './supabaseClient'; 
 
-export default function WorkerBilling({ inventory, refreshInventory, defaultTab = 'checkout', hideNav = false }) {
+export default function WorkerBilling({ inventory, refreshInventory, defaultTab = 'checkout', hideNav = false, shopSettings }) {
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [cart, setCart] = useState([]); 
   const [barcode, setBarcode] = useState('');
@@ -284,13 +284,13 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
         </div>
       </div>
       
-      {/* --- PROFESSIONAL THERMAL PRINTER RECEIPT --- */}
       {lastReceipt && (lastReceipt.type === 'checkout' || lastReceipt.type === 'transfer') && (
         <div className="hidden print:block text-black font-mono text-xs w-[80mm] mx-auto bg-white p-4">
           
           <div className="text-center mb-3">
-            <h1 className="text-xl font-bold uppercase">{lastReceipt.type === 'transfer' ? 'INTERNAL TRANSFER' : 'HARDWARE STORE'}</h1>
-            {lastReceipt.type === 'checkout' && <p className="text-[10px]">Your Trusted Hardware Partner</p>}
+            {/* The receipt now uses the exact shop name from the cloud setup */}
+            <h1 className="text-xl font-bold uppercase">{lastReceipt.type === 'transfer' ? 'INTERNAL TRANSFER' : shopSettings?.shop_name || 'STORE RECEIPT'}</h1>
+            {lastReceipt.type === 'checkout' && <p className="text-[10px]">Owner: {shopSettings?.owner_name}</p>}
           </div>
 
           <div className="mb-3 text-[10px] flex justify-between border-b border-black border-dashed pb-2">

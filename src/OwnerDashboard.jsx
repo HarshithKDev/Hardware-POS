@@ -2,14 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient'; 
 import WorkerBilling from './WorkerBilling'; 
 
-export default function OwnerDashboard({ inventory, refreshInventory }) {
-  const [activeTab, setActiveTab] = useState('dashboard');
+export default function OwnerDashboard({ inventory, refreshInventory, shopSettings }) {
+  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('posOwnerActiveTab') || 'dashboard');
   
-  // NEW: Sub-tab states for domain-driven navigation
-  const [warehouseSubTab, setWarehouseSubTab] = useState('inventory'); // 'inventory', 'receive', 'transfer'
-  const [storeSubTab, setStoreSubTab] = useState('inventory'); // 'inventory', 'checkout'
+  const [warehouseSubTab, setWarehouseSubTab] = useState(() => sessionStorage.getItem('posOwnerWarehouseSubTab') || 'inventory'); 
+  const [storeSubTab, setStoreSubTab] = useState(() => sessionStorage.getItem('posOwnerStoreSubTab') || 'inventory'); 
 
-  const [newItem, setNewItem] = useState({ barcode: '', name: '', price: '', stock_warehouse: '', unit: 'PCS' });
+  useEffect(() => { sessionStorage.setItem('posOwnerActiveTab', activeTab); }, [activeTab]);
+  useEffect(() => { sessionStorage.setItem('posOwnerWarehouseSubTab', warehouseSubTab); }, [warehouseSubTab]);
+  useEffect(() => { sessionStorage.setItem('posOwnerStoreSubTab', storeSubTab); }, [storeSubTab]);
+
+  const [newItem, setNewItem] = useState({ name: '', price: '', stock_warehouse: '', unit: 'PCS' });
   const [isSubmitting, setIsSubmitting] = useState(false); 
 
   const [editingBarcode, setEditingBarcode] = useState(null);
@@ -33,6 +36,7 @@ export default function OwnerDashboard({ inventory, refreshInventory }) {
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, message: '', title: 'Confirm Action', onConfirm: null });
 
   const [todaysTrueRevenue, setTodaysTrueRevenue] = useState(0);
+  const [todaysTransactionCount, setTodaysTransactionCount] = useState(0); 
   const [inventorySearch, setInventorySearch] = useState('');
   const [sortOption, setSortOption] = useState('barcode-asc');
 
@@ -57,6 +61,7 @@ export default function OwnerDashboard({ inventory, refreshInventory }) {
       if (!error && data) {
         const total = data.reduce((sum, bill) => sum + Number(bill.total_amount), 0);
         setTodaysTrueRevenue(total);
+        setTodaysTransactionCount(data.length); 
       }
     } catch (err) { console.error("Error:", err.message); }
   };
@@ -114,15 +119,34 @@ export default function OwnerDashboard({ inventory, refreshInventory }) {
     }, "Remove Staff");
   };
 
+  const getNextBarcode = () => {
+    const codes = inventory
+      .map(item => parseInt(item.barcode, 10))
+      .filter(code => !isNaN(code))
+      .sort((a, b) => a - b);
+    
+    let nextCode = 1001; 
+    for (let i = 0; i < codes.length; i++) {
+      if (codes[i] === nextCode) {
+        nextCode++;
+      } else if (codes[i] > nextCode) {
+        break; 
+      }
+    }
+    return nextCode.toString();
+  };
+
   const handleAddItem = async (e) => {
     e.preventDefault(); 
-    const cleanBarcode = newItem.barcode.trim();
-    if (!cleanBarcode || !newItem.name || !newItem.price) return showAlert("Fill in barcode, name, and price.", "Validation Error");
-    if (inventory.some(item => item.barcode === cleanBarcode)) return showAlert(`Barcode ${cleanBarcode} is already in use.`, "Duplicate Barcode");
+    const autoBarcode = getNextBarcode(); 
+    
+    if (!newItem.name || !newItem.price) return showAlert("Fill in name and price.", "Validation Error");
+    if (inventory.some(item => item.barcode === autoBarcode)) return showAlert(`System Error: Barcode ${autoBarcode} is already in use.`, "Duplicate Barcode");
+    
     try {
       setIsSubmitting(true);
       const { error } = await supabase.from('inventory').insert([{ 
-        barcode: cleanBarcode, 
+        barcode: autoBarcode, 
         name: newItem.name, 
         price: Number(newItem.price), 
         stock_warehouse: Number(newItem.stock_warehouse || 0), 
@@ -130,9 +154,9 @@ export default function OwnerDashboard({ inventory, refreshInventory }) {
         unit: newItem.unit 
       }]);
       if (error) throw error;
-      setNewItem({ barcode: '', name: '', price: '', stock_warehouse: '', unit: 'PCS' });
+      setNewItem({ name: '', price: '', stock_warehouse: '', unit: 'PCS' }); 
       refreshInventory(); 
-      showAlert("Product successfully added to the warehouse.", "Success");
+      showAlert(`Product successfully added to the warehouse. Assigned Barcode: ${autoBarcode}`, "Success");
     } catch (error) { showAlert("Failed to save.", "Error"); } finally { setIsSubmitting(false); }
   };
 
@@ -168,11 +192,15 @@ export default function OwnerDashboard({ inventory, refreshInventory }) {
     }, "Critical Warning");
   };
 
-  const lowStockCount = inventory.filter(item => item.stock_store < 10).length;
+  const lowStoreCount = inventory.filter(item => item.stock_store < 10).length;
+  const lowWarehouseCount = inventory.filter(item => item.stock_warehouse < 20).length;
 
   const totalInventoryValue = inventory.reduce((total, item) => {
     return total + (Number(item.price) * (Number(item.stock_warehouse) + Number(item.stock_store)));
   }, 0);
+
+  const warehouseCapital = inventory.reduce((total, item) => total + (Number(item.price) * Number(item.stock_warehouse)), 0);
+  const storeCapital = inventory.reduce((total, item) => total + (Number(item.price) * Number(item.stock_store)), 0);
 
   const processedInventory = [...inventory]
     .filter(item => item.name.toLowerCase().includes(inventorySearch.toLowerCase()) || item.barcode.toLowerCase().includes(inventorySearch.toLowerCase()))
@@ -219,14 +247,11 @@ export default function OwnerDashboard({ inventory, refreshInventory }) {
 
       <aside className="w-64 bg-[#e6e6e6] p-6 border-r border-gray-400 flex flex-col h-screen sticky top-0 overflow-y-auto">
         <h2 className="text-2xl font-light mb-8 text-black">Admin Panel</h2>
-        
-        {/* CLEANED UP SIDEBAR */}
         <nav className="space-y-1">
           <button onClick={() => setActiveTab('dashboard')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'dashboard' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Dashboard Overview</button>
-          
+          <button onClick={() => setActiveTab('register')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'register' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Register New Product</button>
           <button onClick={() => setActiveTab('warehouse')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'warehouse' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Warehouse Management</button>
           <button onClick={() => setActiveTab('store')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'store' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Store Management</button>
-          
           <button onClick={() => setActiveTab('sales')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'sales' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Recent Activity</button>
           <button onClick={() => setActiveTab('staff')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'staff' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Manage Staff</button>
         </nav>
@@ -238,30 +263,83 @@ export default function OwnerDashboard({ inventory, refreshInventory }) {
         {activeTab === 'dashboard' && (
            <div className="animate-fade-in">
              <h1 className="text-3xl font-light text-black mb-8">Business Overview</h1>
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+             
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                <div className="bg-white p-6 border border-gray-400 border-l-4 border-l-[#107c10] rounded-none shadow-sm flex flex-col justify-between">
                  <p className="text-xs text-gray-500 uppercase font-semibold">Today's Store Revenue</p>
                  <p className="text-3xl font-light text-[#107c10] mt-2">₹{todaysTrueRevenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                </div>
                <div className="bg-white p-6 border border-gray-400 border-l-4 border-l-[#0078D7] rounded-none shadow-sm flex flex-col justify-between">
-                 <p className="text-xs text-gray-500 uppercase font-semibold">Total Unique Items</p>
-                 <p className="text-3xl font-light text-black mt-2">{inventory.length}</p>
+                 <p className="text-xs text-gray-500 uppercase font-semibold">Today's Sales Count</p>
+                 <p className="text-3xl font-light text-[#0078D7] mt-2">{todaysTransactionCount} Bills</p>
                </div>
-               <div className="bg-white p-6 border border-gray-400 border-l-4 border-l-[#605e5c] rounded-none shadow-sm flex flex-col justify-between">
-                 <p className="text-xs text-gray-500 uppercase font-semibold">Total Combined Value</p>
-                 <p className="text-3xl font-light text-black mt-2">₹{totalInventoryValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-               </div>
-               <div className={`bg-white p-6 border border-gray-400 border-l-4 rounded-none shadow-sm flex flex-col justify-between ${lowStockCount > 0 ? 'border-l-[#e81123]' : 'border-l-[#107c10]'}`}>
+               <div className={`bg-white p-6 border border-gray-400 border-l-4 rounded-none shadow-sm flex flex-col justify-between ${lowStoreCount > 0 ? 'border-l-[#e81123]' : 'border-l-[#107c10]'}`}>
                  <p className="text-xs text-gray-500 uppercase font-semibold">Low Store Stock</p>
-                 <p className={`text-3xl font-light mt-2 ${lowStockCount > 0 ? 'text-[#e81123]' : 'text-[#107c10]'}`}>
-                   {lowStockCount > 0 ? `${lowStockCount} Items` : 'Shelves Full'}
+                 <p className={`text-3xl font-light mt-2 ${lowStoreCount > 0 ? 'text-[#e81123]' : 'text-[#107c10]'}`}>
+                   {lowStoreCount > 0 ? `${lowStoreCount} Items` : 'Shelves Full'}
                  </p>
+               </div>
+               <div className={`bg-white p-6 border border-gray-400 border-l-4 rounded-none shadow-sm flex flex-col justify-between ${lowWarehouseCount > 0 ? 'border-l-[#e81123]' : 'border-l-[#107c10]'}`}>
+                 <p className="text-xs text-gray-500 uppercase font-semibold">Wholesaler Reorder Alert</p>
+                 <p className={`text-3xl font-light mt-2 ${lowWarehouseCount > 0 ? 'text-[#e81123]' : 'text-[#107c10]'}`}>
+                   {lowWarehouseCount > 0 ? `${lowWarehouseCount} Items` : 'Stocked Up'}
+                 </p>
+               </div>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+               <div className="bg-white p-6 border border-gray-400 border-l-4 border-l-[#605e5c] rounded-none shadow-sm flex flex-col justify-between">
+                 <p className="text-xs text-gray-500 uppercase font-semibold">Total Assets Value</p>
+                 <p className="text-2xl font-light text-black mt-2">₹{totalInventoryValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                 <p className="text-xs text-gray-500 mt-2">Across {inventory.length} unique products</p>
+               </div>
+               <div className="bg-white p-6 border border-gray-400 border-l-4 border-l-[#0078D7] rounded-none shadow-sm flex flex-col justify-between">
+                 <p className="text-xs text-gray-500 uppercase font-semibold">Capital in Warehouse</p>
+                 <p className="text-2xl font-light text-black mt-2">₹{warehouseCapital.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                 <p className="text-xs text-gray-500 mt-2">Unsold backroom inventory</p>
+               </div>
+               <div className="bg-white p-6 border border-gray-400 border-l-4 border-l-[#107c10] rounded-none shadow-sm flex flex-col justify-between">
+                 <p className="text-xs text-gray-500 uppercase font-semibold">Capital on Store Shelves</p>
+                 <p className="text-2xl font-light text-black mt-2">₹{storeCapital.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                 <p className="text-xs text-gray-500 mt-2">Active retail floor inventory</p>
                </div>
              </div>
            </div>
         )}
 
-        {/* WAREHOUSE TAB (WITH DOMAIN NAVIGATION) */}
+        {/* REGISTER NEW PRODUCT TAB */}
+        {activeTab === 'register' && (
+          <div className="animate-fade-in">
+            <h1 className="text-3xl font-light text-black mb-8">Catalog Registration</h1>
+            <p className="text-sm text-gray-600 mb-8 border-l-4 border-[#0078D7] pl-3">Add completely new items to the master database. The system will automatically assign the next available sequential barcode.</p>
+            
+            <div className="bg-white p-6 border border-gray-400 rounded-none mb-8 max-w-5xl">
+              <h2 className="text-lg font-light text-black mb-4">Product Details</h2>
+              <form onSubmit={handleAddItem} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+                
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Barcode (Auto)</label>
+                  <input 
+                    type="text" 
+                    value={getNextBarcode()} 
+                    disabled 
+                    className="w-full px-3 py-1.5 border border-gray-400 bg-gray-200 text-gray-500 focus:outline-none rounded-none text-sm cursor-not-allowed" 
+                    title="Automatically determined by sequence"
+                  />
+                </div>
+                
+                <div className="md:col-span-2"><label className="block text-sm text-gray-600 mb-1">Item Name</label><input type="text" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
+                <div><label className="block text-sm text-gray-600 mb-1">Unit</label><select value={newItem.unit} onChange={e => setNewItem({...newItem, unit: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm bg-white"><option value="PCS">PCS</option><option value="GRAMS">GRAMS</option><option value="SQFT">SQFT</option></select></div>
+                <div><label className="block text-sm text-gray-600 mb-1">Price (₹)</label><input type="number" step="0.01" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
+                <div><label className="block text-sm text-gray-600 mb-1">Initial Whse Qty</label><input type="number" value={newItem.stock_warehouse} onChange={e => setNewItem({...newItem, stock_warehouse: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
+                
+                <button type="submit" disabled={isSubmitting} className="w-full py-2 bg-[#0078D7] hover:bg-[#005a9e] transition-colors text-white rounded-none border border-[#005a9e] text-sm md:col-span-6 mt-4 font-medium">Add Product to Master Database</button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* WAREHOUSE TAB */}
         {activeTab === 'warehouse' && (
           <div className="animate-fade-in flex flex-col h-full">
             <h1 className="text-3xl font-light text-black mb-6">Warehouse Management</h1>
@@ -274,17 +352,6 @@ export default function OwnerDashboard({ inventory, refreshInventory }) {
 
             {warehouseSubTab === 'inventory' && (
               <div className="animate-fade-in">
-                <div className="bg-white p-6 border border-gray-400 rounded-none mb-8">
-                  <h2 className="text-lg font-light text-black mb-4">Register New Product</h2>
-                  <form onSubmit={handleAddItem} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
-                    <div><label className="block text-sm text-gray-600 mb-1">Barcode</label><input type="text" value={newItem.barcode} onChange={e => setNewItem({...newItem, barcode: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
-                    <div className="md:col-span-2"><label className="block text-sm text-gray-600 mb-1">Item Name</label><input type="text" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
-                    <div><label className="block text-sm text-gray-600 mb-1">Unit</label><select value={newItem.unit} onChange={e => setNewItem({...newItem, unit: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm bg-white"><option value="PCS">PCS</option><option value="GRAMS">GRAMS</option><option value="SQFT">SQFT</option></select></div>
-                    <div><label className="block text-sm text-gray-600 mb-1">Price (₹)</label><input type="number" step="0.01" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
-                    <div><label className="block text-sm text-gray-600 mb-1">Whse Qty</label><input type="number" value={newItem.stock_warehouse} onChange={e => setNewItem({...newItem, stock_warehouse: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
-                    <button type="submit" disabled={isSubmitting} className="w-full py-1.5 bg-[#0078D7] hover:bg-[#005a9e] transition-colors text-white rounded-none border border-[#005a9e] text-sm h-[34px] md:col-span-6 mt-2">Add Product to Warehouse</button>
-                  </form>
-                </div>
                 
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
                   <input type="text" placeholder="Search by Name or Barcode..." value={inventorySearch} onChange={(e) => setInventorySearch(e.target.value)} className="w-full md:w-1/2 px-3 py-2 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-sm rounded-none" />
@@ -304,7 +371,7 @@ export default function OwnerDashboard({ inventory, refreshInventory }) {
                         <th className="p-3 font-medium border-r border-gray-300">Item Name</th>
                         <th className="p-3 font-medium border-r border-gray-300 w-24 text-center">Unit</th>
                         <th className="p-3 font-medium border-r border-gray-300 w-24">Price (₹)</th>
-                        <th className="p-3 font-medium border-r border-gray-300 w-32 text-center bg-[#fff4ce]">Whse Stock</th>
+                        <th className="p-3 font-medium border-r border-gray-300 w-32 text-center">Whse Stock</th>
                         <th className="p-3 font-medium w-32 text-center">Actions</th>
                       </tr>
                     </thead>
@@ -332,7 +399,7 @@ export default function OwnerDashboard({ inventory, refreshInventory }) {
                               <td className="p-3 border-r border-gray-200 text-sm text-black">{item.name}</td>
                               <td className="p-3 border-r border-gray-200 text-sm text-gray-600 text-center">{item.unit}</td>
                               <td className="p-3 border-r border-gray-200 text-sm text-black">{Number(item.price).toFixed(2)}</td>
-                              <td className="p-3 border-r border-gray-200 text-sm text-black font-semibold text-center bg-[#fff4ce]/30">{item.stock_warehouse || '0'}</td>
+                              <td className="p-3 border-r border-gray-200 text-sm text-black font-semibold text-center">{item.stock_warehouse || '0'}</td>
                               <td className="p-2 text-center flex gap-2 justify-center">
                                 <button onClick={() => handleEditClick(item)} className="px-3 py-1 bg-[#e6e6e6] text-black border border-gray-400 text-xs rounded-none hover:bg-[#cccccc] transition-colors">Edit</button>
                                 <button onClick={() => handleDeleteClick(item.barcode)} className="px-3 py-1 bg-transparent text-[#e81123] border border-[#e81123] text-xs rounded-none hover:bg-[#e81123] hover:text-white transition-colors">Delete</button>
@@ -349,19 +416,19 @@ export default function OwnerDashboard({ inventory, refreshInventory }) {
 
             {warehouseSubTab === 'receive' && (
               <div className="flex-1 animate-fade-in">
-                <WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Warehouse" defaultTab="receive" hideNav={true} />
+                <WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Warehouse" defaultTab="receive" hideNav={true} shopSettings={shopSettings} />
               </div>
             )}
 
             {warehouseSubTab === 'transfer' && (
               <div className="flex-1 animate-fade-in">
-                <WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Warehouse" defaultTab="transfer" hideNav={true} />
+                <WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Warehouse" defaultTab="transfer" hideNav={true} shopSettings={shopSettings} />
               </div>
             )}
           </div>
         )}
 
-        {/* STORE TAB (WITH DOMAIN NAVIGATION) */}
+        {/* STORE TAB */}
         {activeTab === 'store' && (
           <div className="animate-fade-in flex flex-col h-full">
             <h1 className="text-3xl font-light text-black mb-6">Store Management</h1>
@@ -391,7 +458,7 @@ export default function OwnerDashboard({ inventory, refreshInventory }) {
                         <th className="p-3 font-medium border-r border-gray-300">Item Name</th>
                         <th className="p-3 font-medium border-r border-gray-300 w-24 text-center">Unit</th>
                         <th className="p-3 font-medium border-r border-gray-300 w-24">Price (₹)</th>
-                        <th className="p-3 font-medium border-r border-gray-300 w-32 text-center bg-[#e6f4ea]">Store Stock</th>
+                        <th className="p-3 font-medium border-r border-gray-300 w-32 text-center">Store Stock</th>
                         <th className="p-3 font-medium w-32 text-center">Actions</th>
                       </tr>
                     </thead>
@@ -419,7 +486,7 @@ export default function OwnerDashboard({ inventory, refreshInventory }) {
                               <td className="p-3 border-r border-gray-200 text-sm text-black">{item.name}</td>
                               <td className="p-3 border-r border-gray-200 text-sm text-gray-600 text-center">{item.unit}</td>
                               <td className="p-3 border-r border-gray-200 text-sm text-black">{Number(item.price).toFixed(2)}</td>
-                              <td className="p-3 border-r border-gray-200 text-sm text-black font-semibold text-center bg-[#e6f4ea]/50">{item.stock_store || '0'}</td>
+                              <td className="p-3 border-r border-gray-200 text-sm text-black font-semibold text-center">{item.stock_store || '0'}</td>
                               <td className="p-2 text-center flex gap-2 justify-center">
                                 <button onClick={() => handleEditClick(item)} className="px-3 py-1 bg-[#e6e6e6] text-black border border-gray-400 text-xs rounded-none hover:bg-[#cccccc] transition-colors">Edit</button>
                                 <button onClick={() => handleDeleteClick(item.barcode)} className="px-3 py-1 bg-transparent text-[#e81123] border border-[#e81123] text-xs rounded-none hover:bg-[#e81123] hover:text-white transition-colors">Delete</button>
@@ -436,7 +503,7 @@ export default function OwnerDashboard({ inventory, refreshInventory }) {
 
             {storeSubTab === 'checkout' && (
               <div className="flex-1 animate-fade-in">
-                <WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Store" defaultTab="checkout" hideNav={true} />
+                <WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Store" defaultTab="checkout" hideNav={true} shopSettings={shopSettings} />
               </div>
             )}
           </div>
@@ -447,7 +514,7 @@ export default function OwnerDashboard({ inventory, refreshInventory }) {
           <div className="animate-fade-in">
              {selectedBill ? (
               <div>
-                <button onClick={() => setSelectedBill(null)} className="text-sm text-[#0078D7] hover:underline mb-4 flex items-center">← Back to Ledger</button>
+                <button onClick={() => setSelectedBill(null)} className="text-sm text-[#0078D7] hover:underline mb-4 flex items-center">Back to Ledger</button>
                 <div className="flex justify-between items-end mb-6">
                   <div>
                     <h2 className="text-2xl font-light text-black">Action ID #{selectedBill.id.split('-')[0]}</h2>
