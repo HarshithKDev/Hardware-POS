@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from './supabaseClient'; 
 
-export default function WorkerBilling({ inventory, refreshInventory, defaultTab = 'checkout', hideNav = false, shopSettings }) {
+export default function WorkerBilling({ inventory, refreshInventory, defaultTab = 'checkout', hideNav = false, shopSettings, cashierName }) {
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [cart, setCart] = useState([]); 
   const [barcode, setBarcode] = useState('');
@@ -51,14 +51,18 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
     setBarcode(''); 
   };
 
+  // Upgraded: If Qty drops to 0, item is instantly removed from cart
   const updateQuantity = (id, newQty) => {
-    let validQty;
     if (newQty === '') {
-      validQty = '';
-    } else {
-      validQty = Math.max(1, Number(newQty)); 
+      setCart(cart.map(item => item.id === id ? { ...item, quantity: '' } : item));
+      return;
     }
-    setCart(cart.map(item => item.id === id ? { ...item, quantity: validQty } : item));
+    const validQty = Number(newQty);
+    if (validQty <= 0) {
+       setCart(cart.filter(item => item.id !== id));
+    } else {
+       setCart(cart.map(item => item.id === id ? { ...item, quantity: validQty } : item));
+    }
   };
 
   const updateDiscount = (id, newDiscount) => {
@@ -127,7 +131,12 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
       }
 
       const total = calculateTotal();
-      const { data: billData, error: billError } = await supabase.from('bills').insert([{ total_amount: total, location: logLocation }]).select(); 
+      // Upgraded: Inserts cashier name into the bill for tracking
+      const { data: billData, error: billError } = await supabase.from('bills').insert([{ 
+        total_amount: total, 
+        location: logLocation,
+        cashier_name: cashierName || 'Unknown' 
+      }]).select(); 
       if (billError) throw billError;
       
       const newBill = billData[0];
@@ -145,7 +154,14 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
       if (itemsError) throw itemsError;
 
       const receiptCart = cart.map(item => ({ ...item, quantity: item.quantity === '' ? 1 : Number(item.quantity) }));
-      setLastReceipt({ id: newBill.id.split('-')[0], items: receiptCart, total, date: new Date(), type: activeTab });
+      setLastReceipt({ 
+        id: newBill.id.split('-')[0], 
+        items: receiptCart, 
+        total, 
+        date: new Date(), 
+        type: activeTab,
+        cashierName: cashierName || 'Unknown'
+      });
       
       setCart([]);
       if (refreshInventory) refreshInventory();
@@ -171,8 +187,8 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
   return (
     <>
       {alertConfig.isOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in print:hidden">
-          <div className="bg-white border border-gray-400 w-96 rounded-none shadow-[4px_4px_0px_rgba(0,0,0,0.15)]">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in print:hidden px-4">
+          <div className="bg-white border border-gray-400 w-full max-w-sm rounded-none shadow-[4px_4px_0px_rgba(0,0,0,0.15)]">
             <div className="bg-[#f3f3f3] p-2 border-b border-gray-400 flex justify-between"><span className="text-sm font-semibold">{alertConfig.title}</span><button onClick={closeAlert} className="text-gray-500 hover:text-red-600">×</button></div>
             <div className="p-6"><p className="text-sm">{alertConfig.message}</p></div>
             <div className="p-4 bg-[#f3f3f3] border-t border-gray-400 flex justify-end"><button onClick={closeAlert} className="px-6 py-1.5 bg-[#0078D7] text-white text-sm rounded-none">OK</button></div>
@@ -183,7 +199,7 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
       <div className="flex flex-col items-center print:hidden h-full" onClick={handleBackgroundClick}>
         
         {!hideNav && (
-          <div className="w-full max-w-6xl mb-4 flex flex-wrap gap-2">
+          <div className="w-full max-w-6xl mb-4 flex flex-wrap gap-2 overflow-x-auto whitespace-nowrap">
             <button onClick={() => { setActiveTab('receive'); setCart([]); }} className={`px-4 py-2 text-sm border border-gray-400 rounded-none ${activeTab === 'receive' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Receive Inbound</button>
             <button onClick={() => { setActiveTab('transfer'); setCart([]); }} className={`px-4 py-2 text-sm border border-gray-400 rounded-none ${activeTab === 'transfer' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Move to Store</button>
             <button onClick={() => { setActiveTab('checkout'); setCart([]); }} className={`px-4 py-2 text-sm border border-gray-400 rounded-none ${activeTab === 'checkout' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Customer Checkout</button>
@@ -193,13 +209,13 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
 
         <div className="w-full max-w-6xl bg-white border border-gray-400 rounded-none shadow-none h-full min-h-125">
           {activeTab === 'inventory' ? (
-            <div className="p-6 animate-fade-in">
-              <div className="flex justify-between items-center mb-6">
+            <div className="p-4 md:p-6 animate-fade-in">
+              <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
                 <h1 className="text-2xl font-light text-black">Master Inventory View</h1>
-                <input type="text" placeholder="Search item..." value={inventorySearch} onChange={(e) => setInventorySearch(e.target.value)} className="px-3 py-1.5 border border-gray-400 text-sm focus:outline-none focus:border-[#0078D7] rounded-none" />
+                <input type="text" placeholder="Search item..." value={inventorySearch} onChange={(e) => setInventorySearch(e.target.value)} className="w-full md:w-auto px-3 py-1.5 border border-gray-400 text-sm focus:outline-none focus:border-[#0078D7] rounded-none" />
               </div>
-              <div className="border border-gray-400 overflow-y-auto max-h-150">
-                <table className="w-full text-left border-collapse">
+              <div className="border border-gray-400 overflow-x-auto max-h-150">
+                <table className="w-full text-left border-collapse min-w-[500px]">
                   <thead className="sticky top-0 bg-[#e6e6e6]">
                     <tr className="text-black text-xs uppercase border-b border-gray-400">
                       <th className="p-3">Barcode</th>
@@ -227,27 +243,27 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
             <div className="animate-fade-in flex flex-col h-full">
               <div className={`p-4 flex justify-between items-center border-b border-gray-400 ${activeTab === 'receive' ? 'bg-[#e6f4ea]' : activeTab === 'transfer' ? 'bg-[#fff4ce]' : 'bg-[#f3f3f3]'}`}>
                 <div>
-                  <h1 className="text-xl font-light text-black">
+                  <h1 className="text-lg md:text-xl font-light text-black">
                     {activeTab === 'receive' && 'Receive Wholesaler Shipment'}
                     {activeTab === 'transfer' && 'Transfer Items to Store'}
                     {activeTab === 'checkout' && 'Customer Checkout'}
                   </h1>
-                  <p className="text-gray-500 text-xs mt-1">Ready to scan barcodes...</p>
+                  <p className="text-gray-500 text-xs mt-1 hidden md:block">Ready to scan barcodes...</p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-gray-500 uppercase">Total Value</p>
-                  <p className="text-3xl font-light text-[#0078D7]">₹{calculateTotal().toFixed(2)}</p>
+                  <p className="text-2xl md:text-3xl font-light text-[#0078D7]">₹{calculateTotal().toFixed(2)}</p>
                 </div>
               </div>
 
               <form onSubmit={handleScan} className="opacity-0 h-0 w-0 overflow-hidden"><input ref={scannerInputRef} type="text" value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus /><button type="submit">Scan</button></form>
 
               <div className="flex-1 overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full text-left border-collapse min-w-[600px]">
                   <thead>
                     <tr className="bg-[#e6e6e6] text-black text-xs uppercase border-b border-gray-400">
                       <th className="p-3 border-r border-gray-300 w-1/3">Item Name</th>
-                      <th className="p-3 border-r border-gray-300 w-24 text-center">Qty</th>
+                      <th className="p-3 border-r border-gray-300 w-32 text-center">Qty</th>
                       <th className="p-3 border-r border-gray-300 text-right">Unit Price</th>
                       <th className="p-3 border-r border-gray-300 w-28 text-center">Discount (%)</th>
                       <th className="p-3 text-right bg-[#e6e6e6]">Line Total</th>
@@ -260,7 +276,14 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
                         return (
                           <tr key={item.id} className="hover:bg-[#f0f0f0]">
                             <td className="p-3 border-r border-gray-200 text-sm text-black">{item.name} <span className="text-gray-400 text-xs block">#{item.barcode}</span></td>
-                            <td className="p-3 border-r border-gray-200"><input type="number" min="1" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-full px-2 py-1 border border-gray-400 text-sm text-center rounded-none" /></td>
+                            <td className="p-3 border-r border-gray-200">
+                              {/* --- UPGRADED QTY BUTTONS --- */}
+                              <div className="flex items-center justify-center">
+                                <button type="button" onClick={() => updateQuantity(item.id, (Number(item.quantity) || 1) - 1)} className="px-2 py-1 bg-[#e6e6e6] hover:bg-[#cccccc] border border-gray-400 border-r-0 text-black font-bold focus:outline-none">-</button>
+                                <input type="number" min="1" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-12 px-1 py-1 border border-gray-400 text-sm text-center focus:outline-none rounded-none" />
+                                <button type="button" onClick={() => updateQuantity(item.id, (Number(item.quantity) || 1) + 1)} className="px-2 py-1 bg-[#e6e6e6] hover:bg-[#cccccc] border border-gray-400 border-l-0 text-black font-bold focus:outline-none">+</button>
+                              </div>
+                            </td>
                             <td className="p-3 border-r border-gray-200 text-sm text-right text-black">{item.price.toFixed(2)}</td>
                             <td className="p-3 border-r border-gray-200"><input type="number" min="0" max="100" value={item.discountPct === 0 ? '' : item.discountPct} onChange={(e) => updateDiscount(item.id, e.target.value)} placeholder="0" className="w-full px-2 py-1 border border-gray-400 text-sm text-center rounded-none" disabled={activeTab !== 'checkout'} /></td>
                             <td className="p-3 text-right text-sm font-semibold text-[#0078D7]">₹{((item.price * (1 - item.discountPct / 100)) * safeQty).toFixed(2)}</td>
@@ -274,7 +297,7 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
 
               {cart.length > 0 && (
                 <div className="p-4 bg-[#f3f3f3] border-t border-gray-400 flex justify-end">
-                  <button onClick={handleCompleteTransaction} disabled={isCheckingOut} className="px-8 py-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm disabled:opacity-50 rounded-none transition-colors">
+                  <button onClick={handleCompleteTransaction} disabled={isCheckingOut} className="px-8 py-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm disabled:opacity-50 rounded-none transition-colors w-full md:w-auto">
                     {isCheckingOut ? 'Processing...' : 'Confirm & Complete'}
                   </button>
                 </div>
@@ -284,6 +307,7 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
         </div>
       </div>
       
+      {/* UPGRADED THERMAL RECEIPT WITH CASHIER TRACKING */}
       {lastReceipt && (lastReceipt.type === 'checkout' || lastReceipt.type === 'transfer') && (
         <div className="hidden print:block text-black font-mono text-xs w-[80mm] mx-auto bg-white p-4">
           
@@ -296,6 +320,7 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
             <div>
               <p>Bill No: {lastReceipt.id}</p>
               <p>Date: {lastReceipt.date.toLocaleDateString()}</p>
+              <p className="capitalize">Cashier: {lastReceipt.cashierName}</p>
             </div>
             <div className="text-right">
               <p>Type: {lastReceipt.type === 'transfer' ? 'TRANSFER' : 'CASH SALE'}</p>

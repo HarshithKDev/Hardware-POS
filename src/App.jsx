@@ -6,7 +6,6 @@ import OwnerDashboard from './OwnerDashboard';
 import BarcodePrinter from './BarcodePrinter';
 
 function App() {
-  // Grab stored session data if it exists, otherwise default to null/login
   const [userRole, setUserRole] = useState(() => sessionStorage.getItem('posUserRole') || null); 
   const [currentScreen, setCurrentScreen] = useState(() => sessionStorage.getItem('posCurrentScreen') || 'login');
   const [inventory, setInventory] = useState([]); 
@@ -19,13 +18,11 @@ function App() {
     fetchInitialData(); 
   }, []);
 
-  // Whenever userRole changes, save it to the browser's session storage
   useEffect(() => {
     if (userRole) sessionStorage.setItem('posUserRole', userRole);
     else sessionStorage.removeItem('posUserRole');
   }, [userRole]);
 
-  // Whenever the screen changes, save it to the browser's session storage
   useEffect(() => {
     sessionStorage.setItem('posCurrentScreen', currentScreen);
   }, [currentScreen]);
@@ -45,7 +42,8 @@ function App() {
 
       const { data: invData, error: invError } = await supabase.from('inventory').select('*').order('name', { ascending: true }); 
       if (invError) throw invError;
-      if (invData) setInventory(invData);
+      // Soft Delete Fix: We filter out is_active = false, but keep older items that might be null
+      if (invData) setInventory(invData.filter(item => item.is_active !== false));
       
     } catch (error) { 
       console.error('Error fetching data:', error.message); 
@@ -58,7 +56,7 @@ function App() {
     try {
       const { data, error } = await supabase.from('inventory').select('*').order('name', { ascending: true }); 
       if (error) throw error;
-      if (data) setInventory(data);
+      if (data) setInventory(data.filter(item => item.is_active !== false));
     } catch (error) { console.error('Error fetching inventory:', error.message); } 
   };
 
@@ -76,7 +74,6 @@ function App() {
   const handleLogout = () => {
     setUserRole(null);
     setCurrentScreen('login');
-    // Clear the memory explicitly on logout
     sessionStorage.removeItem('posUserRole');
     sessionStorage.removeItem('posCurrentScreen');
   };
@@ -112,9 +109,9 @@ function App() {
         <button onClick={handleLogout} className="px-4 py-2 bg-transparent hover:bg-[#e81123] text-white text-sm transition-colors rounded-none">Logout</button>
       </nav>
 
-      <main className="p-4">
-        {currentScreen === 'billing' && <WorkerBilling inventory={inventory} refreshInventory={fetchInventory} shopSettings={shopSettings} />}
-        {currentScreen === 'dashboard' && userRole === 'owner' && <OwnerDashboard inventory={inventory} refreshInventory={fetchInventory} shopSettings={shopSettings} />}
+      <main className="p-0 md:p-4">
+        {currentScreen === 'billing' && <WorkerBilling inventory={inventory} refreshInventory={fetchInventory} shopSettings={shopSettings} cashierName={userRole} />}
+        {currentScreen === 'dashboard' && userRole === 'owner' && <OwnerDashboard inventory={inventory} refreshInventory={fetchInventory} shopSettings={shopSettings} cashierName={userRole} />}
         {currentScreen === 'printer' && userRole === 'owner' && <BarcodePrinter inventory={inventory} />}
       </main>
     </div>

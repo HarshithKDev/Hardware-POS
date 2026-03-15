@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient'; 
 import WorkerBilling from './WorkerBilling'; 
 
-export default function OwnerDashboard({ inventory, refreshInventory, shopSettings }) {
+export default function OwnerDashboard({ inventory, refreshInventory, shopSettings, cashierName }) {
   const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('posOwnerActiveTab') || 'dashboard');
   
   const [warehouseSubTab, setWarehouseSubTab] = useState(() => sessionStorage.getItem('posOwnerWarehouseSubTab') || 'inventory'); 
   const [storeSubTab, setStoreSubTab] = useState(() => sessionStorage.getItem('posOwnerStoreSubTab') || 'inventory'); 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile sidebar toggle
 
   useEffect(() => { sessionStorage.setItem('posOwnerActiveTab', activeTab); }, [activeTab]);
   useEffect(() => { sessionStorage.setItem('posOwnerWarehouseSubTab', warehouseSubTab); }, [warehouseSubTab]);
@@ -119,21 +120,14 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
     }, "Remove Staff");
   };
 
+  // Safe Algorithm: STRICTLY MAX + 1. Never fill gaps.
   const getNextBarcode = () => {
+    if (inventory.length === 0) return '1001';
     const codes = inventory
       .map(item => parseInt(item.barcode, 10))
-      .filter(code => !isNaN(code))
-      .sort((a, b) => a - b);
-    
-    let nextCode = 1001; 
-    for (let i = 0; i < codes.length; i++) {
-      if (codes[i] === nextCode) {
-        nextCode++;
-      } else if (codes[i] > nextCode) {
-        break; 
-      }
-    }
-    return nextCode.toString();
+      .filter(code => !isNaN(code));
+    const maxCode = Math.max(...codes);
+    return (maxCode + 1).toString();
   };
 
   const handleAddItem = async (e) => {
@@ -151,7 +145,8 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
         price: Number(newItem.price), 
         stock_warehouse: Number(newItem.stock_warehouse || 0), 
         stock_store: 0, 
-        unit: newItem.unit 
+        unit: newItem.unit,
+        is_active: true
       }]);
       if (error) throw error;
       setNewItem({ name: '', price: '', stock_warehouse: '', unit: 'PCS' }); 
@@ -181,15 +176,16 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
     } catch (error) { showAlert("Failed to update.", "Error"); }
   };
 
+  // Safe Algorithm: SOFT DELETE. Hides it but doesn't break accounting.
   const handleDeleteClick = (barcode) => {
-    showConfirm("WARNING: Deleting this item will permanently remove it from the system. This may cause past receipts containing this item to display blank spaces. Are you absolutely sure you want to delete this instead of just setting the stock to 0?", async () => {
+    showConfirm("WARNING: This will safely archive the item. It will disappear from active lists, but past receipts will not break. Proceed?", async () => {
       try {
-        const { error } = await supabase.from('inventory').delete().eq('barcode', barcode);
+        const { error } = await supabase.from('inventory').update({ is_active: false }).eq('barcode', barcode);
         if (error) throw error;
         refreshInventory();
-        showAlert("Item deleted.", "Success");
-      } catch (error) { showAlert("Failed to delete.", "Error"); }
-    }, "Critical Warning");
+        showAlert("Item safely archived.", "Success");
+      } catch (error) { showAlert("Failed to archive.", "Error"); }
+    }, "Archive Item");
   };
 
   const lowStoreCount = inventory.filter(item => item.stock_store < 10).length;
@@ -218,13 +214,18 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
       }
     });
 
+  const handleNavClick = (tab) => {
+    setActiveTab(tab);
+    setIsSidebarOpen(false); // Auto close on mobile selection
+  }
+
   return (
-    <div className="min-h-screen bg-[#f3f3f3] flex text-black relative">
+    <div className="min-h-screen bg-[#f3f3f3] flex flex-col md:flex-row text-black relative">
       
       {/* CUSTOM MODALS */}
       {alertConfig.isOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in">
-          <div className="bg-white border border-gray-400 w-96 shadow-[4px_4px_0px_rgba(0,0,0,0.15)] rounded-none">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in px-4">
+          <div className="bg-white border border-gray-400 w-full max-w-sm shadow-[4px_4px_0px_rgba(0,0,0,0.15)] rounded-none">
             <div className="bg-[#f3f3f3] p-2 border-b border-gray-400 flex justify-between items-center"><span className="text-sm font-semibold text-black px-1">{alertConfig.title}</span><button onClick={() => setAlertConfig({ ...alertConfig, isOpen: false })} className="text-gray-500 hover:text-[#e81123] text-lg leading-none px-2 transition-colors">×</button></div>
             <div className="p-6"><p className="text-sm text-black">{alertConfig.message}</p></div>
             <div className="p-4 bg-[#f3f3f3] border-t border-gray-400 flex justify-end"><button onClick={() => setAlertConfig({ ...alertConfig, isOpen: false })} className="px-6 py-1.5 bg-[#0078D7] hover:bg-[#005a9e] transition-colors text-white text-sm rounded-none">OK</button></div>
@@ -233,8 +234,8 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
       )}
 
       {confirmConfig.isOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in">
-          <div className="bg-white border border-gray-400 w-96 shadow-[4px_4px_0px_rgba(0,0,0,0.15)] rounded-none">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in px-4">
+          <div className="bg-white border border-gray-400 w-full max-w-sm shadow-[4px_4px_0px_rgba(0,0,0,0.15)] rounded-none">
             <div className="bg-[#f3f3f3] p-2 border-b border-gray-400 flex justify-between items-center"><span className="text-sm font-semibold text-black px-1">{confirmConfig.title}</span><button onClick={() => setConfirmConfig({ ...confirmConfig, isOpen: false })} className="text-gray-500 hover:text-[#e81123] text-lg leading-none px-2 transition-colors">×</button></div>
             <div className="p-6"><p className="text-sm text-black">{confirmConfig.message}</p></div>
             <div className="p-4 bg-[#f3f3f3] border-t border-gray-400 flex justify-end gap-3">
@@ -245,26 +246,32 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
         </div>
       )}
 
-      <aside className="w-64 bg-[#e6e6e6] p-6 border-r border-gray-400 flex flex-col h-screen sticky top-0 overflow-y-auto">
-        <h2 className="text-2xl font-light mb-8 text-black">Admin Panel</h2>
+      {/* MOBILE HEADER */}
+      <div className="md:hidden flex justify-between items-center bg-[#e6e6e6] p-4 border-b border-gray-400 z-20 sticky top-0">
+        <h2 className="text-xl font-light text-black">Admin Panel</h2>
+        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="text-2xl p-2 bg-[#cccccc] rounded-none border border-gray-400 flex items-center justify-center h-10 w-10">
+          {isSidebarOpen ? '✕' : '☰'}
+        </button>
+      </div>
+
+      <aside className={`${isSidebarOpen ? 'flex' : 'hidden'} md:flex w-full md:w-64 bg-[#e6e6e6] p-6 border-b md:border-r border-gray-400 flex-col h-auto md:h-screen sticky top-0 overflow-y-auto z-10`}>
+        <h2 className="text-2xl font-light mb-8 text-black hidden md:block">Admin Panel</h2>
         <nav className="space-y-1">
-          <button onClick={() => setActiveTab('dashboard')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'dashboard' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Dashboard Overview</button>
-          <button onClick={() => setActiveTab('register')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'register' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Register New Product</button>
-          <button onClick={() => setActiveTab('warehouse')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'warehouse' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Warehouse Management</button>
-          <button onClick={() => setActiveTab('store')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'store' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Store Management</button>
-          <button onClick={() => setActiveTab('sales')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'sales' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Recent Activity</button>
-          <button onClick={() => setActiveTab('staff')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'staff' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Manage Staff</button>
+          <button onClick={() => handleNavClick('dashboard')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'dashboard' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Dashboard Overview</button>
+          <button onClick={() => handleNavClick('register')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'register' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Register New Product</button>
+          <button onClick={() => handleNavClick('warehouse')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'warehouse' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Warehouse Management</button>
+          <button onClick={() => handleNavClick('store')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'store' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Store Management</button>
+          <button onClick={() => handleNavClick('sales')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'sales' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Recent Activity</button>
+          <button onClick={() => handleNavClick('staff')} className={`w-full text-left px-4 py-2 transition-colors rounded-none text-sm ${activeTab === 'staff' ? 'bg-[#0078D7] text-white' : 'hover:bg-[#cccccc] text-black'}`}>Manage Staff</button>
         </nav>
       </aside>
 
-      <main className="flex-1 p-8 overflow-y-auto h-screen">
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
         
-        {/* DASHBOARD TAB WITH EXPANDED ANALYTICS */}
         {activeTab === 'dashboard' && (
            <div className="animate-fade-in">
              <h1 className="text-3xl font-light text-black mb-8">Business Overview</h1>
              
-             {/* Row 1: High Level Revenue & Alerts */}
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                <div className="bg-white p-6 border border-gray-400 border-l-4 border-l-[#107c10] rounded-none shadow-sm flex flex-col justify-between">
                  <p className="text-xs text-gray-500 uppercase font-semibold">Today's Store Revenue</p>
@@ -288,12 +295,11 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                </div>
              </div>
 
-             {/* Row 2: Capital Distribution */}
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                <div className="bg-white p-6 border border-gray-400 border-l-4 border-l-[#605e5c] rounded-none shadow-sm flex flex-col justify-between">
                  <p className="text-xs text-gray-500 uppercase font-semibold">Total Assets Value</p>
                  <p className="text-2xl font-light text-black mt-2">₹{totalInventoryValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                 <p className="text-xs text-gray-500 mt-2">Across {inventory.length} unique products</p>
+                 <p className="text-xs text-gray-500 mt-2">Across {inventory.length} active products</p>
                </div>
                <div className="bg-white p-6 border border-gray-400 border-l-4 border-l-[#0078D7] rounded-none shadow-sm flex flex-col justify-between">
                  <p className="text-xs text-gray-500 uppercase font-semibold">Capital in Warehouse</p>
@@ -346,7 +352,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
           <div className="animate-fade-in flex flex-col h-full">
             <h1 className="text-3xl font-light text-black mb-6">Warehouse Management</h1>
             
-            <div className="flex gap-2 mb-6 border-b border-gray-400 pb-4">
+            <div className="flex gap-2 mb-6 border-b border-gray-400 pb-4 overflow-x-auto whitespace-nowrap">
               <button onClick={() => setWarehouseSubTab('inventory')} className={`px-6 py-2 text-sm border border-gray-400 rounded-none transition-colors ${warehouseSubTab === 'inventory' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Inventory List</button>
               <button onClick={() => setWarehouseSubTab('receive')} className={`px-6 py-2 text-sm border border-gray-400 rounded-none transition-colors ${warehouseSubTab === 'receive' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Receive Inbound</button>
               <button onClick={() => setWarehouseSubTab('transfer')} className={`px-6 py-2 text-sm border border-gray-400 rounded-none transition-colors ${warehouseSubTab === 'transfer' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Move to Store</button>
@@ -365,8 +371,8 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                   </select>
                 </div>
 
-                <div className="bg-white border border-gray-400 rounded-none overflow-hidden">
-                  <table className="w-full text-left border-collapse">
+                <div className="bg-white border border-gray-400 rounded-none overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[600px]">
                     <thead>
                       <tr className="bg-[#e6e6e6] text-black text-xs uppercase border-b border-gray-400">
                         <th className="p-3 font-medium border-r border-gray-300 w-24">Barcode</th>
@@ -418,13 +424,13 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
 
             {warehouseSubTab === 'receive' && (
               <div className="flex-1 animate-fade-in">
-                <WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Warehouse" defaultTab="receive" hideNav={true} shopSettings={shopSettings} />
+                <WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Warehouse" defaultTab="receive" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} />
               </div>
             )}
 
             {warehouseSubTab === 'transfer' && (
               <div className="flex-1 animate-fade-in">
-                <WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Warehouse" defaultTab="transfer" hideNav={true} shopSettings={shopSettings} />
+                <WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Warehouse" defaultTab="transfer" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} />
               </div>
             )}
           </div>
@@ -435,7 +441,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
           <div className="animate-fade-in flex flex-col h-full">
             <h1 className="text-3xl font-light text-black mb-6">Store Management</h1>
             
-            <div className="flex gap-2 mb-6 border-b border-gray-400 pb-4">
+            <div className="flex gap-2 mb-6 border-b border-gray-400 pb-4 overflow-x-auto whitespace-nowrap">
               <button onClick={() => setStoreSubTab('inventory')} className={`px-6 py-2 text-sm border border-gray-400 rounded-none transition-colors ${storeSubTab === 'inventory' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Inventory List</button>
               <button onClick={() => setStoreSubTab('checkout')} className={`px-6 py-2 text-sm border border-gray-400 rounded-none transition-colors ${storeSubTab === 'checkout' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Customer Checkout</button>
             </div>
@@ -452,8 +458,8 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                   </select>
                 </div>
 
-                <div className="bg-white border border-gray-400 rounded-none overflow-hidden">
-                  <table className="w-full text-left border-collapse">
+                <div className="bg-white border border-gray-400 rounded-none overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[600px]">
                     <thead>
                       <tr className="bg-[#e6e6e6] text-black text-xs uppercase border-b border-gray-400">
                         <th className="p-3 font-medium border-r border-gray-300 w-24">Barcode</th>
@@ -505,7 +511,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
 
             {storeSubTab === 'checkout' && (
               <div className="flex-1 animate-fade-in">
-                <WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Store" defaultTab="checkout" hideNav={true} shopSettings={shopSettings} />
+                <WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Store" defaultTab="checkout" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} />
               </div>
             )}
           </div>
@@ -521,13 +527,14 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                   <div>
                     <h2 className="text-2xl font-light text-black">Action ID #{selectedBill.id.split('-')[0]}</h2>
                     <p className="text-sm text-gray-500">{new Date(selectedBill.created_at).toLocaleString()} • {selectedBill.location}</p>
+                    <p className="text-sm font-semibold text-black mt-1">Processed By: <span className="capitalize">{selectedBill.cashier_name || 'System'}</span></p>
                   </div>
                   <p className="text-2xl font-light text-[#0078D7]">Value: ₹{Number(selectedBill.total_amount).toFixed(2)}</p>
                 </div>
                 
                 {isLoadingItems ? <p className="text-sm text-gray-500">Loading items...</p> : (
-                  <div className="bg-white border border-gray-400 rounded-none overflow-hidden">
-                    <table className="w-full text-left border-collapse">
+                  <div className="bg-white border border-gray-400 rounded-none overflow-x-auto">
+                    <table className="w-full text-left border-collapse min-w-[600px]">
                       <thead>
                         <tr className="bg-[#e6e6e6] text-black text-xs uppercase border-b border-gray-400">
                           <th className="p-3 border-r border-gray-300">Item Name</th>
@@ -561,8 +568,8 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                
                {isLoadingBills ? (<p className="text-sm text-gray-500">Loading recent transactions from cloud...</p>) : (
                <>
-                 <div className="bg-white border border-gray-400 rounded-none overflow-hidden mb-4">
-                   <table className="w-full text-left border-collapse">
+                 <div className="bg-white border border-gray-400 rounded-none overflow-x-auto mb-4">
+                   <table className="w-full text-left border-collapse min-w-[600px]">
                      <thead>
                        <tr className="bg-[#e6e6e6] text-black text-xs uppercase border-b border-gray-400">
                          <th className="p-3 font-medium border-r border-gray-300 w-48">Date & Time</th>
@@ -574,7 +581,10 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                        {bills.length === 0 ? (<tr><td colSpan="3" className="p-8 text-center text-gray-500 text-sm">No activity recorded yet.</td></tr>) : (
                          bills.map((bill) => (
                            <tr key={bill.id} onClick={() => handleBillClick(bill)} className="hover:bg-[#d0e6f5] cursor-pointer transition-colors">
-                             <td className="p-3 border-r border-gray-200 text-sm text-gray-600">{new Date(bill.created_at).toLocaleString()}</td>
+                             <td className="p-3 border-r border-gray-200 text-sm text-gray-600">
+                               {new Date(bill.created_at).toLocaleString()}
+                               <span className="block text-xs font-semibold text-gray-400 mt-1 capitalize">By: {bill.cashier_name || 'System'}</span>
+                             </td>
                              <td className="p-3 border-r border-gray-200 text-sm font-semibold text-black">
                                {bill.location === 'Warehouse-Inbound' ? 'Stock Received' : 
                                 bill.location === 'Warehouse-Transfer' ? 'Transfer to Store' : 
@@ -611,8 +621,8 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                  <button type="submit" disabled={isAddingWorker} className="w-full py-1.5 bg-[#0078D7] hover:bg-[#005a9e] text-white transition-colors rounded-none border border-[#005a9e] text-sm h-8.5 disabled:opacity-50">Add Worker</button>
                </form>
              </div>
-             <div className="bg-white border border-gray-400 rounded-none overflow-hidden max-w-2xl">
-               <table className="w-full text-left border-collapse">
+             <div className="bg-white border border-gray-400 rounded-none overflow-x-auto max-w-2xl">
+               <table className="w-full text-left border-collapse min-w-[400px]">
                  <thead>
                    <tr className="bg-[#e6e6e6] text-black text-xs uppercase border-b border-gray-400">
                      <th className="p-3 border-r border-gray-300">Name</th>
