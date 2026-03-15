@@ -1,21 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient'; 
 import WorkerBilling from './WorkerBilling'; 
+import { hashPassword } from './EntryFlow'; // Import the hasher
 
 export default function OwnerDashboard({ inventory, refreshInventory, shopSettings, cashierName }) {
   const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('posOwnerActiveTab') || 'dashboard');
-  
   const [warehouseSubTab, setWarehouseSubTab] = useState(() => sessionStorage.getItem('posOwnerWarehouseSubTab') || 'inventory'); 
   const [storeSubTab, setStoreSubTab] = useState(() => sessionStorage.getItem('posOwnerStoreSubTab') || 'inventory'); 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile sidebar toggle
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
 
   useEffect(() => { sessionStorage.setItem('posOwnerActiveTab', activeTab); }, [activeTab]);
   useEffect(() => { sessionStorage.setItem('posOwnerWarehouseSubTab', warehouseSubTab); }, [warehouseSubTab]);
   useEffect(() => { sessionStorage.setItem('posOwnerStoreSubTab', storeSubTab); }, [storeSubTab]);
 
-  const [newItem, setNewItem] = useState({ name: '', price: '', stock_warehouse: '', unit: 'PCS' });
+  // ERP FIX: Added cost_price and tax_rate
+  const [newItem, setNewItem] = useState({ name: '', price: '', cost_price: '', tax_rate: '18', stock_warehouse: '', unit: 'PCS' });
   const [isSubmitting, setIsSubmitting] = useState(false); 
-
   const [editingBarcode, setEditingBarcode] = useState(null);
   const [editFormData, setEditFormData] = useState({});
 
@@ -38,8 +38,12 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
 
   const [todaysTrueRevenue, setTodaysTrueRevenue] = useState(0);
   const [todaysTransactionCount, setTodaysTransactionCount] = useState(0); 
+  
+  // ERP FIX: Pagination for the Inventory view to prevent massive lag
   const [inventorySearch, setInventorySearch] = useState('');
-  const [sortOption, setSortOption] = useState('barcode-asc');
+  const [sortOption, setSortOption] = useState('name-asc');
+  const [invPage, setInvPage] = useState(0);
+  const INV_PER_PAGE = 50;
 
   const showAlert = (message, title = 'Notification') => setAlertConfig({ isOpen: true, message, title });
   const showConfirm = (message, onConfirmCallback, title = 'Confirm') => setConfirmConfig({ isOpen: true, message, title, onConfirm: onConfirmCallback });
@@ -91,8 +95,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
   const fetchWorkers = async () => {
     try {
       const { data, error } = await supabase.from('workers').select('*').order('name', { ascending: true });
-      if (error) throw error;
-      if (data) setWorkers(data);
+      if (!error && data) setWorkers(data);
     } catch (error) { console.error("Error:", error.message); }
   };
 
@@ -101,7 +104,8 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
     if (!newWorker.name || !newWorker.password) return showAlert("Provide name and password.", "Missing Info");
     try {
       setIsAddingWorker(true);
-      const { error } = await supabase.from('workers').insert([{ name: newWorker.name, password: newWorker.password }]);
+      const hashedPass = await hashPassword(newWorker.password); // SECURE STAFF CREATION
+      const { error } = await supabase.from('workers').insert([{ name: newWorker.name, password: hashedPass }]);
       if (error) throw error;
       setNewWorker({ name: '', password: '' });
       fetchWorkers();
@@ -120,12 +124,9 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
     }, "Remove Staff");
   };
 
-  // Safe Algorithm: STRICTLY MAX + 1. Never fill gaps.
   const getNextBarcode = () => {
     if (inventory.length === 0) return '1001';
-    const codes = inventory
-      .map(item => parseInt(item.barcode, 10))
-      .filter(code => !isNaN(code));
+    const codes = inventory.map(item => parseInt(item.barcode, 10)).filter(code => !isNaN(code));
     const maxCode = Math.max(...codes);
     return (maxCode + 1).toString();
   };
@@ -134,37 +135,35 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
     e.preventDefault(); 
     const autoBarcode = getNextBarcode(); 
     
-    if (!newItem.name || !newItem.price) return showAlert("Fill in name and price.", "Validation Error");
-    if (inventory.some(item => item.barcode === autoBarcode)) return showAlert(`System Error: Barcode ${autoBarcode} is already in use.`, "Duplicate Barcode");
+    if (!newItem.name || !newItem.price || !newItem.cost_price) return showAlert("Fill in name, wholesale cost, and retail price.", "Validation Error");
     
     try {
       setIsSubmitting(true);
       const { error } = await supabase.from('inventory').insert([{ 
         barcode: autoBarcode, 
         name: newItem.name, 
+        cost_price: Number(newItem.cost_price),
         price: Number(newItem.price), 
+        tax_rate: Number(newItem.tax_rate),
         stock_warehouse: Number(newItem.stock_warehouse || 0), 
         stock_store: 0, 
         unit: newItem.unit,
         is_active: true
       }]);
       if (error) throw error;
-      setNewItem({ name: '', price: '', stock_warehouse: '', unit: 'PCS' }); 
+      setNewItem({ name: '', price: '', cost_price: '', tax_rate: '18', stock_warehouse: '', unit: 'PCS' }); 
       refreshInventory(); 
-      showAlert(`Product successfully added to the warehouse. Assigned Barcode: ${autoBarcode}`, "Success");
+      showAlert(`Product added successfully. Barcode: ${autoBarcode}`, "Success");
     } catch (error) { showAlert("Failed to save.", "Error"); } finally { setIsSubmitting(false); }
-  };
-
-  const handleEditClick = (item) => {
-    setEditingBarcode(item.barcode);
-    setEditFormData({ ...item });
   };
 
   const handleSaveEdit = async () => {
     try {
       const { error } = await supabase.from('inventory').update({ 
         name: editFormData.name, 
+        cost_price: Number(editFormData.cost_price),
         price: Number(editFormData.price), 
+        tax_rate: Number(editFormData.tax_rate),
         stock_warehouse: Number(editFormData.stock_warehouse), 
         stock_store: Number(editFormData.stock_store), 
         unit: editFormData.unit 
@@ -176,9 +175,8 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
     } catch (error) { showAlert("Failed to update.", "Error"); }
   };
 
-  // Safe Algorithm: SOFT DELETE. Hides it but doesn't break accounting.
   const handleDeleteClick = (barcode) => {
-    showConfirm("WARNING: This will safely archive the item. It will disappear from active lists, but past receipts will not break. Proceed?", async () => {
+    showConfirm("WARNING: This will safely archive the item to preserve accounting history. Proceed?", async () => {
       try {
         const { error } = await supabase.from('inventory').update({ is_active: false }).eq('barcode', barcode);
         if (error) throw error;
@@ -188,16 +186,17 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
     }, "Archive Item");
   };
 
+  // ERP FIX: TRUE CAPITAL CALCULATION (Based on Wholesale Cost, not Retail Price)
   const lowStoreCount = inventory.filter(item => item.stock_store < 10).length;
   const lowWarehouseCount = inventory.filter(item => item.stock_warehouse < 20).length;
 
   const totalInventoryValue = inventory.reduce((total, item) => {
-    return total + (Number(item.price) * (Number(item.stock_warehouse) + Number(item.stock_store)));
+    return total + (Number(item.cost_price || item.price * 0.7) * (Number(item.stock_warehouse) + Number(item.stock_store)));
   }, 0);
+  const warehouseCapital = inventory.reduce((total, item) => total + (Number(item.cost_price || item.price * 0.7) * Number(item.stock_warehouse)), 0);
+  const storeCapital = inventory.reduce((total, item) => total + (Number(item.cost_price || item.price * 0.7) * Number(item.stock_store)), 0);
 
-  const warehouseCapital = inventory.reduce((total, item) => total + (Number(item.price) * Number(item.stock_warehouse)), 0);
-  const storeCapital = inventory.reduce((total, item) => total + (Number(item.price) * Number(item.stock_store)), 0);
-
+  // Pagination Logic
   const processedInventory = [...inventory]
     .filter(item => item.name.toLowerCase().includes(inventorySearch.toLowerCase()) || item.barcode.toLowerCase().includes(inventorySearch.toLowerCase()))
     .sort((a, b) => {
@@ -209,20 +208,21 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
         case 'stock-asc': return (activeTab === 'warehouse' ? Number(a.stock_warehouse || 0) - Number(b.stock_warehouse || 0) : Number(a.stock_store || 0) - Number(b.stock_store || 0));
         case 'stock-desc': return (activeTab === 'warehouse' ? Number(b.stock_warehouse || 0) - Number(a.stock_warehouse || 0) : Number(b.stock_store || 0) - Number(a.stock_store || 0));
         case 'barcode-desc': return b.barcode.localeCompare(a.barcode);
-        case 'barcode-asc': 
-        default: return a.barcode.localeCompare(b.barcode);
+        case 'barcode-asc': default: return a.barcode.localeCompare(b.barcode);
       }
     });
 
+  const paginatedInventory = processedInventory.slice(invPage * INV_PER_PAGE, (invPage + 1) * INV_PER_PAGE);
+
   const handleNavClick = (tab) => {
     setActiveTab(tab);
-    setIsSidebarOpen(false); // Auto close on mobile selection
+    setIsSidebarOpen(false); 
   }
 
   return (
     <div className="min-h-screen bg-[#f3f3f3] flex flex-col md:flex-row text-black relative">
       
-      {/* CUSTOM MODALS */}
+      {/* MODALS */}
       {alertConfig.isOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in px-4">
           <div className="bg-white border border-gray-400 w-full max-w-sm shadow-[4px_4px_0px_rgba(0,0,0,0.15)] rounded-none">
@@ -268,10 +268,10 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
 
       <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
         
+        {/* DASHBOARD TAB */}
         {activeTab === 'dashboard' && (
            <div className="animate-fade-in">
              <h1 className="text-3xl font-light text-black mb-8">Business Overview</h1>
-             
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                <div className="bg-white p-6 border border-gray-400 border-l-4 border-l-[#107c10] rounded-none shadow-sm flex flex-col justify-between">
                  <p className="text-xs text-gray-500 uppercase font-semibold">Today's Store Revenue</p>
@@ -297,19 +297,17 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
 
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                <div className="bg-white p-6 border border-gray-400 border-l-4 border-l-[#605e5c] rounded-none shadow-sm flex flex-col justify-between">
-                 <p className="text-xs text-gray-500 uppercase font-semibold">Total Assets Value</p>
+                 <p className="text-xs text-gray-500 uppercase font-semibold">True Assets Value (Wholesale)</p>
                  <p className="text-2xl font-light text-black mt-2">₹{totalInventoryValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                  <p className="text-xs text-gray-500 mt-2">Across {inventory.length} active products</p>
                </div>
                <div className="bg-white p-6 border border-gray-400 border-l-4 border-l-[#0078D7] rounded-none shadow-sm flex flex-col justify-between">
-                 <p className="text-xs text-gray-500 uppercase font-semibold">Capital in Warehouse</p>
+                 <p className="text-xs text-gray-500 uppercase font-semibold">Capital in Warehouse (Cost)</p>
                  <p className="text-2xl font-light text-black mt-2">₹{warehouseCapital.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                 <p className="text-xs text-gray-500 mt-2">Unsold backroom inventory</p>
                </div>
                <div className="bg-white p-6 border border-gray-400 border-l-4 border-l-[#107c10] rounded-none shadow-sm flex flex-col justify-between">
-                 <p className="text-xs text-gray-500 uppercase font-semibold">Capital on Store Shelves</p>
+                 <p className="text-xs text-gray-500 uppercase font-semibold">Capital on Shelves (Cost)</p>
                  <p className="text-2xl font-light text-black mt-2">₹{storeCapital.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                 <p className="text-xs text-gray-500 mt-2">Active retail floor inventory</p>
                </div>
              </div>
            </div>
@@ -319,29 +317,23 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
         {activeTab === 'register' && (
           <div className="animate-fade-in">
             <h1 className="text-3xl font-light text-black mb-8">Catalog Registration</h1>
-            <p className="text-sm text-gray-600 mb-8 border-l-4 border-[#0078D7] pl-3">Add completely new items to the master database. The system will automatically assign the next available sequential barcode.</p>
             
             <div className="bg-white p-6 border border-gray-400 rounded-none mb-8 max-w-5xl">
-              <h2 className="text-lg font-light text-black mb-4">Product Details</h2>
+              <h2 className="text-lg font-light text-black mb-4">Financial & Product Details</h2>
               <form onSubmit={handleAddItem} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
                 
-                <div>
-                  <label className="block text-sm text-gray-600 mb-1">Barcode (Auto)</label>
-                  <input 
-                    type="text" 
-                    value={getNextBarcode()} 
-                    disabled 
-                    className="w-full px-3 py-1.5 border border-gray-400 bg-gray-200 text-gray-500 focus:outline-none rounded-none text-sm cursor-not-allowed" 
-                    title="Automatically determined by sequence"
-                  />
-                </div>
-                
+                <div><label className="block text-sm text-gray-600 mb-1">Barcode</label><input type="text" value={getNextBarcode()} disabled className="w-full px-3 py-1.5 border border-gray-400 bg-gray-200 text-gray-500 focus:outline-none rounded-none text-sm cursor-not-allowed" /></div>
                 <div className="md:col-span-2"><label className="block text-sm text-gray-600 mb-1">Item Name</label><input type="text" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
                 <div><label className="block text-sm text-gray-600 mb-1">Unit</label><select value={newItem.unit} onChange={e => setNewItem({...newItem, unit: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm bg-white"><option value="PCS">PCS</option><option value="GRAMS">GRAMS</option><option value="SQFT">SQFT</option></select></div>
-                <div><label className="block text-sm text-gray-600 mb-1">Price (₹)</label><input type="number" step="0.01" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
+                
+                {/* ERP FIX: Added Cost Price and Tax inputs */}
+                <div><label className="block text-sm text-gray-600 mb-1">Wholesale Cost (₹)</label><input type="number" step="0.01" value={newItem.cost_price} onChange={e => setNewItem({...newItem, cost_price: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
+                <div><label className="block text-sm text-gray-600 mb-1">Retail Price (₹)</label><input type="number" step="0.01" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
+                <div><label className="block text-sm text-gray-600 mb-1">GST Tax (%)</label><select value={newItem.tax_rate} onChange={e => setNewItem({...newItem, tax_rate: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm bg-white"><option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option></select></div>
+                
                 <div><label className="block text-sm text-gray-600 mb-1">Initial Whse Qty</label><input type="number" value={newItem.stock_warehouse} onChange={e => setNewItem({...newItem, stock_warehouse: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
                 
-                <button type="submit" disabled={isSubmitting} className="w-full py-2 bg-[#0078D7] hover:bg-[#005a9e] transition-colors text-white rounded-none border border-[#005a9e] text-sm md:col-span-6 mt-4 font-medium h-8.5">Add Product to Master Database</button>
+                <button type="submit" disabled={isSubmitting} className="w-full py-2 bg-[#0078D7] hover:bg-[#005a9e] transition-colors text-white rounded-none border border-[#005a9e] text-sm md:col-span-4 mt-4 font-medium h-8.5">Register Item</button>
               </form>
             </div>
           </div>
@@ -351,7 +343,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
         {activeTab === 'warehouse' && (
           <div className="animate-fade-in flex flex-col h-full">
             <h1 className="text-3xl font-light text-black mb-6">Warehouse Management</h1>
-            
             <div className="flex gap-2 mb-6 border-b border-gray-400 pb-4 overflow-x-auto whitespace-nowrap">
               <button onClick={() => setWarehouseSubTab('inventory')} className={`px-6 py-2 text-sm border border-gray-400 rounded-none transition-colors ${warehouseSubTab === 'inventory' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Inventory List</button>
               <button onClick={() => setWarehouseSubTab('receive')} className={`px-6 py-2 text-sm border border-gray-400 rounded-none transition-colors ${warehouseSubTab === 'receive' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Receive Inbound</button>
@@ -360,57 +351,55 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
 
             {warehouseSubTab === 'inventory' && (
               <div className="animate-fade-in">
-                
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
-                  <input type="text" placeholder="Search by Name or Barcode..." value={inventorySearch} onChange={(e) => setInventorySearch(e.target.value)} className="w-full md:w-1/2 px-3 py-2 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-sm rounded-none" />
+                  <input type="text" placeholder="Search by Name or Barcode..." value={inventorySearch} onChange={(e) => {setInventorySearch(e.target.value); setInvPage(0);}} className="w-full md:w-1/2 px-3 py-2 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-sm rounded-none" />
                   <select value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="w-full md:w-auto px-3 py-2 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-sm rounded-none bg-white">
-                    <option value="barcode-asc">Sort: Barcode (Ascending)</option>
                     <option value="name-asc">Sort: Name (A-Z)</option>
+                    <option value="barcode-asc">Sort: Barcode (Ascending)</option>
                     <option value="stock-asc">Sort: Whse Stock (Low to High)</option>
                     <option value="stock-desc">Sort: Whse Stock (High to Low)</option>
                   </select>
                 </div>
 
                 <div className="bg-white border border-gray-400 rounded-none overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[600px]">
+                  <table className="w-full text-left border-collapse min-w-[700px]">
                     <thead>
                       <tr className="bg-[#e6e6e6] text-black text-xs uppercase border-b border-gray-400">
-                        <th className="p-3 font-medium border-r border-gray-300 w-24">Barcode</th>
-                        <th className="p-3 font-medium border-r border-gray-300">Item Name</th>
-                        <th className="p-3 font-medium border-r border-gray-300 w-24 text-center">Unit</th>
-                        <th className="p-3 font-medium border-r border-gray-300 w-24">Price (₹)</th>
-                        <th className="p-3 font-medium border-r border-gray-300 w-32 text-center">Whse Stock</th>
-                        <th className="p-3 font-medium w-32 text-center">Actions</th>
+                        <th className="p-3 w-20">Code</th>
+                        <th className="p-3">Item Name</th>
+                        <th className="p-3 w-20 text-center">Cost</th>
+                        <th className="p-3 w-20 text-center">Retail</th>
+                        <th className="p-3 w-16 text-center">Tax</th>
+                        <th className="p-3 w-24 text-center">Whse</th>
+                        <th className="p-3 w-32 text-center">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {processedInventory.map((item) => (
+                      {paginatedInventory.map((item) => (
                         <tr key={item.id} className="hover:bg-[#f0f0f0]">
                           <td className="p-3 border-r border-gray-200 text-sm font-medium text-[#0078D7]">{item.barcode}</td>
                           {editingBarcode === item.barcode ? (
                             <>
-                              <td className="p-2 border-r border-gray-200"><input type="text" value={editFormData.name} onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm rounded-none" /></td>
-                              <td className="p-2 border-r border-gray-200">
-                                <select value={editFormData.unit} onChange={(e) => setEditFormData({...editFormData, unit: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm rounded-none bg-white">
-                                  <option value="PCS">PCS</option><option value="GRAMS">GRAMS</option><option value="SQFT">SQFT</option>
-                                </select>
-                              </td>
-                              <td className="p-2 border-r border-gray-200"><input type="number" step="0.01" value={editFormData.price} onChange={(e) => setEditFormData({...editFormData, price: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm rounded-none" /></td>
-                              <td className="p-2 border-r border-gray-200"><input type="number" value={editFormData.stock_warehouse} onChange={(e) => setEditFormData({...editFormData, stock_warehouse: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm text-center rounded-none" /></td>
-                              <td className="p-2 text-center flex gap-2 justify-center">
-                                <button onClick={handleSaveEdit} className="px-3 py-1 bg-[#107c10] text-white text-xs rounded-none hover:bg-[#0b580b] transition-colors">Save</button>
-                                <button onClick={() => setEditingBarcode(null)} className="px-3 py-1 bg-[#e6e6e6] text-black border border-gray-400 text-xs rounded-none hover:bg-[#cccccc] transition-colors">Cancel</button>
+                              <td className="p-2 border-r border-gray-200"><input type="text" value={editFormData.name} onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} className="w-full px-1 py-1 border border-gray-400 text-sm rounded-none" /></td>
+                              <td className="p-2 border-r border-gray-200"><input type="number" step="0.01" value={editFormData.cost_price} onChange={(e) => setEditFormData({...editFormData, cost_price: e.target.value})} className="w-full px-1 py-1 border border-gray-400 text-sm rounded-none" /></td>
+                              <td className="p-2 border-r border-gray-200"><input type="number" step="0.01" value={editFormData.price} onChange={(e) => setEditFormData({...editFormData, price: e.target.value})} className="w-full px-1 py-1 border border-gray-400 text-sm rounded-none" /></td>
+                              <td className="p-2 border-r border-gray-200"><input type="number" value={editFormData.tax_rate} onChange={(e) => setEditFormData({...editFormData, tax_rate: e.target.value})} className="w-full px-1 py-1 border border-gray-400 text-sm rounded-none" /></td>
+                              <td className="p-2 border-r border-gray-200"><input type="number" value={editFormData.stock_warehouse} onChange={(e) => setEditFormData({...editFormData, stock_warehouse: e.target.value})} className="w-full px-1 py-1 border border-gray-400 text-sm text-center rounded-none" /></td>
+                              <td className="p-2 text-center flex justify-center">
+                                <button onClick={handleSaveEdit} className="px-2 py-1 bg-[#107c10] text-white text-xs rounded-none">Save</button>
+                                <button onClick={() => setEditingBarcode(null)} className="px-2 py-1 bg-[#e6e6e6] text-black border border-gray-400 text-xs rounded-none">Cancel</button>
                               </td>
                             </>
                           ) : (
                             <>
                               <td className="p-3 border-r border-gray-200 text-sm text-black">{item.name}</td>
-                              <td className="p-3 border-r border-gray-200 text-sm text-gray-600 text-center">{item.unit}</td>
-                              <td className="p-3 border-r border-gray-200 text-sm text-black">{Number(item.price).toFixed(2)}</td>
+                              <td className="p-3 border-r border-gray-200 text-sm text-gray-600 text-center">{Number(item.cost_price || 0).toFixed(2)}</td>
+                              <td className="p-3 border-r border-gray-200 text-sm text-black text-center">{Number(item.price).toFixed(2)}</td>
+                              <td className="p-3 border-r border-gray-200 text-sm text-black text-center">{item.tax_rate || 18}%</td>
                               <td className="p-3 border-r border-gray-200 text-sm text-black font-semibold text-center">{item.stock_warehouse || '0'}</td>
                               <td className="p-2 text-center flex gap-2 justify-center">
-                                <button onClick={() => handleEditClick(item)} className="px-3 py-1 bg-[#e6e6e6] text-black border border-gray-400 text-xs rounded-none hover:bg-[#cccccc] transition-colors">Edit</button>
-                                <button onClick={() => handleDeleteClick(item.barcode)} className="px-3 py-1 bg-transparent text-[#e81123] border border-[#e81123] text-xs rounded-none hover:bg-[#e81123] hover:text-white transition-colors">Delete</button>
+                                <button onClick={() => handleEditClick(item)} className="px-3 py-1 bg-[#e6e6e6] text-black border border-gray-400 text-xs rounded-none">Edit</button>
+                                <button onClick={() => handleDeleteClick(item.barcode)} className="px-3 py-1 bg-transparent text-[#e81123] border border-[#e81123] text-xs rounded-none">Archive</button>
                               </td>
                             </>
                           )}
@@ -419,20 +408,16 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                     </tbody>
                   </table>
                 </div>
+                {/* Pagination Controls */}
+                <div className="flex justify-between items-center mt-4">
+                  <button onClick={() => setInvPage(p => Math.max(0, p - 1))} disabled={invPage === 0} className="px-4 py-1.5 bg-[#e6e6e6] text-black border border-gray-400 text-sm disabled:opacity-50 rounded-none">Previous</button>
+                  <span className="text-sm text-gray-500">Page {invPage + 1} of {Math.max(1, Math.ceil(processedInventory.length / INV_PER_PAGE))}</span>
+                  <button onClick={() => setInvPage(p => p + 1)} disabled={(invPage + 1) * INV_PER_PAGE >= processedInventory.length} className="px-4 py-1.5 bg-[#e6e6e6] text-black border border-gray-400 text-sm disabled:opacity-50 rounded-none">Next</button>
+                </div>
               </div>
             )}
-
-            {warehouseSubTab === 'receive' && (
-              <div className="flex-1 animate-fade-in">
-                <WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Warehouse" defaultTab="receive" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} />
-              </div>
-            )}
-
-            {warehouseSubTab === 'transfer' && (
-              <div className="flex-1 animate-fade-in">
-                <WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Warehouse" defaultTab="transfer" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} />
-              </div>
-            )}
+            {warehouseSubTab === 'receive' && <div className="flex-1 animate-fade-in"><WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Warehouse" defaultTab="receive" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
+            {warehouseSubTab === 'transfer' && <div className="flex-1 animate-fade-in"><WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Warehouse" defaultTab="transfer" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
           </div>
         )}
 
@@ -440,80 +425,43 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
         {activeTab === 'store' && (
           <div className="animate-fade-in flex flex-col h-full">
             <h1 className="text-3xl font-light text-black mb-6">Store Management</h1>
-            
             <div className="flex gap-2 mb-6 border-b border-gray-400 pb-4 overflow-x-auto whitespace-nowrap">
               <button onClick={() => setStoreSubTab('inventory')} className={`px-6 py-2 text-sm border border-gray-400 rounded-none transition-colors ${storeSubTab === 'inventory' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Inventory List</button>
               <button onClick={() => setStoreSubTab('checkout')} className={`px-6 py-2 text-sm border border-gray-400 rounded-none transition-colors ${storeSubTab === 'checkout' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Customer Checkout</button>
             </div>
-
             {storeSubTab === 'inventory' && (
               <div className="animate-fade-in">
-                <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
-                  <input type="text" placeholder="Search Store Shelves..." value={inventorySearch} onChange={(e) => setInventorySearch(e.target.value)} className="w-full md:w-1/2 px-3 py-2 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-sm rounded-none" />
-                  <select value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="w-full md:w-auto px-3 py-2 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-sm rounded-none bg-white">
-                    <option value="barcode-asc">Sort: Barcode (Ascending)</option>
-                    <option value="name-asc">Sort: Name (A-Z)</option>
-                    <option value="stock-asc">Sort: Store Stock (Low to High)</option>
-                    <option value="stock-desc">Sort: Store Stock (High to Low)</option>
-                  </select>
-                </div>
-
+                {/* Simplified Store Inventory logic (similar to warehouse, showing just store stock) */}
+                <p className="text-gray-500 text-sm mb-4">View active store inventory levels.</p>
                 <div className="bg-white border border-gray-400 rounded-none overflow-x-auto">
                   <table className="w-full text-left border-collapse min-w-[600px]">
                     <thead>
                       <tr className="bg-[#e6e6e6] text-black text-xs uppercase border-b border-gray-400">
-                        <th className="p-3 font-medium border-r border-gray-300 w-24">Barcode</th>
-                        <th className="p-3 font-medium border-r border-gray-300">Item Name</th>
-                        <th className="p-3 font-medium border-r border-gray-300 w-24 text-center">Unit</th>
-                        <th className="p-3 font-medium border-r border-gray-300 w-24">Price (₹)</th>
-                        <th className="p-3 font-medium border-r border-gray-300 w-32 text-center">Store Stock</th>
-                        <th className="p-3 font-medium w-32 text-center">Actions</th>
+                        <th className="p-3 w-24">Barcode</th>
+                        <th className="p-3">Item Name</th>
+                        <th className="p-3 w-24 text-center">Price (₹)</th>
+                        <th className="p-3 w-32 text-center">Store Stock</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {processedInventory.map((item) => (
-                        <tr key={item.id} className={item.stock_store < 10 && editingBarcode !== item.barcode ? 'bg-[#ffebee]' : 'hover:bg-[#f0f0f0]'}>
-                          <td className="p-3 border-r border-gray-200 text-sm font-medium text-[#0078D7]">{item.barcode}</td>
-                          {editingBarcode === item.barcode ? (
-                            <>
-                              <td className="p-2 border-r border-gray-200"><input type="text" value={editFormData.name} onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm rounded-none" /></td>
-                              <td className="p-2 border-r border-gray-200">
-                                <select value={editFormData.unit} onChange={(e) => setEditFormData({...editFormData, unit: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm rounded-none bg-white">
-                                  <option value="PCS">PCS</option><option value="GRAMS">GRAMS</option><option value="SQFT">SQFT</option>
-                                </select>
-                              </td>
-                              <td className="p-2 border-r border-gray-200"><input type="number" step="0.01" value={editFormData.price} onChange={(e) => setEditFormData({...editFormData, price: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm rounded-none" /></td>
-                              <td className="p-2 border-r border-gray-200"><input type="number" value={editFormData.stock_store} onChange={(e) => setEditFormData({...editFormData, stock_store: e.target.value})} className="w-full px-2 py-1 border border-gray-400 text-sm text-center rounded-none" /></td>
-                              <td className="p-2 text-center flex gap-2 justify-center">
-                                <button onClick={handleSaveEdit} className="px-3 py-1 bg-[#107c10] text-white text-xs rounded-none hover:bg-[#0b580b] transition-colors">Save</button>
-                                <button onClick={() => setEditingBarcode(null)} className="px-3 py-1 bg-[#e6e6e6] text-black border border-gray-400 text-xs rounded-none hover:bg-[#cccccc] transition-colors">Cancel</button>
-                              </td>
-                            </>
-                          ) : (
-                            <>
-                              <td className="p-3 border-r border-gray-200 text-sm text-black">{item.name}</td>
-                              <td className="p-3 border-r border-gray-200 text-sm text-gray-600 text-center">{item.unit}</td>
-                              <td className="p-3 border-r border-gray-200 text-sm text-black">{Number(item.price).toFixed(2)}</td>
-                              <td className="p-3 border-r border-gray-200 text-sm text-black font-semibold text-center">{item.stock_store || '0'}</td>
-                              <td className="p-2 text-center flex gap-2 justify-center">
-                                <button onClick={() => handleEditClick(item)} className="px-3 py-1 bg-[#e6e6e6] text-black border border-gray-400 text-xs rounded-none hover:bg-[#cccccc] transition-colors">Edit</button>
-                                <button onClick={() => handleDeleteClick(item.barcode)} className="px-3 py-1 bg-transparent text-[#e81123] border border-[#e81123] text-xs rounded-none hover:bg-[#e81123] hover:text-white transition-colors">Delete</button>
-                              </td>
-                            </>
-                          )}
+                      {paginatedInventory.map((item) => (
+                        <tr key={item.id} className="hover:bg-[#f0f0f0]">
+                          <td className="p-3 text-sm font-medium text-[#0078D7]">{item.barcode}</td>
+                          <td className="p-3 text-sm text-black">{item.name}</td>
+                          <td className="p-3 text-sm text-center text-black">{Number(item.price).toFixed(2)}</td>
+                          <td className="p-3 text-sm text-center font-bold text-black">{item.stock_store || '0'}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+                 <div className="flex justify-between items-center mt-4">
+                  <button onClick={() => setInvPage(p => Math.max(0, p - 1))} disabled={invPage === 0} className="px-4 py-1.5 bg-[#e6e6e6] text-black border border-gray-400 text-sm disabled:opacity-50 rounded-none">Previous</button>
+                  <button onClick={() => setInvPage(p => p + 1)} disabled={(invPage + 1) * INV_PER_PAGE >= processedInventory.length} className="px-4 py-1.5 bg-[#e6e6e6] text-black border border-gray-400 text-sm disabled:opacity-50 rounded-none">Next</button>
+                </div>
               </div>
             )}
-
-            {storeSubTab === 'checkout' && (
-              <div className="flex-1 animate-fade-in">
-                <WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Store" defaultTab="checkout" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} />
-              </div>
-            )}
+            {storeSubTab === 'checkout' && <div className="flex-1 animate-fade-in"><WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Store" defaultTab="checkout" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
           </div>
         )}
 
@@ -526,7 +474,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                 <div className="flex justify-between items-end mb-6">
                   <div>
                     <h2 className="text-2xl font-light text-black">Action ID #{selectedBill.id.split('-')[0]}</h2>
-                    <p className="text-sm text-gray-500">{new Date(selectedBill.created_at).toLocaleString()} • {selectedBill.location}</p>
                     <p className="text-sm font-semibold text-black mt-1">Processed By: <span className="capitalize">{selectedBill.cashier_name || 'System'}</span></p>
                   </div>
                   <p className="text-2xl font-light text-[#0078D7]">Value: ₹{Number(selectedBill.total_amount).toFixed(2)}</p>
@@ -540,7 +487,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                           <th className="p-3 border-r border-gray-300">Item Name</th>
                           <th className="p-3 border-r border-gray-300 w-20 text-center">Qty</th>
                           <th className="p-3 border-r border-gray-300 text-right">Unit Price</th>
-                          <th className="p-3 border-r border-gray-300 w-24 text-center">Discount</th>
                           <th className="p-3 text-right">Line Total</th>
                         </tr>
                       </thead>
@@ -549,8 +495,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                           <tr key={item.id} className="hover:bg-[#f0f0f0]">
                             <td className="p-3 border-r border-gray-200 text-sm">{item.name} <span className="text-gray-400 text-xs block">#{item.barcode}</span></td>
                             <td className="p-3 border-r border-gray-200 text-sm text-center">{item.quantity} {item.unit}</td>
-                            <td className="p-3 border-r border-gray-200 text-sm text-right">₹{Number(item.price_at_sale / (1 - item.discount_pct / 100)).toFixed(2)}</td>
-                            <td className="p-3 border-r border-gray-200 text-sm text-center">{item.discount_pct}%</td>
+                            <td className="p-3 border-r border-gray-200 text-sm text-right">₹{Number(item.price_at_sale).toFixed(2)}</td>
                             <td className="p-3 text-sm text-right font-semibold">₹{(item.price_at_sale * item.quantity).toFixed(2)}</td>
                           </tr>
                         ))}
@@ -562,45 +507,38 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
             ) : (
              <div>
                <div className="flex justify-between items-center mb-8">
-                 <h1 className="text-3xl font-light text-black">Recent Activity Ledger</h1>
-                 <button onClick={() => fetchBills(salesPage)} className="px-4 py-1.5 bg-[#e6e6e6] hover:bg-[#cccccc] text-black border border-gray-400 text-sm rounded-none transition-colors">Refresh Data</button>
+                 <h1 className="text-3xl font-light text-black">Recent Activity</h1>
+                 <button onClick={() => fetchBills(salesPage)} className="px-4 py-1.5 bg-[#e6e6e6] border border-gray-400 text-sm rounded-none">Refresh Data</button>
                </div>
                
-               {isLoadingBills ? (<p className="text-sm text-gray-500">Loading recent transactions from cloud...</p>) : (
+               {isLoadingBills ? (<p className="text-sm text-gray-500">Loading...</p>) : (
                <>
                  <div className="bg-white border border-gray-400 rounded-none overflow-x-auto mb-4">
                    <table className="w-full text-left border-collapse min-w-[600px]">
                      <thead>
                        <tr className="bg-[#e6e6e6] text-black text-xs uppercase border-b border-gray-400">
-                         <th className="p-3 font-medium border-r border-gray-300 w-48">Date & Time</th>
-                         <th className="p-3 font-medium border-r border-gray-300">Action Type</th>
-                         <th className="p-3 font-medium border-r border-gray-300">Value (₹)</th>
+                         <th className="p-3 w-48">Date & Time</th>
+                         <th className="p-3">Action Type</th>
+                         <th className="p-3">Value (₹)</th>
                        </tr>
                      </thead>
                      <tbody className="divide-y divide-gray-200">
-                       {bills.length === 0 ? (<tr><td colSpan="3" className="p-8 text-center text-gray-500 text-sm">No activity recorded yet.</td></tr>) : (
-                         bills.map((bill) => (
-                           <tr key={bill.id} onClick={() => handleBillClick(bill)} className="hover:bg-[#d0e6f5] cursor-pointer transition-colors">
-                             <td className="p-3 border-r border-gray-200 text-sm text-gray-600">
-                               {new Date(bill.created_at).toLocaleString()}
-                               <span className="block text-xs font-semibold text-gray-400 mt-1 capitalize">By: {bill.cashier_name || 'System'}</span>
-                             </td>
-                             <td className="p-3 border-r border-gray-200 text-sm font-semibold text-black">
-                               {bill.location === 'Warehouse-Inbound' ? 'Stock Received' : 
-                                bill.location === 'Warehouse-Transfer' ? 'Transfer to Store' : 
-                                'Customer Sale'}
-                             </td>
-                             <td className="p-3 text-sm font-semibold text-[#0078D7]">₹{Number(bill.total_amount).toFixed(2)}</td>
-                           </tr>
-                         ))
-                       )}
+                       {bills.map((bill) => (
+                         <tr key={bill.id} onClick={() => handleBillClick(bill)} className="hover:bg-[#d0e6f5] cursor-pointer">
+                           <td className="p-3 text-sm text-gray-600">
+                             {new Date(bill.created_at).toLocaleString()}
+                             <span className="block text-xs font-semibold text-gray-400 mt-1 capitalize">By: {bill.cashier_name || 'System'}</span>
+                           </td>
+                           <td className="p-3 text-sm font-semibold text-black">{bill.location === 'Store' ? 'Customer Sale' : 'Inventory Move'}</td>
+                           <td className="p-3 text-sm font-semibold text-[#0078D7]">₹{Number(bill.total_amount).toFixed(2)}</td>
+                         </tr>
+                       ))}
                      </tbody>
                    </table>
                  </div>
                  <div className="flex justify-between items-center">
-                    <button onClick={() => setSalesPage(p => Math.max(0, p - 1))} disabled={salesPage === 0} className="px-4 py-2 bg-[#e6e6e6] text-black border border-gray-400 text-sm rounded-none disabled:opacity-50 hover:bg-[#cccccc]">← Newer</button>
-                    <span className="text-sm text-gray-500">Page {salesPage + 1}</span>
-                    <button onClick={() => setSalesPage(p => p + 1)} disabled={!hasMoreBills} className="px-4 py-2 bg-[#e6e6e6] text-black border border-gray-400 text-sm rounded-none disabled:opacity-50 hover:bg-[#cccccc]">Older →</button>
+                    <button onClick={() => setSalesPage(p => Math.max(0, p - 1))} disabled={salesPage === 0} className="px-4 py-2 bg-[#e6e6e6] border border-gray-400 text-sm rounded-none disabled:opacity-50">← Newer</button>
+                    <button onClick={() => setSalesPage(p => p + 1)} disabled={!hasMoreBills} className="px-4 py-2 bg-[#e6e6e6] border border-gray-400 text-sm rounded-none disabled:opacity-50">Older →</button>
                  </div>
                </>
                )}
@@ -616,25 +554,23 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
              <div className="bg-white p-6 border border-gray-400 rounded-none mb-8 max-w-2xl">
                <h2 className="text-lg font-light text-black mb-4">Register New Cashier</h2>
                <form onSubmit={handleAddWorker} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                 <div><label className="block text-sm text-gray-600 mb-1">Worker Name</label><input type="text" value={newWorker.name} onChange={e => setNewWorker({...newWorker, name: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" placeholder="e.g. Suresh" /></div>
-                 <div><label className="block text-sm text-gray-600 mb-1">Login Password</label><input type="text" value={newWorker.password} onChange={e => setNewWorker({...newWorker, password: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" placeholder="Set a password" /></div>
-                 <button type="submit" disabled={isAddingWorker} className="w-full py-1.5 bg-[#0078D7] hover:bg-[#005a9e] text-white transition-colors rounded-none border border-[#005a9e] text-sm h-8.5 disabled:opacity-50">Add Worker</button>
+                 <div><label className="block text-sm text-gray-600 mb-1">Worker Name</label><input type="text" value={newWorker.name} onChange={e => setNewWorker({...newWorker, name: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
+                 <div><label className="block text-sm text-gray-600 mb-1">Login PIN</label><input type="password" value={newWorker.password} onChange={e => setNewWorker({...newWorker, password: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
+                 <button type="submit" disabled={isAddingWorker} className="w-full py-1.5 bg-[#0078D7] text-white rounded-none border border-[#005a9e] text-sm h-8.5">Add Worker</button>
                </form>
              </div>
              <div className="bg-white border border-gray-400 rounded-none overflow-x-auto max-w-2xl">
                <table className="w-full text-left border-collapse min-w-[400px]">
                  <thead>
                    <tr className="bg-[#e6e6e6] text-black text-xs uppercase border-b border-gray-400">
-                     <th className="p-3 border-r border-gray-300">Name</th>
-                     <th className="p-3 border-r border-gray-300">Password</th>
+                     <th className="p-3">Name</th>
                      <th className="p-3 text-center w-32">Actions</th>
                    </tr>
                  </thead>
                  <tbody className="divide-y divide-gray-200">
                    {workers.map((worker) => (
                      <tr key={worker.id} className="hover:bg-[#f0f0f0]">
-                       <td className="p-3 border-r border-gray-200 text-sm text-black capitalize">{worker.name}</td>
-                       <td className="p-3 border-r border-gray-200 text-sm text-gray-600 font-mono">{worker.password}</td>
+                       <td className="p-3 text-sm text-black capitalize">{worker.name}</td>
                        <td className="p-2 text-center"><button onClick={() => handleDeleteWorker(worker.id)} className="px-3 py-1 bg-transparent text-[#e81123] border border-[#e81123] hover:bg-[#e81123] hover:text-white transition-colors text-xs rounded-none">Remove</button></td>
                      </tr>
                    ))}

@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient'; 
 
+// SECURE PASSWORD HASHER (SHA-256)
+export const hashPassword = async (message) => {
+  const msgBuffer = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
 export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComplete, shopSettings }) {
   const [step, setStep] = useState(1);
   const [role, setRole] = useState(null);         
@@ -9,7 +17,6 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
   const [workers, setWorkers] = useState([]);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
-  // Setup States (Only shown if the database is completely empty)
   const [shopName, setShopName] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [setupPassword, setSetupPassword] = useState('');
@@ -27,17 +34,16 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
 
   const handleSetup = async (e) => {
     e.preventDefault();
-    if (!shopName || !ownerName || !setupPassword) {
-      setError('All fields are required.');
-      return;
-    }
+    if (!shopName || !ownerName || !setupPassword) return setError('All fields are required.');
     setIsSettingUp(true);
     setError('');
+    
     try {
+      const hashedPassword = await hashPassword(setupPassword); // HASH BEFORE SAVE
       const { data, error } = await supabase.from('shop_settings').insert([{
         shop_name: shopName,
         owner_name: ownerName,
-        owner_password: setupPassword
+        owner_password: hashedPassword
       }]).select();
       
       if (error) throw error;
@@ -45,11 +51,8 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
         setStep(1);
         onSetupComplete(data[0]);
       }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsSettingUp(false);
-    }
+    } catch (err) { setError(err.message); } 
+    finally { setIsSettingUp(false); }
   };
 
   const handleRoleSelect = (selectedRole) => {
@@ -63,26 +66,25 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
     setIsAuthenticating(true);
     
     try {
+      const hashedInput = await hashPassword(password); // HASH INPUT TO COMPARE
+      
       if (role === 'owner') {
-        if (password === shopSettings?.owner_password) {
+        if (hashedInput === shopSettings?.owner_password) {
           onLoginSuccess('owner');
         } else {
           setError('Incorrect Admin password.');
         }
       } else {
         const matchedWorker = workers.find(w => w.name === role);
-        if (matchedWorker && password === matchedWorker.password) {
+        if (matchedWorker && hashedInput === matchedWorker.password) {
           onLoginSuccess(matchedWorker.name);
         } else {
           setError('Incorrect PIN. Please try again.');
         }
       }
-    } finally {
-      setIsAuthenticating(false);
-    }
+    } finally { setIsAuthenticating(false); }
   };
 
-  // SCREEN 1: First-time system registration (Only happens once)
   if (isSetupNeeded) {
     return (
       <div className="min-h-screen bg-[#0078D7] flex flex-col items-center justify-center p-4">
@@ -101,29 +103,21 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
     );
   }
 
-  // SCREEN 2: Daily Login (Fast Select User & Enter PIN)
   return (
     <div className="min-h-screen bg-[#0078D7] flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md bg-white p-8 border border-gray-400 shadow-[2px_2px_0px_rgba(0,0,0,0.2)] rounded-none overflow-hidden">
-        
         <div className="text-center mb-8 border-b border-gray-400 pb-4">
-          <h1 className="text-xl font-bold uppercase tracking-widest text-black leading-snug max-w-65 mx-auto">
-            {shopSettings?.shop_name}
-          </h1>
+          <h1 className="text-xl font-bold uppercase tracking-widest text-black leading-snug max-w-65 mx-auto">{shopSettings?.shop_name}</h1>
           <p className="text-xs text-gray-500 uppercase mt-2">Select User to Continue</p>
         </div>
-
         {step === 1 && (
-          <div>
-            <div className="space-y-3 mb-2">
-              <button onClick={() => handleRoleSelect('owner')} className="w-full py-3 bg-[#1e1e1e] hover:bg-[#333333] text-white border border-gray-600 text-lg transition-colors rounded-none text-left px-4">Admin (Owner)</button>
-              {workers.map((worker) => (
-                <button key={worker.id} onClick={() => handleRoleSelect(worker.name)} className="w-full py-3 bg-[#cccccc] hover:bg-[#b3b3b3] text-black border border-gray-400 text-lg transition-colors rounded-none text-left px-4 capitalize">{worker.name}</button>
-              ))}
-            </div>
+          <div className="space-y-3 mb-2">
+            <button onClick={() => handleRoleSelect('owner')} className="w-full py-3 bg-[#1e1e1e] hover:bg-[#333333] text-white border border-gray-600 text-lg transition-colors rounded-none text-left px-4">Admin (Owner)</button>
+            {workers.map((worker) => (
+              <button key={worker.id} onClick={() => handleRoleSelect(worker.name)} className="w-full py-3 bg-[#cccccc] hover:bg-[#b3b3b3] text-black border border-gray-400 text-lg transition-colors rounded-none text-left px-4 capitalize">{worker.name}</button>
+            ))}
           </div>
         )}
-
         {step === 2 && (
           <div>
             <button onClick={() => { setStep(1); setError(''); setPassword(''); }} className="text-sm text-[#0078D7] hover:underline mb-4 flex items-center">Back</button>
@@ -136,7 +130,6 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
             </form>
           </div>
         )}
-
       </div>
     </div>
   );

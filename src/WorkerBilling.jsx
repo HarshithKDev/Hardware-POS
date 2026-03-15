@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { supabase } from './supabaseClient'; 
 
 export default function WorkerBilling({ inventory, refreshInventory, defaultTab = 'checkout', hideNav = false, shopSettings, cashierName }) {
@@ -28,18 +28,23 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
     }
   };
 
-  const handleScan = (e) => {
+  const handleScan = async (e) => {
     e.preventDefault(); 
     const cleanBarcode = barcode.trim();
     if (!cleanBarcode) return;
 
-    const item = inventory.find(i => i.barcode === cleanBarcode);
+    // ERP FIX: Real-time DB lookup if not in local cache (Scalability)
+    let item = inventory.find(i => i.barcode === cleanBarcode);
+    if (!item) {
+      const { data } = await supabase.from('inventory').select('*').eq('barcode', cleanBarcode).single();
+      if (data && data.is_active !== false) item = data;
+    }
+
     if (item) {
       const existingItemIndex = cart.findIndex(cartItem => cartItem.barcode === cleanBarcode);
       if (existingItemIndex >= 0) {
         const updatedCart = [...cart];
-        const currentQty = Number(updatedCart[existingItemIndex].quantity) || 1;
-        updatedCart[existingItemIndex].quantity = currentQty + 1;
+        updatedCart[existingItemIndex].quantity = (Number(updatedCart[existingItemIndex].quantity) || 1) + 1;
         setCart(updatedCart);
       } else {
         setCart([...cart, { ...item, id: Date.now(), barcode: cleanBarcode, discountPct: 0, quantity: 1, unit: item.unit || 'PCS' }]);
@@ -51,18 +56,11 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
     setBarcode(''); 
   };
 
-  // Upgraded: If Qty drops to 0, item is instantly removed from cart
   const updateQuantity = (id, newQty) => {
-    if (newQty === '') {
-      setCart(cart.map(item => item.id === id ? { ...item, quantity: '' } : item));
-      return;
-    }
+    if (newQty === '') return setCart(cart.map(item => item.id === id ? { ...item, quantity: '' } : item));
     const validQty = Number(newQty);
-    if (validQty <= 0) {
-       setCart(cart.filter(item => item.id !== id));
-    } else {
-       setCart(cart.map(item => item.id === id ? { ...item, quantity: validQty } : item));
-    }
+    if (validQty <= 0) setCart(cart.filter(item => item.id !== id));
+    else setCart(cart.map(item => item.id === id ? { ...item, quantity: validQty } : item));
   };
 
   const updateDiscount = (id, newDiscount) => {
@@ -78,86 +76,57 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
   const handleCompleteTransaction = async () => {
     if (cart.length === 0) return;
     if (!navigator.onLine) return showAlert("You are offline.", "Network Error");
-
-    try {
-      for (const item of cart) {
-        const safeQty = item.quantity === '' ? 1 : Number(item.quantity);
-        if (safeQty <= 0) throw new Error(`Invalid quantity for ${item.name}`);
-
-        const dbItem = inventory.find(i => i.barcode === item.barcode);
-        if (!dbItem) throw new Error(`Item ${item.name} not found in local database.`);
-
-        if (activeTab === 'transfer' && dbItem.stock_warehouse < safeQty) {
-          throw new Error(`Insufficient warehouse stock for: ${item.name}. Have ${dbItem.stock_warehouse}, need ${safeQty}.`);
-        }
-        if (activeTab === 'checkout' && dbItem.stock_store < safeQty) {
-          throw new Error(`Insufficient store stock for: ${item.name}. Have ${dbItem.stock_store}, need ${safeQty}.`);
-        }
-      }
-    } catch (preFlightError) {
-      return showAlert(preFlightError.message, "Stock Error");
-    }
-
     setIsCheckingOut(true);
+
     try {
-      let dbAction = '';
-      let logLocation = '';
-      let successMsg = '';
+      let dbAction = activeTab === 'receive' ? 'RECEIVE' : activeTab === 'transfer' ? 'TRANSFER' : 'SALE';
+      let logLocation = activeTab === 'receive' ? 'Warehouse-Inbound' : activeTab === 'transfer' ? 'Warehouse-Transfer' : 'Store';
+      let successMsg = activeTab === 'checkout' ? 'Sale complete. Printing receipt...' : 'Inventory updated successfully.';
 
-      if (activeTab === 'receive') {
-        dbAction = 'RECEIVE';
-        logLocation = 'Warehouse-Inbound';
-        successMsg = 'Shipment received into warehouse.';
-      } else if (activeTab === 'transfer') {
-        dbAction = 'TRANSFER';
-        logLocation = 'Warehouse-Transfer';
-        successMsg = 'Items transferred to store shelves.';
-      } else if (activeTab === 'checkout') {
-        dbAction = 'SALE';
-        logLocation = 'Store';
-        successMsg = 'Sale complete. Printing receipt...';
-      }
+      // ERP FIX: ATOMIC TRANSACTION via JSON Array
+      const payload = {
+        p_action: dbAction,
+        p_location: logLocation,
+        p_cashier_name: cashierName || 'Unknown',
+        p_items: cart.map(item => ({
+          barcode: item.barcode,
+          name: item.name,
+          quantity: item.quantity === '' ? 1 : Number(item.quantity),
+          price: item.price,
+          discountPct: item.discountPct,
+          unit: item.unit
+        }))
+      };
 
-      for (const item of cart) {
-        const safeQty = item.quantity === '' ? 1 : Number(item.quantity);
-        const { data: success, error: rpcError } = await supabase.rpc('handle_inventory_action', { 
-          p_action: dbAction,
-          p_barcode: item.barcode, 
-          p_quantity: safeQty
-        });
-        
-        if (rpcError) throw rpcError;
-        if (!success) throw new Error(`Database rejected deduction for: ${item.name}`);
-      }
+      const { data, error } = await supabase.rpc('process_pos_transaction', payload);
+      if (error) throw new Error(error.message); // Will throw stock errors from DB safely
 
+      // ERP FIX: GST Tax Calculations for Receipt
       const total = calculateTotal();
-      // Upgraded: Inserts cashier name into the bill for tracking
-      const { data: billData, error: billError } = await supabase.from('bills').insert([{ 
-        total_amount: total, 
-        location: logLocation,
-        cashier_name: cashierName || 'Unknown' 
-      }]).select(); 
-      if (billError) throw billError;
-      
-      const newBill = billData[0];
-      const itemsToInsert = cart.map(item => ({
-        bill_id: newBill.id, 
-        barcode: item.barcode, 
-        name: item.name, 
-        quantity: item.quantity === '' ? 1 : Number(item.quantity),
-        unit: item.unit, 
-        price_at_sale: item.price * (1 - item.discountPct / 100), 
-        discount_pct: item.discountPct
-      }));
+      let totalTaxAmount = 0;
+      let totalBaseAmount = 0;
 
-      const { error: itemsError } = await supabase.from('bill_items').insert(itemsToInsert);
-      if (itemsError) throw itemsError;
+      const receiptCart = cart.map(item => {
+        const qty = item.quantity === '' ? 1 : Number(item.quantity);
+        const finalRate = item.price * (1 - item.discountPct / 100);
+        const lineTotal = finalRate * qty;
+        
+        const taxRate = item.tax_rate || 18;
+        const lineBase = lineTotal / (1 + (taxRate / 100));
+        const lineTax = lineTotal - lineBase;
 
-      const receiptCart = cart.map(item => ({ ...item, quantity: item.quantity === '' ? 1 : Number(item.quantity) }));
+        totalBaseAmount += lineBase;
+        totalTaxAmount += lineTax;
+
+        return { ...item, quantity: qty, finalRate, lineTotal, taxRate };
+      });
+
       setLastReceipt({ 
-        id: newBill.id.split('-')[0], 
+        id: data.bill_id.split('-')[0], 
         items: receiptCart, 
         total, 
+        baseAmount: totalBaseAmount,
+        taxAmount: totalTaxAmount,
         date: new Date(), 
         type: activeTab,
         cashierName: cashierName || 'Unknown'
@@ -165,15 +134,12 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
       
       setCart([]);
       if (refreshInventory) refreshInventory();
-
       showAlert(successMsg, "Transaction Complete");
       
-      if (activeTab === 'checkout' || activeTab === 'transfer') {
-        setTimeout(() => { window.print(); }, 100);
-      }
+      if (activeTab === 'checkout' || activeTab === 'transfer') setTimeout(() => { window.print(); }, 100);
 
     } catch (error) {
-      showAlert(`Failed: ${error.message}`, "Error");
+      showAlert(`Transaction Failed: ${error.message}`, "Error");
     } finally {
       setIsCheckingOut(false);
     }
@@ -182,7 +148,7 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
   const processedInventory = inventory.filter(item => 
     item.name.toLowerCase().includes(inventorySearch.toLowerCase()) || 
     item.barcode.includes(inventorySearch)
-  ).sort((a, b) => a.name.localeCompare(b.name));
+  ).sort((a, b) => a.name.localeCompare(b.name)).slice(0, 100);
 
   return (
     <>
@@ -197,7 +163,6 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
       )}
 
       <div className="flex flex-col items-center print:hidden h-full" onClick={handleBackgroundClick}>
-        
         {!hideNav && (
           <div className="w-full max-w-6xl mb-4 flex flex-wrap gap-2 overflow-x-auto whitespace-nowrap">
             <button onClick={() => { setActiveTab('receive'); setCart([]); }} className={`px-4 py-2 text-sm border border-gray-400 rounded-none ${activeTab === 'receive' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Receive Inbound</button>
@@ -277,11 +242,10 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
                           <tr key={item.id} className="hover:bg-[#f0f0f0]">
                             <td className="p-3 border-r border-gray-200 text-sm text-black">{item.name} <span className="text-gray-400 text-xs block">#{item.barcode}</span></td>
                             <td className="p-3 border-r border-gray-200">
-                              {/* --- UPGRADED QTY BUTTONS --- */}
                               <div className="flex items-center justify-center">
-                                <button type="button" onClick={() => updateQuantity(item.id, (Number(item.quantity) || 1) - 1)} className="px-2 py-1 bg-[#e6e6e6] hover:bg-[#cccccc] border border-gray-400 border-r-0 text-black font-bold focus:outline-none">-</button>
+                                <button type="button" onClick={() => updateQuantity(item.id, (Number(item.quantity) || 1) - 1)} className="px-2 py-1 bg-[#e6e6e6] hover:bg-[#cccccc] border border-gray-400 border-r-0 text-black font-bold">-</button>
                                 <input type="number" min="1" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-12 px-1 py-1 border border-gray-400 text-sm text-center focus:outline-none rounded-none" />
-                                <button type="button" onClick={() => updateQuantity(item.id, (Number(item.quantity) || 1) + 1)} className="px-2 py-1 bg-[#e6e6e6] hover:bg-[#cccccc] border border-gray-400 border-l-0 text-black font-bold focus:outline-none">+</button>
+                                <button type="button" onClick={() => updateQuantity(item.id, (Number(item.quantity) || 1) + 1)} className="px-2 py-1 bg-[#e6e6e6] hover:bg-[#cccccc] border border-gray-400 border-l-0 text-black font-bold">+</button>
                               </div>
                             </td>
                             <td className="p-3 border-r border-gray-200 text-sm text-right text-black">{item.price.toFixed(2)}</td>
@@ -297,7 +261,7 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
 
               {cart.length > 0 && (
                 <div className="p-4 bg-[#f3f3f3] border-t border-gray-400 flex justify-end">
-                  <button onClick={handleCompleteTransaction} disabled={isCheckingOut} className="px-8 py-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm disabled:opacity-50 rounded-none transition-colors w-full md:w-auto">
+                  <button onClick={handleCompleteTransaction} disabled={isCheckingOut} className="px-8 py-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm disabled:opacity-50 rounded-none w-full md:w-auto">
                     {isCheckingOut ? 'Processing...' : 'Confirm & Complete'}
                   </button>
                 </div>
@@ -307,13 +271,14 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
         </div>
       </div>
       
-      {/* UPGRADED THERMAL RECEIPT WITH CASHIER TRACKING */}
+      {/* ERP FIX: Official GST Format Receipt */}
       {lastReceipt && (lastReceipt.type === 'checkout' || lastReceipt.type === 'transfer') && (
         <div className="hidden print:block text-black font-mono text-xs w-[80mm] mx-auto bg-white p-4">
           
           <div className="text-center mb-3">
             <h1 className="text-xl font-bold uppercase">{lastReceipt.type === 'transfer' ? 'INTERNAL TRANSFER' : shopSettings?.shop_name || 'STORE RECEIPT'}</h1>
             {lastReceipt.type === 'checkout' && <p className="text-[10px]">Owner: {shopSettings?.owner_name}</p>}
+            {lastReceipt.type === 'checkout' && <p className="text-[10px]">TAX INVOICE</p>}
           </div>
 
           <div className="mb-3 text-[10px] flex justify-between border-b border-black border-dashed pb-2">
@@ -338,25 +303,29 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
               </tr>
             </thead>
             <tbody className="align-top">
-              {lastReceipt.items.map((item, i) => {
-                const finalRate = item.price * (1 - item.discountPct / 100);
-                const lineTotal = finalRate * item.quantity;
-                return (
-                  <tr key={i}>
-                    <td className="py-1 pr-1 text-wrap">
-                      {item.name}
-                      {item.discountPct > 0 && <span className="block text-[8px] text-gray-600">(-{item.discountPct}%)</span>}
-                    </td>
-                    <td className="py-1 text-center">{item.quantity} {item.unit}</td>
-                    <td className="py-1 text-right">{finalRate.toFixed(2)}</td>
-                    <td className="py-1 text-right">{lineTotal.toFixed(2)}</td>
-                  </tr>
-                );
-              })}
+              {lastReceipt.items.map((item, i) => (
+                <tr key={i}>
+                  <td className="py-1 pr-1 text-wrap">
+                    {item.name}
+                    {item.discountPct > 0 && <span className="block text-[8px] text-gray-600">(-{item.discountPct}%)</span>}
+                  </td>
+                  <td className="py-1 text-center">{item.quantity} {item.unit}</td>
+                  <td className="py-1 text-right">{item.finalRate.toFixed(2)}</td>
+                  <td className="py-1 text-right">{item.lineTotal.toFixed(2)}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
+
+          {lastReceipt.type === 'checkout' && (
+            <div className="border-t border-black border-dashed pt-2 mb-2 text-[10px]">
+              <div className="flex justify-between"><span className="text-gray-600">Taxable Base Amt:</span><span>₹{lastReceipt.baseAmount.toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-600">CGST:</span><span>₹{(lastReceipt.taxAmount / 2).toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-600">SGST:</span><span>₹{(lastReceipt.taxAmount / 2).toFixed(2)}</span></div>
+            </div>
+          )}
           
-          <div className="border-t border-black border-dashed pt-2 flex justify-between items-center mb-4">
+          <div className="border-t border-black pt-2 flex justify-between items-center mb-4">
             <span className="font-bold text-sm">TOTAL AMOUNT</span>
             <span className="font-bold text-lg">₹{lastReceipt.total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
           </div>
@@ -367,7 +336,6 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
               <p>Goods once sold will not be taken back.</p>
             </div>
           )}
-
         </div>
       )}
     </>
