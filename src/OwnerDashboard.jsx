@@ -259,11 +259,12 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
 
       <main className="flex-1 p-8 overflow-y-auto h-screen">
         
-        {/* DASHBOARD TAB */}
+        {/* DASHBOARD TAB WITH EXPANDED ANALYTICS */}
         {activeTab === 'dashboard' && (
            <div className="animate-fade-in">
              <h1 className="text-3xl font-light text-black mb-8">Business Overview</h1>
              
+             {/* Row 1: High Level Revenue & Alerts */}
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                <div className="bg-white p-6 border border-gray-400 border-l-4 border-l-[#107c10] rounded-none shadow-sm flex flex-col justify-between">
                  <p className="text-xs text-gray-500 uppercase font-semibold">Today's Store Revenue</p>
@@ -287,6 +288,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                </div>
              </div>
 
+             {/* Row 2: Capital Distribution */}
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                <div className="bg-white p-6 border border-gray-400 border-l-4 border-l-[#605e5c] rounded-none shadow-sm flex flex-col justify-between">
                  <p className="text-xs text-gray-500 uppercase font-semibold">Total Assets Value</p>
@@ -333,7 +335,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                 <div><label className="block text-sm text-gray-600 mb-1">Price (₹)</label><input type="number" step="0.01" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
                 <div><label className="block text-sm text-gray-600 mb-1">Initial Whse Qty</label><input type="number" value={newItem.stock_warehouse} onChange={e => setNewItem({...newItem, stock_warehouse: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
                 
-                <button type="submit" disabled={isSubmitting} className="w-full py-2 bg-[#0078D7] hover:bg-[#005a9e] transition-colors text-white rounded-none border border-[#005a9e] text-sm md:col-span-6 mt-4 font-medium">Add Product to Master Database</button>
+                <button type="submit" disabled={isSubmitting} className="w-full py-2 bg-[#0078D7] hover:bg-[#005a9e] transition-colors text-white rounded-none border border-[#005a9e] text-sm md:col-span-6 mt-4 font-medium h-8.5">Add Product to Master Database</button>
               </form>
             </div>
           </div>
@@ -578,7 +580,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                                 bill.location === 'Warehouse-Transfer' ? 'Transfer to Store' : 
                                 'Customer Sale'}
                              </td>
-                             <td className="p-3 text-sm text-black font-semibold text-[#0078D7]">₹{Number(bill.total_amount).toFixed(2)}</td>
+                             <td className="p-3 text-sm font-semibold text-[#0078D7]">₹{Number(bill.total_amount).toFixed(2)}</td>
                            </tr>
                          ))
                        )}
@@ -606,7 +608,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                <form onSubmit={handleAddWorker} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                  <div><label className="block text-sm text-gray-600 mb-1">Worker Name</label><input type="text" value={newWorker.name} onChange={e => setNewWorker({...newWorker, name: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" placeholder="e.g. Suresh" /></div>
                  <div><label className="block text-sm text-gray-600 mb-1">Login Password</label><input type="text" value={newWorker.password} onChange={e => setNewWorker({...newWorker, password: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" placeholder="Set a password" /></div>
-                 <button type="submit" disabled={isAddingWorker} className="w-full py-1.5 bg-[#0078D7] hover:bg-[#005a9e] text-white transition-colors rounded-none border border-[#005a9e] text-sm h-[34px] disabled:opacity-50">Add Worker</button>
+                 <button type="submit" disabled={isAddingWorker} className="w-full py-1.5 bg-[#0078D7] hover:bg-[#005a9e] text-white transition-colors rounded-none border border-[#005a9e] text-sm h-8.5 disabled:opacity-50">Add Worker</button>
                </form>
              </div>
              <div className="bg-white border border-gray-400 rounded-none overflow-hidden max-w-2xl">

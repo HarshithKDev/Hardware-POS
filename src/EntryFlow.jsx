@@ -98,8 +98,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
       <div className="w-full max-w-md bg-white p-8 border border-gray-400 shadow-[2px_2px_0px_rgba(0,0,0,0.2)] rounded-none overflow-hidden">
         
         <div className="text-center mb-8 border-b border-gray-400 pb-4">
-          {/* Added max-w-[260px] and mx-auto to force the text to wrap like a stacked logo */}
-          <h1 className="text-xl font-bold uppercase tracking-widest text-black break-words leading-snug max-w-[260px] mx-auto">
+          <h1 className="text-xl font-bold uppercase tracking-widest text-black leading-snug max-w-65 mx-auto">
             {shopSettings?.shop_name}
           </h1>
           <p className="text-xs text-gray-500 uppercase mt-2">Authorized Access Only</p>

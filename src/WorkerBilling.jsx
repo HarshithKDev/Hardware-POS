@@ -191,22 +191,22 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
           </div>
         )}
 
-        <div className="w-full max-w-6xl bg-white border border-gray-400 rounded-none shadow-none h-full min-h-[500px]">
+        <div className="w-full max-w-6xl bg-white border border-gray-400 rounded-none shadow-none h-full min-h-125">
           {activeTab === 'inventory' ? (
             <div className="p-6 animate-fade-in">
               <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-light text-black">Master Inventory View</h1>
                 <input type="text" placeholder="Search item..." value={inventorySearch} onChange={(e) => setInventorySearch(e.target.value)} className="px-3 py-1.5 border border-gray-400 text-sm focus:outline-none focus:border-[#0078D7] rounded-none" />
               </div>
-              <div className="border border-gray-400 overflow-y-auto max-h-[600px]">
+              <div className="border border-gray-400 overflow-y-auto max-h-150">
                 <table className="w-full text-left border-collapse">
                   <thead className="sticky top-0 bg-[#e6e6e6]">
                     <tr className="text-black text-xs uppercase border-b border-gray-400">
                       <th className="p-3">Barcode</th>
                       <th className="p-3">Item Name</th>
                       <th className="p-3 text-center">Unit</th>
-                      <th className="p-3 text-center bg-[#fff4ce]">Whse Stock</th>
-                      <th className="p-3 text-center bg-[#e6f4ea]">Store Stock</th>
+                      <th className="p-3 text-center">Whse Stock</th>
+                      <th className="p-3 text-center">Store Stock</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -288,7 +288,6 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
         <div className="hidden print:block text-black font-mono text-xs w-[80mm] mx-auto bg-white p-4">
           
           <div className="text-center mb-3">
-            {/* The receipt now uses the exact shop name from the cloud setup */}
             <h1 className="text-xl font-bold uppercase">{lastReceipt.type === 'transfer' ? 'INTERNAL TRANSFER' : shopSettings?.shop_name || 'STORE RECEIPT'}</h1>
             {lastReceipt.type === 'checkout' && <p className="text-[10px]">Owner: {shopSettings?.owner_name}</p>}
           </div>
@@ -319,7 +318,7 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
                 const lineTotal = finalRate * item.quantity;
                 return (
                   <tr key={i}>
-                    <td className="py-1 pr-1 break-words">
+                    <td className="py-1 pr-1 text-wrap">
                       {item.name}
                       {item.discountPct > 0 && <span className="block text-[8px] text-gray-600">(-{item.discountPct}%)</span>}
                     </td>

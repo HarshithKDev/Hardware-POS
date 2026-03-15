@@ -4,7 +4,6 @@ import Barcode from 'react-barcode';
 export default function BarcodePrinter({ inventory }) {
   const [searchTerm, setSearchTerm] = useState('');
   
-  // NEW: A queue to hold multiple items and their print quantities
   const [printQueue, setPrintQueue] = useState([]);
 
   const filteredInventory = searchTerm.trim() === '' 
@@ -15,23 +14,20 @@ export default function BarcodePrinter({ inventory }) {
       ).slice(0, 10); 
 
   const handleSelectItem = (item) => {
-    // Check if the item is already in the queue
     const existingIndex = printQueue.findIndex(qItem => qItem.barcode === item.barcode);
     
     if (existingIndex >= 0) {
-       // If it is, just increase the quantity by 1
        const updatedQueue = [...printQueue];
        updatedQueue[existingIndex].printQty += 1;
        setPrintQueue(updatedQueue);
     } else {
-       // If it is new, add it to the queue with a quantity of 1
        setPrintQueue([...printQueue, { ...item, printQty: 1 }]);
     }
-    setSearchTerm(''); // Clear the search bar
+    setSearchTerm(''); 
   };
 
   const updateQuantity = (barcode, newQty) => {
-    const qty = Math.max(1, Number(newQty)); // Prevent negative or zero labels
+    const qty = Math.max(1, Number(newQty)); 
     setPrintQueue(printQueue.map(item => 
       item.barcode === barcode ? { ...item, printQty: qty } : item
     ));
@@ -41,13 +37,11 @@ export default function BarcodePrinter({ inventory }) {
     setPrintQueue(printQueue.filter(item => item.barcode !== barcode));
   };
 
-  // Calculate the total number of labels to print for the button text
   const totalLabels = printQueue.reduce((sum, item) => sum + item.printQty, 0);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh]">
       
-      {/* --- VISIBLE DASHBOARD UI --- */}
       <div className="w-full max-w-4xl bg-white border border-gray-400 rounded-none shadow-none print:hidden animate-fade-in">
         <div className="bg-[#f3f3f3] p-4 text-black border-b border-gray-400">
           <h1 className="text-xl font-light">Print Barcode Labels</h1>
@@ -57,10 +51,8 @@ export default function BarcodePrinter({ inventory }) {
         <div className="p-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             
-            {/* Configuration Panel */}
             <div className="space-y-6">
               
-              {/* Live Search Bar */}
               <div className="relative">
                 <label className="block text-sm text-gray-600 mb-1">Search Product Name or Barcode</label>
                 <input 
@@ -71,7 +63,6 @@ export default function BarcodePrinter({ inventory }) {
                   className="w-full px-3 py-2 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-sm rounded-none text-black"
                 />
                 
-                {/* Autocomplete Dropdown */}
                 {filteredInventory.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-gray-400 shadow-lg max-h-60 overflow-y-auto">
                     {filteredInventory.map(item => (
@@ -88,7 +79,6 @@ export default function BarcodePrinter({ inventory }) {
                 )}
               </div>
 
-              {/* Print Queue List */}
               {printQueue.length > 0 && (
                 <div className="bg-white border border-gray-400 rounded-none overflow-hidden">
                   <table className="w-full text-left border-collapse">
@@ -115,7 +105,6 @@ export default function BarcodePrinter({ inventory }) {
                             />
                           </td>
                           <td className="p-2 text-center">
-                            {/* A sharp red close button to remove the item from the queue */}
                             <button onClick={() => removeFromQueue(item.barcode)} className="text-[#e81123] hover:text-red-700 font-bold text-lg leading-none">×</button>
                           </td>
                         </tr>
@@ -125,7 +114,6 @@ export default function BarcodePrinter({ inventory }) {
                 </div>
               )}
 
-              {/* Print Button */}
               {printQueue.length > 0 && (
                 <div className="flex gap-4">
                   <button 
@@ -144,11 +132,9 @@ export default function BarcodePrinter({ inventory }) {
               )}
             </div>
 
-            {/* Live Preview Panel */}
-            <div className="border border-gray-400 bg-[#f9f9f9] p-6 flex flex-col items-center justify-center min-h-[300px]">
+            <div className="border border-gray-400 bg-[#f9f9f9] p-6 flex flex-col items-center justify-center min-h-75">
               <p className="text-xs text-gray-500 uppercase mb-4">Label Format Preview</p>
               {printQueue.length > 0 ? (
-                // We show a preview of just the first item in the queue so they know what the stickers will look like
                 <div className="text-center bg-white p-3 border border-gray-300 shadow-sm inline-block w-[50mm]">
                   <p className="text-xs font-bold text-black mb-1 truncate mx-auto">{printQueue[0].name}</p>
                   <div className="flex justify-center">
@@ -165,11 +151,9 @@ export default function BarcodePrinter({ inventory }) {
         </div>
       </div>
 
-      {/* --- THE HIDDEN PRINTABLE AREA (Only visible on paper) --- */}
       {printQueue.length > 0 && (
         <div className="hidden print:flex flex-wrap content-start justify-start bg-white w-full h-full">
           {printQueue.map((item) => (
-            // We loop through each item, and then loop again based on its specific printQty
             Array.from({ length: item.printQty }).map((_, index) => (
               <div key={`${item.barcode}-${index}`} className="flex flex-col items-center justify-center p-1 border-gray-200 w-[50mm] h-[25mm] overflow-hidden break-inside-avoid mb-2 mr-2">
                  <p className="text-[9px] font-bold text-black truncate w-full text-center leading-none mb-1">{item.name}</p>
