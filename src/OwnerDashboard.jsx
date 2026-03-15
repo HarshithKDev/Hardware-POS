@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient'; 
 import WorkerBilling from './WorkerBilling'; 
-import { hashPassword } from './EntryFlow'; // Import the hasher
+import { hashPassword } from './EntryFlow'; 
 
 export default function OwnerDashboard({ inventory, refreshInventory, shopSettings, cashierName }) {
   const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('posOwnerActiveTab') || 'dashboard');
@@ -13,7 +13,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
   useEffect(() => { sessionStorage.setItem('posOwnerWarehouseSubTab', warehouseSubTab); }, [warehouseSubTab]);
   useEffect(() => { sessionStorage.setItem('posOwnerStoreSubTab', storeSubTab); }, [storeSubTab]);
 
-  // ERP FIX: Added cost_price and tax_rate
   const [newItem, setNewItem] = useState({ name: '', price: '', cost_price: '', tax_rate: '18', stock_warehouse: '', unit: 'PCS' });
   const [isSubmitting, setIsSubmitting] = useState(false); 
   const [editingBarcode, setEditingBarcode] = useState(null);
@@ -37,9 +36,9 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, message: '', title: 'Confirm Action', onConfirm: null });
 
   const [todaysTrueRevenue, setTodaysTrueRevenue] = useState(0);
+  const [todaysGrossProfit, setTodaysGrossProfit] = useState(0); // NEW: Track Profit
   const [todaysTransactionCount, setTodaysTransactionCount] = useState(0); 
   
-  // ERP FIX: Pagination for the Inventory view to prevent massive lag
   const [inventorySearch, setInventorySearch] = useState('');
   const [sortOption, setSortOption] = useState('name-asc');
   const [invPage, setInvPage] = useState(0);
@@ -58,15 +57,29 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
     if (activeTab !== 'sales') setSelectedBill(null);
   }, [activeTab, salesPage]);
 
+  // ERP FIX: Calculates both total Revenue AND total Gross Profit
   const fetchDashboardStats = async () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0); 
     try {
-      const { data, error } = await supabase.from('bills').select('total_amount').gte('created_at', today.toISOString()).eq('location', 'Store'); 
-      if (!error && data) {
-        const total = data.reduce((sum, bill) => sum + Number(bill.total_amount), 0);
-        setTodaysTrueRevenue(total);
-        setTodaysTransactionCount(data.length); 
+      const { data: billsData, error: billsError } = await supabase.from('bills').select('id, total_amount').gte('created_at', today.toISOString()).eq('location', 'Store'); 
+      if (!billsError && billsData) {
+        const totalRev = billsData.reduce((sum, bill) => sum + Number(bill.total_amount), 0);
+        setTodaysTrueRevenue(totalRev);
+        setTodaysTransactionCount(billsData.length); 
+
+        // Fetch items for today's bills to calculate profit
+        const billIds = billsData.map(b => b.id);
+        if (billIds.length > 0) {
+          const { data: itemsData, error: itemsError } = await supabase.from('bill_items').select('quantity, price_at_sale, cost_at_sale').in('bill_id', billIds);
+          if (!itemsError && itemsData) {
+            let profit = 0;
+            itemsData.forEach(item => {
+              profit += (Number(item.price_at_sale) - Number(item.cost_at_sale)) * Number(item.quantity);
+            });
+            setTodaysGrossProfit(profit);
+          }
+        }
       }
     } catch (err) { console.error("Error:", err.message); }
   };
@@ -104,7 +117,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
     if (!newWorker.name || !newWorker.password) return showAlert("Provide name and password.", "Missing Info");
     try {
       setIsAddingWorker(true);
-      const hashedPass = await hashPassword(newWorker.password); // SECURE STAFF CREATION
+      const hashedPass = await hashPassword(newWorker.password); 
       const { error } = await supabase.from('workers').insert([{ name: newWorker.name, password: hashedPass }]);
       if (error) throw error;
       setNewWorker({ name: '', password: '' });
@@ -186,7 +199,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
     }, "Archive Item");
   };
 
-  // ERP FIX: TRUE CAPITAL CALCULATION (Based on Wholesale Cost, not Retail Price)
   const lowStoreCount = inventory.filter(item => item.stock_store < 10).length;
   const lowWarehouseCount = inventory.filter(item => item.stock_warehouse < 20).length;
 
@@ -196,7 +208,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
   const warehouseCapital = inventory.reduce((total, item) => total + (Number(item.cost_price || item.price * 0.7) * Number(item.stock_warehouse)), 0);
   const storeCapital = inventory.reduce((total, item) => total + (Number(item.cost_price || item.price * 0.7) * Number(item.stock_store)), 0);
 
-  // Pagination Logic
   const processedInventory = [...inventory]
     .filter(item => item.name.toLowerCase().includes(inventorySearch.toLowerCase()) || item.barcode.toLowerCase().includes(inventorySearch.toLowerCase()))
     .sort((a, b) => {
@@ -277,19 +288,22 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                  <p className="text-xs text-gray-500 uppercase font-semibold">Today's Store Revenue</p>
                  <p className="text-3xl font-light text-[#107c10] mt-2">₹{todaysTrueRevenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                </div>
-               <div className="bg-white p-6 border border-gray-400 border-l-4 border-l-[#0078D7] rounded-none shadow-sm flex flex-col justify-between">
-                 <p className="text-xs text-gray-500 uppercase font-semibold">Today's Sales Count</p>
-                 <p className="text-3xl font-light text-[#0078D7] mt-2">{todaysTransactionCount} Bills</p>
+               
+               {/* ERP FIX: ADDED GROSS PROFIT METRIC */}
+               <div className="bg-white p-6 border border-gray-400 border-l-4 border-l-[#107c10] rounded-none shadow-sm flex flex-col justify-between">
+                 <p className="text-xs text-gray-500 uppercase font-semibold">Today's Gross Profit</p>
+                 <p className="text-3xl font-light text-[#107c10] mt-2">₹{todaysGrossProfit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                </div>
-               <div className={`bg-white p-6 border border-gray-400 border-l-4 rounded-none shadow-sm flex flex-col justify-between ${lowStoreCount > 0 ? 'border-l-[#e81123]' : 'border-l-[#107c10]'}`}>
+
+               <div className={`bg-white p-6 border border-gray-400 border-l-4 rounded-none shadow-sm flex flex-col justify-between ${lowStoreCount > 0 ? 'border-l-[#e81123]' : 'border-l-[#0078D7]'}`}>
                  <p className="text-xs text-gray-500 uppercase font-semibold">Low Store Stock</p>
-                 <p className={`text-3xl font-light mt-2 ${lowStoreCount > 0 ? 'text-[#e81123]' : 'text-[#107c10]'}`}>
+                 <p className={`text-3xl font-light mt-2 ${lowStoreCount > 0 ? 'text-[#e81123]' : 'text-[#0078D7]'}`}>
                    {lowStoreCount > 0 ? `${lowStoreCount} Items` : 'Shelves Full'}
                  </p>
                </div>
-               <div className={`bg-white p-6 border border-gray-400 border-l-4 rounded-none shadow-sm flex flex-col justify-between ${lowWarehouseCount > 0 ? 'border-l-[#e81123]' : 'border-l-[#107c10]'}`}>
+               <div className={`bg-white p-6 border border-gray-400 border-l-4 rounded-none shadow-sm flex flex-col justify-between ${lowWarehouseCount > 0 ? 'border-l-[#e81123]' : 'border-l-[#0078D7]'}`}>
                  <p className="text-xs text-gray-500 uppercase font-semibold">Wholesaler Reorder Alert</p>
-                 <p className={`text-3xl font-light mt-2 ${lowWarehouseCount > 0 ? 'text-[#e81123]' : 'text-[#107c10]'}`}>
+                 <p className={`text-3xl font-light mt-2 ${lowWarehouseCount > 0 ? 'text-[#e81123]' : 'text-[#0078D7]'}`}>
                    {lowWarehouseCount > 0 ? `${lowWarehouseCount} Items` : 'Stocked Up'}
                  </p>
                </div>
@@ -326,12 +340,11 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                 <div className="md:col-span-2"><label className="block text-sm text-gray-600 mb-1">Item Name</label><input type="text" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
                 <div><label className="block text-sm text-gray-600 mb-1">Unit</label><select value={newItem.unit} onChange={e => setNewItem({...newItem, unit: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm bg-white"><option value="PCS">PCS</option><option value="GRAMS">GRAMS</option><option value="SQFT">SQFT</option></select></div>
                 
-                {/* ERP FIX: Added Cost Price and Tax inputs */}
                 <div><label className="block text-sm text-gray-600 mb-1">Wholesale Cost (₹)</label><input type="number" step="0.01" value={newItem.cost_price} onChange={e => setNewItem({...newItem, cost_price: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
                 <div><label className="block text-sm text-gray-600 mb-1">Retail Price (₹)</label><input type="number" step="0.01" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
                 <div><label className="block text-sm text-gray-600 mb-1">GST Tax (%)</label><select value={newItem.tax_rate} onChange={e => setNewItem({...newItem, tax_rate: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm bg-white"><option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option></select></div>
                 
-                <div><label className="block text-sm text-gray-600 mb-1">Initial Whse Qty</label><input type="number" value={newItem.stock_warehouse} onChange={e => setNewItem({...newItem, stock_warehouse: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
+                <div><label className="block text-sm text-gray-600 mb-1">Initial Whse Qty</label><input type="number" step="any" value={newItem.stock_warehouse} onChange={e => setNewItem({...newItem, stock_warehouse: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
                 
                 <button type="submit" disabled={isSubmitting} className="w-full py-2 bg-[#0078D7] hover:bg-[#005a9e] transition-colors text-white rounded-none border border-[#005a9e] text-sm md:col-span-4 mt-4 font-medium h-8.5">Register Item</button>
               </form>
@@ -384,7 +397,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                               <td className="p-2 border-r border-gray-200"><input type="number" step="0.01" value={editFormData.cost_price} onChange={(e) => setEditFormData({...editFormData, cost_price: e.target.value})} className="w-full px-1 py-1 border border-gray-400 text-sm rounded-none" /></td>
                               <td className="p-2 border-r border-gray-200"><input type="number" step="0.01" value={editFormData.price} onChange={(e) => setEditFormData({...editFormData, price: e.target.value})} className="w-full px-1 py-1 border border-gray-400 text-sm rounded-none" /></td>
                               <td className="p-2 border-r border-gray-200"><input type="number" value={editFormData.tax_rate} onChange={(e) => setEditFormData({...editFormData, tax_rate: e.target.value})} className="w-full px-1 py-1 border border-gray-400 text-sm rounded-none" /></td>
-                              <td className="p-2 border-r border-gray-200"><input type="number" value={editFormData.stock_warehouse} onChange={(e) => setEditFormData({...editFormData, stock_warehouse: e.target.value})} className="w-full px-1 py-1 border border-gray-400 text-sm text-center rounded-none" /></td>
+                              <td className="p-2 border-r border-gray-200"><input type="number" step="any" value={editFormData.stock_warehouse} onChange={(e) => setEditFormData({...editFormData, stock_warehouse: e.target.value})} className="w-full px-1 py-1 border border-gray-400 text-sm text-center rounded-none" /></td>
                               <td className="p-2 text-center flex justify-center">
                                 <button onClick={handleSaveEdit} className="px-2 py-1 bg-[#107c10] text-white text-xs rounded-none">Save</button>
                                 <button onClick={() => setEditingBarcode(null)} className="px-2 py-1 bg-[#e6e6e6] text-black border border-gray-400 text-xs rounded-none">Cancel</button>
@@ -408,7 +421,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                     </tbody>
                   </table>
                 </div>
-                {/* Pagination Controls */}
                 <div className="flex justify-between items-center mt-4">
                   <button onClick={() => setInvPage(p => Math.max(0, p - 1))} disabled={invPage === 0} className="px-4 py-1.5 bg-[#e6e6e6] text-black border border-gray-400 text-sm disabled:opacity-50 rounded-none">Previous</button>
                   <span className="text-sm text-gray-500">Page {invPage + 1} of {Math.max(1, Math.ceil(processedInventory.length / INV_PER_PAGE))}</span>
@@ -431,7 +443,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
             </div>
             {storeSubTab === 'inventory' && (
               <div className="animate-fade-in">
-                {/* Simplified Store Inventory logic (similar to warehouse, showing just store stock) */}
                 <p className="text-gray-500 text-sm mb-4">View active store inventory levels.</p>
                 <div className="bg-white border border-gray-400 rounded-none overflow-x-auto">
                   <table className="w-full text-left border-collapse min-w-[600px]">

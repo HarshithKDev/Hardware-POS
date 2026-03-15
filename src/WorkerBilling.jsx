@@ -31,9 +31,9 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
   const handleScan = async (e) => {
     e.preventDefault(); 
     const cleanBarcode = barcode.trim();
+    setBarcode(''); // Instantly clear input so scanner can scan next item immediately
     if (!cleanBarcode) return;
 
-    // ERP FIX: Real-time DB lookup if not in local cache (Scalability)
     let item = inventory.find(i => i.barcode === cleanBarcode);
     if (!item) {
       const { data } = await supabase.from('inventory').select('*').eq('barcode', cleanBarcode).single();
@@ -41,31 +41,37 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
     }
 
     if (item) {
-      const existingItemIndex = cart.findIndex(cartItem => cartItem.barcode === cleanBarcode);
-      if (existingItemIndex >= 0) {
-        const updatedCart = [...cart];
-        updatedCart[existingItemIndex].quantity = (Number(updatedCart[existingItemIndex].quantity) || 1) + 1;
-        setCart(updatedCart);
-      } else {
-        setCart([...cart, { ...item, id: Date.now(), barcode: cleanBarcode, discountPct: 0, quantity: 1, unit: item.unit || 'PCS' }]);
-      }
+      // ERP FIX: Functional state update prevents race conditions with fast USB scanners
+      setCart(prevCart => {
+        const existingItemIndex = prevCart.findIndex(cartItem => cartItem.barcode === cleanBarcode);
+        if (existingItemIndex >= 0) {
+          const updatedCart = [...prevCart];
+          updatedCart[existingItemIndex].quantity = (Number(updatedCart[existingItemIndex].quantity) || 1) + 1;
+          return updatedCart;
+        } else {
+          return [...prevCart, { ...item, id: Date.now() + Math.random(), barcode: cleanBarcode, discountPct: 0, quantity: 1, unit: item.unit || 'PCS' }];
+        }
+      });
       setTimeout(() => scannerInputRef.current?.focus(), 10);
     } else {
       showAlert(`Barcode ${cleanBarcode} not recognized.`, "Invalid Scan");
     }
-    setBarcode(''); 
   };
 
   const updateQuantity = (id, newQty) => {
-    if (newQty === '') return setCart(cart.map(item => item.id === id ? { ...item, quantity: '' } : item));
-    const validQty = Number(newQty);
-    if (validQty <= 0) setCart(cart.filter(item => item.id !== id));
-    else setCart(cart.map(item => item.id === id ? { ...item, quantity: validQty } : item));
+    setCart(prevCart => {
+      if (newQty === '') return prevCart.map(item => item.id === id ? { ...item, quantity: '' } : item);
+      const validQty = Number(newQty);
+      if (validQty <= 0) return prevCart.filter(item => item.id !== id);
+      return prevCart.map(item => item.id === id ? { ...item, quantity: validQty } : item);
+    });
   };
 
   const updateDiscount = (id, newDiscount) => {
-    const validDiscount = Math.min(100, Math.max(0, Number(newDiscount)));
-    setCart(cart.map(item => item.id === id ? { ...item, discountPct: validDiscount } : item));
+    setCart(prevCart => {
+      const validDiscount = Math.min(100, Math.max(0, Number(newDiscount)));
+      return prevCart.map(item => item.id === id ? { ...item, discountPct: validDiscount } : item);
+    });
   };
 
   const calculateTotal = () => cart.reduce((total, item) => {
@@ -83,7 +89,6 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
       let logLocation = activeTab === 'receive' ? 'Warehouse-Inbound' : activeTab === 'transfer' ? 'Warehouse-Transfer' : 'Store';
       let successMsg = activeTab === 'checkout' ? 'Sale complete. Printing receipt...' : 'Inventory updated successfully.';
 
-      // ERP FIX: ATOMIC TRANSACTION via JSON Array
       const payload = {
         p_action: dbAction,
         p_location: logLocation,
@@ -99,9 +104,8 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
       };
 
       const { data, error } = await supabase.rpc('process_pos_transaction', payload);
-      if (error) throw new Error(error.message); // Will throw stock errors from DB safely
+      if (error) throw new Error(error.message); 
 
-      // ERP FIX: GST Tax Calculations for Receipt
       const total = calculateTotal();
       let totalTaxAmount = 0;
       let totalBaseAmount = 0;
@@ -244,7 +248,8 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
                             <td className="p-3 border-r border-gray-200">
                               <div className="flex items-center justify-center">
                                 <button type="button" onClick={() => updateQuantity(item.id, (Number(item.quantity) || 1) - 1)} className="px-2 py-1 bg-[#e6e6e6] hover:bg-[#cccccc] border border-gray-400 border-r-0 text-black font-bold">-</button>
-                                <input type="number" min="1" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-12 px-1 py-1 border border-gray-400 text-sm text-center focus:outline-none rounded-none" />
+                                {/* ERP FIX: step="any" allows fractional quantities like 1.5 SQFT */}
+                                <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-16 px-1 py-1 border border-gray-400 text-sm text-center focus:outline-none rounded-none" />
                                 <button type="button" onClick={() => updateQuantity(item.id, (Number(item.quantity) || 1) + 1)} className="px-2 py-1 bg-[#e6e6e6] hover:bg-[#cccccc] border border-gray-400 border-l-0 text-black font-bold">+</button>
                               </div>
                             </td>
@@ -271,7 +276,6 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
         </div>
       </div>
       
-      {/* ERP FIX: Official GST Format Receipt */}
       {lastReceipt && (lastReceipt.type === 'checkout' || lastReceipt.type === 'transfer') && (
         <div className="hidden print:block text-black font-mono text-xs w-[80mm] mx-auto bg-white p-4">
           
