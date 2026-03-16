@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import EntryFlow from './EntryFlow';
 import WorkerBilling from './WorkerBilling';
@@ -42,7 +42,6 @@ function App() {
 
       const { data: invData, error: invError } = await supabase.from('inventory').select('*').order('name', { ascending: true }); 
       if (invError) throw invError;
-      // Soft Delete Fix: We filter out is_active = false, but keep older items that might be null
       if (invData) setInventory(invData.filter(item => item.is_active !== false));
       
     } catch (error) { 
@@ -94,17 +93,28 @@ function App() {
   return (
     <div className="w-full min-h-screen bg-[#f3f3f3] text-black">
       <nav className="bg-[#1e1e1e] text-white p-2 flex justify-between items-center print:hidden border-b-2 border-[#0078D7]">
-        <div className="flex gap-1 items-center">
-          <span className="bg-transparent px-3 py-1 text-sm font-semibold mr-4 capitalize">User: {userRole}</span>
+        <div className="flex items-center">
           
-          {userRole === 'owner' ? (
-            <>
-              <button onClick={() => setCurrentScreen('dashboard')} className={`px-4 py-2 text-sm transition-colors rounded-none ${currentScreen === 'dashboard' ? 'bg-[#0078D7] text-white' : 'bg-transparent hover:bg-[#333333]'}`}>Owner Dashboard</button>
-              <button onClick={() => setCurrentScreen('printer')} className={`px-4 py-2 text-sm transition-colors rounded-none ${currentScreen === 'printer' ? 'bg-[#0078D7] text-white' : 'bg-transparent hover:bg-[#333333]'}`}>Print Barcodes</button>
-            </>
-          ) : (
-            <button onClick={() => setCurrentScreen('billing')} className={`px-4 py-2 text-sm transition-colors rounded-none ${currentScreen === 'billing' ? 'bg-[#0078D7] text-white' : 'bg-transparent hover:bg-[#333333]'}`}>Worker Terminal</button>
-          )}
+          {/* CLEAN USER IDENTIFIER (No weird blocks, just an icon and the name) */}
+          <div className="flex items-center gap-2 pr-6 mr-4 border-r border-gray-600">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-[#0078D7]">
+              <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" clipRule="evenodd" />
+            </svg>
+            <span className="text-lg font-light text-white capitalize tracking-wide">{userRole}</span>
+          </div>
+          
+          {/* NAVIGATION BUTTONS */}
+          <div className="flex gap-1">
+            {userRole === 'owner' ? (
+              <>
+                <button onClick={() => setCurrentScreen('dashboard')} className={`px-4 py-2 text-sm transition-colors rounded-none ${currentScreen === 'dashboard' ? 'bg-[#0078D7] text-white' : 'bg-transparent text-gray-300 hover:bg-[#333333] hover:text-white'}`}>Owner Dashboard</button>
+                <button onClick={() => setCurrentScreen('printer')} className={`px-4 py-2 text-sm transition-colors rounded-none ${currentScreen === 'printer' ? 'bg-[#0078D7] text-white' : 'bg-transparent text-gray-300 hover:bg-[#333333] hover:text-white'}`}>Print Barcodes</button>
+              </>
+            ) : (
+              <button onClick={() => setCurrentScreen('billing')} className={`px-4 py-2 text-sm transition-colors rounded-none ${currentScreen === 'billing' ? 'bg-[#0078D7] text-white' : 'bg-transparent text-gray-300 hover:bg-[#333333] hover:text-white'}`}>Worker Terminal</button>
+            )}
+          </div>
+
         </div>
         <button onClick={handleLogout} className="px-4 py-2 bg-transparent hover:bg-[#e81123] text-white text-sm transition-colors rounded-none">Logout</button>
       </nav>
