@@ -3,6 +3,19 @@ import { supabase } from './supabaseClient';
 import WorkerBilling from './WorkerBilling'; 
 import { hashPassword } from './EntryFlow'; 
 
+const EyeIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+    <path strokeLinecap="round" strokeLinelinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+    <path strokeLinecap="round" strokeLinelinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+);
+
+const EyeSlashIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+    <path strokeLinecap="round" strokeLinelinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+  </svg>
+);
+
 export default function OwnerDashboard({ inventory, refreshInventory, shopSettings, cashierName }) {
   const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('posOwnerActiveTab') || 'dashboard');
   const [warehouseSubTab, setWarehouseSubTab] = useState(() => sessionStorage.getItem('posOwnerWarehouseSubTab') || 'inventory'); 
@@ -13,7 +26,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
   useEffect(() => { sessionStorage.setItem('posOwnerWarehouseSubTab', warehouseSubTab); }, [warehouseSubTab]);
   useEffect(() => { sessionStorage.setItem('posOwnerStoreSubTab', storeSubTab); }, [storeSubTab]);
 
-  const [newItem, setNewItem] = useState({ name: '', price: '', cost_price: '', tax_rate: '18', stock_warehouse: '', unit: 'PCS' });
+  const [newItem, setNewItem] = useState({ name: '', price: '', cost_price: '', stock_warehouse: '', unit: 'PCS' });
   const [isSubmitting, setIsSubmitting] = useState(false); 
   const [editingBarcode, setEditingBarcode] = useState(null);
   const [editFormData, setEditFormData] = useState({});
@@ -21,6 +34,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
   const [workers, setWorkers] = useState([]);
   const [newWorker, setNewWorker] = useState({ name: '', password: '' });
   const [isAddingWorker, setIsAddingWorker] = useState(false);
+  const [showNewWorkerPassword, setShowNewWorkerPassword] = useState(false); // State to track the eye icon toggle
 
   const [bills, setBills] = useState([]);
   const [isLoadingBills, setIsLoadingBills] = useState(false);
@@ -36,7 +50,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, message: '', title: 'Confirm Action', onConfirm: null });
 
   const [todaysTrueRevenue, setTodaysTrueRevenue] = useState(0);
-  const [todaysGrossProfit, setTodaysGrossProfit] = useState(0); // NEW: Track Profit
+  const [todaysGrossProfit, setTodaysGrossProfit] = useState(0); 
   const [todaysTransactionCount, setTodaysTransactionCount] = useState(0); 
   
   const [inventorySearch, setInventorySearch] = useState('');
@@ -57,7 +71,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
     if (activeTab !== 'sales') setSelectedBill(null);
   }, [activeTab, salesPage]);
 
-  // ERP FIX: Calculates both total Revenue AND total Gross Profit
   const fetchDashboardStats = async () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0); 
@@ -68,7 +81,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
         setTodaysTrueRevenue(totalRev);
         setTodaysTransactionCount(billsData.length); 
 
-        // Fetch items for today's bills to calculate profit
         const billIds = billsData.map(b => b.id);
         if (billIds.length > 0) {
           const { data: itemsData, error: itemsError } = await supabase.from('bill_items').select('quantity, price_at_sale, cost_at_sale').in('bill_id', billIds);
@@ -157,14 +169,13 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
         name: newItem.name, 
         cost_price: Number(newItem.cost_price),
         price: Number(newItem.price), 
-        tax_rate: Number(newItem.tax_rate),
         stock_warehouse: Number(newItem.stock_warehouse || 0), 
         stock_store: 0, 
         unit: newItem.unit,
         is_active: true
       }]);
       if (error) throw error;
-      setNewItem({ name: '', price: '', cost_price: '', tax_rate: '18', stock_warehouse: '', unit: 'PCS' }); 
+      setNewItem({ name: '', price: '', cost_price: '', stock_warehouse: '', unit: 'PCS' }); 
       refreshInventory(); 
       showAlert(`Product added successfully. Barcode: ${autoBarcode}`, "Success");
     } catch (error) { showAlert("Failed to save.", "Error"); } finally { setIsSubmitting(false); }
@@ -176,7 +187,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
         name: editFormData.name, 
         cost_price: Number(editFormData.cost_price),
         price: Number(editFormData.price), 
-        tax_rate: Number(editFormData.tax_rate),
         stock_warehouse: Number(editFormData.stock_warehouse), 
         stock_store: Number(editFormData.stock_store), 
         unit: editFormData.unit 
@@ -289,7 +299,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                  <p className="text-3xl font-light text-[#107c10] mt-2">₹{todaysTrueRevenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                </div>
                
-               {/* ERP FIX: ADDED GROSS PROFIT METRIC */}
                <div className="bg-white p-6 border border-gray-400 border-l-4 border-l-[#107c10] rounded-none shadow-sm flex flex-col justify-between">
                  <p className="text-xs text-gray-500 uppercase font-semibold">Today's Gross Profit</p>
                  <p className="text-3xl font-light text-[#107c10] mt-2">₹{todaysGrossProfit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
@@ -342,11 +351,10 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                 
                 <div><label className="block text-sm text-gray-600 mb-1">Wholesale Cost (₹)</label><input type="number" step="0.01" value={newItem.cost_price} onChange={e => setNewItem({...newItem, cost_price: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
                 <div><label className="block text-sm text-gray-600 mb-1">Retail Price (₹)</label><input type="number" step="0.01" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
-                <div><label className="block text-sm text-gray-600 mb-1">GST Tax (%)</label><select value={newItem.tax_rate} onChange={e => setNewItem({...newItem, tax_rate: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm bg-white"><option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option></select></div>
                 
                 <div><label className="block text-sm text-gray-600 mb-1">Initial Whse Qty</label><input type="number" step="any" value={newItem.stock_warehouse} onChange={e => setNewItem({...newItem, stock_warehouse: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
                 
-                <button type="submit" disabled={isSubmitting} className="w-full py-2 bg-[#0078D7] hover:bg-[#005a9e] transition-colors text-white rounded-none border border-[#005a9e] text-sm md:col-span-4 mt-4 font-medium h-8.5">Register Item</button>
+                <button type="submit" disabled={isSubmitting} className="w-full py-2 bg-[#0078D7] hover:bg-[#005a9e] transition-colors text-white rounded-none border border-[#005a9e] text-sm md:col-span-5 mt-4 font-medium h-8.5">Register Item</button>
               </form>
             </div>
           </div>
@@ -382,7 +390,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                         <th className="p-3">Item Name</th>
                         <th className="p-3 w-20 text-center">Cost</th>
                         <th className="p-3 w-20 text-center">Retail</th>
-                        <th className="p-3 w-16 text-center">Tax</th>
                         <th className="p-3 w-24 text-center">Whse</th>
                         <th className="p-3 w-32 text-center">Actions</th>
                       </tr>
@@ -396,7 +403,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                               <td className="p-2 border-r border-gray-200"><input type="text" value={editFormData.name} onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} className="w-full px-1 py-1 border border-gray-400 text-sm rounded-none" /></td>
                               <td className="p-2 border-r border-gray-200"><input type="number" step="0.01" value={editFormData.cost_price} onChange={(e) => setEditFormData({...editFormData, cost_price: e.target.value})} className="w-full px-1 py-1 border border-gray-400 text-sm rounded-none" /></td>
                               <td className="p-2 border-r border-gray-200"><input type="number" step="0.01" value={editFormData.price} onChange={(e) => setEditFormData({...editFormData, price: e.target.value})} className="w-full px-1 py-1 border border-gray-400 text-sm rounded-none" /></td>
-                              <td className="p-2 border-r border-gray-200"><input type="number" value={editFormData.tax_rate} onChange={(e) => setEditFormData({...editFormData, tax_rate: e.target.value})} className="w-full px-1 py-1 border border-gray-400 text-sm rounded-none" /></td>
                               <td className="p-2 border-r border-gray-200"><input type="number" step="any" value={editFormData.stock_warehouse} onChange={(e) => setEditFormData({...editFormData, stock_warehouse: e.target.value})} className="w-full px-1 py-1 border border-gray-400 text-sm text-center rounded-none" /></td>
                               <td className="p-2 text-center flex justify-center">
                                 <button onClick={handleSaveEdit} className="px-2 py-1 bg-[#107c10] text-white text-xs rounded-none">Save</button>
@@ -408,7 +414,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                               <td className="p-3 border-r border-gray-200 text-sm text-black">{item.name}</td>
                               <td className="p-3 border-r border-gray-200 text-sm text-gray-600 text-center">{Number(item.cost_price || 0).toFixed(2)}</td>
                               <td className="p-3 border-r border-gray-200 text-sm text-black text-center">{Number(item.price).toFixed(2)}</td>
-                              <td className="p-3 border-r border-gray-200 text-sm text-black text-center">{item.tax_rate || 18}%</td>
                               <td className="p-3 border-r border-gray-200 text-sm text-black font-semibold text-center">{item.stock_warehouse || '0'}</td>
                               <td className="p-2 text-center flex gap-2 justify-center">
                                 <button onClick={() => handleEditClick(item)} className="px-3 py-1 bg-[#e6e6e6] text-black border border-gray-400 text-xs rounded-none">Edit</button>
@@ -421,6 +426,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                     </tbody>
                   </table>
                 </div>
+                {/* Pagination Controls */}
                 <div className="flex justify-between items-center mt-4">
                   <button onClick={() => setInvPage(p => Math.max(0, p - 1))} disabled={invPage === 0} className="px-4 py-1.5 bg-[#e6e6e6] text-black border border-gray-400 text-sm disabled:opacity-50 rounded-none">Previous</button>
                   <span className="text-sm text-gray-500">Page {invPage + 1} of {Math.max(1, Math.ceil(processedInventory.length / INV_PER_PAGE))}</span>
@@ -566,7 +572,16 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                <h2 className="text-lg font-light text-black mb-4">Register New Cashier</h2>
                <form onSubmit={handleAddWorker} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                  <div><label className="block text-sm text-gray-600 mb-1">Worker Name</label><input type="text" value={newWorker.name} onChange={e => setNewWorker({...newWorker, name: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
-                 <div><label className="block text-sm text-gray-600 mb-1">Login PIN</label><input type="password" value={newWorker.password} onChange={e => setNewWorker({...newWorker, password: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
+                 <div>
+                   <label className="block text-sm text-gray-600 mb-1">Login PIN</label>
+                   <div className="relative">
+                     <input type={showNewWorkerPassword ? "text" : "password"} value={newWorker.password} onChange={e => setNewWorker({...newWorker, password: e.target.value})} className="w-full px-3 py-1.5 pr-10 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" />
+                     {/* tabIndex="-1" ensures the eye icon doesn't catch keyboard focus when pressing Tab */}
+                     <button type="button" onClick={() => setShowNewWorkerPassword(!showNewWorkerPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-[#0078D7] focus:outline-none" tabIndex="-1">
+                       {showNewWorkerPassword ? <EyeSlashIcon /> : <EyeIcon />}
+                     </button>
+                   </div>
+                 </div>
                  <button type="submit" disabled={isAddingWorker} className="w-full py-1.5 bg-[#0078D7] text-white rounded-none border border-[#005a9e] text-sm h-8.5">Add Worker</button>
                </form>
              </div>

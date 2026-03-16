@@ -31,7 +31,7 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
   const handleScan = async (e) => {
     e.preventDefault(); 
     const cleanBarcode = barcode.trim();
-    setBarcode(''); // Instantly clear input so scanner can scan next item immediately
+    setBarcode(''); 
     if (!cleanBarcode) return;
 
     let item = inventory.find(i => i.barcode === cleanBarcode);
@@ -41,7 +41,6 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
     }
 
     if (item) {
-      // ERP FIX: Functional state update prevents race conditions with fast USB scanners
       setCart(prevCart => {
         const existingItemIndex = prevCart.findIndex(cartItem => cartItem.barcode === cleanBarcode);
         if (existingItemIndex >= 0) {
@@ -107,30 +106,19 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
       if (error) throw new Error(error.message); 
 
       const total = calculateTotal();
-      let totalTaxAmount = 0;
-      let totalBaseAmount = 0;
 
+      // Stripped out all tax logic here
       const receiptCart = cart.map(item => {
         const qty = item.quantity === '' ? 1 : Number(item.quantity);
         const finalRate = item.price * (1 - item.discountPct / 100);
         const lineTotal = finalRate * qty;
-        
-        const taxRate = item.tax_rate || 18;
-        const lineBase = lineTotal / (1 + (taxRate / 100));
-        const lineTax = lineTotal - lineBase;
-
-        totalBaseAmount += lineBase;
-        totalTaxAmount += lineTax;
-
-        return { ...item, quantity: qty, finalRate, lineTotal, taxRate };
+        return { ...item, quantity: qty, finalRate, lineTotal };
       });
 
       setLastReceipt({ 
         id: data.bill_id.split('-')[0], 
         items: receiptCart, 
         total, 
-        baseAmount: totalBaseAmount,
-        taxAmount: totalTaxAmount,
         date: new Date(), 
         type: activeTab,
         cashierName: cashierName || 'Unknown'
@@ -248,7 +236,6 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
                             <td className="p-3 border-r border-gray-200">
                               <div className="flex items-center justify-center">
                                 <button type="button" onClick={() => updateQuantity(item.id, (Number(item.quantity) || 1) - 1)} className="px-2 py-1 bg-[#e6e6e6] hover:bg-[#cccccc] border border-gray-400 border-r-0 text-black font-bold">-</button>
-                                {/* ERP FIX: step="any" allows fractional quantities like 1.5 SQFT */}
                                 <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-16 px-1 py-1 border border-gray-400 text-sm text-center focus:outline-none rounded-none" />
                                 <button type="button" onClick={() => updateQuantity(item.id, (Number(item.quantity) || 1) + 1)} className="px-2 py-1 bg-[#e6e6e6] hover:bg-[#cccccc] border border-gray-400 border-l-0 text-black font-bold">+</button>
                               </div>
@@ -276,13 +263,13 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
         </div>
       </div>
       
+      {/* FLAT RATE THERMAL RECEIPT */}
       {lastReceipt && (lastReceipt.type === 'checkout' || lastReceipt.type === 'transfer') && (
         <div className="hidden print:block text-black font-mono text-xs w-[80mm] mx-auto bg-white p-4">
           
           <div className="text-center mb-3">
             <h1 className="text-xl font-bold uppercase">{lastReceipt.type === 'transfer' ? 'INTERNAL TRANSFER' : shopSettings?.shop_name || 'STORE RECEIPT'}</h1>
             {lastReceipt.type === 'checkout' && <p className="text-[10px]">Owner: {shopSettings?.owner_name}</p>}
-            {lastReceipt.type === 'checkout' && <p className="text-[10px]">TAX INVOICE</p>}
           </div>
 
           <div className="mb-3 text-[10px] flex justify-between border-b border-black border-dashed pb-2">
@@ -320,14 +307,6 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
               ))}
             </tbody>
           </table>
-
-          {lastReceipt.type === 'checkout' && (
-            <div className="border-t border-black border-dashed pt-2 mb-2 text-[10px]">
-              <div className="flex justify-between"><span className="text-gray-600">Taxable Base Amt:</span><span>₹{lastReceipt.baseAmount.toFixed(2)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-600">CGST:</span><span>₹{(lastReceipt.taxAmount / 2).toFixed(2)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-600">SGST:</span><span>₹{(lastReceipt.taxAmount / 2).toFixed(2)}</span></div>
-            </div>
-          )}
           
           <div className="border-t border-black pt-2 flex justify-between items-center mb-4">
             <span className="font-bold text-sm">TOTAL AMOUNT</span>
