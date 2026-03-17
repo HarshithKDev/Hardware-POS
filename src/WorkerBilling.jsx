@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from './supabaseClient'; 
+import { Spinner } from './App'; // Import the spinner
 
 export default function WorkerBilling({ inventory, refreshInventory, defaultTab = 'checkout', hideNav = false, shopSettings, cashierName }) {
   const [activeTab, setActiveTab] = useState(defaultTab);
@@ -96,7 +97,7 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
     if (cart.length === 0) return;
     if (!navigator.onLine) return showAlert("You are offline.", "Network Error");
     
-    setCheckoutModal({ ...checkoutModal, isOpen: false });
+    // Do not close modal yet, keep it open while spinning so they know it is processing
     setIsCheckingOut(true);
 
     try {
@@ -141,11 +142,13 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
       
       setCart([]);
       if (refreshInventory) refreshInventory();
+      setCheckoutModal({ ...checkoutModal, isOpen: false }); // Close modal when done
       showAlert(successMsg, "Transaction Complete");
       
       if (activeTab === 'checkout') setTimeout(() => { window.print(); }, 100);
 
     } catch (error) {
+      setCheckoutModal({ ...checkoutModal, isOpen: false });
       showAlert(`Transaction Failed: ${error.message}`, "Error");
     } finally {
       setIsCheckingOut(false);
@@ -195,8 +198,10 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
               )}
             </div>
             <div className="p-4 bg-[#f3f3f3] border-t border-gray-400 flex justify-end gap-3">
-              <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} className="px-6 py-2 bg-[#e6e6e6] hover:bg-[#cccccc] text-black text-sm border border-gray-400 rounded-none transition-colors">Cancel</button>
-              <button onClick={handleCompleteTransaction} className="px-8 py-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-medium rounded-none transition-colors">Print Receipt</button>
+              <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} disabled={isCheckingOut} className="px-6 py-2 bg-[#e6e6e6] hover:bg-[#cccccc] text-black text-sm border border-gray-400 rounded-none transition-colors disabled:opacity-50">Cancel</button>
+              <button onClick={handleCompleteTransaction} disabled={isCheckingOut} className="px-8 py-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-medium rounded-none transition-colors disabled:opacity-50 flex justify-center items-center h-10 min-w-[140px]">
+                {isCheckingOut ? <Spinner className="w-5 h-5 text-white" /> : 'Print Receipt'}
+              </button>
             </div>
           </div>
         </div>
@@ -327,7 +332,7 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
                 </table>
               </div>
 
-              {/* MOBILE CART CARDS (Huge touch targets) */}
+              {/* MOBILE CART CARDS */}
               <div className="md:hidden flex-1 overflow-y-auto bg-white divide-y divide-gray-200">
                 {cart.length === 0 ? (
                   <div className="p-8 text-center text-gray-500 text-sm">No items scanned.</div>
@@ -365,7 +370,7 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
                 )}
               </div>
 
-              {/* ACTION BAR (Stacks on Mobile) */}
+              {/* ACTION BAR */}
               {cart.length > 0 && (
                 <div className="p-4 bg-[#f3f3f3] border-t border-gray-400 flex flex-col md:flex-row justify-between md:items-center gap-3">
                   <button 
@@ -378,9 +383,9 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
                   <button 
                     onClick={initiateCheckoutProcess} 
                     disabled={isCheckingOut} 
-                    className="w-full md:w-auto px-8 py-3 md:py-2 bg-[#0078D7] active:bg-[#005a9e] hover:bg-[#005a9e] text-white text-base md:text-sm font-medium disabled:opacity-50 rounded-none transition-colors"
+                    className="w-full md:w-auto px-8 py-3 md:py-2 bg-[#0078D7] active:bg-[#005a9e] hover:bg-[#005a9e] text-white text-base md:text-sm font-medium disabled:opacity-50 rounded-none transition-colors flex justify-center items-center h-12 md:h-10"
                   >
-                    {isCheckingOut ? 'Processing...' : 'Confirm & Complete'}
+                    {isCheckingOut ? <Spinner className="w-5 h-5 text-white" /> : 'Confirm & Complete'}
                   </button>
                 </div>
               )}
@@ -389,7 +394,7 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
         </div>
       </div>
       
-      {/* FLAT RATE THERMAL RECEIPT */}
+      {/* ONLY RENDER THERMAL RECEIPT FOR CUSTOMER CHECKOUTS */}
       {lastReceipt && lastReceipt.type === 'checkout' && (
         <div className="hidden print:block text-black font-mono text-xs w-[80mm] mx-auto bg-white p-4">
           <div className="text-center mb-3">

@@ -5,6 +5,14 @@ import WorkerBilling from './WorkerBilling';
 import OwnerDashboard from './OwnerDashboard';
 import BarcodePrinter from './BarcodePrinter';
 
+// Reusable animated spinner
+export const Spinner = ({ className = "w-5 h-5 text-current" }) => (
+  <svg className={`animate-spin ${className}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+  </svg>
+);
+
 function App() {
   const [userRole, setUserRole] = useState(() => sessionStorage.getItem('posUserRole') || null); 
   const [currentScreen, setCurrentScreen] = useState(() => sessionStorage.getItem('posCurrentScreen') || 'login');
@@ -13,6 +21,9 @@ function App() {
   
   const [shopSettings, setShopSettings] = useState(null);
   const [isSetupNeeded, setIsSetupNeeded] = useState(false);
+
+  // NEW: State for the custom logout modal
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => { 
     fetchInitialData(); 
@@ -70,15 +81,26 @@ function App() {
     setIsSetupNeeded(false);
   };
 
-  const handleLogout = () => {
+  // FIX: Open the custom modal instead of the ugly browser alert
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
     setUserRole(null);
     setCurrentScreen('login');
     sessionStorage.removeItem('posUserRole');
     sessionStorage.removeItem('posCurrentScreen');
+    setShowLogoutConfirm(false);
   };
 
   if (isInitialLoad) {
-    return <div className="w-full min-h-screen bg-[#f3f3f3] flex items-center justify-center text-black"><p className="text-xl font-light">Loading Database...</p></div>;
+    return (
+      <div className="w-full min-h-screen bg-[#f3f3f3] flex flex-col items-center justify-center text-black">
+        <Spinner className="w-12 h-12 text-[#0078D7] mb-4" />
+        <p className="text-xl font-light text-gray-500">Connecting to Database...</p>
+      </div>
+    );
   }
 
   if (isSetupNeeded || !userRole) {
@@ -90,20 +112,40 @@ function App() {
     />;
   }
 
+  const displayUserName = userRole === 'owner' ? (shopSettings?.owner_name || 'Owner') : userRole;
+
   return (
-    <div className="w-full min-h-screen bg-[#f3f3f3] text-black">
+    <div className="w-full min-h-screen bg-[#f3f3f3] text-black relative">
+      
+      {/* CUSTOM LOGOUT MODAL */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in print:hidden px-4">
+          <div className="bg-white border border-gray-400 w-full max-w-sm shadow-[4px_4px_0px_rgba(0,0,0,0.15)] rounded-none">
+            <div className="bg-[#f3f3f3] p-2 border-b border-gray-400 flex justify-between items-center">
+              <span className="text-sm font-semibold text-black px-1">Confirm Logout</span>
+              <button onClick={() => setShowLogoutConfirm(false)} className="text-gray-500 hover:text-[#e81123] text-lg leading-none px-2 transition-colors">×</button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-black">Are you sure you want to log out? Any unscanned items in the current cart will be lost.</p>
+            </div>
+            <div className="p-4 bg-[#f3f3f3] border-t border-gray-400 flex justify-end gap-3">
+              <button onClick={confirmLogout} className="px-6 py-1.5 bg-[#e81123] hover:bg-[#b00d1a] transition-colors text-white text-sm rounded-none">Log Out</button>
+              <button onClick={() => setShowLogoutConfirm(false)} className="px-6 py-1.5 bg-[#e6e6e6] hover:bg-[#cccccc] transition-colors text-black border border-gray-400 text-sm rounded-none">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <nav className="bg-[#1e1e1e] text-white p-2 flex justify-between items-center print:hidden border-b-2 border-[#0078D7]">
         <div className="flex items-center">
           
-          {/* CLEAN USER IDENTIFIER (No weird blocks, just an icon and the name) */}
           <div className="flex items-center gap-2 pr-6 mr-4 border-r border-gray-600">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-[#0078D7]">
               <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" clipRule="evenodd" />
             </svg>
-            <span className="text-lg font-light text-white capitalize tracking-wide">{userRole}</span>
+            <span className="text-lg font-light text-white capitalize tracking-wide">{displayUserName}</span>
           </div>
           
-          {/* NAVIGATION BUTTONS */}
           <div className="flex gap-1">
             {userRole === 'owner' ? (
               <>
@@ -116,12 +158,12 @@ function App() {
           </div>
 
         </div>
-        <button onClick={handleLogout} className="px-4 py-2 bg-transparent hover:bg-[#e81123] text-white text-sm transition-colors rounded-none">Logout</button>
+        <button onClick={handleLogoutClick} className="px-4 py-2 bg-transparent hover:bg-[#e81123] text-white text-sm transition-colors rounded-none">Logout</button>
       </nav>
 
       <main className="p-0 md:p-4">
-        {currentScreen === 'billing' && <WorkerBilling inventory={inventory} refreshInventory={fetchInventory} shopSettings={shopSettings} cashierName={userRole} />}
-        {currentScreen === 'dashboard' && userRole === 'owner' && <OwnerDashboard inventory={inventory} refreshInventory={fetchInventory} shopSettings={shopSettings} cashierName={userRole} />}
+        {currentScreen === 'billing' && <WorkerBilling inventory={inventory} refreshInventory={fetchInventory} shopSettings={shopSettings} cashierName={displayUserName} />}
+        {currentScreen === 'dashboard' && userRole === 'owner' && <OwnerDashboard inventory={inventory} refreshInventory={fetchInventory} shopSettings={shopSettings} cashierName={displayUserName} />}
         {currentScreen === 'printer' && userRole === 'owner' && <BarcodePrinter inventory={inventory} />}
       </main>
     </div>

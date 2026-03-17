@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient'; 
 import WorkerBilling from './WorkerBilling'; 
 import { hashPassword } from './EntryFlow'; 
+import { Spinner } from './App'; // Import the spinner
 
 export default function OwnerDashboard({ inventory, refreshInventory, shopSettings, cashierName }) {
   const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('posOwnerActiveTab') || 'dashboard');
@@ -40,7 +41,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
   const [todaysTransactionCount, setTodaysTransactionCount] = useState(0); 
   
   const [inventorySearch, setInventorySearch] = useState('');
-  const [sortOption, setSortOption] = useState('barcode-asc'); // Defaulted to Barcode Ascending
+  const [sortOption, setSortOption] = useState('barcode-asc'); 
   const [invPage, setInvPage] = useState(0);
   const INV_PER_PAGE = 50;
 
@@ -340,7 +341,9 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                 
                 <div><label className="block text-sm text-gray-600 mb-1">Initial Whse Qty</label><input type="number" step="any" value={newItem.stock_warehouse} onChange={e => setNewItem({...newItem, stock_warehouse: e.target.value})} className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" /></div>
                 
-                <button type="submit" disabled={isSubmitting} className="w-full py-2 bg-[#0078D7] hover:bg-[#005a9e] transition-colors text-white rounded-none border border-[#005a9e] text-sm md:col-span-5 mt-4 font-medium h-8.5">Register Item</button>
+                <button type="submit" disabled={isSubmitting} className="w-full py-2 bg-[#0078D7] hover:bg-[#005a9e] transition-colors text-white rounded-none border border-[#005a9e] text-sm md:col-span-5 mt-4 font-medium h-8.5 flex justify-center items-center">
+                  {isSubmitting ? <Spinner className="w-5 h-5 text-white" /> : 'Register Item'}
+                </button>
               </form>
             </div>
           </div>
@@ -498,7 +501,9 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                   <p className="text-2xl font-light text-[#0078D7]">Value: ₹{Number(selectedBill.total_amount).toFixed(2)}</p>
                 </div>
                 
-                {isLoadingItems ? <p className="text-sm text-gray-500">Loading items...</p> : (
+                {isLoadingItems ? (
+                  <div className="flex justify-center py-6"><Spinner className="w-6 h-6 text-[#0078D7]" /></div>
+                ) : (
                   <div className="bg-white border border-gray-400 rounded-none overflow-x-auto">
                     <table className="w-full text-left border-collapse min-w-[600px]">
                       <thead>
@@ -530,7 +535,9 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                  <button onClick={() => fetchBills(salesPage)} className="px-4 py-1.5 bg-[#e6e6e6] border border-gray-400 text-sm rounded-none">Refresh Data</button>
                </div>
                
-               {isLoadingBills ? (<p className="text-sm text-gray-500">Loading...</p>) : (
+               {isLoadingBills ? (
+                 <div className="flex justify-center py-10"><Spinner className="w-8 h-8 text-[#0078D7]" /></div>
+               ) : (
                <>
                  <div className="bg-white border border-gray-400 rounded-none overflow-x-auto mb-4">
                    <table className="w-full text-left border-collapse min-w-[600px]">
@@ -581,7 +588,9 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                    <label className="block text-sm text-gray-600 mb-1">Login PIN</label>
                    <input type="password" value={newWorker.password} onChange={e => setNewWorker({...newWorker, password: e.target.value})} placeholder="Enter 4-digit PIN" className="w-full px-3 py-1.5 border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none text-sm" />
                  </div>
-                 <button type="submit" disabled={isAddingWorker} className="w-full py-1.5 bg-[#0078D7] text-white rounded-none border border-[#005a9e] text-sm h-8.5 disabled:opacity-50">Add Worker</button>
+                 <button type="submit" disabled={isAddingWorker} className="w-full py-1.5 bg-[#0078D7] text-white rounded-none border border-[#005a9e] text-sm h-8.5 disabled:opacity-50 flex justify-center items-center">
+                   {isAddingWorker ? <Spinner className="w-5 h-5 text-white" /> : 'Add Worker'}
+                 </button>
                </form>
              </div>
              <div className="bg-white border border-gray-400 rounded-none overflow-x-auto max-w-2xl">
@@ -597,6 +606,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                    {workers.map((worker) => (
                      <tr key={worker.id} className="hover:bg-[#f0f0f0]">
                        <td className="p-3 text-sm text-black capitalize">{worker.name}</td>
+                       {/* Hide the massive hashed string from the owner to keep the UI clean */}
                        <td className="p-3 text-sm text-gray-400 text-center tracking-widest">••••••••</td>
                        <td className="p-2 text-center"><button onClick={() => handleDeleteWorker(worker.id)} className="px-3 py-1 bg-transparent text-[#e81123] border border-[#e81123] hover:bg-[#e81123] hover:text-white transition-colors text-xs rounded-none">Remove</button></td>
                      </tr>
