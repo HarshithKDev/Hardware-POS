@@ -47,7 +47,11 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
         const existingItemIndex = prevCart.findIndex(cartItem => cartItem.barcode === cleanBarcode);
         if (existingItemIndex >= 0) {
           const updatedCart = [...prevCart];
-          updatedCart[existingItemIndex].quantity = (Number(updatedCart[existingItemIndex].quantity) || 1) + 1;
+          const currentItem = updatedCart[existingItemIndex];
+          updatedCart[existingItemIndex] = {
+            ...currentItem,
+            quantity: (Number(currentItem.quantity) || 1) + 1
+          };
           return updatedCart;
         } else {
           return [...prevCart, { ...item, id: Date.now() + Math.random(), barcode: cleanBarcode, discountPct: 0, quantity: 1, unit: item.unit || 'PCS' }];
@@ -139,7 +143,6 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
       if (refreshInventory) refreshInventory();
       showAlert(successMsg, "Transaction Complete");
       
-      // ONLY print if it is an actual customer sale! Internal moves stay silent.
       if (activeTab === 'checkout') setTimeout(() => { window.print(); }, 100);
 
     } catch (error) {
@@ -161,9 +164,9 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
       {alertConfig.isOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fade-in print:hidden px-4">
           <div className="bg-white border border-gray-400 w-full max-w-sm rounded-none shadow-[4px_4px_0px_rgba(0,0,0,0.15)]">
-            <div className="bg-[#f3f3f3] p-2 border-b border-gray-400 flex justify-between"><span className="text-sm font-semibold">{alertConfig.title}</span><button onClick={closeAlert} className="text-gray-500 hover:text-red-600">×</button></div>
+            <div className="bg-[#f3f3f3] p-2 border-b border-gray-400 flex justify-between"><span className="text-sm font-semibold">{alertConfig.title}</span><button onClick={closeAlert} className="text-gray-500 hover:text-red-600 text-xl leading-none">×</button></div>
             <div className="p-6"><p className="text-sm">{alertConfig.message}</p></div>
-            <div className="p-4 bg-[#f3f3f3] border-t border-gray-400 flex justify-end"><button onClick={closeAlert} className="px-6 py-1.5 bg-[#0078D7] text-white text-sm rounded-none">OK</button></div>
+            <div className="p-4 bg-[#f3f3f3] border-t border-gray-400 flex justify-end"><button onClick={closeAlert} className="px-6 py-2 bg-[#0078D7] text-white text-sm rounded-none">OK</button></div>
           </div>
         </div>
       )}
@@ -175,36 +178,22 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
               <span className="text-sm font-semibold">Payment Checkout</span>
               <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} className="text-gray-500 hover:text-[#e81123] text-xl leading-none">×</button>
             </div>
-            
             <div className="p-6">
               <div className="flex justify-between items-end mb-6 pb-6 border-b border-gray-200">
                 <span className="text-gray-600 text-lg">Total Bill:</span>
                 <span className="text-3xl font-light text-[#0078D7]">₹{cartTotal.toFixed(2)}</span>
               </div>
-              
               <div className="mb-6">
                 <label className="block text-sm text-gray-600 mb-2 font-medium">Cash Tendered by Customer (₹)</label>
-                <input 
-                  type="number" 
-                  step="any"
-                  autoFocus
-                  value={checkoutModal.cashGiven} 
-                  onChange={(e) => setCheckoutModal({ ...checkoutModal, cashGiven: e.target.value })} 
-                  placeholder="e.g. 500" 
-                  className="w-full px-4 py-3 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-2xl font-light rounded-none" 
-                />
+                <input type="number" step="any" autoFocus value={checkoutModal.cashGiven} onChange={(e) => setCheckoutModal({ ...checkoutModal, cashGiven: e.target.value })} placeholder="e.g. 500" className="w-full px-4 py-3 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-2xl font-light rounded-none" />
               </div>
-
               {Number(checkoutModal.cashGiven) > 0 && (
                 <div className={`p-4 mb-2 flex justify-between items-center border ${Number(checkoutModal.cashGiven) >= cartTotal ? 'bg-[#e6f4ea] border-[#107c10] text-[#107c10]' : 'bg-[#fde7e9] border-[#e81123] text-[#e81123]'}`}>
                   <span className="font-semibold">Change to Return:</span>
-                  <span className="text-2xl font-bold">
-                    ₹{Number(checkoutModal.cashGiven) >= cartTotal ? (Number(checkoutModal.cashGiven) - cartTotal).toFixed(2) : '0.00'}
-                  </span>
+                  <span className="text-2xl font-bold">₹{Number(checkoutModal.cashGiven) >= cartTotal ? (Number(checkoutModal.cashGiven) - cartTotal).toFixed(2) : '0.00'}</span>
                 </div>
               )}
             </div>
-
             <div className="p-4 bg-[#f3f3f3] border-t border-gray-400 flex justify-end gap-3">
               <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} className="px-6 py-2 bg-[#e6e6e6] hover:bg-[#cccccc] text-black text-sm border border-gray-400 rounded-none transition-colors">Cancel</button>
               <button onClick={handleCompleteTransaction} className="px-8 py-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-medium rounded-none transition-colors">Print Receipt</button>
@@ -213,25 +202,29 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
         </div>
       )}
 
-      <div className="flex flex-col items-center print:hidden h-full" onClick={handleBackgroundClick}>
+      <div className="flex flex-col items-center print:hidden h-full w-full" onClick={handleBackgroundClick}>
+        
+        {/* MOBILE GRID NAV / DESKTOP FLEX NAV */}
         {!hideNav && (
-          <div className="w-full max-w-6xl mb-4 flex flex-wrap gap-2 overflow-x-auto whitespace-nowrap">
-            <button onClick={() => { setActiveTab('receive'); setCart([]); }} className={`px-4 py-2 text-sm border border-gray-400 rounded-none ${activeTab === 'receive' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Receive Inbound</button>
-            <button onClick={() => { setActiveTab('transfer'); setCart([]); }} className={`px-4 py-2 text-sm border border-gray-400 rounded-none ${activeTab === 'transfer' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Move to Store</button>
-            <button onClick={() => { setActiveTab('checkout'); setCart([]); }} className={`px-4 py-2 text-sm border border-gray-400 rounded-none ${activeTab === 'checkout' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Customer Checkout</button>
-            <button onClick={() => setActiveTab('inventory')} className={`px-4 py-2 text-sm border border-gray-400 rounded-none ${activeTab === 'inventory' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Live Inventory</button>
+          <div className="w-full max-w-6xl mb-4 grid grid-cols-2 md:flex md:flex-wrap gap-2">
+            <button onClick={() => { setActiveTab('receive'); setCart([]); }} className={`px-2 py-3 md:px-4 md:py-2 text-sm border border-gray-400 rounded-none ${activeTab === 'receive' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Receive Stock</button>
+            <button onClick={() => { setActiveTab('transfer'); setCart([]); }} className={`px-2 py-3 md:px-4 md:py-2 text-sm border border-gray-400 rounded-none ${activeTab === 'transfer' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Store Transfer</button>
+            <button onClick={() => { setActiveTab('checkout'); setCart([]); }} className={`px-2 py-3 md:px-4 md:py-2 text-sm border border-gray-400 rounded-none ${activeTab === 'checkout' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Customer Sale</button>
+            <button onClick={() => setActiveTab('inventory')} className={`px-2 py-3 md:px-4 md:py-2 text-sm border border-gray-400 rounded-none ${activeTab === 'inventory' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Live Inventory</button>
           </div>
         )}
 
-        <div className="w-full max-w-6xl bg-white border border-gray-400 rounded-none shadow-none h-full min-h-125 flex flex-col">
+        <div className="w-full max-w-6xl bg-white border border-gray-400 rounded-none shadow-none h-full min-h-[70vh] flex flex-col">
           {activeTab === 'inventory' ? (
-            <div className="p-4 md:p-6 animate-fade-in">
+            <div className="p-4 md:p-6 animate-fade-in flex-1 flex flex-col">
               <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
-                <h1 className="text-2xl font-light text-black">Master Inventory View</h1>
-                <input type="text" placeholder="Search item..." value={inventorySearch} onChange={(e) => setInventorySearch(e.target.value)} className="w-full md:w-auto px-3 py-1.5 border border-gray-400 text-sm focus:outline-none focus:border-[#0078D7] rounded-none" />
+                <h1 className="text-xl md:text-2xl font-light text-black">Master Inventory View</h1>
+                <input type="text" placeholder="Search item..." value={inventorySearch} onChange={(e) => setInventorySearch(e.target.value)} className="w-full md:w-auto px-3 py-2 md:py-1.5 border border-gray-400 text-sm focus:outline-none focus:border-[#0078D7] rounded-none" />
               </div>
-              <div className="border border-gray-400 overflow-x-auto max-h-[60vh]">
-                <table className="w-full text-left border-collapse min-w-[500px]">
+              
+              {/* DESKTOP INVENTORY TABLE */}
+              <div className="hidden md:block border border-gray-400 overflow-y-auto flex-1">
+                <table className="w-full text-left border-collapse">
                   <thead className="sticky top-0 bg-[#e6e6e6]">
                     <tr className="text-black text-xs uppercase border-b border-gray-400">
                       <th className="p-3">Barcode</th>
@@ -254,10 +247,33 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
                   </tbody>
                 </table>
               </div>
+
+              {/* MOBILE INVENTORY CARDS */}
+              <div className="md:hidden border border-gray-400 divide-y divide-gray-200 overflow-y-auto flex-1">
+                {processedInventory.map(item => (
+                  <div key={item.id} className="p-4 bg-white flex justify-between items-center">
+                    <div>
+                      <p className="text-sm font-bold text-black leading-tight mb-1">{item.name}</p>
+                      <p className="text-xs text-[#0078D7] font-medium">#{item.barcode} <span className="text-gray-500 ml-1">({item.unit})</span></p>
+                    </div>
+                    <div className="text-right flex gap-4">
+                       <div>
+                         <p className="text-[10px] text-gray-500 uppercase">Whse</p>
+                         <p className={`text-base font-bold ${item.stock_warehouse < 10 ? 'text-[#e81123]' : 'text-black'}`}>{item.stock_warehouse || 0}</p>
+                       </div>
+                       <div>
+                         <p className="text-[10px] text-gray-500 uppercase">Store</p>
+                         <p className={`text-base font-bold ${item.stock_store < 10 ? 'text-[#e81123]' : 'text-black'}`}>{item.stock_store || 0}</p>
+                       </div>
+                    </div>
+                  </div>
+                ))}
+                {processedInventory.length === 0 && <div className="p-6 text-center text-gray-500">No items found.</div>}
+              </div>
             </div>
           ) : (
             <div className="animate-fade-in flex flex-col h-full">
-              <div className={`p-4 flex justify-between items-center border-b border-gray-400 ${activeTab === 'receive' ? 'bg-[#e6f4ea]' : activeTab === 'transfer' ? 'bg-[#fff4ce]' : 'bg-[#f3f3f3]'}`}>
+              <div className={`p-4 flex flex-col md:flex-row justify-between md:items-center gap-2 border-b border-gray-400 ${activeTab === 'receive' ? 'bg-[#e6f4ea]' : activeTab === 'transfer' ? 'bg-[#fff4ce]' : 'bg-[#f3f3f3]'}`}>
                 <div>
                   <h1 className="text-lg md:text-xl font-light text-black">
                     {activeTab === 'receive' && 'Receive Wholesaler Shipment'}
@@ -266,23 +282,24 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
                   </h1>
                   <p className="text-gray-500 text-xs mt-1 hidden md:block">Ready to scan barcodes...</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs text-gray-500 uppercase">Total Value</p>
-                  <p className="text-2xl md:text-3xl font-light text-[#0078D7]">₹{cartTotal.toFixed(2)}</p>
+                <div className="text-left md:text-right border-t border-gray-300 pt-2 md:border-0 md:pt-0">
+                  <p className="text-[10px] md:text-xs text-gray-500 uppercase">Total Value</p>
+                  <p className="text-2xl md:text-3xl font-light text-[#0078D7] leading-none">₹{cartTotal.toFixed(2)}</p>
                 </div>
               </div>
 
               <form onSubmit={handleScan} className="opacity-0 h-0 w-0 overflow-hidden"><input ref={scannerInputRef} type="text" value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus /><button type="submit">Scan</button></form>
 
-              <div className="flex-1 overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[600px]">
-                  <thead>
-                    <tr className="bg-[#e6e6e6] text-black text-xs uppercase border-b border-gray-400">
+              {/* DESKTOP CART TABLE */}
+              <div className="hidden md:block flex-1 overflow-y-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead className="sticky top-0 bg-[#e6e6e6] z-10">
+                    <tr className="text-black text-xs uppercase border-b border-gray-400">
                       <th className="p-3 border-r border-gray-300 w-1/3">Item Name</th>
-                      <th className="p-3 border-r border-gray-300 w-32 text-center">Qty</th>
+                      <th className="p-3 border-r border-gray-300 w-36 text-center">Qty</th>
                       <th className="p-3 border-r border-gray-300 text-right">Unit Price</th>
                       <th className="p-3 border-r border-gray-300 w-28 text-center">Discount (%)</th>
-                      <th className="p-3 text-right bg-[#e6e6e6]">Line Total</th>
+                      <th className="p-3 text-right">Line Total</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -294,9 +311,9 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
                             <td className="p-3 border-r border-gray-200 text-sm text-black">{item.name} <span className="text-gray-400 text-xs block">#{item.barcode}</span></td>
                             <td className="p-3 border-r border-gray-200">
                               <div className="flex items-center justify-center">
-                                <button type="button" onClick={() => updateQuantity(item.id, (Number(item.quantity) || 1) - 1)} className="px-2 py-1 bg-[#e6e6e6] hover:bg-[#cccccc] border border-gray-400 border-r-0 text-black font-bold">-</button>
-                                <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-16 px-1 py-1 border border-gray-400 text-sm text-center focus:outline-none rounded-none" />
-                                <button type="button" onClick={() => updateQuantity(item.id, (Number(item.quantity) || 1) + 1)} className="px-2 py-1 bg-[#e6e6e6] hover:bg-[#cccccc] border border-gray-400 border-l-0 text-black font-bold">+</button>
+                                <button type="button" onClick={() => updateQuantity(item.id, (Number(item.quantity) || 1) - 1)} className="w-8 h-8 bg-[#e6e6e6] hover:bg-[#cccccc] border border-gray-400 border-r-0 text-black font-bold focus:outline-none">-</button>
+                                <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-16 h-8 px-1 border border-gray-400 text-sm text-center focus:outline-none rounded-none" />
+                                <button type="button" onClick={() => updateQuantity(item.id, (Number(item.quantity) || 1) + 1)} className="w-8 h-8 bg-[#e6e6e6] hover:bg-[#cccccc] border border-gray-400 border-l-0 text-black font-bold focus:outline-none">+</button>
                               </div>
                             </td>
                             <td className="p-3 border-r border-gray-200 text-sm text-right text-black">{item.price.toFixed(2)}</td>
@@ -310,12 +327,50 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
                 </table>
               </div>
 
+              {/* MOBILE CART CARDS (Huge touch targets) */}
+              <div className="md:hidden flex-1 overflow-y-auto bg-white divide-y divide-gray-200">
+                {cart.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500 text-sm">No items scanned.</div>
+                ) : (
+                  cart.map((item) => {
+                    const safeQty = item.quantity === '' ? 1 : Number(item.quantity);
+                    return (
+                      <div key={item.id} className="p-4 flex flex-col gap-3">
+                        <div className="flex justify-between items-start">
+                          <div className="pr-2">
+                            <p className="text-base font-bold text-black leading-tight">{item.name}</p>
+                            <p className="text-xs text-gray-500 mt-1">#{item.barcode} • ₹{item.price.toFixed(2)}/ea</p>
+                          </div>
+                          <p className="text-lg font-bold text-[#0078D7]">₹{((item.price * (1 - item.discountPct / 100)) * safeQty).toFixed(2)}</p>
+                        </div>
+                        
+                        <div className="flex justify-between items-center mt-1">
+                          <div className="flex items-center">
+                            <button type="button" onClick={() => updateQuantity(item.id, (Number(item.quantity) || 1) - 1)} className="w-11 h-10 bg-[#e6e6e6] active:bg-[#cccccc] border border-gray-400 border-r-0 text-black font-bold text-xl focus:outline-none">-</button>
+                            <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-16 h-10 px-1 border border-gray-400 text-base text-center focus:outline-none rounded-none" />
+                            <button type="button" onClick={() => updateQuantity(item.id, (Number(item.quantity) || 1) + 1)} className="w-11 h-10 bg-[#e6e6e6] active:bg-[#cccccc] border border-gray-400 border-l-0 text-black font-bold text-xl focus:outline-none">+</button>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500 uppercase font-medium">Disc:</span>
+                            <div className="relative">
+                              <input type="number" min="0" max="100" value={item.discountPct === 0 ? '' : item.discountPct} onChange={(e) => updateDiscount(item.id, e.target.value)} placeholder="0" className="w-14 h-10 px-1 border border-gray-400 text-base text-center rounded-none" disabled={activeTab !== 'checkout'} />
+                              <span className="absolute right-1 top-2.5 text-gray-400 text-sm">%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* ACTION BAR (Stacks on Mobile) */}
               {cart.length > 0 && (
-                <div className="p-4 bg-[#f3f3f3] border-t border-gray-400 flex justify-between items-center">
-                  
+                <div className="p-4 bg-[#f3f3f3] border-t border-gray-400 flex flex-col md:flex-row justify-between md:items-center gap-3">
                   <button 
                     onClick={() => { if(window.confirm("Are you sure you want to clear the entire cart?")) setCart([]); }} 
-                    className="px-6 py-2 bg-transparent text-[#e81123] hover:bg-[#e81123] hover:text-white border border-[#e81123] text-sm font-medium rounded-none transition-colors w-full md:w-auto"
+                    className="w-full md:w-auto px-6 py-3 md:py-2 bg-white text-[#e81123] active:bg-[#fde7e9] hover:bg-[#fde7e9] border border-[#e81123] text-base md:text-sm font-medium rounded-none transition-colors"
                   >
                     Clear Cart
                   </button>
@@ -323,7 +378,7 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
                   <button 
                     onClick={initiateCheckoutProcess} 
                     disabled={isCheckingOut} 
-                    className="px-8 py-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-medium disabled:opacity-50 rounded-none w-full md:w-auto ml-2"
+                    className="w-full md:w-auto px-8 py-3 md:py-2 bg-[#0078D7] active:bg-[#005a9e] hover:bg-[#005a9e] text-white text-base md:text-sm font-medium disabled:opacity-50 rounded-none transition-colors"
                   >
                     {isCheckingOut ? 'Processing...' : 'Confirm & Complete'}
                   </button>
@@ -334,10 +389,9 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
         </div>
       </div>
       
-      {/* ONLY RENDER THERMAL RECEIPT FOR CUSTOMER CHECKOUTS */}
+      {/* FLAT RATE THERMAL RECEIPT */}
       {lastReceipt && lastReceipt.type === 'checkout' && (
         <div className="hidden print:block text-black font-mono text-xs w-[80mm] mx-auto bg-white p-4">
-          
           <div className="text-center mb-3">
             <h1 className="text-xl font-bold uppercase">{shopSettings?.shop_name || 'STORE RECEIPT'}</h1>
             <p className="text-[10px]">Owner: {shopSettings?.owner_name}</p>
