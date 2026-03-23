@@ -213,8 +213,8 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
         {!hideNav && (
           <div className="w-full max-w-6xl mb-4 grid grid-cols-2 md:flex md:flex-wrap gap-2">
             <button onClick={() => { setActiveTab('receive'); setCart([]); }} className={`px-2 py-3 md:px-4 md:py-2 text-sm border border-gray-400 rounded-none ${activeTab === 'receive' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Receive Stock</button>
-            <button onClick={() => { setActiveTab('transfer'); setCart([]); }} className={`px-2 py-3 md:px-4 md:py-2 text-sm border border-gray-400 rounded-none ${activeTab === 'transfer' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Store Transfer</button>
-            <button onClick={() => { setActiveTab('checkout'); setCart([]); }} className={`px-2 py-3 md:px-4 md:py-2 text-sm border border-gray-400 rounded-none ${activeTab === 'checkout' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Customer Sale</button>
+            <button onClick={() => { setActiveTab('transfer'); setCart([]); }} className={`px-2 py-3 md:px-4 md:py-2 text-sm border border-gray-400 rounded-none ${activeTab === 'transfer' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Inventory Move</button>
+            <button onClick={() => { setActiveTab('checkout'); setCart([]); }} className={`px-2 py-3 md:px-4 md:py-2 text-sm border border-gray-400 rounded-none ${activeTab === 'checkout' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Point of Sale</button>
             <button onClick={() => setActiveTab('inventory')} className={`px-2 py-3 md:px-4 md:py-2 text-sm border border-gray-400 rounded-none ${activeTab === 'inventory' ? 'bg-[#0078D7] text-white' : 'bg-white text-black hover:bg-gray-100'}`}>Live Inventory</button>
           </div>
         )}
@@ -281,7 +281,7 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
               <div className={`p-4 flex flex-col md:flex-row justify-between md:items-center gap-2 border-b border-gray-400 ${activeTab === 'receive' ? 'bg-[#e6f4ea]' : activeTab === 'transfer' ? 'bg-[#fff4ce]' : 'bg-[#f3f3f3]'}`}>
                 <div>
                   <h1 className="text-lg md:text-xl font-light text-black">
-                    {activeTab === 'receive' && 'Receive Wholesaler Shipment'}
+                    {activeTab === 'receive' && 'Inbound Stock'}
                     {activeTab === 'transfer' && 'Transfer Items to Store'}
                     {activeTab === 'checkout' && 'Customer Checkout'}
                   </h1>
