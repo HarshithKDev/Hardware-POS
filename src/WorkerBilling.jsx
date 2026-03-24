@@ -56,10 +56,27 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
   };
 
   const updateDiscount = (id, val) => {
-    setCart(prev => prev.map(i => i.id === id ? { ...i, discountPct: Math.min(100, Math.max(0, Number(val))) } : i));
+    setCart(prev => prev.map(i => {
+      if (i.id === id) {
+        const requestedDisc = val === '' ? '' : Number(val);
+        if (requestedDisc === '') return { ...i, discountPct: '' };
+        
+        const price = Number(i.price || 0);
+        const msp = Number(i.msp || 0);
+        
+        let maxDisc = 100;
+        if (price > 0 && msp > 0) {
+            maxDisc = ((price - msp) / price) * 100;
+        }
+        
+        const clampedDisc = Math.min(maxDisc, Math.max(0, requestedDisc));
+        return { ...i, discountPct: clampedDisc };
+      }
+      return i;
+    }));
   };
 
-  const calculateTotal = () => cart.reduce((tot, i) => tot + ((i.price * (1 - i.discountPct / 100)) * (i.quantity === '' ? 0 : Number(i.quantity))), 0);
+  const calculateTotal = () => cart.reduce((tot, i) => tot + ((Number(i.price || 0) * (1 - Number(i.discountPct || 0) / 100)) * (i.quantity === '' ? 0 : Number(i.quantity))), 0);
   const calculateTotalUnits = () => cart.reduce((tot, i) => tot + (i.quantity === '' ? 0 : Number(i.quantity)), 0);
 
   const formatDateTime = (dateObj) => {
@@ -87,8 +104,8 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
           barcode: i.barcode, 
           name: i.name, 
           quantity: Number(i.quantity), 
-          price: i.price, 
-          discountPct: i.discountPct, 
+          price: Number(i.price || 0), 
+          discountPct: Number(i.discountPct || 0), 
           unit: i.unit 
         }))
       };
@@ -101,8 +118,8 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
         items: finalCart.map(i => ({
           ...i, 
           quantity: Number(i.quantity), 
-          finalRate: i.price * (1 - i.discountPct / 100), 
-          lineTotal: (i.price * (1 - i.discountPct / 100)) * Number(i.quantity)
+          finalRate: Number(i.price || 0) * (1 - Number(i.discountPct || 0) / 100), 
+          lineTotal: (Number(i.price || 0) * (1 - Number(i.discountPct || 0) / 100)) * Number(i.quantity)
         })), 
         total: calculateTotal(), 
         date: new Date(), 
@@ -170,14 +187,18 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
               {Number(checkoutModal.cashGiven) > 0 && (
                 <div className={`p-4 border ${Number(checkoutModal.cashGiven) >= (cartTotal - 0.01) ? 'bg-[#e6f4ea] border-[#107c10]' : 'bg-[#fde7e9] border-[#e81123]'}`}>
                   <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold uppercase tracking-wider text-black">Change Due</span>
-                    <span className="text-2xl font-light text-black">₹{Number(checkoutModal.cashGiven) >= cartTotal ? (Number(checkoutModal.cashGiven) - cartTotal).toFixed(2) : '0.00'}</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-black">
+                      {Number(checkoutModal.cashGiven) >= (cartTotal - 0.01) ? 'Change Due' : 'Shortfall'}
+                    </span>
+                    <span className="text-2xl font-light text-black">
+                      ₹{Math.abs(Number(checkoutModal.cashGiven) - cartTotal).toFixed(2)}
+                    </span>
                   </div>
                 </div>
               )}
             </div>
             <div className="p-4 bg-[#f3f3f3] border-t border-gray-300 flex justify-end gap-2">
-              <button onClick={handleCompleteTransaction} disabled={isCheckingOut} className="px-8 py-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-semibold rounded-none border border-transparent focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-50 flex justify-center items-center min-w-[120px]">
+              <button onClick={handleCompleteTransaction} disabled={isCheckingOut || (Number(checkoutModal.cashGiven) > 0 && Number(checkoutModal.cashGiven) < (cartTotal - 0.01))} className="px-8 py-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-semibold rounded-none border border-transparent focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-50 flex justify-center items-center min-w-[120px]">
                 {isCheckingOut ? <Spinner className="w-4 h-4 text-white" /> : 'Execute'}
               </button>
               <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} disabled={isCheckingOut} className="px-8 py-2 bg-[#e6e6e6] hover:bg-[#cccccc] text-black border border-gray-400 text-sm font-semibold rounded-none disabled:opacity-50 focus:outline-none focus:border-[#0078D7]">Cancel</button>
@@ -262,13 +283,13 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
                         {activeTab === 'checkout' && (
                           <>
                             <td className="p-3 border-r border-gray-200 text-right text-sm text-black">
-                              {item.price.toFixed(2)}
+                              {Number(item.price||0).toFixed(2)}
                             </td>
                             <td className="p-2 border-r border-gray-200">
-                              <input type="number" min="0" max="100" value={item.discountPct === 0 ? '' : item.discountPct} onChange={(e) => updateDiscount(item.id, e.target.value)} placeholder="0" className="w-full h-8 px-2 border-2 border-gray-300 text-sm text-center bg-white rounded-none focus:outline-none focus:border-[#0078D7]" disabled={activeTab !== 'checkout'} />
+                              <input type="number" min="0" max="100" value={item.discountPct === 0 ? '' : item.discountPct} onChange={(e) => updateDiscount(item.id, e.target.value)} placeholder="0" className="w-full h-8 px-2 border-2 border-gray-300 text-sm font-semibold text-center bg-white rounded-none focus:outline-none focus:border-[#0078D7]" disabled={activeTab !== 'checkout'} />
                             </td>
                             <td className="p-3 text-right text-sm font-bold text-black">
-                              ₹{((item.price * (1 - item.discountPct / 100)) * safeQty).toFixed(2)}
+                              ₹{((Number(item.price||0) * (1 - (Number(item.discountPct||0)) / 100)) * safeQty).toFixed(2)}
                             </td>
                           </>
                         )}
@@ -292,10 +313,10 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
                     <div className="flex justify-between items-start">
                       <div className="pr-2">
                         <p className="text-sm font-semibold text-black">{item.name}</p>
-                        <p className="text-xs text-[#0078D7] font-mono mt-1">#{item.barcode} {activeTab === 'checkout' && `• ₹${item.price.toFixed(2)}/ea`}</p>
+                        <p className="text-xs text-[#0078D7] font-mono mt-1">#{item.barcode} {activeTab === 'checkout' && `• ₹${Number(item.price||0).toFixed(2)}/ea`}</p>
                       </div>
                       {activeTab === 'checkout' && (
-                        <p className="text-base font-bold text-black">₹{((item.price * (1 - item.discountPct / 100)) * safeQty).toFixed(2)}</p>
+                        <p className="text-base font-bold text-black">₹{((Number(item.price||0) * (1 - Number(item.discountPct||0) / 100)) * safeQty).toFixed(2)}</p>
                       )}
                     </div>
                     <div className="flex justify-between items-center mt-1 pt-3 border-t border-gray-200">

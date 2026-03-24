@@ -113,6 +113,7 @@ function App() {
     <div className="w-full min-h-screen bg-[#e6e6e6] text-black relative">
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap'); * { font-family: 'Roboto', sans-serif !important; }`}</style>
 
+      {/* WINDOWS 10 STANDARDIZED MODAL: LOGOUT */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] px-4 print:hidden">
           <div className="bg-white border border-gray-400 w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
@@ -131,6 +132,7 @@ function App() {
         </div>
       )}
 
+      {/* WINDOWS 10 STANDARDIZED MODAL: SCANNER */}
       {isMobileScannerOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[110] px-4 print:hidden">
           <div className="bg-white w-full max-w-[450px] border border-gray-400 shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
@@ -149,6 +151,7 @@ function App() {
         </div>
       )}
 
+      {/* WINDOWS 10 STANDARDIZED MODAL: STOCK INFO */}
       {scannedProduct && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[120] px-4 print:hidden">
           <div className="bg-white border border-gray-400 w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
@@ -177,6 +180,7 @@ function App() {
         </div>
       )}
 
+      {/* WINDOWS 10 FLAT NAVBAR */}
       <nav className="bg-white text-black border-b border-gray-300 px-4 py-2 flex justify-between items-center print:hidden shadow-sm">
         <div className="flex items-center">
           <div className="pr-4 mr-4 border-r border-gray-300">
