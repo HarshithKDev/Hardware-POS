@@ -14,7 +14,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
   useEffect(() => { sessionStorage.setItem('posOwnerWarehouseSubTab', warehouseSubTab); }, [warehouseSubTab]);
   useEffect(() => { sessionStorage.setItem('posOwnerStoreSubTab', storeSubTab); }, [storeSubTab]);
 
-  const [newItem, setNewItem] = useState({ name: '', price: '', cost_price: '', stock_warehouse: '', unit: 'PCS' });
+  const [newItem, setNewItem] = useState({ name: '', price: '', cost_price: '', msp: '', stock_warehouse: '', unit: 'PCS' });
   const [isSubmitting, setIsSubmitting] = useState(false); 
   const [editingBarcode, setEditingBarcode] = useState(null);
   const [editFormData, setEditFormData] = useState({});
@@ -62,6 +62,9 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
     if (activeTab === 'staff') fetchWorkers();
     if (activeTab !== 'sales') setSelectedBill(null);
   }, [activeTab, salesPage]);
+
+  // Derive ONLY Active Inventory for metrics and tables
+  const activeInventory = inventory.filter(item => item.is_active !== false);
 
   const fetchDashboardStats = async () => {
     const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0); 
@@ -126,6 +129,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
   };
 
   const getNextBarcode = () => {
+    // Generate barcode based on ALL inventory (including archived) to prevent duplicates
     if (inventory.length === 0) return '1001';
     const codes = inventory.map(i => parseInt(i.barcode, 10)).filter(c => !isNaN(c));
     return codes.length === 0 ? '1001' : (Math.max(...codes) + 1).toString();
@@ -133,23 +137,64 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
 
   const handleAddItem = async (e) => {
     e.preventDefault(); 
-    const autoBarcode = getNextBarcode(); 
-    if (!newItem.name || !newItem.price || !newItem.cost_price) return showAlert("Fill all mandatory fields.", "Validation Error");
-    if (Number(newItem.cost_price) < 0 || Number(newItem.price) < 0) return showAlert("Values cannot be negative.", "Validation Error");
+    if (!newItem.name || !newItem.price || !newItem.cost_price || !newItem.msp) return showAlert("Fill all mandatory fields.", "Validation Error");
+    if (Number(newItem.cost_price) < 0 || Number(newItem.price) < 0 || Number(newItem.msp) < 0) return showAlert("Values cannot be negative.", "Validation Error");
+    
     try {
       setIsSubmitting(true);
-      await supabase.from('inventory').insert([{ barcode: autoBarcode, name: newItem.name, cost_price: Number(newItem.cost_price), price: Number(newItem.price), stock_warehouse: Number(newItem.stock_warehouse || 0), stock_store: 0, unit: newItem.unit, is_active: true }]);
-      setNewItem({ name: '', price: '', cost_price: '', stock_warehouse: '', unit: 'PCS' }); 
+      
+      // Safety double-check to fetch real absolute max from DB just in case multiple users are adding
+      const { data: allItems } = await supabase.from('inventory').select('barcode');
+      let safeBarcode = '1001';
+      if (allItems && allItems.length > 0) {
+        const codes = allItems.map(i => parseInt(i.barcode, 10)).filter(c => !isNaN(c));
+        if (codes.length > 0) safeBarcode = (Math.max(...codes) + 1).toString();
+      }
+
+      const { error } = await supabase.from('inventory').insert([{ 
+        barcode: safeBarcode, 
+        name: newItem.name, 
+        cost_price: Number(newItem.cost_price), 
+        msp: Number(newItem.msp),
+        price: Number(newItem.price), 
+        stock_warehouse: Number(newItem.stock_warehouse || 0), 
+        stock_store: 0, 
+        unit: newItem.unit, 
+        is_active: true 
+      }]);
+      
+      if (error) throw error;
+      
+      setNewItem({ name: '', cost_price: '', msp: '', price: '', stock_warehouse: '', unit: 'PCS' }); 
       refreshInventory(); 
-    } catch (e) { showAlert("Error creating record.", "System Error"); } finally { setIsSubmitting(false); }
+      showAlert(`Record committed. Assigned SKU: ${safeBarcode}`, "Success");
+    } catch (e) { 
+      if (e.message?.includes('duplicate key') || e.code === '23505') {
+        refreshInventory();
+        showAlert("Barcode collision detected. The system has automatically refreshed. Please try committing again.", "System Alert");
+      } else {
+        showAlert(e.message || "Error creating record. Did you add the 'msp' column?", "System Error"); 
+      }
+    } finally { 
+      setIsSubmitting(false); 
+    }
   };
 
   const handleSaveEdit = async () => {
-    if (Number(editFormData.cost_price) < 0 || Number(editFormData.price) < 0) return showAlert("Values cannot be negative.", "Validation Error");
+    if (Number(editFormData.cost_price) < 0 || Number(editFormData.price) < 0 || Number(editFormData.msp) < 0) return showAlert("Values cannot be negative.", "Validation Error");
     try {
-      await supabase.from('inventory').update({ name: editFormData.name, cost_price: Number(editFormData.cost_price), price: Number(editFormData.price), stock_warehouse: Number(editFormData.stock_warehouse), stock_store: Number(editFormData.stock_store), unit: editFormData.unit }).eq('barcode', editingBarcode);
+      const { error } = await supabase.from('inventory').update({ 
+        name: editFormData.name, 
+        cost_price: Number(editFormData.cost_price), 
+        msp: Number(editFormData.msp),
+        price: Number(editFormData.price), 
+        stock_warehouse: Number(editFormData.stock_warehouse), 
+        stock_store: Number(editFormData.stock_store), 
+        unit: editFormData.unit 
+      }).eq('barcode', editingBarcode);
+      if (error) throw error;
       setEditingBarcode(null); refreshInventory(); 
-    } catch (e) { showAlert("Error updating record.", "System Error"); }
+    } catch (e) { showAlert(e.message || "Error updating record.", "System Error"); }
   };
 
   const handleDeleteClick = (barcode) => {
@@ -160,13 +205,14 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
 
   const handleEditClick = (item) => { setEditingBarcode(item.barcode); setEditFormData({ ...item }); };
 
-  const lowStoreCount = inventory.filter(i => (i.stock_store || 0) < 10).length;
-  const lowWarehouseCount = inventory.filter(i => (i.stock_warehouse || 0) < 20).length;
-  const totalInventoryValue = inventory.reduce((t, i) => t + (Number(i.cost_price || i.price * 0.7) * (Number(i.stock_warehouse || 0) + Number(i.stock_store || 0))), 0);
-  const warehouseCapital = inventory.reduce((t, i) => t + (Number(i.cost_price || i.price * 0.7) * Number(i.stock_warehouse || 0)), 0);
-  const storeCapital = inventory.reduce((t, i) => t + (Number(i.cost_price || i.price * 0.7) * Number(i.stock_store || 0)), 0);
+  // Calculate metrics using ONLY active inventory
+  const lowStoreCount = activeInventory.filter(i => (i.stock_store || 0) < 10).length;
+  const lowWarehouseCount = activeInventory.filter(i => (i.stock_warehouse || 0) < 20).length;
+  const totalInventoryValue = activeInventory.reduce((t, i) => t + (Number(i.cost_price || i.price * 0.7) * (Number(i.stock_warehouse || 0) + Number(i.stock_store || 0))), 0);
+  const warehouseCapital = activeInventory.reduce((t, i) => t + (Number(i.cost_price || i.price * 0.7) * Number(i.stock_warehouse || 0)), 0);
+  const storeCapital = activeInventory.reduce((t, i) => t + (Number(i.cost_price || i.price * 0.7) * Number(i.stock_store || 0)), 0);
 
-  const processedInventory = [...inventory]
+  const processedInventory = [...activeInventory]
     .filter(i => (i.name || '').toLowerCase().includes(inventorySearch.toLowerCase()) || (i.barcode || '').toLowerCase().includes(inventorySearch.toLowerCase()))
     .sort((a, b) => {
       if(sortOption.includes('name')) return sortOption.includes('asc') ? (a.name||'').localeCompare(b.name||'') : (b.name||'').localeCompare(a.name||'');
@@ -184,8 +230,9 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
   const paginatedInventory = processedInventory.slice(safeInvPage * INV_PER_PAGE, (safeInvPage + 1) * INV_PER_PAGE);
 
   return (
-    <div className="flex flex-col md:flex-row bg-white border border-gray-400 h-full shadow-none rounded-none">
+    <div className="flex flex-col md:flex-row bg-white border border-gray-400 h-full shadow-none rounded-none" style={{ fontFamily: "'Roboto', sans-serif" }}>
       
+      {/* WINDOWS 10 STANDARDIZED MODALS */}
       {alertConfig.isOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] px-4">
           <div className="bg-white border border-gray-400 w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
@@ -281,16 +328,16 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
             <div className="bg-[#f9f9f9] border border-gray-400 p-6 w-full rounded-none">
               <h2 className="text-sm font-semibold uppercase text-gray-600 mb-6 border-b border-gray-300 pb-2 tracking-wider">Registration Profile</h2>
               
-              <form onSubmit={handleAddItem} className="flex flex-col lg:flex-row gap-4 items-end w-full">
-                <div className="flex flex-col w-full lg:w-32 shrink-0">
+              <form onSubmit={handleAddItem} className="flex flex-col xl:flex-row gap-4 items-end w-full">
+                <div className="flex flex-col w-full xl:w-28 shrink-0">
                   <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">SKU Code</label>
                   <input type="text" value={getNextBarcode()} disabled className="border-2 border-gray-300 bg-[#e6e6e6] text-black px-3 py-1.5 text-sm rounded-none focus:outline-none" />
                 </div>
-                <div className="flex flex-col w-full lg:w-auto flex-1">
+                <div className="flex flex-col w-full xl:w-auto flex-1">
                   <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">Nomenclature</label>
                   <input type="text" value={newItem.name} onChange={e=>setNewItem({...newItem,name:e.target.value})} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7]" />
                 </div>
-                <div className="flex flex-col w-full lg:w-28 shrink-0">
+                <div className="flex flex-col w-full xl:w-24 shrink-0">
                   <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">UOM</label>
                   <div className="relative w-full">
                     <select value={newItem.unit} onChange={e=>setNewItem({...newItem,unit:e.target.value})} className="w-full border-2 border-gray-300 bg-white pl-3 pr-8 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7] appearance-none cursor-pointer">
@@ -301,19 +348,23 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col w-full lg:w-28 shrink-0">
+                <div className="flex flex-col w-full xl:w-28 shrink-0">
                   <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">Cost (₹)</label>
                   <input type="number" step="0.01" min="0" value={newItem.cost_price} onChange={e=>setNewItem({...newItem,cost_price:e.target.value})} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7]" />
                 </div>
-                <div className="flex flex-col w-full lg:w-28 shrink-0">
-                  <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">Retail (₹)</label>
+                <div className="flex flex-col w-full xl:w-28 shrink-0">
+                  <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">MSP (₹)</label>
+                  <input type="number" step="0.01" min="0" value={newItem.msp} onChange={e=>setNewItem({...newItem,msp:e.target.value})} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7]" />
+                </div>
+                <div className="flex flex-col w-full xl:w-28 shrink-0">
+                  <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">MRP (₹)</label>
                   <input type="number" step="0.01" min="0" value={newItem.price} onChange={e=>setNewItem({...newItem,price:e.target.value})} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7]" />
                 </div>
-                <div className="flex flex-col w-full lg:w-24 shrink-0">
+                <div className="flex flex-col w-full xl:w-24 shrink-0">
                   <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">Init Qty</label>
                   <input type="number" step="any" min="0" value={newItem.stock_warehouse} onChange={e=>setNewItem({...newItem,stock_warehouse:e.target.value})} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7]" />
                 </div>
-                <div className="w-full lg:w-32 shrink-0 mt-4 lg:mt-0">
+                <div className="w-full xl:w-28 shrink-0 mt-4 xl:mt-0">
                   <button type="submit" disabled={isSubmitting} className="bg-[#0078D7] hover:bg-[#005a9e] text-white px-4 h-[35px] text-sm font-semibold rounded-none border border-transparent focus:outline-none focus:ring-1 focus:ring-black w-full flex items-center justify-center">
                     {isSubmitting ? 'Wait...' : 'Commit'}
                   </button>
@@ -349,38 +400,41 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                   </div>
                 </div>
                 <div className="border border-gray-400 overflow-x-auto bg-white flex-1 min-h-[300px] rounded-none">
-                  <table className="w-full text-left border-collapse min-w-[800px]">
+                  <table className="w-full text-left border-collapse min-w-[900px]">
                     <thead className="bg-[#f3f3f3] sticky top-0 border-b border-gray-400">
                       <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
                         <th className="p-3 border-r border-gray-300 w-24">SKU</th>
                         <th className="p-3 border-r border-gray-300">Nomenclature</th>
-                        <th className="p-3 border-r border-gray-300 text-center w-28">Cost</th>
-                        <th className="p-3 border-r border-gray-300 text-center w-28">Retail</th>
-                        <th className="p-3 border-r border-gray-300 text-center w-28">Whse Qty</th>
+                        <th className="p-3 border-r border-gray-300 text-center w-24">Cost</th>
+                        <th className="p-3 border-r border-gray-300 text-center w-24">MSP</th>
+                        <th className="p-3 border-r border-gray-300 text-center w-24">MRP</th>
+                        <th className="p-3 border-r border-gray-300 text-center w-24">Whse Qty</th>
                         <th className="p-3 text-center w-40">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 border-b border-gray-400">
                       {paginatedInventory.length === 0 ? (
-                        <tr><td colSpan="6" className="p-8 text-center text-gray-500 text-sm font-semibold">No items found matching the query.</td></tr>
+                        <tr><td colSpan="7" className="p-8 text-center text-gray-500 text-sm font-semibold">No items found matching the query.</td></tr>
                       ) : paginatedInventory.map(item => (
                         <tr key={item.id} className="hover:bg-[#f9f9f9] transition-none">
-                          <td className="p-3 border-r border-gray-200 text-sm text-[#0078D7]">{item.barcode}</td>
+                          <td className="p-3 border-r border-gray-200 text-sm font-mono text-[#0078D7]">{item.barcode}</td>
                           {editingBarcode === item.barcode ? (
                             <>
                               <td className="p-1 border-r border-gray-200"><input type="text" value={editFormData.name} onChange={e=>setEditFormData({...editFormData,name:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
                               <td className="p-1 border-r border-gray-200"><input type="number" step="0.01" min="0" value={editFormData.cost_price} onChange={e=>setEditFormData({...editFormData,cost_price:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm text-center rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
+                              <td className="p-1 border-r border-gray-200"><input type="number" step="0.01" min="0" value={editFormData.msp} onChange={e=>setEditFormData({...editFormData,msp:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm text-center rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
                               <td className="p-1 border-r border-gray-200"><input type="number" step="0.01" min="0" value={editFormData.price} onChange={e=>setEditFormData({...editFormData,price:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm text-center rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
                               <td className="p-1 border-r border-gray-200"><input type="number" step="any" min="0" value={editFormData.stock_warehouse} onChange={e=>setEditFormData({...editFormData,stock_warehouse:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm text-center rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
                               <td className="p-2 flex gap-2 justify-center">
-                                <button onClick={handleSaveEdit} className="bg-[#107c10] text-white px-3 py-1.5 text-xs font-semibold rounded-none focus:outline-none border border-transparent focus:border-black">Save</button>
-                                <button onClick={()=>setEditingBarcode(null)} className="bg-[#e6e6e6] text-black px-3 py-1.5 text-xs font-semibold border border-gray-400 rounded-none focus:outline-none focus:border-[#0078D7]">Cancel</button>
+                                <button onClick={handleSaveEdit} className="bg-[#107c10] hover:bg-[#0e6d0e] text-white px-3 py-1.5 text-xs font-semibold rounded-none focus:outline-none border border-transparent focus:border-black">Save</button>
+                                <button onClick={()=>setEditingBarcode(null)} className="bg-[#e6e6e6] hover:bg-[#cccccc] text-black px-3 py-1.5 text-xs font-semibold border border-gray-400 rounded-none focus:outline-none focus:border-[#0078D7]">Cancel</button>
                               </td>
                             </>
                           ) : (
                             <>
                               <td className="p-3 border-r border-gray-200 text-sm text-black font-medium">{item.name}</td>
                               <td className="p-3 border-r border-gray-200 text-sm text-center">{Number(item.cost_price||0).toFixed(2)}</td>
+                              <td className="p-3 border-r border-gray-200 text-sm text-center">{Number(item.msp||0).toFixed(2)}</td>
                               <td className="p-3 border-r border-gray-200 text-sm text-center">{Number(item.price||0).toFixed(2)}</td>
                               <td className="p-3 border-r border-gray-200 text-sm text-center text-black font-bold">{item.stock_warehouse}</td>
                               <td className="p-2 flex gap-2 justify-center items-center h-full">
@@ -435,7 +489,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                       <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
                         <th className="p-3 border-r border-gray-300 w-32">SKU Code</th>
                         <th className="p-3 border-r border-gray-300">Nomenclature</th>
-                        <th className="p-3 border-r border-gray-300 text-center w-32">Retail Px</th>
+                        <th className="p-3 border-r border-gray-300 text-center w-32">MRP</th>
                         <th className="p-3 text-center w-32">Floor Qty</th>
                       </tr>
                     </thead>
