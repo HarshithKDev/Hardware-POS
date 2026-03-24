@@ -59,7 +59,6 @@ function App() {
       if (!settingsData || settingsData.length === 0) setIsSetupNeeded(true);
       else setShopSettings(settingsData[0]);
 
-      // DO NOT FILTER is_active HERE. WE NEED FULL HISTORY FOR BARCODE GENERATION
       const { data: invData } = await supabase.from('inventory').select('*').order('name', { ascending: true }); 
       if (invData) setInventory(invData);
     } catch (error) { console.error('System Load Error:', error.message); } 
@@ -68,7 +67,6 @@ function App() {
 
   const fetchInventory = async () => {
     try {
-      // DO NOT FILTER is_active HERE. WE NEED FULL HISTORY FOR BARCODE GENERATION
       const { data } = await supabase.from('inventory').select('*').order('name', { ascending: true }); 
       if (data) setInventory(data);
     } catch (error) { console.error('Inventory Sync Error:', error.message); } 

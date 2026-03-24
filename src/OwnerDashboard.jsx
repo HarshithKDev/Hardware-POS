@@ -14,8 +14,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
   useEffect(() => { sessionStorage.setItem('posOwnerWarehouseSubTab', warehouseSubTab); }, [warehouseSubTab]);
   useEffect(() => { sessionStorage.setItem('posOwnerStoreSubTab', storeSubTab); }, [storeSubTab]);
 
-  // Removed stock_warehouse from new item state completely
-  const [newItem, setNewItem] = useState({ name: '', price: '', cost_price: '', msp: '', unit: 'PCS' });
+  const [newItem, setNewItem] = useState({ name: '', price: '', cost_price: '', msp: '', stock_warehouse: '', unit: 'PCS' });
   const [isSubmitting, setIsSubmitting] = useState(false); 
   const [editingBarcode, setEditingBarcode] = useState(null);
   const [editFormData, setEditFormData] = useState({});
@@ -130,6 +129,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
   };
 
   const getNextBarcode = () => {
+    // Generate barcode based on ALL inventory (including archived) to prevent duplicates
     if (inventory.length === 0) return '1001';
     const codes = inventory.map(i => parseInt(i.barcode, 10)).filter(c => !isNaN(c));
     return codes.length === 0 ? '1001' : (Math.max(...codes) + 1).toString();
@@ -137,7 +137,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
 
   const handleAddItem = async (e) => {
     e.preventDefault(); 
-    const autoBarcode = getNextBarcode(); 
     if (!newItem.name || !newItem.price || !newItem.cost_price || !newItem.msp) return showAlert("Fill all mandatory fields.", "Validation Error");
     if (Number(newItem.cost_price) < 0 || Number(newItem.price) < 0 || Number(newItem.msp) < 0) return showAlert("Values cannot be negative.", "Validation Error");
     if (Number(newItem.msp) > Number(newItem.price)) return showAlert("MSP cannot be greater than MRP.", "Validation Error");
@@ -145,6 +144,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
     try {
       setIsSubmitting(true);
       
+      // Safety double-check to fetch real absolute max from DB just in case multiple users are adding
       const { data: allItems } = await supabase.from('inventory').select('barcode');
       let safeBarcode = '1001';
       if (allItems && allItems.length > 0) {
@@ -330,7 +330,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
             <div className="bg-[#f9f9f9] border border-gray-400 p-6 w-full rounded-none">
               <h2 className="text-sm font-semibold uppercase text-gray-600 mb-6 border-b border-gray-300 pb-2 tracking-wider">Registration Profile</h2>
               
-              {/* FIXED: Single line form without Init Qty */}
               <form onSubmit={handleAddItem} className="flex flex-col xl:flex-row gap-4 items-end w-full">
                 <div className="flex flex-col w-full xl:w-32 shrink-0">
                   <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">SKU Code</label>
@@ -340,7 +339,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                   <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">Nomenclature</label>
                   <input type="text" value={newItem.name} onChange={e=>setNewItem({...newItem,name:e.target.value})} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7]" />
                 </div>
-                <div className="flex flex-col w-full xl:w-28 shrink-0">
+                <div className="flex flex-col w-full xl:w-24 shrink-0">
                   <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">UOM</label>
                   <div className="relative w-full">
                     <select value={newItem.unit} onChange={e=>setNewItem({...newItem,unit:e.target.value})} className="w-full border-2 border-gray-300 bg-white pl-3 pr-8 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7] appearance-none cursor-pointer">
@@ -351,19 +350,19 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                     </div>
                   </div>
                 </div>
-                <div className="flex flex-col w-full xl:w-32 shrink-0">
+                <div className="flex flex-col w-full xl:w-28 shrink-0">
                   <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">Cost (₹)</label>
                   <input type="number" step="0.01" min="0" value={newItem.cost_price} onChange={e=>setNewItem({...newItem,cost_price:e.target.value})} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7]" />
                 </div>
-                <div className="flex flex-col w-full xl:w-32 shrink-0">
+                <div className="flex flex-col w-full xl:w-28 shrink-0">
                   <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">MSP (₹)</label>
                   <input type="number" step="0.01" min="0" value={newItem.msp} onChange={e=>setNewItem({...newItem,msp:e.target.value})} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7]" />
                 </div>
-                <div className="flex flex-col w-full xl:w-32 shrink-0">
+                <div className="flex flex-col w-full xl:w-28 shrink-0">
                   <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">MRP (₹)</label>
                   <input type="number" step="0.01" min="0" value={newItem.price} onChange={e=>setNewItem({...newItem,price:e.target.value})} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7]" />
                 </div>
-                <div className="w-full xl:w-40 shrink-0 mt-4 xl:mt-0">
+                <div className="w-full xl:w-32 shrink-0 mt-4 xl:mt-0">
                   <button type="submit" disabled={isSubmitting} className="bg-[#0078D7] hover:bg-[#005a9e] text-white px-4 h-[35px] text-sm font-semibold rounded-none border border-transparent focus:outline-none focus:ring-1 focus:ring-black w-full flex items-center justify-center">
                     {isSubmitting ? 'Wait...' : 'Commit'}
                   </button>
@@ -404,10 +403,10 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                       <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
                         <th className="p-3 border-r border-gray-300 w-24">SKU</th>
                         <th className="p-3 border-r border-gray-300">Nomenclature</th>
-                        <th className="p-3 border-r border-gray-300 text-center w-28">Cost</th>
-                        <th className="p-3 border-r border-gray-300 text-center w-28">MSP</th>
-                        <th className="p-3 border-r border-gray-300 text-center w-28">MRP</th>
-                        <th className="p-3 border-r border-gray-300 text-center w-28">Whse Qty</th>
+                        <th className="p-3 border-r border-gray-300 text-center w-24">Cost</th>
+                        <th className="p-3 border-r border-gray-300 text-center w-24">MSP</th>
+                        <th className="p-3 border-r border-gray-300 text-center w-24">MRP</th>
+                        <th className="p-3 border-r border-gray-300 text-center w-24">Whse Qty</th>
                         <th className="p-3 text-center w-40">Actions</th>
                       </tr>
                     </thead>
@@ -416,7 +415,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                         <tr><td colSpan="7" className="p-8 text-center text-gray-500 text-sm font-semibold">No items found matching the query.</td></tr>
                       ) : paginatedInventory.map(item => (
                         <tr key={item.id} className="hover:bg-[#f9f9f9] transition-none">
-                          <td className="p-3 border-r border-gray-200 text-sm font-mono text-[#0078D7]">{item.barcode}</td>
+                          <td className="p-3 border-r border-gray-200 text-sm text-[#0078D7]">{item.barcode}</td>
                           {editingBarcode === item.barcode ? (
                             <>
                               <td className="p-1 border-r border-gray-200"><input type="text" value={editFormData.name ?? ''} onChange={e=>setEditFormData({...editFormData,name:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
@@ -471,7 +470,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
             {storeSubTab === 'inventory' && (
               <div className="flex flex-col flex-1 pb-4">
                 <div className="flex flex-col md:flex-row gap-4 mb-4">
-                  <input type="text" placeholder="Query Floor Database..." value={inventorySearch} onChange={e=>{setInventorySearch(e.target.value); setInvPage(0);}} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm w-full md:w-[400px] rounded-none focus:outline-none focus:border-[#0078D7]" />
+                  <input type="text" placeholder="Query Floor Database..." value={inventorySearch} onChange={e=>{setInventorySearch(e.target.value); setInvPage(0);}} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm w-full md:w-[400px] rounded-none focus:outline-none focus:border-[#0078D7] mb-4" />
                   <div className="relative w-full md:w-auto">
                     <select value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="w-full border-2 border-gray-300 bg-white pl-3 pr-8 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7] appearance-none cursor-pointer">
                       <option value="barcode-asc">SKU (Ascending)</option><option value="barcode-desc">SKU (Descending)</option>
@@ -532,8 +531,12 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                     <p className="text-xs font-semibold uppercase tracking-wider text-gray-600">Operator: {selectedBill.cashier_name}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Gross Value</p>
-                    <p className="text-3xl font-light text-[#0078D7]">₹{Number(selectedBill.total_amount).toFixed(2)}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
+                      {selectedBill.location === 'Store' ? 'Gross Value' : 'Total Items'}
+                    </p>
+                    <p className="text-3xl font-light text-[#0078D7]">
+                      {selectedBill.location === 'Store' ? `₹${Number(selectedBill.total_amount).toFixed(2)}` : billItems.reduce((sum, item) => sum + Number(item.quantity), 0)}
+                    </p>
                   </div>
                 </div>
                 {isLoadingItems ? <div className="p-10 flex justify-center"><Spinner className="w-8 h-8 text-[#0078D7]" /></div> : (
@@ -542,18 +545,26 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                       <thead className="bg-[#f3f3f3] sticky top-0 border-b border-gray-400">
                         <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
                           <th className="p-3 border-r border-gray-300">Nomenclature</th>
-                          <th className="p-3 border-r border-gray-300 text-center w-24">Qty</th>
-                          <th className="p-3 border-r border-gray-300 text-right w-32">Unit Rate</th>
-                          <th className="p-3 text-right w-32">Line Net</th>
+                          <th className={`p-3 text-center ${selectedBill.location === 'Store' ? 'border-r border-gray-300 w-24' : 'w-32'}`}>Qty</th>
+                          {selectedBill.location === 'Store' && (
+                            <>
+                              <th className="p-3 border-r border-gray-300 text-right w-32">Unit Rate</th>
+                              <th className="p-3 text-right w-32">Line Net</th>
+                            </>
+                          )}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200 border-b border-gray-400">
                         {billItems.map(item => (
                           <tr key={item.id} className="hover:bg-[#f9f9f9]">
                             <td className="p-3 border-r border-gray-200 text-sm font-medium text-black">{item.name}</td>
-                            <td className="p-3 border-r border-gray-200 text-sm text-center">{item.quantity} {item.unit}</td>
-                            <td className="p-3 border-r border-gray-200 text-sm text-right">₹{Number(item.price_at_sale).toFixed(2)}</td>
-                            <td className="p-3 text-sm text-right font-bold text-black">₹{(item.price_at_sale*item.quantity).toFixed(2)}</td>
+                            <td className={`p-3 text-sm text-center ${selectedBill.location === 'Store' ? 'border-r border-gray-200' : ''}`}>{item.quantity} {item.unit}</td>
+                            {selectedBill.location === 'Store' && (
+                              <>
+                                <td className="p-3 border-r border-gray-200 text-sm text-right">₹{Number(item.price_at_sale).toFixed(2)}</td>
+                                <td className="p-3 text-sm text-right font-bold text-black">₹{(item.price_at_sale*item.quantity).toFixed(2)}</td>
+                              </>
+                            )}
                           </tr>
                         ))}
                       </tbody>
@@ -575,7 +586,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                           <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
                             <th className="p-3 border-r border-gray-300 w-64">Timestamp</th>
                             <th className="p-3 border-r border-gray-300">Operation Type</th>
-                            <th className="p-3 text-right w-40">Gross Value</th>
+                            <th className="p-3 text-right w-40">Value / Info</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 border-b border-gray-400">
@@ -584,8 +595,10 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                           ) : bills.map(bill => (
                             <tr key={bill.id} onClick={()=>handleBillClick(bill)} className="hover:bg-[#cce8ff] cursor-pointer transition-none">
                               <td className="p-3 border-r border-gray-200 text-sm text-black">{formatDateTime(bill.created_at)}</td>
-                              <td className="p-3 border-r border-gray-200 text-sm font-medium text-black">{bill.location==='Store'?'Point of Sale':'Inventory Move'}</td>
-                              <td className="p-3 text-right text-sm font-bold text-[#0078D7]">₹{Number(bill.total_amount).toFixed(2)}</td>
+                              <td className="p-3 border-r border-gray-200 text-sm font-medium text-black">{bill.location==='Store'?'Point of Sale':'Internal Move'}</td>
+                              <td className="p-3 text-right text-sm font-bold text-[#0078D7]">
+                                {bill.location === 'Store' ? `₹${Number(bill.total_amount).toFixed(2)}` : 'View Details'}
+                              </td>
                             </tr>
                           ))}
                         </tbody>

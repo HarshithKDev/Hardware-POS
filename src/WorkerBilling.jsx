@@ -10,15 +10,18 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
   const [lastReceipt, setLastReceipt] = useState(null);
   const [alertConfig, setAlertConfig] = useState({ isOpen: false, message: '', title: 'System Notice' });
   const [checkoutModal, setCheckoutModal] = useState({ isOpen: false, cashGiven: '' });
+  const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, message: '', title: 'Action Required', onConfirm: null });
   const scannerInputRef = useRef(null); 
 
   const showAlert = (message, title = 'System Notice') => setAlertConfig({ isOpen: true, message, title });
   const closeAlert = () => { setAlertConfig({ ...alertConfig, isOpen: false }); setTimeout(() => scannerInputRef.current?.focus(), 50); };
+  
+  const showConfirm = (message, onConfirmCallback, title = 'Action Required') => setConfirmConfig({ isOpen: true, message, title, onConfirm: onConfirmCallback });
 
-  useEffect(() => { if (!alertConfig.isOpen && !checkoutModal.isOpen) scannerInputRef.current?.focus(); }, [alertConfig.isOpen, checkoutModal.isOpen, activeTab]); 
+  useEffect(() => { if (!alertConfig.isOpen && !checkoutModal.isOpen && !confirmConfig.isOpen) scannerInputRef.current?.focus(); }, [alertConfig.isOpen, checkoutModal.isOpen, confirmConfig.isOpen, activeTab]); 
   
   const handleBackgroundClick = (e) => { 
-    if (!alertConfig.isOpen && !checkoutModal.isOpen && e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'SELECT') {
+    if (!alertConfig.isOpen && !checkoutModal.isOpen && !confirmConfig.isOpen && e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'SELECT') {
       scannerInputRef.current?.focus(); 
     }
   };
@@ -40,7 +43,7 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
         const idx = prev.findIndex(c => c.barcode === cleanBarcode);
         if (idx >= 0) { 
           const up = [...prev]; 
-          up[idx].quantity = (Number(up[idx].quantity) || 1) + 1; 
+          up[idx] = { ...up[idx], quantity: (Number(up[idx].quantity) || 0) + 1 }; 
           return up; 
         }
         return [...prev, { ...item, id: Date.now(), discountPct: 0, quantity: 1, unit: item.unit || 'PCS' }];
@@ -160,6 +163,23 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
             <div className="p-6 bg-white"><p className="text-sm text-black">{alertConfig.message}</p></div>
             <div className="p-4 bg-[#f3f3f3] border-t border-gray-300 flex justify-end">
               <button onClick={closeAlert} className="px-8 py-1.5 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm rounded-none border border-transparent focus:outline-none focus:ring-1 focus:ring-black">Acknowledge</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* WINDOWS 10 CONFIRM MODAL (REPLACES WINDOW.CONFIRM) */}
+      {confirmConfig.isOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] px-4 print:hidden">
+          <div className="bg-white border-2 border-[#0078D7] w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
+            <div className="bg-white flex justify-between items-center pr-1 pl-4 py-1 border-b border-gray-200">
+              <span className="text-xs font-semibold uppercase tracking-wider text-[#0078D7]">{confirmConfig.title}</span>
+              <button onClick={() => setConfirmConfig({ ...confirmConfig, isOpen: false })} className="text-gray-600 hover:bg-[#e81123] hover:text-white px-3 py-1.5 leading-none transition-none focus:outline-none rounded-none">✕</button>
+            </div>
+            <div className="p-6 bg-white"><p className="text-sm text-black">{confirmConfig.message}</p></div>
+            <div className="p-4 bg-[#f3f3f3] border-t border-gray-300 flex justify-end gap-2">
+              <button onClick={() => { if (confirmConfig.onConfirm) confirmConfig.onConfirm(); setConfirmConfig({ ...confirmConfig, isOpen: false }); }} className="px-8 py-1.5 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm rounded-none border border-transparent focus:outline-none focus:ring-1 focus:ring-black">Execute</button>
+              <button onClick={() => setConfirmConfig({ ...confirmConfig, isOpen: false })} className="px-8 py-1.5 bg-[#e6e6e6] hover:bg-[#cccccc] text-black border border-gray-400 text-sm rounded-none focus:outline-none focus:border-[#0078D7]">Cancel</button>
             </div>
           </div>
         </div>
@@ -343,7 +363,7 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
 
           {/* BOTTOM ACTION BAR */}
           <div className="p-4 bg-[#f3f3f3] flex flex-col md:flex-row justify-between gap-3">
-            <button onMouseDown={(e) => e.preventDefault()} onClick={() => { if(window.confirm("Clear active list?")) setCart([]); }} className="w-full md:w-auto px-8 py-2 bg-[#e6e6e6] hover:bg-[#cccccc] text-black border border-gray-400 text-sm font-semibold uppercase tracking-wider rounded-none focus:outline-none focus:border-[#0078D7]">
+            <button onMouseDown={(e) => e.preventDefault()} onClick={() => showConfirm("Clear active list?", () => setCart([]), activeTab === 'checkout' ? 'Void Trans' : 'Clear List')} className="w-full md:w-auto px-8 py-2 bg-[#e6e6e6] hover:bg-[#cccccc] text-black border border-gray-400 text-sm font-semibold uppercase tracking-wider rounded-none focus:outline-none focus:border-[#0078D7]">
               {activeTab === 'checkout' ? 'Void Trans' : 'Clear List'}
             </button>
             <button onMouseDown={(e) => e.preventDefault()} onClick={() => activeTab === 'checkout' ? setCheckoutModal({isOpen: true, cashGiven: ''}) : handleCompleteTransaction()} className="w-full md:w-auto px-10 py-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-semibold uppercase tracking-wider rounded-none border border-transparent focus:outline-none focus:ring-1 focus:ring-black flex justify-center items-center">
