@@ -56,6 +56,13 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
     return `${datePart}, ${paddedHours}:${minutes} ${ampm}`;
   };
 
+  const getOperationType = (location) => {
+    if (location === 'Store') return 'Point of Sale';
+    if (location === 'Warehouse-Inbound') return 'Receive Stock';
+    if (location === 'Warehouse-Transfer') return 'Transfer Stock';
+    return location;
+  };
+
   useEffect(() => {
     if (activeTab === 'sales') fetchBills(salesPage);
     if (activeTab === 'dashboard') { fetchBills(salesPage); fetchDashboardStats(); }
@@ -129,7 +136,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
   };
 
   const getNextBarcode = () => {
-    // Generate barcode based on ALL inventory (including archived) to prevent duplicates
     if (inventory.length === 0) return '1001';
     const codes = inventory.map(i => parseInt(i.barcode, 10)).filter(c => !isNaN(c));
     return codes.length === 0 ? '1001' : (Math.max(...codes) + 1).toString();
@@ -144,7 +150,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
     try {
       setIsSubmitting(true);
       
-      // Safety double-check to fetch real absolute max from DB just in case multiple users are adding
       const { data: allItems } = await supabase.from('inventory').select('barcode');
       let safeBarcode = '1001';
       if (allItems && allItems.length > 0) {
@@ -158,7 +163,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
         cost_price: Number(newItem.cost_price || 0), 
         msp: Number(newItem.msp || 0),
         price: Number(newItem.price || 0), 
-        stock_warehouse: 0, // Enforced zero start
+        stock_warehouse: 0, 
         stock_store: 0, 
         unit: newItem.unit, 
         is_active: true 
@@ -403,10 +408,10 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                       <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
                         <th className="p-3 border-r border-gray-300 w-24">SKU</th>
                         <th className="p-3 border-r border-gray-300">Nomenclature</th>
-                        <th className="p-3 border-r border-gray-300 text-center w-24">Cost</th>
-                        <th className="p-3 border-r border-gray-300 text-center w-24">MSP</th>
-                        <th className="p-3 border-r border-gray-300 text-center w-24">MRP</th>
-                        <th className="p-3 border-r border-gray-300 text-center w-24">Whse Qty</th>
+                        <th className="p-3 border-r border-gray-300 text-center w-28">Cost</th>
+                        <th className="p-3 border-r border-gray-300 text-center w-28">MSP</th>
+                        <th className="p-3 border-r border-gray-300 text-center w-28">MRP</th>
+                        <th className="p-3 border-r border-gray-300 text-center w-28">Whse Qty</th>
                         <th className="p-3 text-center w-40">Actions</th>
                       </tr>
                     </thead>
@@ -415,7 +420,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                         <tr><td colSpan="7" className="p-8 text-center text-gray-500 text-sm font-semibold">No items found matching the query.</td></tr>
                       ) : paginatedInventory.map(item => (
                         <tr key={item.id} className="hover:bg-[#f9f9f9] transition-none">
-                          <td className="p-3 border-r border-gray-200 text-sm text-[#0078D7]">{item.barcode}</td>
+                          <td className="p-3 border-r border-gray-200 text-sm font-semibold tracking-wider text-[#0078D7]">{item.barcode}</td>
                           {editingBarcode === item.barcode ? (
                             <>
                               <td className="p-1 border-r border-gray-200"><input type="text" value={editFormData.name ?? ''} onChange={e=>setEditFormData({...editFormData,name:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
@@ -496,7 +501,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                         <tr><td colSpan="4" className="p-8 text-center text-gray-500 text-sm font-semibold">No items found matching the query.</td></tr>
                       ) : paginatedInventory.map(item => (
                         <tr key={item.id} className="hover:bg-[#f9f9f9]">
-                          <td className="p-3 border-r border-gray-200 text-sm font-mono text-[#0078D7]">{item.barcode}</td>
+                          <td className="p-3 border-r border-gray-200 text-sm font-semibold tracking-wider text-[#0078D7]">{item.barcode}</td>
                           <td className="p-3 border-r border-gray-200 text-sm font-medium text-black">{item.name}</td>
                           <td className="p-3 border-r border-gray-200 text-sm text-center">{Number(item.price).toFixed(2)}</td>
                           <td className="p-3 text-sm text-center font-bold text-black">{item.stock_store}</td>
@@ -586,7 +591,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                           <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
                             <th className="p-3 border-r border-gray-300 w-64">Timestamp</th>
                             <th className="p-3 border-r border-gray-300">Operation Type</th>
-                            <th className="p-3 text-right w-40">Value / Info</th>
+                            <th className="p-3 text-right w-40">Info</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 border-b border-gray-400">
@@ -595,10 +600,8 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                           ) : bills.map(bill => (
                             <tr key={bill.id} onClick={()=>handleBillClick(bill)} className="hover:bg-[#cce8ff] cursor-pointer transition-none">
                               <td className="p-3 border-r border-gray-200 text-sm text-black">{formatDateTime(bill.created_at)}</td>
-                              <td className="p-3 border-r border-gray-200 text-sm font-medium text-black">{bill.location==='Store'?'Point of Sale':'Internal Move'}</td>
-                              <td className="p-3 text-right text-sm font-bold text-[#0078D7]">
-                                {bill.location === 'Store' ? `₹${Number(bill.total_amount).toFixed(2)}` : 'View Details'}
-                              </td>
+                              <td className="p-3 border-r border-gray-200 text-sm font-medium text-black">{getOperationType(bill.location)}</td>
+                              <td className="p-3 text-right text-sm font-bold text-[#0078D7] hover:underline">View Details</td>
                             </tr>
                           ))}
                         </tbody>

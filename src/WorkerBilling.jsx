@@ -42,11 +42,13 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
       setCart(prev => {
         const idx = prev.findIndex(c => c.barcode === cleanBarcode);
         if (idx >= 0) { 
+          // Deep clone array and the specific item to prevent React 18 strict mode double-counting
           const up = [...prev]; 
           up[idx] = { ...up[idx], quantity: (Number(up[idx].quantity) || 0) + 1 }; 
           return up; 
         }
-        return [...prev, { ...item, id: Date.now(), discountPct: 0, quantity: 1, unit: item.unit || 'PCS' }];
+        // Initialize customPriceInput with standard price when added
+        return [...prev, { ...item, id: Date.now(), customPriceInput: Number(item.price || 0).toFixed(2), discountPct: 0, quantity: 1, unit: item.unit || 'PCS' }];
       });
       setTimeout(() => scannerInputRef.current?.focus(), 10);
     } else {
@@ -58,28 +60,36 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
     setCart(prev => prev.map(i => i.id === id ? { ...i, quantity: val === '' ? '' : Math.max(0, Number(val)) } : i).filter(i => i.quantity !== 0));
   };
 
-  const updateDiscount = (id, val) => {
+  const handleCustomPriceChange = (id, val) => {
+    setCart(prev => prev.map(i => i.id === id ? { ...i, customPriceInput: val } : i));
+  };
+
+  const applyCustomPriceBlur = (id) => {
     setCart(prev => prev.map(i => {
       if (i.id === id) {
-        const requestedDisc = val === '' ? '' : Number(val);
-        if (requestedDisc === '') return { ...i, discountPct: '' };
+        let val = Number(i.customPriceInput);
+        if (isNaN(val)) val = Number(i.price || 0);
         
-        const price = Number(i.price || 0);
         const msp = Number(i.msp || 0);
+        const mrp = Number(i.price || 0);
         
-        let maxDisc = 100;
-        if (price > 0 && msp > 0) {
-            maxDisc = ((price - msp) / price) * 100;
-        }
+        // Auto-correct to MSP if they go too low, limit to MRP if they go too high
+        if (val < msp) val = msp;
+        if (val > mrp) val = mrp;
         
-        const clampedDisc = Math.min(maxDisc, Math.max(0, requestedDisc));
-        return { ...i, discountPct: clampedDisc };
+        const disc = mrp > 0 ? ((mrp - val) / mrp) * 100 : 0;
+        return { ...i, customPriceInput: val.toFixed(2), discountPct: disc };
       }
       return i;
     }));
   };
 
-  const calculateTotal = () => cart.reduce((tot, i) => tot + ((Number(i.price || 0) * (1 - Number(i.discountPct || 0) / 100)) * (i.quantity === '' ? 0 : Number(i.quantity))), 0);
+  const calculateTotal = () => cart.reduce((tot, i) => {
+    const qty = i.quantity === '' ? 0 : Number(i.quantity);
+    const sellPrice = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0);
+    return tot + (sellPrice * qty);
+  }, 0);
+
   const calculateTotalUnits = () => cart.reduce((tot, i) => tot + (i.quantity === '' ? 0 : Number(i.quantity)), 0);
 
   const formatDateTime = (dateObj) => {
@@ -107,7 +117,7 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
           barcode: i.barcode, 
           name: i.name, 
           quantity: Number(i.quantity), 
-          price: Number(i.price || 0), 
+          price: i.customPriceInput !== undefined ? Number(i.customPriceInput) : Number(i.price || 0), 
           discountPct: Number(i.discountPct || 0), 
           unit: i.unit 
         }))
@@ -118,12 +128,15 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
 
       setLastReceipt({ 
         id: data.bill_id.split('-')[0], 
-        items: finalCart.map(i => ({
-          ...i, 
-          quantity: Number(i.quantity), 
-          finalRate: Number(i.price || 0) * (1 - Number(i.discountPct || 0) / 100), 
-          lineTotal: (Number(i.price || 0) * (1 - Number(i.discountPct || 0) / 100)) * Number(i.quantity)
-        })), 
+        items: finalCart.map(i => {
+          const finalRate = i.customPriceInput !== undefined ? Number(i.customPriceInput) : Number(i.price || 0);
+          return {
+            ...i, 
+            quantity: Number(i.quantity), 
+            finalRate: finalRate, 
+            lineTotal: finalRate * Number(i.quantity)
+          };
+        }), 
         total: calculateTotal(), 
         date: new Date(), 
         type: activeTab, 
@@ -151,6 +164,13 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
 
   return (
     <div style={{ fontFamily: "'Roboto', sans-serif" }}>
+      <style>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          #printable-receipt, #printable-receipt * { visibility: visible !important; }
+          #printable-receipt { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; }
+        }
+      `}</style>
       
       {/* WINDOWS 10 ALERT MODAL */}
       {alertConfig.isOpen && (
@@ -168,9 +188,9 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
         </div>
       )}
 
-      {/* WINDOWS 10 CONFIRM MODAL (REPLACES WINDOW.CONFIRM) */}
+      {/* WINDOWS 10 CONFIRM MODAL */}
       {confirmConfig.isOpen && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] px-4 print:hidden">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] print:hidden px-4">
           <div className="bg-white border-2 border-[#0078D7] w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
             <div className="bg-white flex justify-between items-center pr-1 pl-4 py-1 border-b border-gray-200">
               <span className="text-xs font-semibold uppercase tracking-wider text-[#0078D7]">{confirmConfig.title}</span>
@@ -277,7 +297,7 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
                     <th className={`p-3 text-center w-40 ${activeTab === 'checkout' ? 'border-r border-gray-300' : ''}`}>Quantity</th>
                     {activeTab === 'checkout' && (
                       <>
-                        <th className="p-3 border-r border-gray-300 text-right w-32">Unit Rate</th>
+                        <th className="p-3 border-r border-gray-300 text-center w-36">Sell Price (₹)</th>
                         <th className="p-3 border-r border-gray-300 text-center w-28">Disc (%)</th>
                         <th className="p-3 text-right w-32">Line Net</th>
                       </>
@@ -287,6 +307,8 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
                 <tbody className="divide-y divide-gray-200 border-b border-gray-400">
                   {cart.map(item => {
                     const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
+                    const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
+
                     return (
                       <tr key={item.id} className="hover:bg-[#f9f9f9]">
                         <td className="p-3 border-r border-gray-200">
@@ -302,14 +324,26 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
                         </td>
                         {activeTab === 'checkout' && (
                           <>
-                            <td className="p-3 border-r border-gray-200 text-right text-sm text-black">
-                              {Number(item.price||0).toFixed(2)}
-                            </td>
                             <td className="p-2 border-r border-gray-200">
-                              <input type="number" min="0" max="100" value={item.discountPct === 0 ? '' : item.discountPct} onChange={(e) => updateDiscount(item.id, e.target.value)} placeholder="0" className="w-full h-8 px-2 border-2 border-gray-300 text-sm font-semibold text-center bg-white rounded-none focus:outline-none focus:border-[#0078D7]" disabled={activeTab !== 'checkout'} />
+                              <input 
+                                type="number" step="0.01" 
+                                value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price||0).toFixed(2)} 
+                                onChange={(e) => handleCustomPriceChange(item.id, e.target.value)} 
+                                onBlur={() => applyCustomPriceBlur(item.id)}
+                                placeholder="0.00" 
+                                className="w-full h-8 px-2 border-2 border-gray-300 text-sm font-semibold text-center bg-white rounded-none focus:outline-none focus:border-[#0078D7]" 
+                              />
+                            </td>
+                            <td className="p-2 border-r border-gray-200 bg-gray-50">
+                              <input 
+                                type="number" 
+                                value={item.discountPct ? Number(item.discountPct).toFixed(1) : '0.0'} 
+                                disabled 
+                                className="w-full h-8 px-2 border border-transparent text-sm font-semibold text-center bg-transparent rounded-none outline-none cursor-not-allowed text-gray-500" 
+                              />
                             </td>
                             <td className="p-3 text-right text-sm font-bold text-black">
-                              ₹{((Number(item.price||0) * (1 - (Number(item.discountPct||0)) / 100)) * safeQty).toFixed(2)}
+                              ₹{(sellPrice * safeQty).toFixed(2)}
                             </td>
                           </>
                         )}
@@ -328,15 +362,17 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
             ) : (
               cart.map((item) => {
                 const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
+                const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
+
                 return (
                   <div key={item.id} className="p-4 flex flex-col gap-3">
                     <div className="flex justify-between items-start">
                       <div className="pr-2">
                         <p className="text-sm font-semibold text-black">{item.name}</p>
-                        <p className="text-xs text-[#0078D7] font-mono mt-1">#{item.barcode} {activeTab === 'checkout' && `• ₹${Number(item.price||0).toFixed(2)}/ea`}</p>
+                        <p className="text-xs text-[#0078D7] mt-1">#{item.barcode} {activeTab === 'checkout' && `• MRP ₹${Number(item.price||0).toFixed(2)}`}</p>
                       </div>
                       {activeTab === 'checkout' && (
-                        <p className="text-base font-bold text-black">₹{((Number(item.price||0) * (1 - Number(item.discountPct||0) / 100)) * safeQty).toFixed(2)}</p>
+                        <p className="text-base font-bold text-black">₹{(sellPrice * safeQty).toFixed(2)}</p>
                       )}
                     </div>
                     <div className="flex justify-between items-center mt-1 pt-3 border-t border-gray-200">
@@ -347,11 +383,15 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
                       </div>
                       {activeTab === 'checkout' && (
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Disc:</span>
-                          <div className="relative">
-                            <input type="number" min="0" max="100" value={item.discountPct === 0 ? '' : item.discountPct} onChange={(e) => updateDiscount(item.id, e.target.value)} placeholder="0" className="w-14 h-8 px-1 border-2 border-gray-300 bg-white text-sm font-semibold text-center rounded-none focus:outline-none focus:border-[#0078D7]" disabled={activeTab !== 'checkout'} />
-                            <span className="absolute right-1 top-1.5 text-gray-400 text-xs">%</span>
-                          </div>
+                          <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Sell Px:</span>
+                          <input 
+                            type="number" step="0.01" 
+                            value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price||0).toFixed(2)} 
+                            onChange={(e) => handleCustomPriceChange(item.id, e.target.value)} 
+                            onBlur={() => applyCustomPriceBlur(item.id)}
+                            className="w-16 h-8 px-1 border-2 border-gray-300 bg-white text-sm font-semibold text-center rounded-none focus:outline-none focus:border-[#0078D7]" 
+                          />
+                          <span className="text-xs text-gray-400 font-semibold bg-gray-50 px-1 py-1 border border-transparent">(-{item.discountPct ? Number(item.discountPct).toFixed(1) : '0'}%)</span>
                         </div>
                       )}
                     </div>
@@ -374,56 +414,57 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
       </div>
 
       {/* THERMAL PRINTER TEMPLATE */}
-      {lastReceipt && lastReceipt.type === 'checkout' && (
-        <div className="hidden print:block text-black font-mono text-xs w-[80mm] mx-auto bg-white p-4" style={{ fontFamily: "'Roboto', sans-serif" }}>
-          <div className="text-center mb-3">
-            <h1 className="text-xl font-bold uppercase">{shopSettings?.shop_name || 'STORE RECEIPT'}</h1>
-            <p className="text-[10px]">Owner: {shopSettings?.owner_name}</p>
-          </div>
-          <div className="mb-3 text-[10px] flex justify-between border-b border-black border-dashed pb-2">
-            <div>
-              <p>Txn ID: {lastReceipt.id}</p>
-              <p>Date: {formatDateTime(lastReceipt.date).datePart}</p>
-              <p className="capitalize">Op: {lastReceipt.cashierName}</p>
+      <div id="printable-receipt" className="hidden print:block text-black font-mono text-xs w-[80mm] mx-auto bg-white p-4" style={{ fontFamily: "'Roboto', sans-serif" }}>
+        {lastReceipt && lastReceipt.type === 'checkout' && (
+          <>
+            <div className="text-center mb-3">
+              <h1 className="text-xl font-bold uppercase">{shopSettings?.shop_name || 'STORE RECEIPT'}</h1>
+              <p className="text-[10px]">Owner: {shopSettings?.owner_name}</p>
             </div>
-            <div className="text-right">
-              <p>Type: POS SALE</p>
-              <p>Time: {formatDateTime(lastReceipt.date).timePart}</p>
+            <div className="mb-3 text-[10px] flex justify-between border-b border-black border-dashed pb-2">
+              <div>
+                <p>Txn ID: {lastReceipt.id}</p>
+                <p>Date: {formatDateTime(lastReceipt.date).datePart}</p>
+                <p className="capitalize">Op: {lastReceipt.cashierName}</p>
+              </div>
+              <div className="text-right">
+                <p>Type: POS SALE</p>
+                <p>Time: {formatDateTime(lastReceipt.date).timePart}</p>
+              </div>
             </div>
-          </div>
-          <table className="w-full mb-3 text-[10px]">
-            <thead>
-              <tr className="border-b border-black border-dashed">
-                <th className="text-left font-semibold pb-1 w-1/2">SKU/Item</th>
-                <th className="text-center font-semibold pb-1 w-1/6">Qty</th>
-                <th className="text-right font-semibold pb-1 w-1/6">Rate</th>
-                <th className="text-right font-semibold pb-1 w-1/6">Amt</th>
-              </tr>
-            </thead>
-            <tbody className="align-top">
-              {lastReceipt.items.map((item, i) => (
-                <tr key={i}>
-                  <td className="py-1 pr-1 text-wrap">
-                    {item.name}
-                    {item.discountPct > 0 && <span className="block text-[8px] text-gray-600">(-{item.discountPct}%)</span>}
-                  </td>
-                  <td className="py-1 text-center">{item.quantity} {item.unit}</td>
-                  <td className="py-1 text-right">{item.finalRate.toFixed(2)}</td>
-                  <td className="py-1 text-right">{item.lineTotal.toFixed(2)}</td>
+            <table className="w-full mb-3 text-[10px]">
+              <thead>
+                <tr className="border-b border-black border-dashed">
+                  <th className="text-left font-semibold pb-1 w-1/2">SKU/Item</th>
+                  <th className="text-center font-semibold pb-1 w-1/6">Qty</th>
+                  <th className="text-right font-semibold pb-1 w-1/6">Rate</th>
+                  <th className="text-right font-semibold pb-1 w-1/6">Amt</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="border-t border-black pt-2 flex justify-between items-center mb-4">
-            <span className="font-bold text-sm">NET DUE</span>
-            <span className="font-bold text-lg">₹{lastReceipt.total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-          </div>
-          <div className="text-center text-[10px] border-t border-black border-dashed pt-2 mt-2">
-            <p>Thank You For Your Business!</p>
-            <p>Goods once sold will not be taken back.</p>
-          </div>
-        </div>
-      )}
+              </thead>
+              <tbody className="align-top">
+                {lastReceipt.items.map((item, i) => (
+                  <tr key={i}>
+                    <td className="py-1 pr-1 text-wrap">
+                      {item.name}
+                    </td>
+                    <td className="py-1 text-center">{item.quantity} {item.unit}</td>
+                    <td className="py-1 text-right">{item.finalRate.toFixed(2)}</td>
+                    <td className="py-1 text-right">{item.lineTotal.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="border-t border-black pt-2 flex justify-between items-center mb-4">
+              <span className="font-bold text-sm">NET DUE</span>
+              <span className="font-bold text-lg">₹{lastReceipt.total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+            </div>
+            <div className="text-center text-[10px] border-t border-black border-dashed pt-2 mt-2">
+              <p>Thank You For Your Business!</p>
+              <p>Goods once sold will not be taken back.</p>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
