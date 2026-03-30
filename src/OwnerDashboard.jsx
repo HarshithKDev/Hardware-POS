@@ -70,7 +70,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
     if (activeTab !== 'sales') setSelectedBill(null);
   }, [activeTab, salesPage]);
 
-  // Derive ONLY Active Inventory for metrics and tables
   const activeInventory = inventory.filter(item => item.is_active !== false);
 
   const fetchDashboardStats = async () => {
@@ -355,7 +354,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                     </div>
                   </div>
                 </div>
-                {/* SET step="1" so up and down arrows increment by a whole 1 Rupee */}
                 <div className="flex flex-col w-full xl:w-28 shrink-0">
                   <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">Cost (₹)</label>
                   <input type="number" step="1" min="0" value={newItem.cost_price} onChange={e=>setNewItem({...newItem,cost_price:e.target.value})} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7]" />
@@ -425,7 +423,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                           {editingBarcode === item.barcode ? (
                             <>
                               <td className="p-1 border-r border-gray-200"><input type="text" value={editFormData.name ?? ''} onChange={e=>setEditFormData({...editFormData,name:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
-                              {/* SET step="1" so up and down arrows increment by a whole 1 Rupee */}
                               <td className="p-1 border-r border-gray-200"><input type="number" step="1" min="0" value={editFormData.cost_price ?? ''} onChange={e=>setEditFormData({...editFormData,cost_price:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm text-center rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
                               <td className="p-1 border-r border-gray-200"><input type="number" step="1" min="0" value={editFormData.msp ?? ''} onChange={e=>setEditFormData({...editFormData,msp:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm text-center rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
                               <td className="p-1 border-r border-gray-200"><input type="number" step="1" min="0" value={editFormData.price ?? ''} onChange={e=>setEditFormData({...editFormData,price:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm text-center rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
@@ -583,7 +580,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
               <div className="flex flex-col flex-1 pb-4">
                 <div className="flex justify-between items-center mb-4">
                   <span className="text-sm font-semibold uppercase tracking-wider text-gray-600">Recent Activity</span>
-                  <button onClick={()=>fetchBills(salesPage)} className="border border-gray-400 bg-[#e6e6e6] hover:bg-[#cccccc] px-6 py-1.5 text-sm font-semibold rounded-none focus:outline-none focus:border-[#0078D7]">Refresh Data</button>
+                  {/* The refresh button has been removed from here as requested */}
                 </div>
                 {isLoadingBills ? <div className="p-10 flex justify-center"><Spinner className="w-8 h-8 text-[#0078D7]" /></div> : (
                   <>

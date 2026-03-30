@@ -39,6 +39,21 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
     }
 
     if (item) {
+      if (activeTab === 'checkout') {
+        const currentCartItem = cart.find(c => c.barcode === cleanBarcode);
+        const currentQty = currentCartItem ? (Number(currentCartItem.quantity) || 0) : 0;
+        const availableStock = Number(item.stock_store || 0);
+
+        if (availableStock <= 0) {
+          showAlert(`No stock remaining for ${item.name} in the store.`, "Out of Stock");
+          return;
+        }
+        if (currentQty >= availableStock) {
+          showAlert(`Cannot exceed available store stock (${availableStock}) for ${item.name}.`, "Stock Limit Reached");
+          return;
+        }
+      }
+
       setCart(prev => {
         const idx = prev.findIndex(c => c.barcode === cleanBarcode);
         if (idx >= 0) { 
@@ -55,7 +70,28 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
   };
 
   const updateQuantity = (id, val) => {
-    setCart(prev => prev.map(i => i.id === id ? { ...i, quantity: val === '' ? '' : Math.max(0, Number(val)) } : i).filter(i => i.quantity !== 0));
+    setCart(prev => {
+      let limitMsg = '';
+      const newCart = prev.map(i => {
+        if (i.id === id) {
+          let newQty = val === '' ? '' : Math.max(0, Number(val));
+          if (activeTab === 'checkout' && val !== '') {
+            const maxStock = Number(i.stock_store || 0);
+            if (newQty > maxStock) {
+              limitMsg = `Cannot exceed available store stock (${maxStock}) for ${i.name}.`;
+              newQty = maxStock;
+            }
+          }
+          return { ...i, quantity: newQty };
+        }
+        return i;
+      }).filter(i => i.quantity !== 0);
+
+      if (limitMsg) {
+        setTimeout(() => showAlert(limitMsg, "Stock Limit"), 0);
+      }
+      return newCart;
+    });
   };
 
   const handleCustomPriceChange = (id, val) => {
@@ -437,7 +473,6 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
               <div>
                 <p>Txn ID: {lastReceipt.id}</p>
                 <p>Date: {formatDateTime(lastReceipt.date).datePart}</p>
-                <p className="capitalize">Op: {lastReceipt.cashierName}</p>
               </div>
               <div className="text-right">
                 <p>Type: POS SALE</p>
