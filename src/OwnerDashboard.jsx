@@ -355,17 +355,18 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                     </div>
                   </div>
                 </div>
+                {/* SET step="1" so up and down arrows increment by a whole 1 Rupee */}
                 <div className="flex flex-col w-full xl:w-28 shrink-0">
                   <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">Cost (₹)</label>
-                  <input type="number" step="0.01" min="0" value={newItem.cost_price} onChange={e=>setNewItem({...newItem,cost_price:e.target.value})} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7]" />
+                  <input type="number" step="1" min="0" value={newItem.cost_price} onChange={e=>setNewItem({...newItem,cost_price:e.target.value})} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7]" />
                 </div>
                 <div className="flex flex-col w-full xl:w-28 shrink-0">
                   <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">MSP (₹)</label>
-                  <input type="number" step="0.01" min="0" value={newItem.msp} onChange={e=>setNewItem({...newItem,msp:e.target.value})} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7]" />
+                  <input type="number" step="1" min="0" value={newItem.msp} onChange={e=>setNewItem({...newItem,msp:e.target.value})} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7]" />
                 </div>
                 <div className="flex flex-col w-full xl:w-28 shrink-0">
                   <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">MRP (₹)</label>
-                  <input type="number" step="0.01" min="0" value={newItem.price} onChange={e=>setNewItem({...newItem,price:e.target.value})} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7]" />
+                  <input type="number" step="1" min="0" value={newItem.price} onChange={e=>setNewItem({...newItem,price:e.target.value})} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7]" />
                 </div>
                 <div className="w-full xl:w-32 shrink-0 mt-4 xl:mt-0">
                   <button type="submit" disabled={isSubmitting} className="bg-[#0078D7] hover:bg-[#005a9e] text-white px-4 h-[35px] text-sm font-semibold rounded-none border border-transparent focus:outline-none focus:ring-1 focus:ring-black w-full flex items-center justify-center">
@@ -424,9 +425,10 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                           {editingBarcode === item.barcode ? (
                             <>
                               <td className="p-1 border-r border-gray-200"><input type="text" value={editFormData.name ?? ''} onChange={e=>setEditFormData({...editFormData,name:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
-                              <td className="p-1 border-r border-gray-200"><input type="number" step="0.01" min="0" value={editFormData.cost_price ?? ''} onChange={e=>setEditFormData({...editFormData,cost_price:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm text-center rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
-                              <td className="p-1 border-r border-gray-200"><input type="number" step="0.01" min="0" value={editFormData.msp ?? ''} onChange={e=>setEditFormData({...editFormData,msp:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm text-center rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
-                              <td className="p-1 border-r border-gray-200"><input type="number" step="0.01" min="0" value={editFormData.price ?? ''} onChange={e=>setEditFormData({...editFormData,price:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm text-center rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
+                              {/* SET step="1" so up and down arrows increment by a whole 1 Rupee */}
+                              <td className="p-1 border-r border-gray-200"><input type="number" step="1" min="0" value={editFormData.cost_price ?? ''} onChange={e=>setEditFormData({...editFormData,cost_price:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm text-center rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
+                              <td className="p-1 border-r border-gray-200"><input type="number" step="1" min="0" value={editFormData.msp ?? ''} onChange={e=>setEditFormData({...editFormData,msp:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm text-center rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
+                              <td className="p-1 border-r border-gray-200"><input type="number" step="1" min="0" value={editFormData.price ?? ''} onChange={e=>setEditFormData({...editFormData,price:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm text-center rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
                               <td className="p-1 border-r border-gray-200"><input type="number" step="any" min="0" value={editFormData.stock_warehouse ?? ''} onChange={e=>setEditFormData({...editFormData,stock_warehouse:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm text-center rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
                               <td className="p-2 flex gap-2 justify-center">
                                 <button onClick={handleSaveEdit} className="bg-[#107c10] hover:bg-[#0e6d0e] text-white px-3 py-1.5 text-xs font-semibold rounded-none focus:outline-none border border-transparent focus:border-black">Save</button>

@@ -42,12 +42,10 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
       setCart(prev => {
         const idx = prev.findIndex(c => c.barcode === cleanBarcode);
         if (idx >= 0) { 
-          // Deep clone array and the specific item to prevent React 18 strict mode double-counting
           const up = [...prev]; 
           up[idx] = { ...up[idx], quantity: (Number(up[idx].quantity) || 0) + 1 }; 
           return up; 
         }
-        // Initialize customPriceInput with standard price when added
         return [...prev, { ...item, id: Date.now(), customPriceInput: Number(item.price || 0).toFixed(2), discountPct: 0, quantity: 1, unit: item.unit || 'PCS' }];
       });
       setTimeout(() => scannerInputRef.current?.focus(), 10);
@@ -73,7 +71,6 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
         const msp = Number(i.msp || 0);
         const mrp = Number(i.price || 0);
         
-        // Auto-correct to MSP if they go too low, limit to MRP if they go too high
         if (val < msp) val = msp;
         if (val > mrp) val = mrp;
         
@@ -166,9 +163,24 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
     <div style={{ fontFamily: "'Roboto', sans-serif" }}>
       <style>{`
         @media print {
+          @page {
+            margin: 0;
+            size: 80mm auto; /* Thermal paper roll sizing */
+          }
+          body {
+            margin: 0;
+            padding: 0;
+          }
           body * { visibility: hidden !important; }
           #printable-receipt, #printable-receipt * { visibility: visible !important; }
-          #printable-receipt { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; }
+          #printable-receipt { 
+             position: absolute; 
+             left: 0; 
+             top: 0; 
+             width: 80mm; 
+             margin: 0; 
+             padding: 4mm; 
+          }
         }
       `}</style>
       
