@@ -4,7 +4,17 @@ import { Spinner } from './App';
 
 export default function WorkerBilling({ inventory, refreshInventory, defaultTab = 'checkout', hideNav = false, shopSettings, cashierName }) {
   const [activeTab, setActiveTab] = useState(defaultTab);
-  const [cart, setCart] = useState([]); 
+  
+  // Initialize cart from localStorage (a web browser feature that saves data locally)
+  const [cart, setCart] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`pos_cart_${defaultTab}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  }); 
+
   const [barcode, setBarcode] = useState('');
   const [isCheckingOut, setIsCheckingOut] = useState(false); 
   const [lastReceipt, setLastReceipt] = useState(null);
@@ -12,6 +22,25 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
   const [checkoutModal, setCheckoutModal] = useState({ isOpen: false, cashGiven: '' });
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, message: '', title: 'Action Required', onConfirm: null });
   const scannerInputRef = useRef(null); 
+
+  // Persist cart to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(`pos_cart_${activeTab}`, JSON.stringify(cart));
+    } catch (e) {
+      console.error("Failed to save terminal state", e);
+    }
+  }, [cart, activeTab]);
+
+  const handleTabSwitch = (newTab) => {
+    setActiveTab(newTab);
+    try {
+      const saved = localStorage.getItem(`pos_cart_${newTab}`);
+      setCart(saved ? JSON.parse(saved) : []);
+    } catch (e) {
+      setCart([]);
+    }
+  };
 
   const showAlert = (message, title = 'System Notice') => setAlertConfig({ isOpen: true, message, title });
   const closeAlert = () => { setAlertConfig({ ...alertConfig, isOpen: false }); setTimeout(() => scannerInputRef.current?.focus(), 50); };
@@ -172,8 +201,7 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
         }), 
         total: calculateTotal(), 
         date: new Date(), 
-        type: activeTab, 
-        cashierName: cashierName || 'System' 
+        type: activeTab
       });
 
       setCart([]); 
@@ -300,9 +328,9 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
         
         {!hideNav && (
           <div className="flex gap-1 mb-6 border-b border-gray-300 pb-0">
-            <button onClick={() => { setActiveTab('receive'); setCart([]); }} onMouseDown={(e) => e.preventDefault()} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${activeTab === 'receive' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Inbound</button>
-            <button onClick={() => { setActiveTab('transfer'); setCart([]); }} onMouseDown={(e) => e.preventDefault()} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${activeTab === 'transfer' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Transfer</button>
-            <button onClick={() => { setActiveTab('checkout'); setCart([]); }} onMouseDown={(e) => e.preventDefault()} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${activeTab === 'checkout' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Terminal</button>
+            <button onClick={() => handleTabSwitch('receive')} onMouseDown={(e) => e.preventDefault()} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${activeTab === 'receive' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Inbound</button>
+            <button onClick={() => handleTabSwitch('transfer')} onMouseDown={(e) => e.preventDefault()} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${activeTab === 'transfer' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Transfer</button>
+            <button onClick={() => handleTabSwitch('checkout')} onMouseDown={(e) => e.preventDefault()} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${activeTab === 'checkout' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Terminal</button>
           </div>
         )}
 
