@@ -94,7 +94,8 @@ function App() {
     setUserRole(role);
     sessionStorage.setItem('posUserRole', role);
     if (role === 'owner') navigate('/owner/dashboard');
-    else navigate('/terminal/checkout'); 
+    // Changed to default to the newly created dashboard
+    else navigate('/terminal/dashboard'); 
   };
 
   const confirmLogout = async () => {
@@ -124,7 +125,7 @@ function App() {
     );
   }
 
-const displayUserName = userRole === 'owner' ? (shopSettings?.owner_name || 'Administrator') : (userRole || 'Terminal User');
+  const displayUserName = userRole === 'owner' ? (shopSettings?.owner_name || 'Administrator') : (userRole || 'Terminal User');
 
   return (
     <div className="w-full min-h-screen bg-[#e6e6e6] text-black relative">
@@ -209,7 +210,8 @@ const displayUserName = userRole === 'owner' ? (shopSettings?.owner_name || 'Adm
                 <button onClick={() => navigate('/printer')} className={`px-4 py-1.5 text-xs focus:outline-none rounded-none ${location.pathname.startsWith('/printer') ? 'bg-[#0078D7] text-white border border-[#0078D7]' : 'bg-transparent border border-transparent hover:bg-gray-100 text-black'}`}>Barcodes</button>
               </>
             ) : (
-              <button onClick={() => navigate('/terminal/checkout')} className={`px-4 py-1.5 text-xs focus:outline-none rounded-none ${location.pathname.startsWith('/terminal') ? 'bg-[#0078D7] text-white border border-[#0078D7]' : 'bg-transparent border border-transparent hover:bg-gray-100 text-black'}`}>Terminal</button>
+              // Changed navbar highlighting logic to match terminal view
+              <button onClick={() => navigate('/terminal/dashboard')} className={`px-4 py-1.5 text-xs focus:outline-none rounded-none ${location.pathname.startsWith('/terminal') ? 'bg-[#0078D7] text-white border border-[#0078D7]' : 'bg-transparent border border-transparent hover:bg-gray-100 text-black'}`}>Terminal</button>
             )}
           </div>
         </div>
@@ -228,10 +230,10 @@ const displayUserName = userRole === 'owner' ? (shopSettings?.owner_name || 'Adm
           {userRole && (
             <>
               <Route path="/terminal/:tab" element={<WorkerBilling shopSettings={shopSettings} cashierName={displayUserName} />} />
-              <Route path="/terminal" element={<Navigate to="/terminal/checkout" replace />} />
+              <Route path="/terminal" element={<Navigate to="/terminal/dashboard" replace />} />
             </>
           )}
-          <Route path="*" element={<Navigate to={userRole === 'owner' ? "/owner/dashboard" : "/terminal/checkout"} replace />} />
+          <Route path="*" element={<Navigate to={userRole === 'owner' ? "/owner/dashboard" : "/terminal/dashboard"} replace />} />
         </Routes>
       </main>
     </div>

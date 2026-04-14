@@ -3,11 +3,12 @@ import { supabase } from './supabaseClient';
 import { Spinner } from './App'; 
 import { useParams, useNavigate } from 'react-router-dom';
 
-export default function WorkerBilling({ defaultTab = 'checkout', hideNav = false, shopSettings, cashierName }) {
+export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = false, shopSettings, cashierName }) {
   const { tab } = useParams();
-  const activeTab = hideNav ? defaultTab : (tab || 'checkout');
+  const activeTab = hideNav ? defaultTab : (tab || 'dashboard');
   const navigate = useNavigate();
   
+  // Terminal Cart State
   const [cart, setCart] = useState(() => {
     try {
       const saved = localStorage.getItem(`pos_cart_${activeTab}`);
@@ -17,6 +18,15 @@ export default function WorkerBilling({ defaultTab = 'checkout', hideNav = false
     }
   }); 
 
+  // Operator Dashboard State
+  const [inventorySearch, setInventorySearch] = useState('');
+  const [sortOption, setSortOption] = useState('name-asc');
+  const [invPage, setInvPage] = useState(0);
+  const [paginatedInventory, setPaginatedInventory] = useState([]);
+  const [totalInvItems, setTotalInvItems] = useState(0);
+  const INV_PER_PAGE = 50;
+  const [lowStockCounts, setLowStockCounts] = useState({ store: 0, warehouse: 0 });
+
   const [barcode, setBarcode] = useState('');
   const [isCheckingOut, setIsCheckingOut] = useState(false); 
   const [lastReceipt, setLastReceipt] = useState(null);
@@ -25,17 +35,58 @@ export default function WorkerBilling({ defaultTab = 'checkout', hideNav = false
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, message: '', title: 'Action Required', onConfirm: null });
   const scannerInputRef = useRef(null); 
 
-  useEffect(() => {
+  // Securely query low stock totals for the operator cards
+  const fetchLowStockCounts = async () => {
     try {
-      localStorage.setItem(`pos_cart_${activeTab}`, JSON.stringify(cart));
-    } catch (e) {
-      console.error("Failed to save terminal state", e);
+      const { count: storeCount } = await supabase.from('inventory').select('*', { count: 'exact', head: true }).eq('is_active', true).lt('stock_store', 10);
+      const { count: whseCount } = await supabase.from('inventory').select('*', { count: 'exact', head: true }).eq('is_active', true).lt('stock_warehouse', 20);
+      setLowStockCounts({ store: storeCount || 0, warehouse: whseCount || 0 });
+    } catch (err) { console.error(err); }
+  };
+
+  // Server-side paginated inventory load for the operator
+  const loadInventory = async () => {
+    const from = invPage * INV_PER_PAGE;
+    const to = from + INV_PER_PAGE - 1;
+    let query = supabase.from('inventory').select('*', { count: 'exact' }).eq('is_active', true);
+
+    if (inventorySearch.trim() !== '') {
+      query = query.or(`name.ilike.%${inventorySearch}%,barcode.ilike.%${inventorySearch}%`);
+    }
+
+    if (sortOption === 'low-store') query = query.lt('stock_store', 10).order('stock_store', { ascending: true });
+    else if (sortOption === 'low-warehouse') query = query.lt('stock_warehouse', 20).order('stock_warehouse', { ascending: true });
+    else if (sortOption === 'name-asc') query = query.order('name', { ascending: true });
+    else if (sortOption === 'name-desc') query = query.order('name', { ascending: false });
+    else if (sortOption === 'barcode-asc') query = query.order('barcode', { ascending: true });
+
+    const { data, count } = await query.range(from, to);
+    if (data) {
+      setPaginatedInventory(data);
+      setTotalInvItems(count || 0);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'dashboard') {
+      loadInventory();
+      fetchLowStockCounts();
+    }
+  }, [activeTab, invPage, inventorySearch, sortOption]);
+
+  useEffect(() => {
+    if (activeTab !== 'dashboard') {
+      try {
+        localStorage.setItem(`pos_cart_${activeTab}`, JSON.stringify(cart));
+      } catch (e) {
+        console.error("Failed to save terminal state", e);
+      }
     }
   }, [cart, activeTab]);
 
   useEffect(() => {
     const handleStorageChange = (e) => {
-      if (e.key === `pos_cart_${activeTab}`) {
+      if (e.key === `pos_cart_${activeTab}` && activeTab !== 'dashboard') {
         try {
           const newCartData = e.newValue ? JSON.parse(e.newValue) : [];
           setCart(newCartData);
@@ -52,36 +103,43 @@ export default function WorkerBilling({ defaultTab = 'checkout', hideNav = false
   const handleTabSwitch = (newTab) => {
     if (hideNav) return;
     navigate(`/terminal/${newTab}`);
-    try {
-      const saved = localStorage.getItem(`pos_cart_${newTab}`);
-      setCart(saved ? JSON.parse(saved) : []);
-    } catch (e) {
-      setCart([]);
+    if (newTab !== 'dashboard') {
+      try {
+        const saved = localStorage.getItem(`pos_cart_${newTab}`);
+        setCart(saved ? JSON.parse(saved) : []);
+      } catch (e) {
+        setCart([]);
+      }
     }
   };
 
   const showAlert = (message, title = 'System Notice') => setAlertConfig({ isOpen: true, message, title });
-  const closeAlert = () => { setAlertConfig({ ...alertConfig, isOpen: false }); setTimeout(() => scannerInputRef.current?.focus(), 50); };
-  
+  const closeAlert = () => { setAlertConfig({ ...alertConfig, isOpen: false }); setTimeout(() => { if(activeTab !== 'dashboard') scannerInputRef.current?.focus(); }, 50); };
   const showConfirm = (message, onConfirmCallback, title = 'Action Required') => setConfirmConfig({ isOpen: true, message, title, onConfirm: onConfirmCallback });
 
-  useEffect(() => { if (!alertConfig.isOpen && !checkoutModal.isOpen && !confirmConfig.isOpen) scannerInputRef.current?.focus(); }, [alertConfig.isOpen, checkoutModal.isOpen, confirmConfig.isOpen, activeTab]); 
+  // Prevent scanner refocus on dashboard
+  useEffect(() => { 
+    if (!alertConfig.isOpen && !checkoutModal.isOpen && !confirmConfig.isOpen && activeTab !== 'dashboard') {
+      scannerInputRef.current?.focus(); 
+    }
+  }, [alertConfig.isOpen, checkoutModal.isOpen, confirmConfig.isOpen, activeTab]); 
   
   const handleBackgroundClick = (e) => { 
-    if (!alertConfig.isOpen && !checkoutModal.isOpen && !confirmConfig.isOpen && e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'SELECT') {
+    if (!alertConfig.isOpen && !checkoutModal.isOpen && !confirmConfig.isOpen && activeTab !== 'dashboard' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'SELECT') {
       scannerInputRef.current?.focus(); 
     }
   };
 
   const handleScan = async (e) => {
     e.preventDefault(); 
+    if (activeTab === 'dashboard') return;
+
     const cleanBarcode = barcode.trim(); 
     setBarcode(''); 
     if (!cleanBarcode) return;
 
     let item = cart.find(i => i.barcode === cleanBarcode);
     
-    // Server-Side Lookup replaces local array search
     if (!item) {
       const { data } = await supabase.from('inventory')
         .select('*')
@@ -249,14 +307,16 @@ export default function WorkerBilling({ defaultTab = 'checkout', hideNav = false
 
   const cartTotal = calculateTotal();
   const cartUnits = calculateTotalUnits();
-
   const cartTotalCents = Math.round(cartTotal * 100);
   const cashGivenCents = Math.round(Number(checkoutModal.cashGiven || 0) * 100);
   const differenceCents = Math.abs(cashGivenCents - cartTotalCents);
   const isShortfall = cashGivenCents > 0 && cashGivenCents < cartTotalCents;
 
+  const maxPages = Math.max(1, Math.ceil(totalInvItems / INV_PER_PAGE));
+  const safeInvPage = Math.min(invPage, maxPages - 1);
+
   return (
-    <div style={{ fontFamily: "'Roboto', sans-serif" }}>
+    <div style={{ fontFamily: "'Roboto', sans-serif" }} className="h-full">
       <style>{`
         @media print {
           @page { margin: 0; size: 80mm auto; }
@@ -340,170 +400,232 @@ export default function WorkerBilling({ defaultTab = 'checkout', hideNav = false
         </div>
       )}
 
-      {/* MAIN BILLING INTERFACE */}
+      {/* MAIN INTERFACE */}
       <div className="flex flex-col h-full w-full print:hidden font-sans" onClick={handleBackgroundClick}>
         
         {!hideNav && (
-          <div className="flex gap-1 mb-6 border-b border-gray-300 pb-0">
+          <div className="flex gap-1 mb-6 border-b border-gray-300 pb-0 overflow-x-auto whitespace-nowrap overflow-y-hidden">
+            <button onClick={() => handleTabSwitch('dashboard')} onMouseDown={(e) => e.preventDefault()} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${activeTab === 'dashboard' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Dashboard</button>
             <button onClick={() => handleTabSwitch('receive')} onMouseDown={(e) => e.preventDefault()} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${activeTab === 'receive' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Inbound</button>
             <button onClick={() => handleTabSwitch('transfer')} onMouseDown={(e) => e.preventDefault()} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${activeTab === 'transfer' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Transfer</button>
             <button onClick={() => handleTabSwitch('checkout')} onMouseDown={(e) => e.preventDefault()} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${activeTab === 'checkout' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Terminal</button>
           </div>
         )}
 
-        <div className="flex flex-col flex-1 border border-gray-400 bg-white min-h-[500px] rounded-none">
-          
-          <div className={`p-4 border-b border-gray-400 flex flex-col md:flex-row justify-between md:items-center gap-4 ${activeTab === 'receive' ? 'bg-[#f4fbf5]' : activeTab === 'transfer' ? 'bg-[#fffaf0]' : 'bg-[#f9f9f9]'}`}>
-            <div>
-              <h2 className="text-2xl font-light text-black">
-                {activeTab === 'receive' && 'Inbound Stock Entry'}
-                {activeTab === 'transfer' && 'Internal Inventory Relocation'}
-                {activeTab === 'checkout' && 'Point of Sale Terminal'}
-              </h2>
-            </div>
-            <div className="text-left md:text-right border-t border-gray-300 pt-2 md:border-0 md:pt-0">
-              <span className="text-xs uppercase font-semibold text-gray-500 tracking-wider block mb-1">
-                {activeTab === 'checkout' ? 'Gross Total' : 'Total Units'}
-              </span>
-              <span className="text-4xl font-light text-[#0078D7]">
-                {activeTab === 'checkout' ? `₹${cartTotal.toFixed(2)}` : cartUnits}
-              </span>
-            </div>
-          </div>
-
-          <form onSubmit={handleScan} className="opacity-0 h-0 w-0 overflow-hidden absolute">
-            <input ref={scannerInputRef} type="text" value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus />
-            <button type="submit">Scan</button>
-          </form>
-
-          {/* DESKTOP TABLE */}
-          <div className="hidden md:block flex-1 overflow-y-auto bg-white rounded-none">
-            {cart.length === 0 ? (
-              <div className="h-full flex items-center justify-center min-h-[300px]">
-                <p className="text-sm font-semibold uppercase tracking-widest text-gray-500">System Ready. Awaiting Scanner Input.</p>
+        {/* OPERATOR DASHBOARD VIEW */}
+        {activeTab === 'dashboard' ? (
+          <div className="flex flex-col h-full bg-white border border-gray-400 rounded-none p-6 animate-fade-in flex-1">
+            <h2 className="text-2xl font-light text-black mb-6">Operator Dashboard</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className={`border border-gray-400 bg-[#f9f9f9] p-5 border-l-4 rounded-none ${lowStockCounts.store > 0 ? 'border-l-[#e81123]' : 'border-l-[#0078D7]'}`}>
+                <p className="text-xs font-semibold uppercase text-gray-600 tracking-wider mb-2">Low Store Stock Alerts</p>
+                <p className={`text-3xl font-light ${lowStockCounts.store > 0 ? 'text-[#e81123]' : 'text-black'}`}>{lowStockCounts.store} Items</p>
               </div>
-            ) : (
-              <table className="w-full text-left border-collapse">
+              <div className={`border border-gray-400 bg-[#f9f9f9] p-5 border-l-4 rounded-none ${lowStockCounts.warehouse > 0 ? 'border-l-[#e81123]' : 'border-l-[#0078D7]'}`}>
+                <p className="text-xs font-semibold uppercase text-gray-600 tracking-wider mb-2">Low Warehouse Stock Alerts</p>
+                <p className={`text-3xl font-light ${lowStockCounts.warehouse > 0 ? 'text-[#e81123]' : 'text-black'}`}>{lowStockCounts.warehouse} Items</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col md:flex-row gap-4 mb-4">
+              <input type="text" placeholder="Search SKU or Nomenclature..." value={inventorySearch} onChange={e=>{setInventorySearch(e.target.value); setInvPage(0);}} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm w-full md:w-[400px] rounded-none focus:outline-none focus:border-[#0078D7]" />
+              <select value={sortOption} onChange={(e) => {setSortOption(e.target.value); setInvPage(0);}} className="w-full md:w-auto border-2 border-gray-300 bg-white px-3 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7] cursor-pointer">
+                  <option value="name-asc">All Items (A-Z)</option>
+                  <option value="low-store">Low Store Stock (&lt; 10)</option>
+                  <option value="low-warehouse">Low Whse Stock (&lt; 20)</option>
+                  <option value="barcode-asc">SKU (Ascending)</option>
+              </select>
+            </div>
+
+            <div className="border border-gray-400 overflow-x-auto bg-white flex-1 min-h-[300px] rounded-none">
+              <table className="w-full text-left border-collapse min-w-[600px]">
                 <thead className="bg-[#f3f3f3] sticky top-0 border-b border-gray-400">
                   <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
-                    <th className="p-3 border-r border-gray-300 w-1/3">Nomenclature</th>
-                    <th className={`p-3 text-center w-40 ${activeTab === 'checkout' ? 'border-r border-gray-300' : ''}`}>Quantity</th>
-                    {activeTab === 'checkout' && (
-                      <>
-                        <th className="p-3 border-r border-gray-300 text-center w-36">Sell Price (₹)</th>
-                        <th className="p-3 border-r border-gray-300 text-center w-28">Disc (%)</th>
-                        <th className="p-3 text-right w-32">Line Net</th>
-                      </>
-                    )}
+                    <th className="p-3 border-r border-gray-300 w-32">SKU Code</th>
+                    <th className="p-3 border-r border-gray-300">Nomenclature</th>
+                    <th className="p-3 border-r border-gray-300 text-center w-32">MRP</th>
+                    <th className="p-3 border-r border-gray-300 text-center w-32">Store Qty</th>
+                    <th className="p-3 text-center w-32">Whse Qty</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 border-b border-gray-400">
-                  {cart.map(item => {
-                    const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
-                    const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
-
-                    return (
-                      <tr key={item.id} className="hover:bg-[#f9f9f9]">
-                        <td className="p-3 border-r border-gray-200">
-                          <p className="text-sm font-semibold text-black">{item.name}</p>
-                          <p className="text-xs text-[#0078D7] font-mono mt-0.5">#{item.barcode}</p>
-                        </td>
-                        <td className={`p-2 ${activeTab === 'checkout' ? 'border-r border-gray-200' : ''}`}>
-                          <div className="flex items-center justify-center">
-                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty - 1)} className="w-8 h-8 bg-[#e6e6e6] hover:bg-[#cccccc] text-black font-bold focus:outline-none border-2 border-gray-300 border-r-0 rounded-none">-</button>
-                            <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-14 h-8 px-1 text-sm font-semibold text-center border-y-2 border-gray-300 focus:outline-none focus:bg-[#cce8ff] focus:border-[#0078D7] z-10 rounded-none" />
-                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty + 1)} className="w-8 h-8 bg-[#e6e6e6] hover:bg-[#cccccc] text-black font-bold focus:outline-none border-2 border-gray-300 border-l-0 rounded-none">+</button>
-                          </div>
-                        </td>
-                        {activeTab === 'checkout' && (
-                          <>
-                            <td className="p-2 border-r border-gray-200">
-                              <input 
-                                type="number" step="0.01" 
-                                value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price||0).toFixed(2)} 
-                                onChange={(e) => handleCustomPriceChange(item.id, e.target.value)} 
-                                onBlur={() => applyCustomPriceBlur(item.id)}
-                                placeholder="0.00" 
-                                className="w-full h-8 px-2 border-2 border-gray-300 text-sm font-semibold text-center bg-white rounded-none focus:outline-none focus:border-[#0078D7]" 
-                              />
-                            </td>
-                            <td className="p-2 border-r border-gray-200 bg-gray-50">
-                              <input 
-                                type="number" 
-                                value={item.discountPct ? Number(item.discountPct).toFixed(1) : '0.0'} 
-                                disabled 
-                                className="w-full h-8 px-2 border border-transparent text-sm font-semibold text-center bg-transparent rounded-none outline-none cursor-not-allowed text-gray-500" 
-                              />
-                            </td>
-                            <td className="p-3 text-right text-sm font-bold text-black">
-                              ₹{(sellPrice * safeQty).toFixed(2)}
-                            </td>
-                          </>
-                        )}
-                      </tr>
-                    );
-                  })}
+                  {paginatedInventory.length === 0 ? (
+                    <tr><td colSpan="5" className="p-8 text-center text-gray-500 text-sm font-semibold">No items found matching the criteria.</td></tr>
+                  ) : paginatedInventory.map(item => (
+                    <tr key={item.id} className="hover:bg-[#f9f9f9]">
+                      <td className="p-3 border-r border-gray-200 text-sm font-semibold tracking-wider text-[#0078D7]">{item.barcode}</td>
+                      <td className="p-3 border-r border-gray-200 text-sm font-medium text-black">{item.name}</td>
+                      <td className="p-3 border-r border-gray-200 text-sm text-center">₹{Number(item.price).toFixed(2)}</td>
+                      <td className={`p-3 border-r border-gray-200 text-sm text-center font-bold ${item.stock_store < 10 ? 'text-[#e81123]' : 'text-black'}`}>{item.stock_store}</td>
+                      <td className={`p-3 text-sm text-center font-bold ${item.stock_warehouse < 20 ? 'text-[#e81123]' : 'text-black'}`}>{item.stock_warehouse}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
-            )}
+            </div>
+            <div className="flex justify-between items-center mt-4 bg-[#f3f3f3] p-3 border border-gray-400 rounded-none">
+              <button onClick={()=>setInvPage(p=>Math.max(0,p-1))} disabled={invPage===0} className="px-6 py-1.5 bg-white border border-gray-400 text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none focus:border-[#0078D7]">Previous</button>
+              <span className="text-sm font-semibold text-gray-700">Page {safeInvPage + 1} of {maxPages}</span>
+              <button onClick={()=>setInvPage(p=>p+1)} disabled={(safeInvPage+1)*INV_PER_PAGE>=totalInvItems} className="px-6 py-1.5 bg-white border border-gray-400 text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none focus:border-[#0078D7]">Next</button>
+            </div>
           </div>
+        ) : (
+          // SCANNER & BILLING UI BLOCK
+          <div className="flex flex-col flex-1 border border-gray-400 bg-white min-h-[500px] rounded-none">
+            
+            <div className={`p-4 border-b border-gray-400 flex flex-col md:flex-row justify-between md:items-center gap-4 ${activeTab === 'receive' ? 'bg-[#f4fbf5]' : activeTab === 'transfer' ? 'bg-[#fffaf0]' : 'bg-[#f9f9f9]'}`}>
+              <div>
+                <h2 className="text-2xl font-light text-black">
+                  {activeTab === 'receive' && 'Inbound Stock Entry'}
+                  {activeTab === 'transfer' && 'Internal Inventory Relocation'}
+                  {activeTab === 'checkout' && 'Point of Sale Terminal'}
+                </h2>
+              </div>
+              <div className="text-left md:text-right border-t border-gray-300 pt-2 md:border-0 md:pt-0">
+                <span className="text-xs uppercase font-semibold text-gray-500 tracking-wider block mb-1">
+                  {activeTab === 'checkout' ? 'Gross Total' : 'Total Units'}
+                </span>
+                <span className="text-4xl font-light text-[#0078D7]">
+                  {activeTab === 'checkout' ? `₹${cartTotal.toFixed(2)}` : cartUnits}
+                </span>
+              </div>
+            </div>
 
-          {/* MOBILE CARDS */}
-          <div className="md:hidden flex-1 overflow-y-auto bg-white divide-y divide-gray-300 border-b border-gray-400">
-            {cart.length === 0 ? (
-              <div className="p-10 text-center text-sm font-semibold uppercase tracking-widest text-gray-500">Awaiting Input</div>
-            ) : (
-              cart.map((item) => {
-                const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
-                const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
+            <form onSubmit={handleScan} className="opacity-0 h-0 w-0 overflow-hidden absolute">
+              <input ref={scannerInputRef} type="text" value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus />
+              <button type="submit">Scan</button>
+            </form>
 
-                return (
-                  <div key={item.id} className="p-4 flex flex-col gap-3">
-                    <div className="flex justify-between items-start">
-                      <div className="pr-2">
-                        <p className="text-sm font-semibold text-black">{item.name}</p>
-                        <p className="text-xs text-[#0078D7] mt-1">#{item.barcode} {activeTab === 'checkout' && `• MRP ₹${Number(item.price||0).toFixed(2)}`}</p>
-                      </div>
+            {/* DESKTOP TABLE */}
+            <div className="hidden md:block flex-1 overflow-y-auto bg-white rounded-none">
+              {cart.length === 0 ? (
+                <div className="h-full flex items-center justify-center min-h-[300px]">
+                  <p className="text-sm font-semibold uppercase tracking-widest text-gray-500">System Ready. Awaiting Scanner Input.</p>
+                </div>
+              ) : (
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-[#f3f3f3] sticky top-0 border-b border-gray-400">
+                    <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
+                      <th className="p-3 border-r border-gray-300 w-1/3">Nomenclature</th>
+                      <th className={`p-3 text-center w-40 ${activeTab === 'checkout' ? 'border-r border-gray-300' : ''}`}>Quantity</th>
                       {activeTab === 'checkout' && (
-                        <p className="text-base font-bold text-black">₹{(sellPrice * safeQty).toFixed(2)}</p>
+                        <>
+                          <th className="p-3 border-r border-gray-300 text-center w-36">Sell Price (₹)</th>
+                          <th className="p-3 border-r border-gray-300 text-center w-28">Disc (%)</th>
+                          <th className="p-3 text-right w-32">Line Net</th>
+                        </>
                       )}
-                    </div>
-                    <div className="flex justify-between items-center mt-1 pt-3 border-t border-gray-200">
-                      <div className="flex items-center">
-                        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty - 1)} className="w-10 h-8 bg-[#e6e6e6] active:bg-[#cccccc] text-black font-bold text-lg focus:outline-none border-2 border-gray-300 border-r-0 rounded-none">-</button>
-                        <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-12 h-8 px-1 text-sm font-semibold text-center border-y-2 border-gray-300 focus:outline-none focus:bg-[#cce8ff] focus:border-[#0078D7] z-10 rounded-none" />
-                        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty + 1)} className="w-10 h-8 bg-[#e6e6e6] active:bg-[#cccccc] text-black font-bold text-lg focus:outline-none border-2 border-gray-300 border-l-0 rounded-none">+</button>
-                      </div>
-                      {activeTab === 'checkout' && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Sell Px:</span>
-                          <input 
-                            type="number" step="0.01" 
-                            value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price||0).toFixed(2)} 
-                            onChange={(e) => handleCustomPriceChange(item.id, e.target.value)} 
-                            onBlur={() => applyCustomPriceBlur(item.id)}
-                            className="w-16 h-8 px-1 border-2 border-gray-300 bg-white text-sm font-semibold text-center rounded-none focus:outline-none focus:border-[#0078D7]" 
-                          />
-                          <span className="text-xs text-gray-400 font-semibold bg-gray-50 px-1 py-1 border border-transparent">(-{item.discountPct ? Number(item.discountPct).toFixed(1) : '0'}%)</span>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 border-b border-gray-400">
+                    {cart.map(item => {
+                      const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
+                      const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
+
+                      return (
+                        <tr key={item.id} className="hover:bg-[#f9f9f9]">
+                          <td className="p-3 border-r border-gray-200">
+                            <p className="text-sm font-semibold text-black">{item.name}</p>
+                            <p className="text-xs text-[#0078D7] font-mono mt-0.5">#{item.barcode}</p>
+                          </td>
+                          <td className={`p-2 ${activeTab === 'checkout' ? 'border-r border-gray-200' : ''}`}>
+                            <div className="flex items-center justify-center">
+                              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty - 1)} className="w-8 h-8 bg-[#e6e6e6] hover:bg-[#cccccc] text-black font-bold focus:outline-none border-2 border-gray-300 border-r-0 rounded-none">-</button>
+                              <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-14 h-8 px-1 text-sm font-semibold text-center border-y-2 border-gray-300 focus:outline-none focus:bg-[#cce8ff] focus:border-[#0078D7] z-10 rounded-none" />
+                              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty + 1)} className="w-8 h-8 bg-[#e6e6e6] hover:bg-[#cccccc] text-black font-bold focus:outline-none border-2 border-gray-300 border-l-0 rounded-none">+</button>
+                            </div>
+                          </td>
+                          {activeTab === 'checkout' && (
+                            <>
+                              <td className="p-2 border-r border-gray-200">
+                                <input 
+                                  type="number" step="0.01" 
+                                  value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price||0).toFixed(2)} 
+                                  onChange={(e) => handleCustomPriceChange(item.id, e.target.value)} 
+                                  onBlur={() => applyCustomPriceBlur(item.id)}
+                                  placeholder="0.00" 
+                                  className="w-full h-8 px-2 border-2 border-gray-300 text-sm font-semibold text-center bg-white rounded-none focus:outline-none focus:border-[#0078D7]" 
+                                />
+                              </td>
+                              <td className="p-2 border-r border-gray-200 bg-gray-50">
+                                <input 
+                                  type="number" 
+                                  value={item.discountPct ? Number(item.discountPct).toFixed(1) : '0.0'} 
+                                  disabled 
+                                  className="w-full h-8 px-2 border border-transparent text-sm font-semibold text-center bg-transparent rounded-none outline-none cursor-not-allowed text-gray-500" 
+                                />
+                              </td>
+                              <td className="p-3 text-right text-sm font-bold text-black">
+                                ₹{(sellPrice * safeQty).toFixed(2)}
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* MOBILE CARDS */}
+            <div className="md:hidden flex-1 overflow-y-auto bg-white divide-y divide-gray-300 border-b border-gray-400">
+              {cart.length === 0 ? (
+                <div className="p-10 text-center text-sm font-semibold uppercase tracking-widest text-gray-500">Awaiting Input</div>
+              ) : (
+                cart.map((item) => {
+                  const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
+                  const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
+
+                  return (
+                    <div key={item.id} className="p-4 flex flex-col gap-3">
+                      <div className="flex justify-between items-start">
+                        <div className="pr-2">
+                          <p className="text-sm font-semibold text-black">{item.name}</p>
+                          <p className="text-xs text-[#0078D7] mt-1">#{item.barcode} {activeTab === 'checkout' && `• MRP ₹${Number(item.price||0).toFixed(2)}`}</p>
                         </div>
-                      )}
+                        {activeTab === 'checkout' && (
+                          <p className="text-base font-bold text-black">₹{(sellPrice * safeQty).toFixed(2)}</p>
+                        )}
+                      </div>
+                      <div className="flex justify-between items-center mt-1 pt-3 border-t border-gray-200">
+                        <div className="flex items-center">
+                          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty - 1)} className="w-10 h-8 bg-[#e6e6e6] active:bg-[#cccccc] text-black font-bold text-lg focus:outline-none border-2 border-gray-300 border-r-0 rounded-none">-</button>
+                          <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-12 h-8 px-1 text-sm font-semibold text-center border-y-2 border-gray-300 focus:outline-none focus:bg-[#cce8ff] focus:border-[#0078D7] z-10 rounded-none" />
+                          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty + 1)} className="w-10 h-8 bg-[#e6e6e6] active:bg-[#cccccc] text-black font-bold text-lg focus:outline-none border-2 border-gray-300 border-l-0 rounded-none">+</button>
+                        </div>
+                        {activeTab === 'checkout' && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Sell Px:</span>
+                            <input 
+                              type="number" step="0.01" 
+                              value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price||0).toFixed(2)} 
+                              onChange={(e) => handleCustomPriceChange(item.id, e.target.value)} 
+                              onBlur={() => applyCustomPriceBlur(item.id)}
+                              className="w-16 h-8 px-1 border-2 border-gray-300 bg-white text-sm font-semibold text-center rounded-none focus:outline-none focus:border-[#0078D7]" 
+                            />
+                            <span className="text-xs text-gray-400 font-semibold bg-gray-50 px-1 py-1 border border-transparent">(-{item.discountPct ? Number(item.discountPct).toFixed(1) : '0'}%)</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
+                  );
+                })
+              )}
+            </div>
 
-          {/* BOTTOM ACTION BAR */}
-          <div className="p-4 bg-[#f3f3f3] flex flex-col md:flex-row justify-between gap-3">
-            <button onMouseDown={(e) => e.preventDefault()} onClick={() => showConfirm("Clear active list?", () => setCart([]), activeTab === 'checkout' ? 'Void Trans' : 'Clear List')} className="w-full md:w-auto px-8 py-2 bg-[#e6e6e6] hover:bg-[#cccccc] text-black border border-gray-400 text-sm font-semibold uppercase tracking-wider rounded-none focus:outline-none focus:border-[#0078D7]">
-              {activeTab === 'checkout' ? 'Void Trans' : 'Clear List'}
-            </button>
-            <button onMouseDown={(e) => e.preventDefault()} onClick={() => activeTab === 'checkout' ? setCheckoutModal({isOpen: true, cashGiven: ''}) : handleCompleteTransaction()} className="w-full md:w-auto px-10 py-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-semibold uppercase tracking-wider rounded-none border border-transparent focus:outline-none focus:ring-1 focus:ring-black flex justify-center items-center">
-              {isCheckingOut ? 'Processing' : 'Execute'}
-            </button>
+            {/* BOTTOM ACTION BAR */}
+            <div className="p-4 bg-[#f3f3f3] flex flex-col md:flex-row justify-between gap-3">
+              <button onMouseDown={(e) => e.preventDefault()} onClick={() => showConfirm("Clear active list?", () => setCart([]), activeTab === 'checkout' ? 'Void Trans' : 'Clear List')} className="w-full md:w-auto px-8 py-2 bg-[#e6e6e6] hover:bg-[#cccccc] text-black border border-gray-400 text-sm font-semibold uppercase tracking-wider rounded-none focus:outline-none focus:border-[#0078D7]">
+                {activeTab === 'checkout' ? 'Void Trans' : 'Clear List'}
+              </button>
+              <button onMouseDown={(e) => e.preventDefault()} onClick={() => activeTab === 'checkout' ? setCheckoutModal({isOpen: true, cashGiven: ''}) : handleCompleteTransaction()} className="w-full md:w-auto px-10 py-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-semibold uppercase tracking-wider rounded-none border border-transparent focus:outline-none focus:ring-1 focus:ring-black flex justify-center items-center">
+                {isCheckingOut ? 'Processing' : 'Execute'}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* THERMAL PRINTER TEMPLATE */}
