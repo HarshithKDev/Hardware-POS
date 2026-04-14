@@ -21,11 +21,10 @@ const getWorkerEmail = (name) => `${name.trim().toLowerCase().replace(/[^a-z0-9]
 export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComplete, shopSettings }) {
   const [step, setStep] = useState(1);
   const [role, setRole] = useState(null);         
+  const [operatorId, setOperatorId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [workers, setWorkers] = useState([]);
   
-  const [isLoadingWorkers, setIsLoadingWorkers] = useState(true);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   const [shopName, setShopName] = useState('');
@@ -35,18 +34,6 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
 
   const [showSetupPassword, setShowSetupPassword] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
-
-  useEffect(() => {
-    if (!isSetupNeeded) {
-      const fetchWorkers = async () => {
-        setIsLoadingWorkers(true); 
-        const { data } = await supabase.from('workers').select('*');
-        if (data) setWorkers(data);
-        setIsLoadingWorkers(false); 
-      };
-      fetchWorkers();
-    }
-  }, [isSetupNeeded]);
 
   const handleSetup = async (e) => {
     e.preventDefault();
@@ -70,7 +57,6 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
         throw new Error(authError.message);
       }
 
-      // FIX: Passing a dummy string to bypass the old Postgres Not-Null constraint
       const { data, error: dbError } = await supabase.from('shop_settings').insert([{
         shop_name: cleanShop,
         owner_name: cleanOwner,
@@ -96,8 +82,16 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
     setError('');
     setIsAuthenticating(true);
     
+    const targetId = role === 'owner' ? 'owner' : operatorId.trim();
+
+    if (role === 'worker' && !targetId) {
+        setError('Please enter your Operator ID.');
+        setIsAuthenticating(false);
+        return;
+    }
+    
     try {
-      const targetEmail = role === 'owner' ? ADMIN_EMAIL : getWorkerEmail(role);
+      const targetEmail = role === 'owner' ? ADMIN_EMAIL : getWorkerEmail(targetId);
       
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email: targetEmail,
@@ -105,9 +99,10 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
       });
       
       if (authError) {
-        setError('Incorrect PIN or Password. Access denied.');
+        setError('Incorrect Credentials. Access denied.');
       } else {
-        onLoginSuccess(role, data.session.access_token);
+        // Pass the operatorId so the terminal knows who is logged in
+        onLoginSuccess(targetId, data.session.access_token);
       }
     } finally { setIsAuthenticating(false); }
   };
@@ -150,35 +145,32 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
         
         {step === 1 && (
           <div className="mb-2 min-h-[150px] flex flex-col justify-center">
-            {isLoadingWorkers ? (
-              <div className="flex justify-center py-4">
-                <Spinner className="w-8 h-8 text-[#0078D7]" />
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <button onClick={() => handleRoleSelect('owner')} className="w-full py-3 bg-[#1e1e1e] hover:bg-[#333333] text-white border border-gray-600 text-lg transition-colors rounded-none text-left px-4">Admin (Owner)</button>
-                {workers.map((worker) => (
-                  <button key={worker.id} onClick={() => handleRoleSelect(worker.name)} className="w-full py-3 bg-[#cccccc] hover:bg-[#b3b3b3] text-black border border-gray-400 text-lg transition-colors rounded-none text-left px-4 capitalize">{worker.name}</button>
-                ))}
-              </div>
-            )}
+             <div className="space-y-4">
+               <button onClick={() => handleRoleSelect('worker')} className="w-full py-4 bg-[#f3f3f3] hover:bg-[#e6e6e6] text-black border border-gray-400 text-lg transition-colors rounded-none text-center font-medium">Terminal Operator</button>
+               <button onClick={() => handleRoleSelect('owner')} className="w-full py-4 bg-[#1e1e1e] hover:bg-[#333333] text-white border border-gray-600 text-lg transition-colors rounded-none text-center font-medium">System Administrator</button>
+             </div>
           </div>
         )}
 
         {step === 2 && (
           <div>
-            <button onClick={() => { setStep(1); setError(''); setPassword(''); }} className="text-sm text-[#0078D7] hover:underline mb-4 flex items-center">Back</button>
-            <h2 className="text-2xl font-light text-black mb-2">Enter Password</h2>
-            <p className="text-gray-600 mb-6 text-sm capitalize">User: {role}</p>
+            <button onClick={() => { setStep(1); setError(''); setPassword(''); setOperatorId(''); }} className="text-sm text-[#0078D7] hover:underline mb-4 flex items-center">← Back</button>
+            <h2 className="text-2xl font-light text-black mb-2">Terminal Access</h2>
+            <p className="text-gray-600 mb-6 text-sm">{role === 'owner' ? 'Admin Verification' : 'Operator Verification'}</p>
             <form onSubmit={handleLogin} className="space-y-4">
+              {role === 'worker' && (
+                <div>
+                  <input type="text" value={operatorId} onChange={(e) => setOperatorId(e.target.value)} placeholder="Operator ID" className="w-full px-3 py-3 border border-gray-400 focus:outline-none focus:border-[#0078D7] focus:ring-1 focus:ring-[#0078D7] text-lg rounded-none" autoFocus />
+                </div>
+              )}
               <div className="relative">
-                <input type={showLoginPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" className="w-full px-3 py-2 pr-10 border border-gray-400 focus:outline-none focus:border-[#0078D7] focus:ring-1 focus:ring-[#0078D7] text-lg rounded-none" autoFocus />
+                <input type={showLoginPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={role === 'owner' ? "Admin Password" : "Auth PIN"} className="w-full px-3 py-3 pr-10 border border-gray-400 focus:outline-none focus:border-[#0078D7] focus:ring-1 focus:ring-[#0078D7] text-lg rounded-none" autoFocus={role === 'owner'} />
                 <button type="button" onClick={() => setShowLoginPassword(!showLoginPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-[#0078D7] focus:outline-none" tabIndex="-1">
                   {showLoginPassword ? <EyeSlashIcon /> : <EyeIcon />}
                 </button>
               </div>
               {error && <p className="text-[#e81123] text-sm font-semibold">{error}</p>}
-              <button type="submit" disabled={isAuthenticating} className="w-full py-3 bg-[#0078D7] hover:bg-[#005a9e] text-white text-lg font-medium transition-colors rounded-none border border-[#005a9e] disabled:opacity-50 flex justify-center items-center h-14">
+              <button type="submit" disabled={isAuthenticating} className="w-full py-3 mt-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-lg font-medium transition-colors rounded-none border border-[#005a9e] disabled:opacity-50 flex justify-center items-center h-14">
                 {isAuthenticating ? <Spinner className="w-6 h-6 text-white" /> : 'Login'}
               </button>
             </form>

@@ -124,7 +124,7 @@ function App() {
     );
   }
 
-  const displayUserName = userRole === 'owner' ? (shopSettings?.owner_name || 'Administrator') : 'Terminal User';
+const displayUserName = userRole === 'owner' ? (shopSettings?.owner_name || 'Administrator') : (userRole || 'Terminal User');
 
   return (
     <div className="w-full min-h-screen bg-[#e6e6e6] text-black relative">
