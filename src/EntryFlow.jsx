@@ -15,14 +15,8 @@ const EyeSlashIcon = () => (
   </svg>
 );
 
-export const hashPassword = async (message) => {
-  // A static salt added to prevent basic rainbow table attacks
-  const salt = "HW_POS_S3CUR3_S4LT_90210"; 
-  const msgBuffer = new TextEncoder().encode(message + salt);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-};
+const ADMIN_EMAIL = 'admin@hardwarepos.com';
+const getWorkerEmail = (name) => `${name.trim().toLowerCase().replace(/[^a-z0-9]/g, '')}@hardwarepos.com`;
 
 export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComplete, shopSettings }) {
   const [step, setStep] = useState(1);
@@ -46,8 +40,8 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
     if (!isSetupNeeded) {
       const fetchWorkers = async () => {
         setIsLoadingWorkers(true); 
-        const { data, error } = await supabase.from('workers').select('*');
-        if (data && !error) setWorkers(data);
+        const { data } = await supabase.from('workers').select('*');
+        if (data) setWorkers(data);
         setIsLoadingWorkers(false); 
       };
       fetchWorkers();
@@ -56,19 +50,34 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
 
   const handleSetup = async (e) => {
     e.preventDefault();
-    if (!shopName || !ownerName || !setupPassword) return setError('All fields are required.');
+    const cleanShop = shopName.trim();
+    const cleanOwner = ownerName.trim();
+    const cleanPass = setupPassword.trim();
+
+    if (!cleanShop || !cleanOwner || !cleanPass) return setError('All fields are required.');
+    if (cleanPass.length < 6) return setError('Admin Password must be at least 6 characters long.');
+
     setIsSettingUp(true);
     setError('');
     
     try {
-      const hashedPassword = await hashPassword(setupPassword); 
-      const { data, error } = await supabase.from('shop_settings').insert([{
-        shop_name: shopName,
-        owner_name: ownerName,
-        owner_password: hashedPassword
+      const { error: authError } = await supabase.auth.signUp({ email: ADMIN_EMAIL, password: cleanPass });
+      
+      if (authError) {
+        if (authError.message.toLowerCase().includes('already registered')) {
+            throw new Error("This master account already exists. If you previously deleted the shop_settings table, you must also go to Supabase Dashboard -> Authentication -> Users, and delete the admin email to allow a fresh setup.");
+        }
+        throw new Error(authError.message);
+      }
+
+      // FIX: Passing a dummy string to bypass the old Postgres Not-Null constraint
+      const { data, error: dbError } = await supabase.from('shop_settings').insert([{
+        shop_name: cleanShop,
+        owner_name: cleanOwner,
+        owner_password: 'SECURED_IN_AUTH' 
       }]).select();
       
-      if (error) throw error;
+      if (dbError) throw dbError;
       if (data && data.length > 0) {
         setStep(1);
         onSetupComplete(data[0]);
@@ -88,23 +97,17 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
     setIsAuthenticating(true);
     
     try {
-      const hashedInput = await hashPassword(password); 
+      const targetEmail = role === 'owner' ? ADMIN_EMAIL : getWorkerEmail(role);
       
-      if (role === 'owner') {
-        if (hashedInput === shopSettings?.owner_password) {
-          // Pass the hash as an authentication token
-          onLoginSuccess('owner', hashedInput);
-        } else {
-          setError('Incorrect Admin password.');
-        }
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: targetEmail,
+        password: password
+      });
+      
+      if (authError) {
+        setError('Incorrect PIN or Password. Access denied.');
       } else {
-        const matchedWorker = workers.find(w => w.name === role);
-        if (matchedWorker && hashedInput === matchedWorker.password) {
-          // Pass the hash as an authentication token
-          onLoginSuccess(matchedWorker.name, hashedInput);
-        } else {
-          setError('Incorrect PIN. Please try again.');
-        }
+        onLoginSuccess(role, data.session.access_token);
       }
     } finally { setIsAuthenticating(false); }
   };
@@ -119,12 +122,12 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
             <div><input type="text" value={shopName} onChange={(e) => setShopName(e.target.value)} placeholder="Shop Name (e.g. Metro Hardware)" className="w-full px-3 py-2 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-lg rounded-none" /></div>
             <div><input type="text" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder="Owner Name" className="w-full px-3 py-2 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-lg rounded-none" /></div>
             <div className="relative">
-              <input type={showSetupPassword ? "text" : "password"} value={setupPassword} onChange={(e) => setSetupPassword(e.target.value)} placeholder="Set Admin Password" className="w-full px-3 py-2 pr-10 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-lg rounded-none" />
+              <input type={showSetupPassword ? "text" : "password"} value={setupPassword} onChange={(e) => setSetupPassword(e.target.value)} placeholder="Set Admin Password (Min 6 chars)" className="w-full px-3 py-2 pr-10 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-lg rounded-none" />
               <button type="button" onClick={() => setShowSetupPassword(!showSetupPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-[#0078D7] focus:outline-none" tabIndex="-1">
                 {showSetupPassword ? <EyeSlashIcon /> : <EyeIcon />}
               </button>
             </div>
-            {error && <p className="text-[#e81123] text-sm">{error}</p>}
+            {error && <p className="text-[#e81123] text-sm font-semibold">{error}</p>}
             <button type="submit" disabled={isSettingUp} className="w-full py-3 bg-[#0078D7] hover:bg-[#005a9e] text-white text-lg font-medium transition-colors rounded-none border border-[#005a9e] disabled:opacity-50 flex justify-center items-center h-14">
               {isSettingUp ? <Spinner className="w-6 h-6 text-white" /> : 'Register'}
             </button>
@@ -174,7 +177,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
                   {showLoginPassword ? <EyeSlashIcon /> : <EyeIcon />}
                 </button>
               </div>
-              {error && <p className="text-[#e81123] text-sm">{error}</p>}
+              {error && <p className="text-[#e81123] text-sm font-semibold">{error}</p>}
               <button type="submit" disabled={isAuthenticating} className="w-full py-3 bg-[#0078D7] hover:bg-[#005a9e] text-white text-lg font-medium transition-colors rounded-none border border-[#005a9e] disabled:opacity-50 flex justify-center items-center h-14">
                 {isAuthenticating ? <Spinner className="w-6 h-6 text-white" /> : 'Login'}
               </button>

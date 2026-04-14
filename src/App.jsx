@@ -16,7 +16,6 @@ export const Spinner = ({ className = "w-5 h-5 text-current" }) => (
 
 function App() {
   const [userRole, setUserRole] = useState(null); 
-  const [inventory, setInventory] = useState([]); 
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [shopSettings, setShopSettings] = useState(null);
   const [isSetupNeeded, setIsSetupNeeded] = useState(false);
@@ -29,9 +28,10 @@ function App() {
 
   useEffect(() => { fetchInitialData(); }, []);
 
-  // Flaw Fixed: Clean camera closure to prevent memory leaks and hardware locks
+  // Live Database Scanner lookup (Replaces massive state array)
   useEffect(() => {
     let scanner = null;
+    let isVerifying = false;
     
     if (isMobileScannerOpen) {
       scanner = new Html5QrcodeScanner("reader", { 
@@ -41,30 +41,29 @@ function App() {
         aspectRatio: 1.0 
       });
       
-      scanner.render((decodedText) => {
-        const product = inventory.find(item => item.barcode === decodedText && item.is_active !== false);
-        if (product) {
-          setScannedProduct(product);
-          // Properly call clear and catch any promise errors
+      scanner.render(async (decodedText) => {
+        if (isVerifying) return;
+        isVerifying = true;
+        
+        const { data } = await supabase.from('inventory').select('*').eq('barcode', decodedText).eq('is_active', true).single();
+        
+        if (data) {
+          setScannedProduct(data);
           if (scanner) {
             scanner.clear().catch(err => console.error("Scanner clear failed", err));
           }
           setIsMobileScannerOpen(false);
         } else {
           alert("Product not found in active catalog.");
+          isVerifying = false;
         }
-      }, (error) => {
-        // Ignore constant frame errors that trigger when no QR code is in view
-      });
+      }, () => {});
     }
 
-    // Cleanup function runs when component unmounts or state changes
     return () => { 
-      if (scanner) { 
-        scanner.clear().catch(err => console.error("Scanner cleanup failed", err)); 
-      } 
+      if (scanner) { scanner.clear().catch(err => console.error("Scanner cleanup failed", err)); } 
     };
-  }, [isMobileScannerOpen, inventory]);
+  }, [isMobileScannerOpen]);
 
   const fetchInitialData = async () => {
     try {
@@ -72,59 +71,36 @@ function App() {
       const { data: settingsData, error: settingsError } = await supabase.from('shop_settings').select('*').limit(1);
       if (settingsError && settingsError.code !== 'PGRST116') throw settingsError;
       
-      let settings = null;
       if (!settingsData || settingsData.length === 0) {
         setIsSetupNeeded(true);
       } else {
         setShopSettings(settingsData[0]);
-        settings = settingsData[0];
       }
 
-      const { data: invData } = await supabase.from('inventory').select('*').order('name', { ascending: true }); 
-      if (invData) setInventory(invData);
-
-      const savedRole = sessionStorage.getItem('posUserRole');
-      const savedToken = sessionStorage.getItem('posAuthToken');
-      
-      if (savedRole && savedToken && settings) {
-        if (savedRole === 'owner' && settings.owner_password === savedToken) {
-            setUserRole('owner');
-        } else if (savedRole !== 'owner') {
-            const { data: workerData } = await supabase.from('workers').select('password').eq('name', savedRole).single();
-            if (workerData && workerData.password === savedToken) {
-                setUserRole(savedRole);
-            } else {
-                sessionStorage.removeItem('posUserRole');
-                sessionStorage.removeItem('posAuthToken');
-            }
-        } else {
-            sessionStorage.removeItem('posUserRole');
-            sessionStorage.removeItem('posAuthToken');
-        }
+      // Check Real Backend Session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const savedRole = sessionStorage.getItem('posUserRole');
+        if (savedRole) setUserRole(savedRole);
+      } else {
+        sessionStorage.removeItem('posUserRole');
       }
+
     } catch (error) { console.error('System Load Error:', error.message); } 
     finally { setIsInitialLoad(false); }
   };
 
-  const fetchInventory = async () => {
-    try {
-      const { data } = await supabase.from('inventory').select('*').order('name', { ascending: true }); 
-      if (data) setInventory(data);
-    } catch (error) { console.error('Inventory Sync Error:', error.message); } 
-  };
-
-  const handleLoginSuccess = (role, token) => {
+  const handleLoginSuccess = (role) => {
     setUserRole(role);
     sessionStorage.setItem('posUserRole', role);
-    sessionStorage.setItem('posAuthToken', token);
     if (role === 'owner') navigate('/owner/dashboard');
     else navigate('/terminal/checkout'); 
   };
 
-  const confirmLogout = () => {
+  const confirmLogout = async () => {
+    await supabase.auth.signOut();
     setUserRole(null);
     sessionStorage.removeItem('posUserRole');
-    sessionStorage.removeItem('posAuthToken');
     setShowLogoutConfirm(false);
     navigate('/');
   };
@@ -244,14 +220,14 @@ function App() {
         <Routes>
           {userRole === 'owner' && (
             <>
-              <Route path="/owner/:tab" element={<OwnerDashboard inventory={inventory} refreshInventory={fetchInventory} shopSettings={shopSettings} cashierName={displayUserName} />} />
+              <Route path="/owner/:tab" element={<OwnerDashboard shopSettings={shopSettings} cashierName={displayUserName} />} />
               <Route path="/owner" element={<Navigate to="/owner/dashboard" replace />} />
-              <Route path="/printer" element={<BarcodePrinter inventory={inventory} />} />
+              <Route path="/printer" element={<BarcodePrinter />} />
             </>
           )}
           {userRole && (
             <>
-              <Route path="/terminal/:tab" element={<WorkerBilling inventory={inventory} refreshInventory={fetchInventory} shopSettings={shopSettings} cashierName={displayUserName} />} />
+              <Route path="/terminal/:tab" element={<WorkerBilling shopSettings={shopSettings} cashierName={displayUserName} />} />
               <Route path="/terminal" element={<Navigate to="/terminal/checkout" replace />} />
             </>
           )}

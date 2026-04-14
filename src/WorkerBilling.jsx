@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient';
 import { Spinner } from './App'; 
 import { useParams, useNavigate } from 'react-router-dom';
 
-export default function WorkerBilling({ inventory, refreshInventory, defaultTab = 'checkout', hideNav = false, shopSettings, cashierName }) {
+export default function WorkerBilling({ defaultTab = 'checkout', hideNav = false, shopSettings, cashierName }) {
   const { tab } = useParams();
   const activeTab = hideNav ? defaultTab : (tab || 'checkout');
   const navigate = useNavigate();
@@ -33,7 +33,6 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
     }
   }, [cart, activeTab]);
 
-  // Flaw Fixed: Listens for changes to localStorage made by other active browser tabs and synchronizes the cart
   useEffect(() => {
     const handleStorageChange = (e) => {
       if (e.key === `pos_cart_${activeTab}`) {
@@ -80,10 +79,16 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
     setBarcode(''); 
     if (!cleanBarcode) return;
 
-    let item = cart.find(i => i.barcode === cleanBarcode) || inventory.find(i => i.barcode === cleanBarcode && i.is_active !== false);
+    let item = cart.find(i => i.barcode === cleanBarcode);
+    
+    // Server-Side Lookup replaces local array search
     if (!item) {
-      const { data } = await supabase.from('inventory').select('*').eq('barcode', cleanBarcode).single();
-      if (data && data.is_active !== false) item = data;
+      const { data } = await supabase.from('inventory')
+        .select('*')
+        .eq('barcode', cleanBarcode)
+        .eq('is_active', true)
+        .single();
+      if (data) item = data;
     }
 
     if (item) {
@@ -228,7 +233,6 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
       });
 
       setCart([]); 
-      if (refreshInventory) refreshInventory(); 
       setCheckoutModal({ isOpen: false, cashGiven: '' }); 
 
       if (activeTab === 'checkout') {

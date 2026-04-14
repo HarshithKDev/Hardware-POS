@@ -1,21 +1,28 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import Barcode from 'react-barcode';
+import { supabase } from './supabaseClient'; 
 
-export default function BarcodePrinter({ inventory }) {
+export default function BarcodePrinter() {
   const [searchTerm, setSearchTerm] = useState('');
-  
+  const [filteredInventory, setFilteredInventory] = useState([]);
   const [printQueue, setPrintQueue] = useState([]);
 
-  // FLaw Fixed: useMemo prevents the app from recalculating the search array on every single render
-  const filteredInventory = useMemo(() => {
-    if (searchTerm.trim() === '') return [];
-    
-    const lowerSearch = searchTerm.toLowerCase();
-    return inventory.filter(item => 
-        (item.name && item.name.toLowerCase().includes(lowerSearch)) || 
-        (item.barcode && item.barcode.includes(searchTerm))
-    ).slice(0, 10); 
-  }, [searchTerm, inventory]);
+  // Server-side debounced search replaces the local array filtering
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (searchTerm.trim() === '') { setFilteredInventory([]); return; }
+      
+      const { data } = await supabase.from('inventory')
+        .select('*')
+        .or(`name.ilike.%${searchTerm}%,barcode.ilike.%${searchTerm}%`)
+        .eq('is_active', true)
+        .limit(10);
+        
+      if (data) setFilteredInventory(data);
+    }, 300); // Waits 300ms after user stops typing to ping database
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
 
   const handleSelectItem = (item) => {
     const existingIndex = printQueue.findIndex(qItem => qItem.barcode === item.barcode);

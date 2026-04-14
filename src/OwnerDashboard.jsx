@@ -1,11 +1,27 @@
 import { useState, useEffect } from 'react';
-import { supabase } from './supabaseClient'; 
+import { supabase, provisioningClient } from './supabaseClient'; 
 import WorkerBilling from './WorkerBilling'; 
-import { hashPassword } from './EntryFlow'; 
 import { Spinner } from './App'; 
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 
-export default function OwnerDashboard({ inventory, refreshInventory, shopSettings, cashierName }) {
+const getFriendlyErrorMessage = (errorMsg) => {
+  const msg = errorMsg.toLowerCase();
+  if (msg.includes('missing email or phone') || msg.includes('invalid email')) {
+    return "The Operator ID provided is invalid. Please use only letters and numbers without special characters.";
+  }
+  if (msg.includes('already registered') || msg.includes('already exists')) {
+    return "An operator with this exact ID already exists in the secure backend system. Please choose a unique Operator ID.";
+  }
+  if (msg.includes('password should be at least')) {
+    return "For security purposes, the Auth PIN must be at least 6 characters long.";
+  }
+  if (msg.includes('duplicate key')) {
+    return "This record already exists in the database.";
+  }
+  return errorMsg; 
+};
+
+export default function OwnerDashboard({ shopSettings, cashierName }) {
   const { tab } = useParams();
   const activeTab = tab || 'dashboard';
   const navigate = useNavigate();
@@ -44,10 +60,17 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
 
   const [todaysTrueRevenue, setTodaysTrueRevenue] = useState(0);
   const [todaysGrossProfit, setTodaysGrossProfit] = useState(0); 
+  const [lowStoreCount, setLowStoreCount] = useState(0);
+  const [lowWarehouseCount, setLowWarehouseCount] = useState(0);
+  const [totalInventoryValue, setTotalInventoryValue] = useState(0);
+  const [warehouseCapital, setWarehouseCapital] = useState(0);
+  const [storeCapital, setStoreCapital] = useState(0);
   
   const [inventorySearch, setInventorySearch] = useState('');
   const [sortOption, setSortOption] = useState('barcode-asc'); 
   const [invPage, setInvPage] = useState(0);
+  const [paginatedInventory, setPaginatedInventory] = useState([]);
+  const [totalInvItems, setTotalInvItems] = useState(0);
   const INV_PER_PAGE = 50;
 
   const showAlert = (message, title = 'System Alert') => setAlertConfig({ isOpen: true, message, title });
@@ -73,6 +96,36 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
     return location;
   };
 
+  const loadInventory = async () => {
+    const from = invPage * INV_PER_PAGE;
+    const to = from + INV_PER_PAGE - 1;
+
+    let query = supabase.from('inventory').select('*', { count: 'exact' }).eq('is_active', true);
+
+    if (inventorySearch.trim() !== '') {
+      query = query.or(`name.ilike.%${inventorySearch}%,barcode.ilike.%${inventorySearch}%`);
+    }
+
+    if (sortOption === 'barcode-asc') query = query.order('barcode', { ascending: true });
+    else if (sortOption === 'barcode-desc') query = query.order('barcode', { ascending: false });
+    else if (sortOption === 'name-asc') query = query.order('name', { ascending: true });
+    else if (sortOption === 'name-desc') query = query.order('name', { ascending: false });
+    else if (sortOption === 'stock-asc') query = query.order(activeTab === 'warehouse' ? 'stock_warehouse' : 'stock_store', { ascending: true });
+    else if (sortOption === 'stock-desc') query = query.order(activeTab === 'warehouse' ? 'stock_warehouse' : 'stock_store', { ascending: false });
+
+    const { data, count } = await query.range(from, to);
+    if (data) {
+      setPaginatedInventory(data);
+      setTotalInvItems(count || 0);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'register' || activeTab === 'warehouse' || activeTab === 'store') {
+      loadInventory();
+    }
+  }, [activeTab, invPage, inventorySearch, sortOption]);
+
   useEffect(() => {
     if (activeTab === 'sales') fetchBills(salesPage);
     if (activeTab === 'dashboard') { fetchBills(salesPage); fetchDashboardStats(); }
@@ -80,20 +133,20 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
     if (activeTab !== 'sales') setSelectedBill(null);
   }, [activeTab, salesPage]);
 
-  const activeInventory = inventory.filter(item => item.is_active !== false);
-
   const fetchDashboardStats = async () => {
-    const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0); 
-    const endOfDay = new Date(); endOfDay.setHours(23, 59, 59, 999);
+    const now = new Date();
+    const localDateStr = now.toLocaleDateString('en-CA'); 
+    const start = `${localDateStr}T00:00:00`;
+    const end = `${localDateStr}T23:59:59.999`;
+
     try {
       const { data: billsData } = await supabase.from('bills')
         .select('id, total_amount')
-        .gte('created_at', startOfDay.toISOString())
-        .lte('created_at', endOfDay.toISOString())
+        .gte('created_at', start)
+        .lte('created_at', end)
         .eq('location', 'Store'); 
         
       if (billsData) {
-        // Safe integer math
         const totalCents = billsData.reduce((sum, bill) => sum + Math.round(Number(bill.total_amount || 0) * 100), 0);
         setTodaysTrueRevenue(totalCents / 100);
 
@@ -112,6 +165,38 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
           setTodaysGrossProfit(0);
         }
       }
+
+      let allStats = [];
+      let p = 0;
+      while(true) {
+        const { data } = await supabase.from('inventory')
+          .select('price, cost_price, stock_warehouse, stock_store')
+          .eq('is_active', true)
+          .range(p * 1000, (p + 1) * 1000 - 1);
+        if (!data || data.length === 0) break;
+        allStats.push(...data);
+        if (data.length < 1000) break;
+        p++;
+      }
+
+      let lStore = 0, lWhse = 0, tValue = 0, wCap = 0, sCap = 0;
+      allStats.forEach(i => {
+        if (i.stock_store < 10) lStore++;
+        if (i.stock_warehouse < 20) lWhse++;
+        const c = Number(i.cost_price || i.price * 0.7);
+        const wQty = Number(i.stock_warehouse || 0);
+        const sQty = Number(i.stock_store || 0);
+        tValue += c * (wQty + sQty);
+        wCap += c * wQty;
+        sCap += c * sQty;
+      });
+
+      setLowStoreCount(lStore);
+      setLowWarehouseCount(lWhse);
+      setTotalInventoryValue(tValue);
+      setWarehouseCapital(wCap);
+      setStoreCapital(sCap);
+
     } catch (err) { console.error(err); }
   };
 
@@ -139,25 +224,50 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
 
   const handleAddWorker = async (e) => {
     e.preventDefault();
-    if (!newWorker.name || !newWorker.password) return showAlert("Provide ID and PIN.", "Validation Error");
+    const cleanName = newWorker.name.trim();
+    const cleanPin = newWorker.password.trim();
+
+    if (!cleanName || !cleanPin) return showAlert("Please provide both an Operator ID and an Auth PIN.", "Validation Error");
+    
+    if (cleanPin.length < 6) return showAlert("For security purposes, the Auth PIN must be at least 6 characters long.", "Security Requirement");
+
     try {
       setIsAddingWorker(true);
-      const hashedPass = await hashPassword(newWorker.password); 
-      await supabase.from('workers').insert([{ name: newWorker.name, password: hashedPass }]);
-      setNewWorker({ name: '', password: '' }); fetchWorkers();
-    } catch (e) { showAlert("Error saving personnel.", "System Error"); } finally { setIsAddingWorker(false); }
+      
+      const emailSafeName = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (!emailSafeName) return showAlert("Operator ID must contain letters or numbers.", "Validation Error");
+      
+      const workerEmail = `${emailSafeName}@hardwarepos.com`;
+      
+      const { error: authError } = await provisioningClient.auth.signUp({ 
+        email: workerEmail, 
+        password: cleanPin 
+      });
+      
+      if (authError) throw new Error(getFriendlyErrorMessage(authError.message));
+
+      // FIX: Passing a dummy string to bypass the old Postgres Not-Null constraint
+      const { error: dbError } = await supabase.from('workers').insert([{ 
+        name: cleanName,
+        password: 'SECURED_IN_AUTH' 
+      }]);
+      
+      if (dbError) throw new Error(getFriendlyErrorMessage(dbError.message));
+
+      setNewWorker({ name: '', password: '' }); 
+      fetchWorkers();
+      showAlert(`Operator '${cleanName}' provisioned successfully.`, "Success");
+    } catch (e) { 
+      showAlert(e.message, "Provisioning Failed"); 
+    } finally { 
+      setIsAddingWorker(false); 
+    }
   };
 
   const handleDeleteWorker = (id) => {
     showConfirm("Revoke access for this operator?", async () => {
       await supabase.from('workers').delete().eq('id', id); fetchWorkers(); 
     });
-  };
-
-  const getNextBarcode = () => {
-    if (inventory.length === 0) return '1001';
-    const codes = inventory.map(i => parseInt(i.barcode, 10)).filter(c => !isNaN(c));
-    return codes.length === 0 ? '1001' : (Math.max(...codes) + 1).toString();
   };
 
   const handleAddItem = async (e) => {
@@ -170,9 +280,10 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
       setIsSubmitting(true);
       let success = false;
       let attempts = 0;
-      let safeBarcode = getNextBarcode(); // initial guess based on local state
+      
+      const { data: latestItem } = await supabase.from('inventory').select('barcode').order('barcode', { ascending: false }).limit(1);
+      let safeBarcode = latestItem && latestItem.length > 0 ? (parseInt(latestItem[0].barcode, 10) + 1).toString() : '1001';
 
-      // Robust Auto-Retry Loop for Barcode Collisions
       while (!success && attempts < 3) {
         try {
           const { error } = await supabase.from('inventory').insert([{ 
@@ -188,29 +299,21 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
           }]);
           
           if (error) throw error;
-          success = true; // Break out of the loop
+          success = true; 
         } catch (insertError) {
-          // If collision error is thrown
           if (insertError.message?.includes('duplicate key') || insertError.code === '23505') {
             attempts++;
-            // Re-fetch the live highest barcode direct from database
-            const { data: liveData } = await supabase.from('inventory').select('barcode');
-            if (liveData && liveData.length > 0) {
-              const codes = liveData.map(i => parseInt(i.barcode, 10)).filter(c => !isNaN(c));
-              if (codes.length > 0) safeBarcode = (Math.max(...codes) + 1).toString();
-            }
+            safeBarcode = (parseInt(safeBarcode, 10) + 1).toString();
           } else {
-            throw insertError; // It's a different error, throw it completely
+            throw insertError; 
           }
         }
       }
 
-      if (!success) {
-        throw new Error("System traffic is extremely high. Could not automatically generate a unique SKU. Try again.");
-      }
+      if (!success) throw new Error("System traffic is extremely high. Try again.");
       
       setNewItem({ name: '', cost_price: '', msp: '', price: '', unit: 'PCS' }); 
-      refreshInventory(); 
+      loadInventory(); 
       showAlert(`Record committed. Assigned SKU: ${safeBarcode}`, "Success");
     } catch (e) { 
        showAlert(e.message || "Error creating record.", "System Error"); 
@@ -234,40 +337,20 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
         unit: editFormData.unit 
       }).eq('barcode', editingBarcode);
       if (error) throw error;
-      setEditingBarcode(null); refreshInventory(); 
+      setEditingBarcode(null); loadInventory(); 
     } catch (e) { showAlert(e.message || "Error updating record.", "System Error"); }
   };
 
   const handleDeleteClick = (barcode) => {
     showConfirm("Archive this record? It will be removed from active views.", async () => {
-      await supabase.from('inventory').update({ is_active: false }).eq('barcode', barcode); refreshInventory();
+      await supabase.from('inventory').update({ is_active: false }).eq('barcode', barcode); loadInventory();
     });
   };
 
   const handleEditClick = (item) => { setEditingBarcode(item.barcode); setEditFormData({ ...item }); };
 
-  const lowStoreCount = activeInventory.filter(i => (i.stock_store || 0) < 10).length;
-  const lowWarehouseCount = activeInventory.filter(i => (i.stock_warehouse || 0) < 20).length;
-  const totalInventoryValue = activeInventory.reduce((t, i) => t + (Number(i.cost_price || i.price * 0.7) * (Number(i.stock_warehouse || 0) + Number(i.stock_store || 0))), 0);
-  const warehouseCapital = activeInventory.reduce((t, i) => t + (Number(i.cost_price || i.price * 0.7) * Number(i.stock_warehouse || 0)), 0);
-  const storeCapital = activeInventory.reduce((t, i) => t + (Number(i.cost_price || i.price * 0.7) * Number(i.stock_store || 0)), 0);
-
-  const processedInventory = [...activeInventory]
-    .filter(i => (i.name || '').toLowerCase().includes(inventorySearch.toLowerCase()) || String(i.barcode || '').toLowerCase().includes(inventorySearch.toLowerCase()))
-    .sort((a, b) => {
-      if(sortOption.includes('name')) return sortOption.includes('asc') ? (a.name||'').localeCompare(b.name||'') : (b.name||'').localeCompare(a.name||'');
-      if(sortOption.includes('price')) return sortOption.includes('asc') ? Number(a.price||0) - Number(b.price||0) : Number(b.price||0) - Number(a.price||0);
-      if(sortOption.includes('stock')) {
-        const aStock = activeTab === 'warehouse' ? Number(a.stock_warehouse||0) : Number(a.stock_store||0);
-        const bStock = activeTab === 'warehouse' ? Number(b.stock_warehouse||0) : Number(b.stock_store||0);
-        return sortOption.includes('asc') ? aStock - bStock : bStock - aStock;
-      }
-      return sortOption.includes('asc') ? String(a.barcode||'').localeCompare(String(b.barcode||'')) : String(b.barcode||'').localeCompare(String(a.barcode||''));
-    });
-
-  const maxPages = Math.max(1, Math.ceil(processedInventory.length / INV_PER_PAGE));
+  const maxPages = Math.max(1, Math.ceil(totalInvItems / INV_PER_PAGE));
   const safeInvPage = Math.min(invPage, maxPages - 1);
-  const paginatedInventory = processedInventory.slice(safeInvPage * INV_PER_PAGE, (safeInvPage + 1) * INV_PER_PAGE);
 
   return (
     <div className="flex flex-col md:flex-row bg-white border border-gray-400 h-full shadow-none rounded-none" style={{ fontFamily: "'Roboto', sans-serif" }}>
@@ -277,10 +360,10 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] px-4">
           <div className="bg-white border border-gray-400 w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
             <div className="bg-white flex justify-between items-center pr-1 pl-4 py-1 border-b border-gray-200">
-              <span className="text-xs font-semibold text-black">{alertConfig.title}</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-black">{alertConfig.title}</span>
               <button onClick={() => setAlertConfig({ ...alertConfig, isOpen: false })} className="text-gray-600 hover:bg-[#e81123] hover:text-white px-3 py-1.5 leading-none transition-none focus:outline-none rounded-none">✕</button>
             </div>
-            <div className="p-6 bg-white"><p className="text-sm text-black">{alertConfig.message}</p></div>
+            <div className="p-6 bg-white"><p className="text-sm font-medium text-black">{alertConfig.message}</p></div>
             <div className="p-4 bg-[#f3f3f3] border-t border-gray-300 flex justify-end">
               <button onClick={() => setAlertConfig({ ...alertConfig, isOpen: false })} className="px-6 py-1.5 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm border border-transparent focus:outline-none focus:ring-1 focus:ring-black rounded-none">OK</button>
             </div>
@@ -292,10 +375,10 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] px-4">
           <div className="bg-white border border-gray-400 w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
             <div className="bg-white flex justify-between items-center pr-1 pl-4 py-1 border-b border-gray-200">
-              <span className="text-xs font-semibold text-black">{confirmConfig.title}</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-black">{confirmConfig.title}</span>
               <button onClick={() => setConfirmConfig({ ...confirmConfig, isOpen: false })} className="text-gray-600 hover:bg-[#e81123] hover:text-white px-3 py-1.5 leading-none transition-none focus:outline-none rounded-none">✕</button>
             </div>
-            <div className="p-6 bg-white"><p className="text-sm text-black">{confirmConfig.message}</p></div>
+            <div className="p-6 bg-white"><p className="text-sm font-medium text-black">{confirmConfig.message}</p></div>
             <div className="p-4 bg-[#f3f3f3] border-t border-gray-300 flex justify-end gap-2">
               <button onClick={() => { if (confirmConfig.onConfirm) confirmConfig.onConfirm(); setConfirmConfig({ ...confirmConfig, isOpen: false }); }} className="px-6 py-1.5 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm border border-transparent focus:outline-none focus:ring-1 focus:ring-black rounded-none">Execute</button>
               <button onClick={() => setConfirmConfig({ ...confirmConfig, isOpen: false })} className="px-6 py-1.5 bg-[#e6e6e6] hover:bg-[#cccccc] text-black border border-gray-400 text-sm focus:outline-none focus:border-[#0078D7] rounded-none">Cancel</button>
@@ -369,7 +452,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
               <form onSubmit={handleAddItem} className="flex flex-col xl:flex-row gap-4 items-end w-full">
                 <div className="flex flex-col w-full xl:w-32 shrink-0">
                   <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">SKU Code</label>
-                  <input type="text" value={getNextBarcode()} disabled className="border-2 border-gray-300 bg-[#e6e6e6] text-black px-3 py-1.5 text-sm rounded-none focus:outline-none" />
+                  <input type="text" value="AUTO" disabled className="border-2 border-gray-300 bg-[#e6e6e6] text-black px-3 py-1.5 text-sm rounded-none focus:outline-none text-center font-bold" />
                 </div>
                 <div className="flex flex-col w-full xl:w-auto flex-1">
                   <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">Nomenclature</label>
@@ -484,12 +567,12 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                 <div className="flex justify-between items-center mt-4 bg-[#f3f3f3] p-3 border border-gray-400 rounded-none">
                   <button onClick={()=>setInvPage(p=>Math.max(0,p-1))} disabled={invPage===0} className="px-6 py-1.5 bg-white border border-gray-400 text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none focus:border-[#0078D7]">Previous</button>
                   <span className="text-sm font-semibold text-gray-700">Page {safeInvPage + 1} of {maxPages}</span>
-                  <button onClick={()=>setInvPage(p=>p+1)} disabled={(safeInvPage+1)*INV_PER_PAGE>=processedInventory.length} className="px-6 py-1.5 bg-white border border-gray-400 text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none focus:border-[#0078D7]">Next</button>
+                  <button onClick={()=>setInvPage(p=>p+1)} disabled={(safeInvPage+1)*INV_PER_PAGE>=totalInvItems} className="px-6 py-1.5 bg-white border border-gray-400 text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none focus:border-[#0078D7]">Next</button>
                 </div>
               </div>
             )}
-            {warehouseSubTab === 'receive' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling inventory={inventory} refreshInventory={refreshInventory} defaultTab="receive" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
-            {warehouseSubTab === 'transfer' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling inventory={inventory} refreshInventory={refreshInventory} defaultTab="transfer" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
+            {warehouseSubTab === 'receive' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling defaultTab="receive" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
+            {warehouseSubTab === 'transfer' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling defaultTab="transfer" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
           </div>
         )}
 
@@ -542,11 +625,11 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                 <div className="flex justify-between items-center mt-4 bg-[#f3f3f3] p-3 border border-gray-400 rounded-none">
                   <button onClick={()=>setInvPage(p=>Math.max(0,p-1))} disabled={invPage===0} className="px-6 py-1.5 bg-white border border-gray-400 text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none focus:border-[#0078D7]">Previous</button>
                   <span className="text-sm font-semibold text-gray-700">Page {safeInvPage + 1} of {maxPages}</span>
-                  <button onClick={()=>setInvPage(p=>p+1)} disabled={(safeInvPage+1)*INV_PER_PAGE>=processedInventory.length} className="px-6 py-1.5 bg-white border border-gray-400 text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none focus:border-[#0078D7]">Next</button>
+                  <button onClick={()=>setInvPage(p=>p+1)} disabled={(safeInvPage+1)*INV_PER_PAGE>=totalInvItems} className="px-6 py-1.5 bg-white border border-gray-400 text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none focus:border-[#0078D7]">Next</button>
                 </div>
               </div>
             )}
-            {storeSubTab === 'checkout' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling inventory={inventory} refreshInventory={refreshInventory} defaultTab="checkout" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
+            {storeSubTab === 'checkout' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling defaultTab="checkout" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
           </div>
         )}
 
