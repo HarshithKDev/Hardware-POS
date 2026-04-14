@@ -16,7 +16,9 @@ const EyeSlashIcon = () => (
 );
 
 export const hashPassword = async (message) => {
-  const msgBuffer = new TextEncoder().encode(message);
+  // A static salt added to prevent basic rainbow table attacks
+  const salt = "HW_POS_S3CUR3_S4LT_90210"; 
+  const msgBuffer = new TextEncoder().encode(message + salt);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
@@ -90,14 +92,16 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
       
       if (role === 'owner') {
         if (hashedInput === shopSettings?.owner_password) {
-          onLoginSuccess('owner');
+          // Pass the hash as an authentication token
+          onLoginSuccess('owner', hashedInput);
         } else {
           setError('Incorrect Admin password.');
         }
       } else {
         const matchedWorker = workers.find(w => w.name === role);
         if (matchedWorker && hashedInput === matchedWorker.password) {
-          onLoginSuccess(matchedWorker.name);
+          // Pass the hash as an authentication token
+          onLoginSuccess(matchedWorker.name, hashedInput);
         } else {
           setError('Incorrect PIN. Please try again.');
         }
@@ -135,7 +139,6 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
       <div className="w-full max-w-md bg-white p-8 border border-gray-400 shadow-[2px_2px_0px_rgba(0,0,0,0.2)] rounded-none overflow-hidden">
         
         <div className="text-center mb-8 border-b border-gray-400 pb-4">
-          {/* FIX: Widened the container so the words wrap naturally without cutting off "AND" early */}
           <h1 className="text-xl font-bold uppercase tracking-widest text-black leading-snug w-[85%] max-w-[320px] mx-auto">
             {shopSettings?.shop_name}
           </h1>

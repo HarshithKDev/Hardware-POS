@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Barcode from 'react-barcode';
 
 export default function BarcodePrinter({ inventory }) {
@@ -6,12 +6,16 @@ export default function BarcodePrinter({ inventory }) {
   
   const [printQueue, setPrintQueue] = useState([]);
 
-  const filteredInventory = searchTerm.trim() === '' 
-    ? [] 
-    : inventory.filter(item => 
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        item.barcode.includes(searchTerm)
-      ).slice(0, 10); 
+  // FLaw Fixed: useMemo prevents the app from recalculating the search array on every single render
+  const filteredInventory = useMemo(() => {
+    if (searchTerm.trim() === '') return [];
+    
+    const lowerSearch = searchTerm.toLowerCase();
+    return inventory.filter(item => 
+        (item.name && item.name.toLowerCase().includes(lowerSearch)) || 
+        (item.barcode && item.barcode.includes(searchTerm))
+    ).slice(0, 10); 
+  }, [searchTerm, inventory]);
 
   const handleSelectItem = (item) => {
     const existingIndex = printQueue.findIndex(qItem => qItem.barcode === item.barcode);

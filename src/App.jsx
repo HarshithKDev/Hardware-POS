@@ -5,6 +5,7 @@ import WorkerBilling from './WorkerBilling';
 import OwnerDashboard from './OwnerDashboard';
 import BarcodePrinter from './BarcodePrinter';
 import { Html5QrcodeScanner } from "html5-qrcode";
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 
 export const Spinner = ({ className = "w-5 h-5 text-current" }) => (
   <svg className={`animate-spin ${className}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -14,8 +15,7 @@ export const Spinner = ({ className = "w-5 h-5 text-current" }) => (
 );
 
 function App() {
-  const [userRole, setUserRole] = useState(() => sessionStorage.getItem('posUserRole') || null); 
-  const [currentScreen, setCurrentScreen] = useState(() => sessionStorage.getItem('posCurrentScreen') || 'login');
+  const [userRole, setUserRole] = useState(null); 
   const [inventory, setInventory] = useState([]); 
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [shopSettings, setShopSettings] = useState(null);
@@ -24,30 +24,46 @@ function App() {
   const [isMobileScannerOpen, setIsMobileScannerOpen] = useState(false);
   const [scannedProduct, setScannedProduct] = useState(null);
 
+  const navigate = useNavigate();
+  const location = useLocation();
+
   useEffect(() => { fetchInitialData(); }, []);
 
+  // Flaw Fixed: Clean camera closure to prevent memory leaks and hardware locks
   useEffect(() => {
-    if (userRole) sessionStorage.setItem('posUserRole', userRole);
-    else sessionStorage.removeItem('posUserRole');
-  }, [userRole]);
-
-  useEffect(() => { sessionStorage.setItem('posCurrentScreen', currentScreen); }, [currentScreen]);
-
-  useEffect(() => {
+    let scanner = null;
+    
     if (isMobileScannerOpen) {
-      const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 }, rememberLastUsedCamera: true, aspectRatio: 1.0 });
+      scanner = new Html5QrcodeScanner("reader", { 
+        fps: 10, 
+        qrbox: { width: 250, height: 250 }, 
+        rememberLastUsedCamera: true, 
+        aspectRatio: 1.0 
+      });
+      
       scanner.render((decodedText) => {
         const product = inventory.find(item => item.barcode === decodedText && item.is_active !== false);
         if (product) {
           setScannedProduct(product);
-          try { scanner.clear(); } catch(e) {}
+          // Properly call clear and catch any promise errors
+          if (scanner) {
+            scanner.clear().catch(err => console.error("Scanner clear failed", err));
+          }
           setIsMobileScannerOpen(false);
         } else {
           alert("Product not found in active catalog.");
         }
-      }, () => {});
-      return () => { try { scanner.clear(); } catch(e) {} };
+      }, (error) => {
+        // Ignore constant frame errors that trigger when no QR code is in view
+      });
     }
+
+    // Cleanup function runs when component unmounts or state changes
+    return () => { 
+      if (scanner) { 
+        scanner.clear().catch(err => console.error("Scanner cleanup failed", err)); 
+      } 
+    };
   }, [isMobileScannerOpen, inventory]);
 
   const fetchInitialData = async () => {
@@ -56,11 +72,36 @@ function App() {
       const { data: settingsData, error: settingsError } = await supabase.from('shop_settings').select('*').limit(1);
       if (settingsError && settingsError.code !== 'PGRST116') throw settingsError;
       
-      if (!settingsData || settingsData.length === 0) setIsSetupNeeded(true);
-      else setShopSettings(settingsData[0]);
+      let settings = null;
+      if (!settingsData || settingsData.length === 0) {
+        setIsSetupNeeded(true);
+      } else {
+        setShopSettings(settingsData[0]);
+        settings = settingsData[0];
+      }
 
       const { data: invData } = await supabase.from('inventory').select('*').order('name', { ascending: true }); 
       if (invData) setInventory(invData);
+
+      const savedRole = sessionStorage.getItem('posUserRole');
+      const savedToken = sessionStorage.getItem('posAuthToken');
+      
+      if (savedRole && savedToken && settings) {
+        if (savedRole === 'owner' && settings.owner_password === savedToken) {
+            setUserRole('owner');
+        } else if (savedRole !== 'owner') {
+            const { data: workerData } = await supabase.from('workers').select('password').eq('name', savedRole).single();
+            if (workerData && workerData.password === savedToken) {
+                setUserRole(savedRole);
+            } else {
+                sessionStorage.removeItem('posUserRole');
+                sessionStorage.removeItem('posAuthToken');
+            }
+        } else {
+            sessionStorage.removeItem('posUserRole');
+            sessionStorage.removeItem('posAuthToken');
+        }
+      }
     } catch (error) { console.error('System Load Error:', error.message); } 
     finally { setIsInitialLoad(false); }
   };
@@ -72,18 +113,20 @@ function App() {
     } catch (error) { console.error('Inventory Sync Error:', error.message); } 
   };
 
-  const handleLoginSuccess = (role) => {
+  const handleLoginSuccess = (role, token) => {
     setUserRole(role);
-    if (role === 'owner') setCurrentScreen('dashboard');
-    else setCurrentScreen('billing'); 
+    sessionStorage.setItem('posUserRole', role);
+    sessionStorage.setItem('posAuthToken', token);
+    if (role === 'owner') navigate('/owner/dashboard');
+    else navigate('/terminal/checkout'); 
   };
 
   const confirmLogout = () => {
     setUserRole(null);
-    setCurrentScreen('login');
     sessionStorage.removeItem('posUserRole');
-    sessionStorage.removeItem('posCurrentScreen');
+    sessionStorage.removeItem('posAuthToken');
     setShowLogoutConfirm(false);
+    navigate('/');
   };
 
   if (isInitialLoad) {
@@ -111,7 +154,7 @@ function App() {
     <div className="w-full min-h-screen bg-[#e6e6e6] text-black relative">
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap'); * { font-family: 'Roboto', sans-serif !important; }`}</style>
 
-      {/* WINDOWS 10 STANDARDIZED MODAL: LOGOUT */}
+      {/* MODALS */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] px-4 print:hidden">
           <div className="bg-white border border-gray-400 w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
@@ -130,7 +173,6 @@ function App() {
         </div>
       )}
 
-      {/* WINDOWS 10 STANDARDIZED MODAL: SCANNER */}
       {isMobileScannerOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[110] px-4 print:hidden">
           <div className="bg-white w-full max-w-[450px] border border-gray-400 shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
@@ -149,7 +191,6 @@ function App() {
         </div>
       )}
 
-      {/* WINDOWS 10 STANDARDIZED MODAL: STOCK INFO */}
       {scannedProduct && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[120] px-4 print:hidden">
           <div className="bg-white border border-gray-400 w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
@@ -178,7 +219,7 @@ function App() {
         </div>
       )}
 
-      {/* WINDOWS 10 FLAT NAVBAR */}
+      {/* NAVBAR */}
       <nav className="bg-white text-black border-b border-gray-300 px-4 py-2 flex justify-between items-center print:hidden shadow-sm">
         <div className="flex items-center">
           <div className="pr-4 mr-4 border-r border-gray-300">
@@ -188,11 +229,11 @@ function App() {
             <button onClick={() => setIsMobileScannerOpen(true)} className="md:hidden px-3 py-1.5 bg-transparent border border-gray-300 hover:bg-gray-100 text-xs text-black focus:outline-none focus:border-[#0078D7] rounded-none">Scan</button>
             {userRole === 'owner' ? (
               <>
-                <button onClick={() => setCurrentScreen('dashboard')} className={`px-4 py-1.5 text-xs focus:outline-none rounded-none ${currentScreen === 'dashboard' ? 'bg-[#0078D7] text-white border border-[#0078D7]' : 'bg-transparent border border-transparent hover:bg-gray-100 text-black'}`}>Management</button>
-                <button onClick={() => setCurrentScreen('printer')} className={`px-4 py-1.5 text-xs focus:outline-none rounded-none ${currentScreen === 'printer' ? 'bg-[#0078D7] text-white border border-[#0078D7]' : 'bg-transparent border border-transparent hover:bg-gray-100 text-black'}`}>Barcodes</button>
+                <button onClick={() => navigate('/owner/dashboard')} className={`px-4 py-1.5 text-xs focus:outline-none rounded-none ${location.pathname.startsWith('/owner') ? 'bg-[#0078D7] text-white border border-[#0078D7]' : 'bg-transparent border border-transparent hover:bg-gray-100 text-black'}`}>Management</button>
+                <button onClick={() => navigate('/printer')} className={`px-4 py-1.5 text-xs focus:outline-none rounded-none ${location.pathname.startsWith('/printer') ? 'bg-[#0078D7] text-white border border-[#0078D7]' : 'bg-transparent border border-transparent hover:bg-gray-100 text-black'}`}>Barcodes</button>
               </>
             ) : (
-              <button onClick={() => setCurrentScreen('billing')} className={`px-4 py-1.5 text-xs focus:outline-none rounded-none ${currentScreen === 'billing' ? 'bg-[#0078D7] text-white border border-[#0078D7]' : 'bg-transparent border border-transparent hover:bg-gray-100 text-black'}`}>Terminal</button>
+              <button onClick={() => navigate('/terminal/checkout')} className={`px-4 py-1.5 text-xs focus:outline-none rounded-none ${location.pathname.startsWith('/terminal') ? 'bg-[#0078D7] text-white border border-[#0078D7]' : 'bg-transparent border border-transparent hover:bg-gray-100 text-black'}`}>Terminal</button>
             )}
           </div>
         </div>
@@ -200,9 +241,22 @@ function App() {
       </nav>
 
       <main className="p-4 md:p-6 max-w-[1920px] mx-auto h-[calc(100vh-50px)]">
-        {currentScreen === 'billing' && <WorkerBilling inventory={inventory} refreshInventory={fetchInventory} shopSettings={shopSettings} cashierName={displayUserName} />}
-        {currentScreen === 'dashboard' && userRole === 'owner' && <OwnerDashboard inventory={inventory} refreshInventory={fetchInventory} shopSettings={shopSettings} cashierName={displayUserName} />}
-        {currentScreen === 'printer' && userRole === 'owner' && <BarcodePrinter inventory={inventory} />}
+        <Routes>
+          {userRole === 'owner' && (
+            <>
+              <Route path="/owner/:tab" element={<OwnerDashboard inventory={inventory} refreshInventory={fetchInventory} shopSettings={shopSettings} cashierName={displayUserName} />} />
+              <Route path="/owner" element={<Navigate to="/owner/dashboard" replace />} />
+              <Route path="/printer" element={<BarcodePrinter inventory={inventory} />} />
+            </>
+          )}
+          {userRole && (
+            <>
+              <Route path="/terminal/:tab" element={<WorkerBilling inventory={inventory} refreshInventory={fetchInventory} shopSettings={shopSettings} cashierName={displayUserName} />} />
+              <Route path="/terminal" element={<Navigate to="/terminal/checkout" replace />} />
+            </>
+          )}
+          <Route path="*" element={<Navigate to={userRole === 'owner' ? "/owner/dashboard" : "/terminal/checkout"} replace />} />
+        </Routes>
       </main>
     </div>
   );

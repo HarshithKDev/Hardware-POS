@@ -3,16 +3,26 @@ import { supabase } from './supabaseClient';
 import WorkerBilling from './WorkerBilling'; 
 import { hashPassword } from './EntryFlow'; 
 import { Spinner } from './App'; 
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 
 export default function OwnerDashboard({ inventory, refreshInventory, shopSettings, cashierName }) {
-  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('posOwnerActiveTab') || 'dashboard');
-  const [warehouseSubTab, setWarehouseSubTab] = useState(() => sessionStorage.getItem('posOwnerWarehouseSubTab') || 'inventory'); 
-  const [storeSubTab, setStoreSubTab] = useState(() => sessionStorage.getItem('posOwnerStoreSubTab') || 'inventory'); 
+  const { tab } = useParams();
+  const activeTab = tab || 'dashboard';
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const warehouseSubTab = searchParams.get('sub') || 'inventory';
+  const storeSubTab = searchParams.get('sub') || 'inventory';
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
 
-  useEffect(() => { sessionStorage.setItem('posOwnerActiveTab', activeTab); }, [activeTab]);
-  useEffect(() => { sessionStorage.setItem('posOwnerWarehouseSubTab', warehouseSubTab); }, [warehouseSubTab]);
-  useEffect(() => { sessionStorage.setItem('posOwnerStoreSubTab', storeSubTab); }, [storeSubTab]);
+  const changeTab = (newTab) => {
+    navigate(`/owner/${newTab}`);
+    setIsSidebarOpen(false);
+  };
+
+  const setWarehouseSubTab = (sub) => setSearchParams({ sub });
+  const setStoreSubTab = (sub) => setSearchParams({ sub });
 
   const [newItem, setNewItem] = useState({ name: '', price: '', cost_price: '', msp: '', stock_warehouse: '', unit: 'PCS' });
   const [isSubmitting, setIsSubmitting] = useState(false); 
@@ -83,11 +93,21 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
         .eq('location', 'Store'); 
         
       if (billsData) {
-        setTodaysTrueRevenue(billsData.reduce((sum, bill) => sum + Number(bill.total_amount || 0), 0));
+        // Safe integer math
+        const totalCents = billsData.reduce((sum, bill) => sum + Math.round(Number(bill.total_amount || 0) * 100), 0);
+        setTodaysTrueRevenue(totalCents / 100);
+
         const billIds = billsData.map(b => b.id);
         if (billIds.length > 0) {
           const { data: itemsData } = await supabase.from('bill_items').select('quantity, price_at_sale, cost_at_sale').in('bill_id', billIds);
-          if (itemsData) setTodaysGrossProfit(itemsData.reduce((sum, item) => sum + ((Number(item.price_at_sale || 0) - Number(item.cost_at_sale || 0)) * Number(item.quantity || 0)), 0));
+          if (itemsData) {
+             const profitCents = itemsData.reduce((sum, item) => {
+                const priceCents = Math.round(Number(item.price_at_sale || 0) * 100);
+                const costCents = Math.round(Number(item.cost_at_sale || 0) * 100);
+                return sum + ((priceCents - costCents) * Number(item.quantity || 0));
+             }, 0);
+             setTodaysGrossProfit(profitCents / 100);
+          }
         } else {
           setTodaysGrossProfit(0);
         }
@@ -148,38 +168,52 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
 
     try {
       setIsSubmitting(true);
-      
-      const { data: allItems } = await supabase.from('inventory').select('barcode');
-      let safeBarcode = '1001';
-      if (allItems && allItems.length > 0) {
-        const codes = allItems.map(i => parseInt(i.barcode, 10)).filter(c => !isNaN(c));
-        if (codes.length > 0) safeBarcode = (Math.max(...codes) + 1).toString();
+      let success = false;
+      let attempts = 0;
+      let safeBarcode = getNextBarcode(); // initial guess based on local state
+
+      // Robust Auto-Retry Loop for Barcode Collisions
+      while (!success && attempts < 3) {
+        try {
+          const { error } = await supabase.from('inventory').insert([{ 
+            barcode: safeBarcode, 
+            name: newItem.name, 
+            cost_price: Number(newItem.cost_price || 0), 
+            msp: Number(newItem.msp || 0),
+            price: Number(newItem.price || 0), 
+            stock_warehouse: 0, 
+            stock_store: 0, 
+            unit: newItem.unit, 
+            is_active: true 
+          }]);
+          
+          if (error) throw error;
+          success = true; // Break out of the loop
+        } catch (insertError) {
+          // If collision error is thrown
+          if (insertError.message?.includes('duplicate key') || insertError.code === '23505') {
+            attempts++;
+            // Re-fetch the live highest barcode direct from database
+            const { data: liveData } = await supabase.from('inventory').select('barcode');
+            if (liveData && liveData.length > 0) {
+              const codes = liveData.map(i => parseInt(i.barcode, 10)).filter(c => !isNaN(c));
+              if (codes.length > 0) safeBarcode = (Math.max(...codes) + 1).toString();
+            }
+          } else {
+            throw insertError; // It's a different error, throw it completely
+          }
+        }
       }
 
-      const { error } = await supabase.from('inventory').insert([{ 
-        barcode: safeBarcode, 
-        name: newItem.name, 
-        cost_price: Number(newItem.cost_price || 0), 
-        msp: Number(newItem.msp || 0),
-        price: Number(newItem.price || 0), 
-        stock_warehouse: 0, 
-        stock_store: 0, 
-        unit: newItem.unit, 
-        is_active: true 
-      }]);
-      
-      if (error) throw error;
+      if (!success) {
+        throw new Error("System traffic is extremely high. Could not automatically generate a unique SKU. Try again.");
+      }
       
       setNewItem({ name: '', cost_price: '', msp: '', price: '', unit: 'PCS' }); 
       refreshInventory(); 
       showAlert(`Record committed. Assigned SKU: ${safeBarcode}`, "Success");
     } catch (e) { 
-      if (e.message?.includes('duplicate key') || e.code === '23505') {
-        refreshInventory();
-        showAlert("Barcode collision detected. The system has automatically refreshed. Please try committing again.", "System Alert");
-      } else {
-        showAlert(e.message || "Error creating record. Did you add the 'msp' column?", "System Error"); 
-      }
+       showAlert(e.message || "Error creating record.", "System Error"); 
     } finally { 
       setIsSubmitting(false); 
     }
@@ -238,7 +272,7 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
   return (
     <div className="flex flex-col md:flex-row bg-white border border-gray-400 h-full shadow-none rounded-none" style={{ fontFamily: "'Roboto', sans-serif" }}>
       
-      {/* WINDOWS 10 STANDARDIZED MODALS */}
+      {/* MODALS */}
       {alertConfig.isOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] px-4">
           <div className="bg-white border border-gray-400 w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
@@ -277,18 +311,17 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
 
       <aside className={`${isSidebarOpen ? 'block' : 'hidden'} md:block w-full md:w-[240px] bg-[#f3f3f3] border-b md:border-r border-gray-400 flex-shrink-0 pt-4`}>
         <div className="flex flex-col gap-1">
-          <button onClick={() => {setActiveTab('dashboard'); setIsSidebarOpen(false);}} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'dashboard' ? 'bg-[#cce8ff] border-l-4 border-[#0078D7] text-black font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-800'}`}>Dashboard</button>
-          <button onClick={() => {setActiveTab('register'); setIsSidebarOpen(false);}} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'register' ? 'bg-[#cce8ff] border-l-4 border-[#0078D7] text-black font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-800'}`}>Catalog</button>
-          <button onClick={() => {setActiveTab('warehouse'); setIsSidebarOpen(false);}} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'warehouse' ? 'bg-[#cce8ff] border-l-4 border-[#0078D7] text-black font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-800'}`}>Warehouse</button>
-          <button onClick={() => {setActiveTab('store'); setIsSidebarOpen(false);}} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'store' ? 'bg-[#cce8ff] border-l-4 border-[#0078D7] text-black font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-800'}`}>Store Floor</button>
-          <button onClick={() => {setActiveTab('sales'); setIsSidebarOpen(false);}} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'sales' ? 'bg-[#cce8ff] border-l-4 border-[#0078D7] text-black font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-800'}`}>Ledger</button>
-          <button onClick={() => {setActiveTab('staff'); setIsSidebarOpen(false);}} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'staff' ? 'bg-[#cce8ff] border-l-4 border-[#0078D7] text-black font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-800'}`}>Security</button>
+          <button onClick={() => changeTab('dashboard')} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'dashboard' ? 'bg-[#cce8ff] border-l-4 border-[#0078D7] text-black font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-800'}`}>Dashboard</button>
+          <button onClick={() => changeTab('register')} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'register' ? 'bg-[#cce8ff] border-l-4 border-[#0078D7] text-black font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-800'}`}>Catalog</button>
+          <button onClick={() => changeTab('warehouse')} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'warehouse' ? 'bg-[#cce8ff] border-l-4 border-[#0078D7] text-black font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-800'}`}>Warehouse</button>
+          <button onClick={() => changeTab('store')} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'store' ? 'bg-[#cce8ff] border-l-4 border-[#0078D7] text-black font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-800'}`}>Store Floor</button>
+          <button onClick={() => changeTab('sales')} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'sales' ? 'bg-[#cce8ff] border-l-4 border-[#0078D7] text-black font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-800'}`}>Ledger</button>
+          <button onClick={() => changeTab('staff')} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'staff' ? 'bg-[#cce8ff] border-l-4 border-[#0078D7] text-black font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-800'}`}>Security</button>
         </div>
       </aside>
 
       <main className="flex-1 p-6 md:p-8 overflow-y-auto bg-white relative">
         
-        {/* DASHBOARD */}
         {activeTab === 'dashboard' && (
           <div className="animate-fade-in">
             <h1 className="text-2xl font-light text-black mb-6">Executive Summary</h1>
@@ -327,7 +360,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
           </div>
         )}
 
-        {/* CATALOG */}
         {activeTab === 'register' && (
           <div className="w-full">
             <h1 className="text-2xl font-light text-black mb-6">Catalog Management</h1>
@@ -376,7 +408,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
           </div>
         )}
 
-        {/* WAREHOUSE */}
         {activeTab === 'warehouse' && (
           <div className="flex flex-col h-full">
             <h1 className="text-2xl font-light text-black mb-6">Warehouse Operations</h1>
@@ -457,12 +488,11 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                 </div>
               </div>
             )}
-            {warehouseSubTab === 'receive' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Warehouse" defaultTab="receive" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
-            {warehouseSubTab === 'transfer' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Warehouse" defaultTab="transfer" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
+            {warehouseSubTab === 'receive' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling inventory={inventory} refreshInventory={refreshInventory} defaultTab="receive" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
+            {warehouseSubTab === 'transfer' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling inventory={inventory} refreshInventory={refreshInventory} defaultTab="transfer" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
           </div>
         )}
 
-        {/* STORE */}
         {activeTab === 'store' && (
           <div className="flex flex-col h-full">
             <h1 className="text-2xl font-light text-black mb-6">Retail Operations</h1>
@@ -516,11 +546,10 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
                 </div>
               </div>
             )}
-            {storeSubTab === 'checkout' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling inventory={inventory} refreshInventory={refreshInventory} sessionLocation="Store" defaultTab="checkout" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
+            {storeSubTab === 'checkout' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling inventory={inventory} refreshInventory={refreshInventory} defaultTab="checkout" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
           </div>
         )}
 
-        {/* LEDGER */}
         {activeTab === 'sales' && (
           <div className="flex flex-col h-full">
             <h1 className="text-2xl font-light text-black mb-6">Transaction Ledger</h1>
@@ -580,7 +609,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
               <div className="flex flex-col flex-1 pb-4">
                 <div className="flex justify-between items-center mb-4">
                   <span className="text-sm font-semibold uppercase tracking-wider text-gray-600">Recent Activity</span>
-                  {/* The refresh button has been removed from here as requested */}
                 </div>
                 {isLoadingBills ? <div className="p-10 flex justify-center"><Spinner className="w-8 h-8 text-[#0078D7]" /></div> : (
                   <>
@@ -617,7 +645,6 @@ export default function OwnerDashboard({ inventory, refreshInventory, shopSettin
           </div>
         )}
 
-        {/* SECURITY */}
         {activeTab === 'staff' && (
           <div className="animate-fade-in">
             <h1 className="text-2xl font-light text-black mb-6">Security & Access Control</h1>

@@ -1,14 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from './supabaseClient'; 
 import { Spinner } from './App'; 
+import { useParams, useNavigate } from 'react-router-dom';
 
 export default function WorkerBilling({ inventory, refreshInventory, defaultTab = 'checkout', hideNav = false, shopSettings, cashierName }) {
-  const [activeTab, setActiveTab] = useState(defaultTab);
+  const { tab } = useParams();
+  const activeTab = hideNav ? defaultTab : (tab || 'checkout');
+  const navigate = useNavigate();
   
-  // Initialize cart from localStorage (a web browser feature that saves data locally)
   const [cart, setCart] = useState(() => {
     try {
-      const saved = localStorage.getItem(`pos_cart_${defaultTab}`);
+      const saved = localStorage.getItem(`pos_cart_${activeTab}`);
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
       return [];
@@ -23,7 +25,6 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, message: '', title: 'Action Required', onConfirm: null });
   const scannerInputRef = useRef(null); 
 
-  // Persist cart to localStorage whenever it changes
   useEffect(() => {
     try {
       localStorage.setItem(`pos_cart_${activeTab}`, JSON.stringify(cart));
@@ -32,8 +33,26 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
     }
   }, [cart, activeTab]);
 
+  // Flaw Fixed: Listens for changes to localStorage made by other active browser tabs and synchronizes the cart
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === `pos_cart_${activeTab}`) {
+        try {
+          const newCartData = e.newValue ? JSON.parse(e.newValue) : [];
+          setCart(newCartData);
+        } catch (err) {
+          console.error("Storage sync failed", err);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [activeTab]);
+
   const handleTabSwitch = (newTab) => {
-    setActiveTab(newTab);
+    if (hideNav) return;
+    navigate(`/terminal/${newTab}`);
     try {
       const saved = localStorage.getItem(`pos_cart_${newTab}`);
       setCart(saved ? JSON.parse(saved) : []);
@@ -146,11 +165,15 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
     }));
   };
 
-  const calculateTotal = () => cart.reduce((tot, i) => {
-    const qty = i.quantity === '' ? 0 : Number(i.quantity);
-    const sellPrice = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0);
-    return tot + (sellPrice * qty);
-  }, 0);
+  const calculateTotal = () => {
+    let totalCents = 0;
+    cart.forEach(i => {
+      const qty = i.quantity === '' ? 0 : Number(i.quantity);
+      const sellPrice = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0);
+      totalCents += Math.round(sellPrice * 100) * qty; 
+    });
+    return totalCents / 100;
+  };
 
   const calculateTotalUnits = () => cart.reduce((tot, i) => tot + (i.quantity === '' ? 0 : Number(i.quantity)), 0);
 
@@ -223,32 +246,24 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
   const cartTotal = calculateTotal();
   const cartUnits = calculateTotalUnits();
 
+  const cartTotalCents = Math.round(cartTotal * 100);
+  const cashGivenCents = Math.round(Number(checkoutModal.cashGiven || 0) * 100);
+  const differenceCents = Math.abs(cashGivenCents - cartTotalCents);
+  const isShortfall = cashGivenCents > 0 && cashGivenCents < cartTotalCents;
+
   return (
     <div style={{ fontFamily: "'Roboto', sans-serif" }}>
       <style>{`
         @media print {
-          @page {
-            margin: 0;
-            size: 80mm auto; /* Thermal paper roll sizing */
-          }
-          body {
-            margin: 0;
-            padding: 0;
-          }
+          @page { margin: 0; size: 80mm auto; }
+          body { margin: 0; padding: 0; }
           body * { visibility: hidden !important; }
           #printable-receipt, #printable-receipt * { visibility: visible !important; }
-          #printable-receipt { 
-             position: absolute; 
-             left: 0; 
-             top: 0; 
-             width: 80mm; 
-             margin: 0; 
-             padding: 4mm; 
-          }
+          #printable-receipt { position: absolute; left: 0; top: 0; width: 80mm; margin: 0; padding: 4mm; }
         }
       `}</style>
       
-      {/* WINDOWS 10 ALERT MODAL */}
+      {/* MODALS */}
       {alertConfig.isOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] print:hidden px-4">
           <div className="bg-white border-2 border-[#0078D7] w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
@@ -264,7 +279,6 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
         </div>
       )}
 
-      {/* WINDOWS 10 CONFIRM MODAL */}
       {confirmConfig.isOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] print:hidden px-4">
           <div className="bg-white border-2 border-[#0078D7] w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
@@ -281,7 +295,6 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
         </div>
       )}
 
-      {/* WINDOWS 10 CHECKOUT MODAL */}
       {checkoutModal.isOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] print:hidden px-4">
           <div className="bg-white border-2 border-[#0078D7] w-[450px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
@@ -300,21 +313,21 @@ export default function WorkerBilling({ inventory, refreshInventory, defaultTab 
                 <input type="number" step="any" autoFocus value={checkoutModal.cashGiven} onChange={(e) => setCheckoutModal({ ...checkoutModal, cashGiven: e.target.value })} placeholder="0.00" className="w-full px-4 py-3 border-2 border-gray-300 bg-white text-2xl font-mono rounded-none focus:outline-none focus:border-[#0078D7]" />
               </div>
               
-              {Number(checkoutModal.cashGiven) > 0 && (
-                <div className={`p-4 border ${Number(checkoutModal.cashGiven) >= (cartTotal - 0.01) ? 'bg-[#e6f4ea] border-[#107c10]' : 'bg-[#fde7e9] border-[#e81123]'}`}>
+              {cashGivenCents > 0 && (
+                <div className={`p-4 border ${!isShortfall ? 'bg-[#e6f4ea] border-[#107c10]' : 'bg-[#fde7e9] border-[#e81123]'}`}>
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold uppercase tracking-wider text-black">
-                      {Number(checkoutModal.cashGiven) >= (cartTotal - 0.01) ? 'Change Due' : 'Shortfall'}
+                      {!isShortfall ? 'Change Due' : 'Shortfall'}
                     </span>
                     <span className="text-2xl font-light text-black">
-                      ₹{Math.abs(Number(checkoutModal.cashGiven) - cartTotal).toFixed(2)}
+                      ₹{(differenceCents / 100).toFixed(2)}
                     </span>
                   </div>
                 </div>
               )}
             </div>
             <div className="p-4 bg-[#f3f3f3] border-t border-gray-300 flex justify-end gap-2">
-              <button onClick={handleCompleteTransaction} disabled={isCheckingOut || (Number(checkoutModal.cashGiven) > 0 && Number(checkoutModal.cashGiven) < (cartTotal - 0.01))} className="px-8 py-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-semibold rounded-none border border-transparent focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-50 flex justify-center items-center min-w-[120px]">
+              <button onClick={handleCompleteTransaction} disabled={isCheckingOut || isShortfall} className="px-8 py-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-semibold rounded-none border border-transparent focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-50 flex justify-center items-center min-w-[120px]">
                 {isCheckingOut ? <Spinner className="w-4 h-4 text-white" /> : 'Execute'}
               </button>
               <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} disabled={isCheckingOut} className="px-8 py-2 bg-[#e6e6e6] hover:bg-[#cccccc] text-black border border-gray-400 text-sm font-semibold rounded-none disabled:opacity-50 focus:outline-none focus:border-[#0078D7]">Cancel</button>
