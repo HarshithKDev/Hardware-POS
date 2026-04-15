@@ -17,9 +17,9 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
     }
   }); 
 
-  // Operator Dashboard State
+  // Operator Dashboard State - Default sorting set to barcode (SKU) ascending
   const [inventorySearch, setInventorySearch] = useState('');
-  const [sortOption, setSortOption] = useState('name-asc');
+  const [sortOption, setSortOption] = useState('barcode-asc');
   const [invPage, setInvPage] = useState(0);
   const [paginatedInventory, setPaginatedInventory] = useState([]);
   const [totalInvItems, setTotalInvItems] = useState(0);
@@ -271,15 +271,12 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
         p_location: activeTab === 'receive' ? 'Warehouse-Inbound' : activeTab === 'transfer' ? 'Warehouse-Transfer' : 'Store',
         p_cashier_name: cashierName || 'System',
         p_items: finalCart.map(i => {
-          // FIX: Explicitly check for empty strings and safely extract the exact final selling price.
           const finalRate = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0);
-          
           return { 
             barcode: i.barcode, 
             name: i.name, 
             quantity: Number(i.quantity), 
             price: finalRate, 
-            // FIX: Force discount to 0 to prevent the database from double-discounting the finalRate.
             discountPct: 0, 
             unit: i.unit 
           };
@@ -297,6 +294,7 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
             ...i, 
             quantity: Number(i.quantity), 
             finalRate: finalRate, 
+            mrp: Number(i.price || 0), // Keeping original MRP to calculate savings
             lineTotal: finalRate * Number(i.quantity)
           };
         }), 
@@ -335,6 +333,12 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
 
   const maxPages = Math.max(1, Math.ceil(totalInvItems / INV_PER_PAGE));
   const safeInvPage = Math.min(invPage, maxPages - 1);
+
+  // Dynamic Savings Calculation for the receipt
+  const totalSavings = lastReceipt?.items?.reduce((acc, item) => {
+    const savingsPerItem = Math.max(0, item.mrp - item.finalRate);
+    return acc + (savingsPerItem * item.quantity);
+  }, 0) || 0;
 
   return (
     <div style={{ fontFamily: "'Roboto', sans-serif" }} className="h-full">
@@ -452,10 +456,10 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
             <div className="flex flex-col md:flex-row gap-4 mb-4">
               <input type="text" placeholder="Search SKU or Nomenclature..." value={inventorySearch} onChange={e=>{setInventorySearch(e.target.value); setInvPage(0);}} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm w-full md:w-[400px] rounded-none focus:outline-none focus:border-[#0078D7]" />
               <select value={sortOption} onChange={(e) => {setSortOption(e.target.value); setInvPage(0);}} className="w-full md:w-auto border-2 border-gray-300 bg-white px-3 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7] cursor-pointer">
+                  <option value="barcode-asc">SKU (Ascending)</option>
                   <option value="name-asc">All Items (A-Z)</option>
                   <option value="low-store">Low Store Stock (&lt; 10)</option>
                   <option value="low-warehouse">Low Whse Stock (&lt; 20)</option>
-                  <option value="barcode-asc">SKU (Ascending)</option>
               </select>
             </div>
 
@@ -662,7 +666,6 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
           <>
             <div className="text-center mb-3">
               <h1 className="text-xl font-bold uppercase">{shopSettings?.shop_name || 'STORE RECEIPT'}</h1>
-              <p className="text-[10px]">Owner: {shopSettings?.owner_name}</p>
             </div>
             <div className="mb-3 text-[10px] flex justify-between border-b border-black border-dashed pb-2">
               <div>
@@ -696,11 +699,19 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
                 ))}
               </tbody>
             </table>
-            <div className="border-t border-black pt-2 flex justify-between items-center mb-4">
+            
+            <div className="border-t border-black pt-2 flex justify-between items-center mb-2">
               <span className="font-bold text-sm">NET DUE</span>
               <span className="font-bold text-lg">₹{lastReceipt.total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
             </div>
-            <div className="text-center text-[10px] border-t border-black border-dashed pt-2 mt-2">
+
+            {totalSavings > 0 && (
+              <div className="text-center mt-2 pb-2 border-b border-black border-dashed">
+                <p className="font-bold text-sm">You saved ₹{totalSavings.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}!</p>
+              </div>
+            )}
+
+            <div className="text-center text-[10px] pt-2 mt-2">
               <p>Thank You For Your Business!</p>
               <p>Goods once sold will not be taken back.</p>
             </div>
