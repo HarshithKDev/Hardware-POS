@@ -73,6 +73,8 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
   const [totalInvItems, setTotalInvItems] = useState(0);
   const INV_PER_PAGE = 50;
 
+  const [nextBarcode, setNextBarcode] = useState('Loading...');
+
   const showAlert = (message, title = 'System Alert') => setAlertConfig({ isOpen: true, message, title });
   const showConfirm = (message, onConfirmCallback, title = 'Action Required') => setConfirmConfig({ isOpen: true, message, title, onConfirm: onConfirmCallback });
 
@@ -120,13 +122,25 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
     }
   };
 
-  // FIX: This function will be passed to WorkerBilling so the Parent lists update instantly!
+  const fetchNextBarcode = async () => {
+    try {
+      const { data: latestItem } = await supabase.from('inventory').select('barcode').order('barcode', { ascending: false }).limit(1);
+      let safeBarcode = latestItem && latestItem.length > 0 ? (parseInt(latestItem[0].barcode, 10) + 1).toString() : '1001';
+      setNextBarcode(safeBarcode);
+    } catch(e) { 
+      setNextBarcode('Error'); 
+    }
+  };
+
   const triggerRefresh = () => {
     loadInventory();
     fetchDashboardStats();
   };
 
   useEffect(() => {
+    if (activeTab === 'register') {
+      fetchNextBarcode();
+    }
     if (activeTab === 'register' || activeTab === 'warehouse' || activeTab === 'store') {
       loadInventory();
     }
@@ -320,6 +334,7 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
       
       setNewItem({ name: '', cost_price: '', msp: '', price: '', unit: 'PCS' }); 
       triggerRefresh(); 
+      fetchNextBarcode(); 
       showAlert(`Record committed. Assigned SKU: ${safeBarcode}`, "Success");
     } catch (e) { 
        showAlert(e.message || "Error creating record.", "System Error"); 
@@ -459,7 +474,7 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
               <form onSubmit={handleAddItem} className="flex flex-col xl:flex-row gap-4 items-end w-full">
                 <div className="flex flex-col w-full xl:w-32 shrink-0">
                   <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">SKU Code</label>
-                  <input type="text" value="AUTO" disabled className="border-2 border-gray-300 bg-[#e6e6e6] text-black px-3 py-1.5 text-sm rounded-none focus:outline-none text-center font-bold" />
+                  <input type="text" value={nextBarcode} disabled className="border-2 border-gray-300 bg-[#e6e6e6] text-[#0078D7] px-3 py-1.5 text-sm rounded-none focus:outline-none text-center font-bold" />
                 </div>
                 <div className="flex flex-col w-full xl:w-auto flex-1">
                   <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">Nomenclature</label>
@@ -467,8 +482,9 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
                 </div>
                 <div className="flex flex-col w-full xl:w-24 shrink-0">
                   <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">UOM</label>
+                  {/* FIX: Restored appearance-none and standard SVG dropdown for a professional look */}
                   <div className="relative w-full">
-                    <select value={newItem.unit} onChange={e=>setNewItem({...newItem,unit:e.target.value})} className="w-full border-2 border-gray-300 bg-white pl-3 pr-8 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7] appearance-none cursor-pointer">
+                    <select value={newItem.unit} onChange={e=>setNewItem({...newItem,unit:e.target.value})} className="w-full border-2 border-gray-300 bg-white pl-3 pr-8 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7] appearance-none cursor-pointer font-medium text-gray-700">
                       <option value="PCS">PCS</option><option value="GRAMS">GRAMS</option><option value="SQFT">SQFT</option>
                     </select>
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-600">
@@ -510,14 +526,15 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
             {warehouseSubTab === 'inventory' && (
               <div className="flex flex-col flex-1 pb-4">
                 <div className="flex flex-col md:flex-row gap-4 mb-4">
-                  <input type="text" placeholder="Query Database..." value={inventorySearch} onChange={e=>{setInventorySearch(e.target.value); setInvPage(0);}} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm w-full md:w-[400px] rounded-none focus:outline-none focus:border-[#0078D7]" />
-                  <div className="relative w-full md:w-auto">
-                    <select value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="w-full border-2 border-gray-300 bg-white pl-3 pr-8 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7] appearance-none cursor-pointer">
+                  <input type="text" placeholder="Query Database..." value={inventorySearch} onChange={e=>{setInventorySearch(e.target.value); setInvPage(0);}} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm w-full md:flex-1 rounded-none focus:outline-none focus:border-[#0078D7]" />
+                  {/* FIX: Restored appearance-none and fixed width to prevent squishing */}
+                  <div className="relative w-full md:w-[260px] flex-shrink-0">
+                    <select value={sortOption} onChange={(e) => {setSortOption(e.target.value); setInvPage(0);}} className="w-full border-2 border-gray-300 bg-white pl-3 pr-8 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7] appearance-none cursor-pointer font-medium text-gray-700">
                       <option value="barcode-asc">SKU (Ascending)</option><option value="barcode-desc">SKU (Descending)</option>
                       <option value="name-asc">Name (A-Z)</option><option value="name-desc">Name (Z-A)</option>
                       <option value="stock-asc">Quantity (Low-High)</option><option value="stock-desc">Quantity (High-Low)</option>
                     </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-600">
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
                       <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
                     </div>
                   </div>
@@ -578,7 +595,6 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
                 </div>
               </div>
             )}
-            {/* FIX: Passed triggerRefresh to ensure parent lists update instantly */}
             {warehouseSubTab === 'receive' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling defaultTab="receive" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} refreshInventory={triggerRefresh} /></div>}
             {warehouseSubTab === 'transfer' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling defaultTab="transfer" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} refreshInventory={triggerRefresh} /></div>}
           </div>
@@ -595,13 +611,14 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
             {storeSubTab === 'inventory' && (
               <div className="flex flex-col flex-1 pb-4">
                 <div className="flex flex-col md:flex-row gap-4 mb-4">
-                  <input type="text" placeholder="Query Floor Database..." value={inventorySearch} onChange={e=>{setInventorySearch(e.target.value); setInvPage(0);}} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm w-full md:w-[400px] rounded-none focus:outline-none focus:border-[#0078D7] mb-4" />
-                  <div className="relative w-full md:w-auto">
-                    <select value={sortOption} onChange={(e) => setSortOption(e.target.value)} className="w-full border-2 border-gray-300 bg-white pl-3 pr-8 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7] appearance-none cursor-pointer">
+                  <input type="text" placeholder="Query Floor Database..." value={inventorySearch} onChange={e=>{setInventorySearch(e.target.value); setInvPage(0);}} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm w-full md:flex-1 rounded-none focus:outline-none focus:border-[#0078D7] mb-4 md:mb-0" />
+                  {/* FIX: Restored appearance-none and fixed width to prevent squishing */}
+                  <div className="relative w-full md:w-[260px] flex-shrink-0">
+                    <select value={sortOption} onChange={(e) => {setSortOption(e.target.value); setInvPage(0);}} className="w-full border-2 border-gray-300 bg-white pl-3 pr-8 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7] appearance-none cursor-pointer font-medium text-gray-700">
                       <option value="barcode-asc">SKU (Ascending)</option><option value="barcode-desc">SKU (Descending)</option>
                       <option value="name-asc">Name (A-Z)</option><option value="name-desc">Name (Z-A)</option>
                     </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-600">
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
                       <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
                     </div>
                   </div>
@@ -623,7 +640,7 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
                         <tr key={item.id} className="hover:bg-[#f9f9f9]">
                           <td className="p-3 border-r border-gray-200 text-sm font-semibold tracking-wider text-[#0078D7]">{item.barcode}</td>
                           <td className="p-3 border-r border-gray-200 text-sm font-medium text-black">{item.name}</td>
-                          <td className="p-3 border-r border-gray-200 text-sm text-center">{Number(item.price).toFixed(2)}</td>
+                          <td className="p-3 border-r border-gray-200 text-sm text-center">₹{Number(item.price).toFixed(2)}</td>
                           <td className="p-3 text-sm text-center font-bold text-black">{item.stock_store}</td>
                         </tr>
                       ))}
@@ -637,7 +654,6 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
                 </div>
               </div>
             )}
-            {/* FIX: Passed triggerRefresh to ensure parent lists update instantly */}
             {storeSubTab === 'checkout' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling defaultTab="checkout" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} refreshInventory={triggerRefresh} /></div>}
           </div>
         )}

@@ -28,7 +28,6 @@ function App() {
 
   useEffect(() => { fetchInitialData(); }, []);
 
-  // Live Database Scanner lookup (Replaces massive state array)
   useEffect(() => {
     let scanner = null;
     let isVerifying = false;
@@ -77,7 +76,6 @@ function App() {
         setShopSettings(settingsData[0]);
       }
 
-      // Check Real Backend Session
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         const savedRole = sessionStorage.getItem('posUserRole');
@@ -94,7 +92,6 @@ function App() {
     setUserRole(role);
     sessionStorage.setItem('posUserRole', role);
     if (role === 'owner') navigate('/owner/dashboard');
-    // Changed to default to the newly created dashboard
     else navigate('/terminal/dashboard'); 
   };
 
@@ -128,7 +125,8 @@ function App() {
   const displayUserName = userRole === 'owner' ? (shopSettings?.owner_name || 'Administrator') : (userRole || 'Terminal User');
 
   return (
-    <div className="w-full min-h-screen bg-[#e6e6e6] text-black relative">
+    /* FIX: Switched to flex-col & h-screen to strictly structure the layout and prevent overlapping */
+    <div className="w-full h-screen bg-[#e6e6e6] text-black flex flex-col overflow-hidden">
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap'); * { font-family: 'Roboto', sans-serif !important; }`}</style>
 
       {/* MODALS */}
@@ -196,8 +194,8 @@ function App() {
         </div>
       )}
 
-      {/* NAVBAR */}
-      <nav className="bg-white text-black border-b border-gray-300 px-4 py-2 flex justify-between items-center print:hidden shadow-sm">
+      {/* FIX: flex-shrink-0 and relative z-50 forces the navbar on top and guarantees it won't be squished */}
+      <nav className="flex-shrink-0 relative z-[100] bg-white text-black border-b border-gray-300 px-4 py-2 flex justify-between items-center print:hidden shadow-sm">
         <div className="flex items-center">
           <div className="pr-4 mr-4 border-r border-gray-300">
             <span className="text-sm font-semibold text-black uppercase tracking-wider">{displayUserName}</span>
@@ -206,19 +204,19 @@ function App() {
             <button onClick={() => setIsMobileScannerOpen(true)} className="md:hidden px-3 py-1.5 bg-transparent border border-gray-300 hover:bg-gray-100 text-xs text-black focus:outline-none focus:border-[#0078D7] rounded-none">Scan</button>
             {userRole === 'owner' ? (
               <>
-                <button onClick={() => navigate('/owner/dashboard')} className={`px-4 py-1.5 text-xs focus:outline-none rounded-none ${location.pathname.startsWith('/owner') ? 'bg-[#0078D7] text-white border border-[#0078D7]' : 'bg-transparent border border-transparent hover:bg-gray-100 text-black'}`}>Management</button>
-                <button onClick={() => navigate('/printer')} className={`px-4 py-1.5 text-xs focus:outline-none rounded-none ${location.pathname.startsWith('/printer') ? 'bg-[#0078D7] text-white border border-[#0078D7]' : 'bg-transparent border border-transparent hover:bg-gray-100 text-black'}`}>Barcodes</button>
+                <button onClick={() => navigate('/owner/dashboard')} className={`cursor-pointer px-5 py-2 text-xs font-semibold focus:outline-none rounded-none transition-colors ${location.pathname.startsWith('/owner') ? 'bg-[#0078D7] text-white border border-[#0078D7]' : 'bg-transparent border border-transparent hover:bg-gray-200 text-black'}`}>Management</button>
+                <button onClick={() => navigate('/printer')} className={`cursor-pointer px-5 py-2 text-xs font-semibold focus:outline-none rounded-none transition-colors ${location.pathname.startsWith('/printer') ? 'bg-[#0078D7] text-white border border-[#0078D7]' : 'bg-transparent border border-transparent hover:bg-gray-200 text-black'}`}>Barcodes</button>
               </>
             ) : (
-              // Changed navbar highlighting logic to match terminal view
-              <button onClick={() => navigate('/terminal/dashboard')} className={`px-4 py-1.5 text-xs focus:outline-none rounded-none ${location.pathname.startsWith('/terminal') ? 'bg-[#0078D7] text-white border border-[#0078D7]' : 'bg-transparent border border-transparent hover:bg-gray-100 text-black'}`}>Terminal</button>
+              <button onClick={() => navigate('/terminal/dashboard')} className={`cursor-pointer px-5 py-2 text-xs font-semibold focus:outline-none rounded-none transition-colors ${location.pathname.startsWith('/terminal') ? 'bg-[#0078D7] text-white border border-[#0078D7]' : 'bg-transparent border border-transparent hover:bg-gray-200 text-black'}`}>Terminal</button>
             )}
           </div>
         </div>
-        <button onClick={() => setShowLogoutConfirm(true)} className="px-4 py-1.5 bg-transparent hover:bg-[#e81123] hover:text-white text-xs text-black border border-transparent transition-none rounded-none">Sign Out</button>
+        <button onClick={() => setShowLogoutConfirm(true)} className="px-5 py-2 bg-transparent hover:bg-[#e81123] hover:text-white text-xs font-semibold text-black border border-transparent transition-none rounded-none cursor-pointer">Sign Out</button>
       </nav>
 
-      <main className="p-4 md:p-6 max-w-[1920px] mx-auto h-[calc(100vh-50px)]">
+      {/* FIX: flex-1 forces the main content to fill exactly the space remaining, not 1 pixel more */}
+      <main className="flex-1 w-full max-w-[1920px] mx-auto p-4 md:p-6 overflow-y-auto relative z-0">
         <Routes>
           {userRole === 'owner' && (
             <>
