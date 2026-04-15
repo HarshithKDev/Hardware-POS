@@ -270,14 +270,20 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
         p_action: activeTab === 'receive' ? 'RECEIVE' : activeTab === 'transfer' ? 'TRANSFER' : 'SALE',
         p_location: activeTab === 'receive' ? 'Warehouse-Inbound' : activeTab === 'transfer' ? 'Warehouse-Transfer' : 'Store',
         p_cashier_name: cashierName || 'System',
-        p_items: finalCart.map(i => ({ 
-          barcode: i.barcode, 
-          name: i.name, 
-          quantity: Number(i.quantity), 
-          price: i.customPriceInput !== undefined ? Number(i.customPriceInput) : Number(i.price || 0), 
-          discountPct: Number(i.discountPct || 0), 
-          unit: i.unit 
-        }))
+        p_items: finalCart.map(i => {
+          // FIX: Explicitly check for empty strings and safely extract the exact final selling price.
+          const finalRate = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0);
+          
+          return { 
+            barcode: i.barcode, 
+            name: i.name, 
+            quantity: Number(i.quantity), 
+            price: finalRate, 
+            // FIX: Force discount to 0 to prevent the database from double-discounting the finalRate.
+            discountPct: 0, 
+            unit: i.unit 
+          };
+        })
       };
 
       const { data, error } = await supabase.rpc('process_pos_transaction', payload);
@@ -286,7 +292,7 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
       setLastReceipt({ 
         id: data.bill_id.split('-')[0], 
         items: finalCart.map(i => {
-          const finalRate = i.customPriceInput !== undefined ? Number(i.customPriceInput) : Number(i.price || 0);
+          const finalRate = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0);
           return {
             ...i, 
             quantity: Number(i.quantity), 
@@ -302,7 +308,6 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
       setCart([]); 
       setCheckoutModal({ isOpen: false, cashGiven: '' }); 
 
-      // FIX: Trigger list updates after successful transaction!
       if (refreshInventory) refreshInventory(); 
       if (!hideNav) {
         loadInventory();
