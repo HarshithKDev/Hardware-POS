@@ -106,7 +106,11 @@ function App() {
   if (isInitialLoad) {
     return (
       <div className="w-full min-h-screen bg-[#f3f3f3] flex flex-col items-center justify-center text-black">
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap'); * { font-family: 'Roboto', sans-serif !important; }`}</style>
+        <style>{`
+          #root { padding: 0 !important; max-width: none !important; margin: 0 !important; text-align: left !important; width: 100% !important; height: 100% !important; }
+          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap'); 
+          * { font-family: 'Roboto', sans-serif !important; }
+        `}</style>
         <Spinner className="w-8 h-8 text-[#0078D7] mb-4" />
         <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">Initializing Subsystems</p>
       </div>
@@ -116,7 +120,11 @@ function App() {
   if (isSetupNeeded || !userRole) {
     return (
       <div>
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap'); * { font-family: 'Roboto', sans-serif !important; }`}</style>
+        <style>{`
+          #root { padding: 0 !important; max-width: none !important; margin: 0 !important; text-align: left !important; width: 100% !important; height: 100% !important; }
+          @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap'); 
+          * { font-family: 'Roboto', sans-serif !important; }
+        `}</style>
         <EntryFlow onLoginSuccess={handleLoginSuccess} isSetupNeeded={isSetupNeeded} onSetupComplete={(s) => {setShopSettings(s); setIsSetupNeeded(false);}} shopSettings={shopSettings} />
       </div>
     );
@@ -125,13 +133,16 @@ function App() {
   const displayUserName = userRole === 'owner' ? (shopSettings?.owner_name || 'Administrator') : (userRole || 'Terminal User');
 
   return (
-    /* FIX: Switched to flex-col & h-screen to strictly structure the layout and prevent overlapping */
     <div className="w-full h-screen bg-[#e6e6e6] text-black flex flex-col overflow-hidden">
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap'); * { font-family: 'Roboto', sans-serif !important; }`}</style>
+      <style>{`
+        #root { padding: 0 !important; max-width: none !important; margin: 0 !important; text-align: left !important; width: 100% !important; height: 100% !important; }
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap'); 
+        * { font-family: 'Roboto', sans-serif !important; }
+      `}</style>
 
       {/* MODALS */}
       {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] px-4 print:hidden">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[500] px-4 print:hidden">
           <div className="bg-white border border-gray-400 w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
             <div className="bg-white flex justify-between items-center pr-1 pl-4 py-1 border-b border-gray-200">
               <span className="text-xs font-semibold text-black">Sign Out</span>
@@ -149,7 +160,7 @@ function App() {
       )}
 
       {isMobileScannerOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[110] px-4 print:hidden">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[500] px-4 print:hidden">
           <div className="bg-white w-full max-w-[450px] border border-gray-400 shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
             <div className="bg-white flex justify-between items-center pr-1 pl-4 py-1 border-b border-gray-200">
               <span className="text-xs font-semibold text-black">Mobile Scanner</span>
@@ -167,7 +178,7 @@ function App() {
       )}
 
       {scannedProduct && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[120] px-4 print:hidden">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[500] px-4 print:hidden">
           <div className="bg-white border border-gray-400 w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
             <div className="bg-white flex justify-between items-center pr-1 pl-4 py-1 border-b border-gray-200">
               <span className="text-xs font-semibold text-black">Product Information</span>
@@ -194,28 +205,76 @@ function App() {
         </div>
       )}
 
-      {/* FIX: flex-shrink-0 and relative z-50 forces the navbar on top and guarantees it won't be squished */}
-      <nav className="flex-shrink-0 relative z-[100] bg-white text-black border-b border-gray-300 px-4 py-2 flex justify-between items-center print:hidden shadow-sm">
-        <div className="flex items-center">
-          <div className="pr-4 mr-4 border-r border-gray-300">
-            <span className="text-sm font-semibold text-black uppercase tracking-wider">{displayUserName}</span>
+      {/* BULLETPROOF NAVBAR */}
+      <nav 
+        className="flex-shrink-0 relative w-full bg-white border-b border-gray-300 shadow-sm print:hidden" 
+        style={{ zIndex: 99999, isolation: 'isolate', height: '60px' }}
+      >
+        <div className="flex items-center justify-between h-full px-4 w-full">
+          
+          <div className="flex items-center h-full">
+            {/* 1. STRICTLY CONFINED USERNAME BOX (Fixed 160px width, absolutely no expanding allowed) */}
+            <div className="flex items-center border-r border-gray-300 pr-4 mr-6 h-full" style={{ width: '160px', overflow: 'hidden', pointerEvents: 'none', flexShrink: 0 }}>
+              <span className="text-sm font-bold text-black uppercase tracking-wider truncate w-full block">
+                {displayUserName}
+              </span>
+            </div>
+
+            {/* 2. BUTTONS CONTAINER (Protected by the huge 'mr-6' physical gap) */}
+            <div className="flex items-center gap-4 h-full relative" style={{ zIndex: 99999 }}>
+              <button 
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsMobileScannerOpen(true); }} 
+                className="md:hidden px-4 py-2 bg-transparent border border-gray-300 hover:bg-gray-100 text-xs font-bold text-black focus:outline-none rounded-none"
+                style={{ pointerEvents: 'all', cursor: 'pointer' }}
+              >
+                <span style={{ pointerEvents: 'none' }}>Scan</span>
+              </button>
+
+              {userRole === 'owner' ? (
+                <>
+                  {/* 3. EVENT-PROTECTED BUTTON */}
+                  <button 
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate('/owner/dashboard'); }} 
+                    className={`px-6 py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none rounded-none transition-colors border flex-shrink-0 ${location.pathname.startsWith('/owner') ? 'bg-[#0078D7] text-white border-[#0078D7]' : 'bg-white border-gray-400 hover:bg-gray-200 text-black'}`}
+                    style={{ pointerEvents: 'all', cursor: 'pointer', position: 'relative', zIndex: 99999 }}
+                  >
+                    <span style={{ pointerEvents: 'none' }}>Management</span>
+                  </button>
+
+                  <button 
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate('/printer'); }} 
+                    className={`px-6 py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none rounded-none transition-colors border flex-shrink-0 ${location.pathname.startsWith('/printer') ? 'bg-[#0078D7] text-white border-[#0078D7]' : 'bg-white border-gray-400 hover:bg-gray-200 text-black'}`}
+                    style={{ pointerEvents: 'all', cursor: 'pointer', position: 'relative', zIndex: 99999 }}
+                  >
+                    <span style={{ pointerEvents: 'none' }}>Barcodes</span>
+                  </button>
+                </>
+              ) : (
+                <button 
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate('/terminal/dashboard'); }} 
+                  className={`px-6 py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none rounded-none transition-colors border flex-shrink-0 ${location.pathname.startsWith('/terminal') ? 'bg-[#0078D7] text-white border-[#0078D7]' : 'bg-white border-gray-400 hover:bg-gray-200 text-black'}`}
+                  style={{ pointerEvents: 'all', cursor: 'pointer', position: 'relative', zIndex: 99999 }}
+                >
+                  <span style={{ pointerEvents: 'none' }}>Terminal</span>
+                </button>
+              )}
+            </div>
           </div>
-          <div className="flex gap-1">
-            <button onClick={() => setIsMobileScannerOpen(true)} className="md:hidden px-3 py-1.5 bg-transparent border border-gray-300 hover:bg-gray-100 text-xs text-black focus:outline-none focus:border-[#0078D7] rounded-none">Scan</button>
-            {userRole === 'owner' ? (
-              <>
-                <button onClick={() => navigate('/owner/dashboard')} className={`cursor-pointer px-5 py-2 text-xs font-semibold focus:outline-none rounded-none transition-colors ${location.pathname.startsWith('/owner') ? 'bg-[#0078D7] text-white border border-[#0078D7]' : 'bg-transparent border border-transparent hover:bg-gray-200 text-black'}`}>Management</button>
-                <button onClick={() => navigate('/printer')} className={`cursor-pointer px-5 py-2 text-xs font-semibold focus:outline-none rounded-none transition-colors ${location.pathname.startsWith('/printer') ? 'bg-[#0078D7] text-white border border-[#0078D7]' : 'bg-transparent border border-transparent hover:bg-gray-200 text-black'}`}>Barcodes</button>
-              </>
-            ) : (
-              <button onClick={() => navigate('/terminal/dashboard')} className={`cursor-pointer px-5 py-2 text-xs font-semibold focus:outline-none rounded-none transition-colors ${location.pathname.startsWith('/terminal') ? 'bg-[#0078D7] text-white border border-[#0078D7]' : 'bg-transparent border border-transparent hover:bg-gray-200 text-black'}`}>Terminal</button>
-            )}
+
+          <div className="flex items-center h-full border-l border-gray-300 pl-4 ml-auto">
+            <button 
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowLogoutConfirm(true); }} 
+              className="px-6 py-2 bg-transparent hover:bg-[#e81123] hover:text-white text-xs font-bold uppercase tracking-wider text-black border border-transparent transition-none rounded-none"
+              style={{ pointerEvents: 'all', cursor: 'pointer' }}
+            >
+              <span style={{ pointerEvents: 'none' }}>Sign Out</span>
+            </button>
           </div>
+
         </div>
-        <button onClick={() => setShowLogoutConfirm(true)} className="px-5 py-2 bg-transparent hover:bg-[#e81123] hover:text-white text-xs font-semibold text-black border border-transparent transition-none rounded-none cursor-pointer">Sign Out</button>
       </nav>
 
-      {/* FIX: flex-1 forces the main content to fill exactly the space remaining, not 1 pixel more */}
+      {/* MAIN CONTENT */}
       <main className="flex-1 w-full max-w-[1920px] mx-auto p-4 md:p-6 overflow-y-auto relative z-0">
         <Routes>
           {userRole === 'owner' && (
