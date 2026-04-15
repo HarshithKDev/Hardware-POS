@@ -120,6 +120,12 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
     }
   };
 
+  // FIX: This function will be passed to WorkerBilling so the Parent lists update instantly!
+  const triggerRefresh = () => {
+    loadInventory();
+    fetchDashboardStats();
+  };
+
   useEffect(() => {
     if (activeTab === 'register' || activeTab === 'warehouse' || activeTab === 'store') {
       loadInventory();
@@ -228,7 +234,6 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
     const cleanPin = newWorker.password.trim();
 
     if (!cleanName || !cleanPin) return showAlert("Please provide both an Operator ID and an Auth PIN.", "Validation Error");
-    
     if (cleanPin.length < 6) return showAlert("For security purposes, the Auth PIN must be at least 6 characters long.", "Security Requirement");
 
     try {
@@ -246,7 +251,6 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
       
       if (authError) throw new Error(getFriendlyErrorMessage(authError.message));
 
-      // FIX: Passing a dummy string to bypass the old Postgres Not-Null constraint
       const { error: dbError } = await supabase.from('workers').insert([{ 
         name: cleanName,
         password: 'SECURED_IN_AUTH' 
@@ -273,7 +277,9 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
   const handleAddItem = async (e) => {
     e.preventDefault(); 
     if (!newItem.name || !newItem.price || !newItem.cost_price || !newItem.msp) return showAlert("Fill all mandatory fields.", "Validation Error");
+    
     if (Number(newItem.cost_price) < 0 || Number(newItem.price) < 0 || Number(newItem.msp) < 0) return showAlert("Values cannot be negative.", "Validation Error");
+    if (Number(newItem.msp) < Number(newItem.cost_price)) return showAlert("MSP cannot be lower than Cost Price.", "Validation Error");
     if (Number(newItem.msp) > Number(newItem.price)) return showAlert("MSP cannot be greater than MRP.", "Validation Error");
 
     try {
@@ -313,7 +319,7 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
       if (!success) throw new Error("System traffic is extremely high. Try again.");
       
       setNewItem({ name: '', cost_price: '', msp: '', price: '', unit: 'PCS' }); 
-      loadInventory(); 
+      triggerRefresh(); 
       showAlert(`Record committed. Assigned SKU: ${safeBarcode}`, "Success");
     } catch (e) { 
        showAlert(e.message || "Error creating record.", "System Error"); 
@@ -324,6 +330,7 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
 
   const handleSaveEdit = async () => {
     if (Number(editFormData.cost_price) < 0 || Number(editFormData.price) < 0 || Number(editFormData.msp) < 0) return showAlert("Values cannot be negative.", "Validation Error");
+    if (Number(editFormData.msp) < Number(editFormData.cost_price)) return showAlert("MSP cannot be lower than Cost Price.", "Validation Error");
     if (Number(editFormData.msp) > Number(editFormData.price)) return showAlert("MSP cannot be greater than MRP.", "Validation Error");
     
     try {
@@ -337,13 +344,13 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
         unit: editFormData.unit 
       }).eq('barcode', editingBarcode);
       if (error) throw error;
-      setEditingBarcode(null); loadInventory(); 
+      setEditingBarcode(null); triggerRefresh(); 
     } catch (e) { showAlert(e.message || "Error updating record.", "System Error"); }
   };
 
   const handleDeleteClick = (barcode) => {
     showConfirm("Archive this record? It will be removed from active views.", async () => {
-      await supabase.from('inventory').update({ is_active: false }).eq('barcode', barcode); loadInventory();
+      await supabase.from('inventory').update({ is_active: false }).eq('barcode', barcode); triggerRefresh();
     });
   };
 
@@ -571,8 +578,9 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
                 </div>
               </div>
             )}
-            {warehouseSubTab === 'receive' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling defaultTab="receive" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
-            {warehouseSubTab === 'transfer' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling defaultTab="transfer" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
+            {/* FIX: Passed triggerRefresh to ensure parent lists update instantly */}
+            {warehouseSubTab === 'receive' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling defaultTab="receive" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} refreshInventory={triggerRefresh} /></div>}
+            {warehouseSubTab === 'transfer' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling defaultTab="transfer" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} refreshInventory={triggerRefresh} /></div>}
           </div>
         )}
 
@@ -629,7 +637,8 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
                 </div>
               </div>
             )}
-            {storeSubTab === 'checkout' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling defaultTab="checkout" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
+            {/* FIX: Passed triggerRefresh to ensure parent lists update instantly */}
+            {storeSubTab === 'checkout' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling defaultTab="checkout" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} refreshInventory={triggerRefresh} /></div>}
           </div>
         )}
 

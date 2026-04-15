@@ -3,12 +3,11 @@ import { supabase } from './supabaseClient';
 import { Spinner } from './App'; 
 import { useParams, useNavigate } from 'react-router-dom';
 
-export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = false, shopSettings, cashierName }) {
+export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = false, shopSettings, cashierName, refreshInventory }) {
   const { tab } = useParams();
   const activeTab = hideNav ? defaultTab : (tab || 'dashboard');
   const navigate = useNavigate();
   
-  // Terminal Cart State
   const [cart, setCart] = useState(() => {
     try {
       const saved = localStorage.getItem(`pos_cart_${activeTab}`);
@@ -27,15 +26,19 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
   const INV_PER_PAGE = 50;
   const [lowStockCounts, setLowStockCounts] = useState({ store: 0, warehouse: 0 });
 
-  const [barcode, setBarcode] = useState('');
+  const [manualBarcode, setManualBarcode] = useState('');
   const [isCheckingOut, setIsCheckingOut] = useState(false); 
   const [lastReceipt, setLastReceipt] = useState(null);
   const [alertConfig, setAlertConfig] = useState({ isOpen: false, message: '', title: 'System Notice' });
   const [checkoutModal, setCheckoutModal] = useState({ isOpen: false, cashGiven: '' });
   const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, message: '', title: 'Action Required', onConfirm: null });
-  const scannerInputRef = useRef(null); 
 
-  // Securely query low stock totals for the operator cards
+  const barcodeBuffer = useRef('');
+  const lastKeyTime = useRef(Date.now());
+  const cartRef = useRef(cart);
+
+  useEffect(() => { cartRef.current = cart; }, [cart]);
+
   const fetchLowStockCounts = async () => {
     try {
       const { count: storeCount } = await supabase.from('inventory').select('*', { count: 'exact', head: true }).eq('is_active', true).lt('stock_store', 10);
@@ -44,7 +47,6 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
     } catch (err) { console.error(err); }
   };
 
-  // Server-side paginated inventory load for the operator
   const loadInventory = async () => {
     const from = invPage * INV_PER_PAGE;
     const to = from + INV_PER_PAGE - 1;
@@ -76,11 +78,8 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
 
   useEffect(() => {
     if (activeTab !== 'dashboard') {
-      try {
-        localStorage.setItem(`pos_cart_${activeTab}`, JSON.stringify(cart));
-      } catch (e) {
-        console.error("Failed to save terminal state", e);
-      }
+      try { localStorage.setItem(`pos_cart_${activeTab}`, JSON.stringify(cart)); } 
+      catch (e) { console.error("Failed to save terminal state", e); }
     }
   }, [cart, activeTab]);
 
@@ -90,12 +89,9 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
         try {
           const newCartData = e.newValue ? JSON.parse(e.newValue) : [];
           setCart(newCartData);
-        } catch (err) {
-          console.error("Storage sync failed", err);
-        }
+        } catch (err) { console.error("Storage sync failed", err); }
       }
     };
-
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, [activeTab]);
@@ -107,51 +103,37 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
       try {
         const saved = localStorage.getItem(`pos_cart_${newTab}`);
         setCart(saved ? JSON.parse(saved) : []);
-      } catch (e) {
-        setCart([]);
-      }
+      } catch (e) { setCart([]); }
     }
   };
 
   const showAlert = (message, title = 'System Notice') => setAlertConfig({ isOpen: true, message, title });
-  const closeAlert = () => { setAlertConfig({ ...alertConfig, isOpen: false }); setTimeout(() => { if(activeTab !== 'dashboard') scannerInputRef.current?.focus(); }, 50); };
+  const closeAlert = () => setAlertConfig({ ...alertConfig, isOpen: false });
   const showConfirm = (message, onConfirmCallback, title = 'Action Required') => setConfirmConfig({ isOpen: true, message, title, onConfirm: onConfirmCallback });
 
-  // Prevent scanner refocus on dashboard
-  useEffect(() => { 
-    if (!alertConfig.isOpen && !checkoutModal.isOpen && !confirmConfig.isOpen && activeTab !== 'dashboard') {
-      scannerInputRef.current?.focus(); 
-    }
-  }, [alertConfig.isOpen, checkoutModal.isOpen, confirmConfig.isOpen, activeTab]); 
-  
-  const handleBackgroundClick = (e) => { 
-    if (!alertConfig.isOpen && !checkoutModal.isOpen && !confirmConfig.isOpen && activeTab !== 'dashboard' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON' && e.target.tagName !== 'SELECT') {
-      scannerInputRef.current?.focus(); 
-    }
-  };
-
-  const handleScan = async (e) => {
-    e.preventDefault(); 
-    if (activeTab === 'dashboard') return;
-
-    const cleanBarcode = barcode.trim(); 
-    setBarcode(''); 
+  const processScan = async (scannedCode) => {
+    const cleanBarcode = scannedCode.trim(); 
     if (!cleanBarcode) return;
 
-    let item = cart.find(i => i.barcode === cleanBarcode);
+    let item = cartRef.current.find(i => i.barcode === cleanBarcode);
     
     if (!item) {
-      const { data } = await supabase.from('inventory')
+      const { data, error } = await supabase.from('inventory')
         .select('*')
         .eq('barcode', cleanBarcode)
         .eq('is_active', true)
         .single();
-      if (data) item = data;
+        
+      if (error || !data) {
+        showAlert(`SKU code ${cleanBarcode} not found in catalog.`, "Validation Error");
+        return;
+      }
+      item = data;
     }
 
     if (item) {
       if (activeTab === 'checkout') {
-        const currentCartItem = cart.find(c => c.barcode === cleanBarcode);
+        const currentCartItem = cartRef.current.find(c => c.barcode === cleanBarcode);
         const currentQty = currentCartItem ? (Number(currentCartItem.quantity) || 0) : 0;
         const availableStock = Number(item.stock_store || 0);
 
@@ -174,11 +156,40 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
         }
         return [...prev, { ...item, id: Date.now(), customPriceInput: Number(item.price || 0).toFixed(2), discountPct: 0, quantity: 1, unit: item.unit || 'PCS' }];
       });
-      setTimeout(() => scannerInputRef.current?.focus(), 10);
-    } else {
-      showAlert(`SKU code ${cleanBarcode} not found in catalog.`, "Validation Error");
     }
   };
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if (activeTab === 'dashboard') return;
+      if (alertConfig.isOpen || checkoutModal.isOpen || confirmConfig.isOpen) return;
+
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+         return;
+      }
+
+      const currentTime = Date.now();
+
+      if (currentTime - lastKeyTime.current > 200) {
+         barcodeBuffer.current = '';
+      }
+
+      lastKeyTime.current = currentTime;
+
+      if (e.key === 'Enter') {
+        if (barcodeBuffer.current.length > 0) {
+          e.preventDefault();
+          processScan(barcodeBuffer.current);
+          barcodeBuffer.current = '';
+        }
+      } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        barcodeBuffer.current += e.key;
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [activeTab, alertConfig.isOpen, checkoutModal.isOpen, confirmConfig.isOpen]); 
 
   const updateQuantity = (id, val) => {
     setCart(prev => {
@@ -198,9 +209,7 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
         return i;
       }).filter(i => i.quantity !== 0);
 
-      if (limitMsg) {
-        setTimeout(() => showAlert(limitMsg, "Stock Limit"), 0);
-      }
+      if (limitMsg) setTimeout(() => showAlert(limitMsg, "Stock Limit"), 0);
       return newCart;
     });
   };
@@ -292,6 +301,13 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
 
       setCart([]); 
       setCheckoutModal({ isOpen: false, cashGiven: '' }); 
+
+      // FIX: Trigger list updates after successful transaction!
+      if (refreshInventory) refreshInventory(); 
+      if (!hideNav) {
+        loadInventory();
+        fetchLowStockCounts();
+      }
 
       if (activeTab === 'checkout') {
         setTimeout(() => { window.print(); }, 100);
@@ -401,7 +417,7 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
       )}
 
       {/* MAIN INTERFACE */}
-      <div className="flex flex-col h-full w-full print:hidden font-sans" onClick={handleBackgroundClick}>
+      <div className="flex flex-col h-full w-full print:hidden font-sans">
         
         {!hideNav && (
           <div className="flex gap-1 mb-6 border-b border-gray-300 pb-0 overflow-x-auto whitespace-nowrap overflow-y-hidden">
@@ -474,15 +490,26 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
           // SCANNER & BILLING UI BLOCK
           <div className="flex flex-col flex-1 border border-gray-400 bg-white min-h-[500px] rounded-none">
             
-            <div className={`p-4 border-b border-gray-400 flex flex-col md:flex-row justify-between md:items-center gap-4 ${activeTab === 'receive' ? 'bg-[#f4fbf5]' : activeTab === 'transfer' ? 'bg-[#fffaf0]' : 'bg-[#f9f9f9]'}`}>
-              <div>
+            <div className={`p-4 border-b border-gray-400 flex flex-col md:flex-row justify-between gap-4 ${activeTab === 'receive' ? 'bg-[#f4fbf5]' : activeTab === 'transfer' ? 'bg-[#fffaf0]' : 'bg-[#f9f9f9]'}`}>
+              <div className="flex flex-col">
                 <h2 className="text-2xl font-light text-black">
                   {activeTab === 'receive' && 'Inbound Stock Entry'}
                   {activeTab === 'transfer' && 'Internal Inventory Relocation'}
                   {activeTab === 'checkout' && 'Point of Sale Terminal'}
                 </h2>
+                {/* Fallback Manual Entry Bar */}
+                <form onSubmit={(e) => { e.preventDefault(); processScan(manualBarcode); setManualBarcode(''); }} className="mt-3 flex items-center">
+                  <input 
+                     type="text" 
+                     value={manualBarcode} 
+                     onChange={(e) => setManualBarcode(e.target.value)} 
+                     placeholder="Manual SKU Entry..." 
+                     className="border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:border-[#0078D7] rounded-none w-full md:w-64"
+                  />
+                  <button type="submit" className="bg-[#e6e6e6] px-4 py-1.5 text-sm font-semibold border border-l-0 border-gray-400 hover:bg-[#cccccc] rounded-none focus:outline-none focus:border-[#0078D7]">Add</button>
+                </form>
               </div>
-              <div className="text-left md:text-right border-t border-gray-300 pt-2 md:border-0 md:pt-0">
+              <div className="text-left md:text-right border-t border-gray-300 pt-2 md:border-0 md:pt-0 flex flex-col justify-end">
                 <span className="text-xs uppercase font-semibold text-gray-500 tracking-wider block mb-1">
                   {activeTab === 'checkout' ? 'Gross Total' : 'Total Units'}
                 </span>
@@ -492,20 +519,16 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
               </div>
             </div>
 
-            <form onSubmit={handleScan} className="opacity-0 h-0 w-0 overflow-hidden absolute">
-              <input ref={scannerInputRef} type="text" value={barcode} onChange={(e) => setBarcode(e.target.value)} autoFocus />
-              <button type="submit">Scan</button>
-            </form>
-
             {/* DESKTOP TABLE */}
             <div className="hidden md:block flex-1 overflow-y-auto bg-white rounded-none">
               {cart.length === 0 ? (
-                <div className="h-full flex items-center justify-center min-h-[300px]">
-                  <p className="text-sm font-semibold uppercase tracking-widest text-gray-500">System Ready. Awaiting Scanner Input.</p>
+                <div className="h-full flex flex-col items-center justify-center min-h-[300px]">
+                  <p className="text-sm font-semibold uppercase tracking-widest text-gray-500 mb-2">System Ready</p>
+                  <p className="text-xs text-gray-400">Scan items anytime or enter SKU manually above</p>
                 </div>
               ) : (
                 <table className="w-full text-left border-collapse">
-                  <thead className="bg-[#f3f3f3] sticky top-0 border-b border-gray-400">
+                  <thead className="bg-[#f3f3f3] sticky top-0 border-b border-gray-400 z-10">
                     <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
                       <th className="p-3 border-r border-gray-300 w-1/3">Nomenclature</th>
                       <th className={`p-3 text-center w-40 ${activeTab === 'checkout' ? 'border-r border-gray-300' : ''}`}>Quantity</th>
