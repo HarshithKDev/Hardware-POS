@@ -205,77 +205,66 @@ function App() {
         </div>
       )}
 
-      {/* BULLETPROOF NAVBAR */}
-      <nav 
-        className="flex-shrink-0 relative w-full bg-white border-b border-gray-300 shadow-sm print:hidden" 
-        style={{ zIndex: 99999, isolation: 'isolate', height: '60px' }}
-      >
-        <div className="flex items-center justify-between h-full px-4 w-full">
-          
-          <div className="flex items-center h-full">
-            {/* 1. STRICTLY CONFINED USERNAME BOX (Fixed 160px width, absolutely no expanding allowed) */}
-            <div className="flex items-center border-r border-gray-300 pr-4 mr-6 h-full" style={{ width: '160px', overflow: 'hidden', pointerEvents: 'none', flexShrink: 0 }}>
-              <span className="text-sm font-bold text-black uppercase tracking-wider truncate w-full block">
-                {displayUserName}
-              </span>
-            </div>
+      {/* REBUILT NAVBAR: Split into Left and Right sections to guarantee zero overlap */}
+      <nav className="w-full bg-white border-b border-gray-300 shadow-sm h-[60px] flex items-center justify-between px-4 flex-shrink-0 relative z-[9999]">
+        
+        {/* LEFT ALIGNED: Username Box */}
+        <div className="h-full flex items-center border-r border-gray-300 pr-4 w-[200px] flex-shrink-0">
+          <span className="text-sm font-bold text-black uppercase tracking-wider truncate w-full block">
+            {displayUserName}
+          </span>
+        </div>
 
-            {/* 2. BUTTONS CONTAINER (Protected by the huge 'mr-6' physical gap) */}
-            <div className="flex items-center gap-4 h-full relative" style={{ zIndex: 99999 }}>
+        {/* RIGHT ALIGNED: Action Buttons */}
+        <div className="flex-1 flex items-center justify-end gap-3 h-full pl-4 overflow-x-auto">
+          
+          <button 
+            onClick={() => setIsMobileScannerOpen(true)} 
+            className="md:hidden px-4 py-2 bg-white border border-gray-400 hover:bg-gray-200 text-xs font-bold uppercase text-black focus:outline-none rounded-none"
+          >
+            Scan
+          </button>
+
+          {userRole === 'owner' ? (
+            <>
               <button 
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsMobileScannerOpen(true); }} 
-                className="md:hidden px-4 py-2 bg-transparent border border-gray-300 hover:bg-gray-100 text-xs font-bold text-black focus:outline-none rounded-none"
-                style={{ pointerEvents: 'all', cursor: 'pointer' }}
+                onClick={() => navigate('/owner/dashboard')} 
+                className={`px-6 py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none rounded-none transition-colors border ${location.pathname.startsWith('/owner') ? 'bg-[#0078D7] text-white border-[#0078D7]' : 'bg-white border-gray-400 hover:bg-gray-200 text-black'}`}
               >
-                <span style={{ pointerEvents: 'none' }}>Scan</span>
+                Management
               </button>
 
-              {userRole === 'owner' ? (
-                <>
-                  {/* 3. EVENT-PROTECTED BUTTON */}
-                  <button 
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate('/owner/dashboard'); }} 
-                    className={`px-6 py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none rounded-none transition-colors border flex-shrink-0 ${location.pathname.startsWith('/owner') ? 'bg-[#0078D7] text-white border-[#0078D7]' : 'bg-white border-gray-400 hover:bg-gray-200 text-black'}`}
-                    style={{ pointerEvents: 'all', cursor: 'pointer', position: 'relative', zIndex: 99999 }}
-                  >
-                    <span style={{ pointerEvents: 'none' }}>Management</span>
-                  </button>
-
-                  <button 
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate('/printer'); }} 
-                    className={`px-6 py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none rounded-none transition-colors border flex-shrink-0 ${location.pathname.startsWith('/printer') ? 'bg-[#0078D7] text-white border-[#0078D7]' : 'bg-white border-gray-400 hover:bg-gray-200 text-black'}`}
-                    style={{ pointerEvents: 'all', cursor: 'pointer', position: 'relative', zIndex: 99999 }}
-                  >
-                    <span style={{ pointerEvents: 'none' }}>Barcodes</span>
-                  </button>
-                </>
-              ) : (
-                <button 
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate('/terminal/dashboard'); }} 
-                  className={`px-6 py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none rounded-none transition-colors border flex-shrink-0 ${location.pathname.startsWith('/terminal') ? 'bg-[#0078D7] text-white border-[#0078D7]' : 'bg-white border-gray-400 hover:bg-gray-200 text-black'}`}
-                  style={{ pointerEvents: 'all', cursor: 'pointer', position: 'relative', zIndex: 99999 }}
-                >
-                  <span style={{ pointerEvents: 'none' }}>Terminal</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center h-full border-l border-gray-300 pl-4 ml-auto">
+              <button 
+                onClick={() => navigate('/printer')} 
+                className={`px-6 py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none rounded-none transition-colors border ${location.pathname.startsWith('/printer') ? 'bg-[#0078D7] text-white border-[#0078D7]' : 'bg-white border-gray-400 hover:bg-gray-200 text-black'}`}
+              >
+                Barcodes
+              </button>
+            </>
+          ) : (
             <button 
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowLogoutConfirm(true); }} 
-              className="px-6 py-2 bg-transparent hover:bg-[#e81123] hover:text-white text-xs font-bold uppercase tracking-wider text-black border border-transparent transition-none rounded-none"
-              style={{ pointerEvents: 'all', cursor: 'pointer' }}
+              onClick={() => navigate('/terminal/dashboard')} 
+              className={`px-6 py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none rounded-none transition-colors border ${location.pathname.startsWith('/terminal') ? 'bg-[#0078D7] text-white border-[#0078D7]' : 'bg-white border-gray-400 hover:bg-gray-200 text-black'}`}
             >
-              <span style={{ pointerEvents: 'none' }}>Sign Out</span>
+              Terminal
             </button>
-          </div>
+          )}
+
+          {/* Vertical Divider Line */}
+          <div className="h-8 w-px bg-gray-300 mx-1"></div>
+
+          <button 
+            onClick={() => setShowLogoutConfirm(true)} 
+            className="px-6 py-2.5 bg-white hover:bg-[#e81123] hover:text-white hover:border-[#e81123] text-xs font-bold uppercase tracking-wider text-black border border-gray-400 transition-colors rounded-none"
+          >
+            Sign Out
+          </button>
 
         </div>
       </nav>
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 w-full max-w-[1920px] mx-auto p-4 md:p-6 overflow-y-auto relative z-0">
+      <main className="flex-1 w-full max-w-[1920px] mx-auto p-4 md:p-6 overflow-y-auto relative z-10">
         <Routes>
           {userRole === 'owner' && (
             <>
