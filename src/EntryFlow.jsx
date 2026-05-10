@@ -85,7 +85,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
     const targetId = role === 'owner' ? 'owner' : operatorId.trim();
 
     if (role === 'worker' && !targetId) {
-        setError('Please enter your Operator ID.');
+        setError('Please enter your Staff Username.');
         setIsAuthenticating(false);
         return;
     }
@@ -99,9 +99,8 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
       });
       
       if (authError) {
-        setError('Incorrect Credentials. Access denied.');
+        setError('Incorrect Password or Username. Access denied.');
       } else {
-        // Pass the operatorId so the terminal knows who is logged in
         onLoginSuccess(targetId, data.session.access_token);
       }
     } finally { setIsAuthenticating(false); }
@@ -146,8 +145,8 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
         {step === 1 && (
           <div className="mb-2 min-h-[150px] flex flex-col justify-center">
              <div className="space-y-4">
-               <button onClick={() => handleRoleSelect('worker')} className="w-full py-4 bg-[#f3f3f3] hover:bg-[#e6e6e6] text-black border border-gray-400 text-lg transition-colors rounded-none text-center font-medium">Terminal Operator</button>
-               <button onClick={() => handleRoleSelect('owner')} className="w-full py-4 bg-[#1e1e1e] hover:bg-[#333333] text-white border border-gray-600 text-lg transition-colors rounded-none text-center font-medium">System Administrator</button>
+               <button onClick={() => handleRoleSelect('worker')} className="w-full py-4 bg-[#f3f3f3] hover:bg-[#e6e6e6] text-black border border-gray-400 text-lg transition-colors rounded-none text-center font-medium">Staff Login</button>
+               <button onClick={() => handleRoleSelect('owner')} className="w-full py-4 bg-[#1e1e1e] hover:bg-[#333333] text-white border border-gray-600 text-lg transition-colors rounded-none text-center font-medium">Owner Login</button>
              </div>
           </div>
         )}
@@ -155,16 +154,16 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
         {step === 2 && (
           <div>
             <button onClick={() => { setStep(1); setError(''); setPassword(''); setOperatorId(''); }} className="text-sm text-[#0078D7] hover:underline mb-4 flex items-center">← Back</button>
-            <h2 className="text-2xl font-light text-black mb-2">Terminal Access</h2>
-            <p className="text-gray-600 mb-6 text-sm">{role === 'owner' ? 'Admin Verification' : 'Operator Verification'}</p>
+            <h2 className="text-2xl font-light text-black mb-2">Welcome Back</h2>
+            <p className="text-gray-600 mb-6 text-sm">{role === 'owner' ? 'Enter Owner Password' : 'Enter Staff Details'}</p>
             <form onSubmit={handleLogin} className="space-y-4">
               {role === 'worker' && (
                 <div>
-                  <input type="text" value={operatorId} onChange={(e) => setOperatorId(e.target.value)} placeholder="Operator ID" className="w-full px-3 py-3 border border-gray-400 focus:outline-none focus:border-[#0078D7] focus:ring-1 focus:ring-[#0078D7] text-lg rounded-none" autoFocus />
+                  <input type="text" value={operatorId} onChange={(e) => setOperatorId(e.target.value)} placeholder="Staff Username" className="w-full px-3 py-3 border border-gray-400 focus:outline-none focus:border-[#0078D7] focus:ring-1 focus:ring-[#0078D7] text-lg rounded-none" autoFocus />
                 </div>
               )}
               <div className="relative">
-                <input type={showLoginPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={role === 'owner' ? "Admin Password" : "Auth PIN"} className="w-full px-3 py-3 pr-10 border border-gray-400 focus:outline-none focus:border-[#0078D7] focus:ring-1 focus:ring-[#0078D7] text-lg rounded-none" autoFocus={role === 'owner'} />
+                <input type={showLoginPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={role === 'owner' ? "Owner Password" : "Login PIN"} className="w-full px-3 py-3 pr-10 border border-gray-400 focus:outline-none focus:border-[#0078D7] focus:ring-1 focus:ring-[#0078D7] text-lg rounded-none" autoFocus={role === 'owner'} />
                 <button type="button" onClick={() => setShowLoginPassword(!showLoginPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-[#0078D7] focus:outline-none" tabIndex="-1">
                   {showLoginPassword ? <EyeSlashIcon /> : <EyeIcon />}
                 </button>

@@ -24,15 +24,15 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
     let item = cartRef.current.find(i => i.barcode === cleanBarcode);
     if (!item) {
       const { data, error } = await supabase.from('inventory').select('*').eq('barcode', cleanBarcode).eq('is_active', true).single();
-      if (error || !data) return showAlert(`SKU code ${cleanBarcode} not found in catalog.`, "Validation Error");
+      if (error || !data) return showAlert(`Barcode ${cleanBarcode} not found in the system.`, "Error");
       item = data;
     }
     if (item) {
       if (activeTab === 'checkout') {
         const currentCartItem = cartRef.current.find(c => c.barcode === cleanBarcode);
         const currentQty = currentCartItem ? (Number(currentCartItem.quantity) || 0) : 0;
-        if (Number(item.stock_store || 0) <= 0) return showAlert(`No stock remaining for ${item.name} in the store.`, "Out of Stock");
-        if (currentQty >= Number(item.stock_store || 0)) return showAlert(`Cannot exceed available store stock (${item.stock_store}) for ${item.name}.`, "Stock Limit Reached");
+        if (Number(item.stock_store || 0) <= 0) return showAlert(`${item.name} is out of stock in the store.`, "Out of Stock");
+        if (currentQty >= Number(item.stock_store || 0)) return showAlert(`You only have ${item.stock_store} of ${item.name} in the store.`, "Stock Limit");
       }
       setCart(prev => {
         const idx = prev.findIndex(c => c.barcode === cleanBarcode);
@@ -64,7 +64,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
           let newQty = val === '' ? '' : Math.max(0, Number(val));
           if (activeTab === 'checkout' && val !== '') {
             const maxStock = Number(i.stock_store || 0);
-            if (newQty > maxStock) { limitMsg = `Cannot exceed available store stock (${maxStock}) for ${i.name}.`; newQty = maxStock; }
+            if (newQty > maxStock) { limitMsg = `You only have ${maxStock} of ${i.name} in the store.`; newQty = maxStock; }
           }
           return { ...i, quantity: newQty };
         }
@@ -102,7 +102,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
       setLastReceipt({ id: data.bill_id.split('-')[0], items: finalCart.map(i => { const finalRate = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0); return { ...i, quantity: Number(i.quantity), finalRate, mrp: Number(i.price || 0), lineTotal: finalRate * Number(i.quantity) }; }), total: calculateTotal(), date: new Date(), type: activeTab });
       setCart([]); setCheckoutModal({ isOpen: false, cashGiven: '' });
       if (refreshInventory) refreshInventory();
-      if (activeTab === 'checkout') setTimeout(() => { window.print(); }, 100); else showAlert("Inventory operation committed successfully.", "Success");
+      if (activeTab === 'checkout') setTimeout(() => { window.print(); }, 100); else showAlert("Stock updated successfully.", "Success");
     } catch (e) { showAlert(e.message, "System Error"); } finally { setIsCheckingOut(false); }
   };
 
@@ -117,16 +117,16 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] print:hidden px-4">
           <div className="bg-white border-2 border-[#0078D7] w-[450px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
             <div className="bg-[#0078D7] flex justify-between items-center pr-1 pl-4 py-1 border-b border-[#005a9e]">
-              <span className="text-xs font-semibold uppercase tracking-wider text-white">Payment Terminal</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-white">Checkout Payment</span>
               <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} className="text-white hover:bg-[#e81123] px-3 py-1.5 leading-none transition-none focus:outline-none rounded-none">✕</button>
             </div>
             <div className="p-6 bg-white">
-              <div className="flex justify-between items-end mb-6 pb-4 border-b border-gray-300"><span className="text-xs font-bold uppercase tracking-wider text-gray-500">Gross Due</span><span className="text-4xl font-light text-black">₹{cartTotal.toFixed(2)}</span></div>
-              <div className="mb-6"><label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">Tender Amount (₹)</label><input type="number" step="any" autoFocus value={checkoutModal.cashGiven} onChange={(e) => setCheckoutModal({ ...checkoutModal, cashGiven: e.target.value })} placeholder="0.00" className="w-full px-4 py-3 border-2 border-gray-300 bg-white text-2xl font-mono rounded-none focus:outline-none focus:border-[#0078D7]" /></div>
-              {cashGivenCents > 0 && (<div className={`p-4 border ${!isShortfall ? 'bg-[#e6f4ea] border-[#107c10]' : 'bg-[#fde7e9] border-[#e81123]'}`}><div className="flex justify-between items-center"><span className="text-xs font-bold uppercase tracking-wider text-black">{!isShortfall ? 'Change Due' : 'Shortfall'}</span><span className="text-2xl font-light text-black">₹{(differenceCents / 100).toFixed(2)}</span></div></div>)}
+              <div className="flex justify-between items-end mb-6 pb-4 border-b border-gray-300"><span className="text-xs font-bold uppercase tracking-wider text-gray-500">Total Due</span><span className="text-4xl font-light text-black">₹{cartTotal.toFixed(2)}</span></div>
+              <div className="mb-6"><label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">Cash Given (₹)</label><input type="number" step="any" autoFocus value={checkoutModal.cashGiven} onChange={(e) => setCheckoutModal({ ...checkoutModal, cashGiven: e.target.value })} placeholder="0.00" className="w-full px-4 py-3 border-2 border-gray-300 bg-white text-2xl font-mono rounded-none focus:outline-none focus:border-[#0078D7]" /></div>
+              {cashGivenCents > 0 && (<div className={`p-4 border ${!isShortfall ? 'bg-[#e6f4ea] border-[#107c10]' : 'bg-[#fde7e9] border-[#e81123]'}`}><div className="flex justify-between items-center"><span className="text-xs font-bold uppercase tracking-wider text-black">{!isShortfall ? 'Give Change' : 'Missing Amount'}</span><span className="text-2xl font-light text-black">₹{(differenceCents / 100).toFixed(2)}</span></div></div>)}
             </div>
             <div className="p-4 bg-[#f3f3f3] border-t border-gray-300 flex justify-end gap-2">
-              <button onClick={handleCompleteTransaction} disabled={isCheckingOut || isShortfall} className="px-8 py-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-semibold rounded-none border border-transparent focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-50 flex justify-center items-center min-w-[120px]">{isCheckingOut ? <Spinner className="w-4 h-4 text-white" /> : 'Execute'}</button>
+              <button onClick={handleCompleteTransaction} disabled={isCheckingOut || isShortfall} className="px-8 py-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-semibold rounded-none border border-transparent focus:outline-none focus:ring-1 focus:ring-black disabled:opacity-50 flex justify-center items-center min-w-[120px]">{isCheckingOut ? <Spinner className="w-4 h-4 text-white" /> : 'Complete Sale'}</button>
               <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} disabled={isCheckingOut} className="px-8 py-2 bg-[#e6e6e6] hover:bg-[#cccccc] text-black border border-gray-400 text-sm font-semibold rounded-none disabled:opacity-50 focus:outline-none focus:border-[#0078D7]">Cancel</button>
             </div>
           </div>
@@ -136,27 +136,27 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
       <div className="flex flex-col flex-1 border border-gray-400 bg-white min-h-[500px] rounded-none">
         <div className={`p-4 border-b border-gray-400 flex flex-col md:flex-row justify-between gap-4 ${activeTab === 'receive' ? 'bg-[#f4fbf5]' : activeTab === 'transfer' ? 'bg-[#fffaf0]' : 'bg-[#f9f9f9]'}`}>
           <div className="flex flex-col">
-            <h2 className="text-2xl font-light text-black">{activeTab === 'receive' ? 'Inbound Stock Entry' : activeTab === 'transfer' ? 'Internal Inventory Relocation' : 'Point of Sale Terminal'}</h2>
+            <h2 className="text-2xl font-light text-black">{activeTab === 'receive' ? 'Receive New Stock' : activeTab === 'transfer' ? 'Move Stock to Store' : 'Checkout Counter'}</h2>
             <form onSubmit={(e) => { e.preventDefault(); processScan(manualBarcode); setManualBarcode(''); }} className="mt-3 flex items-center">
-              <input type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} placeholder="Manual SKU Entry..." className="border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:border-[#0078D7] rounded-none w-full md:w-64" />
+              <input type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} placeholder="Enter Barcode manually..." className="border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:border-[#0078D7] rounded-none w-full md:w-64" />
               <button type="submit" className="bg-[#e6e6e6] px-4 py-1.5 text-sm font-semibold border border-l-0 border-gray-400 hover:bg-[#cccccc] rounded-none focus:outline-none focus:border-[#0078D7]">Add</button>
             </form>
           </div>
           <div className="text-left md:text-right border-t border-gray-300 pt-2 md:border-0 md:pt-0 flex flex-col justify-end">
-            <span className="text-xs uppercase font-semibold text-gray-500 tracking-wider block mb-1">{activeTab === 'checkout' ? 'Gross Total' : 'Total Units'}</span>
+            <span className="text-xs uppercase font-semibold text-gray-500 tracking-wider block mb-1">{activeTab === 'checkout' ? 'Total Price' : 'Total Units'}</span>
             <span className="text-4xl font-light text-[#0078D7]">{activeTab === 'checkout' ? `₹${cartTotal.toFixed(2)}` : cartUnits}</span>
           </div>
         </div>
 
         <div className="hidden md:block flex-1 overflow-y-auto bg-white rounded-none">
           {cart.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center min-h-[300px]"><p className="text-sm font-semibold uppercase tracking-widest text-gray-500 mb-2">System Ready</p><p className="text-xs text-gray-400">Scan items anytime or enter SKU manually above</p></div>
+            <div className="h-full flex flex-col items-center justify-center min-h-[300px]"><p className="text-sm font-semibold uppercase tracking-widest text-gray-500 mb-2">Ready</p><p className="text-xs text-gray-400">Scan items anytime or type the barcode above</p></div>
           ) : (
             <table className="w-full text-left border-collapse">
               <thead className="bg-[#f3f3f3] sticky top-0 border-b border-gray-400 z-10">
                 <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
-                  <th className="p-3 border-r border-gray-300 w-1/3">Nomenclature</th><th className={`p-3 text-center w-40 ${activeTab === 'checkout' ? 'border-r border-gray-300' : ''}`}>Quantity</th>
-                  {activeTab === 'checkout' && (<><th className="p-3 border-r border-gray-300 text-center w-36">Sell Price (₹)</th><th className="p-3 border-r border-gray-300 text-center w-28">Disc (%)</th><th className="p-3 text-right w-32">Line Net</th></>)}
+                  <th className="p-3 border-r border-gray-300 w-1/3">Item Name</th><th className={`p-3 text-center w-40 ${activeTab === 'checkout' ? 'border-r border-gray-300' : ''}`}>Quantity</th>
+                  {activeTab === 'checkout' && (<><th className="p-3 border-r border-gray-300 text-center w-36">Price (₹)</th><th className="p-3 border-r border-gray-300 text-center w-28">Disc (%)</th><th className="p-3 text-right w-32">Total</th></>)}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 border-b border-gray-400">
@@ -183,9 +183,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
         </div>
         
         <div className="md:hidden flex-1 overflow-y-auto bg-white divide-y divide-gray-300 border-b border-gray-400">
-           {/* Mobile view mapping left exactly similar to original */}
            {cart.length === 0 ? (
-                <div className="p-10 text-center text-sm font-semibold uppercase tracking-widest text-gray-500">Awaiting Input</div>
+                <div className="p-10 text-center text-sm font-semibold uppercase tracking-widest text-gray-500">Cart Empty</div>
               ) : (
                 cart.map((item) => {
                   const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
@@ -208,7 +207,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
                         </div>
                         {activeTab === 'checkout' && (
                           <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Sell Px:</span>
+                            <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Price:</span>
                             <input type="number" step="0.01" value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price||0).toFixed(2)} onChange={(e) => handleCustomPriceChange(item.id, e.target.value)} onBlur={() => applyCustomPriceBlur(item.id)} className="w-16 h-8 px-1 border-2 border-gray-300 bg-white text-sm font-semibold text-center rounded-none focus:outline-none focus:border-[#0078D7]" />
                             <span className="text-xs text-gray-400 font-semibold bg-gray-50 px-1 py-1 border border-transparent">(-{item.discountPct ? Number(item.discountPct).toFixed(1) : '0'}%)</span>
                           </div>
@@ -221,8 +220,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
         </div>
 
         <div className="p-4 bg-[#f3f3f3] flex flex-col md:flex-row justify-between gap-3">
-          <button onMouseDown={(e) => e.preventDefault()} onClick={() => showConfirm("Clear active list?", () => setCart([]), activeTab === 'checkout' ? 'Void Trans' : 'Clear List')} className="w-full md:w-auto px-8 py-2 bg-[#e6e6e6] hover:bg-[#cccccc] text-black border border-gray-400 text-sm font-semibold uppercase tracking-wider rounded-none focus:outline-none focus:border-[#0078D7]">{activeTab === 'checkout' ? 'Void Trans' : 'Clear List'}</button>
-          <button onMouseDown={(e) => e.preventDefault()} onClick={() => activeTab === 'checkout' ? setCheckoutModal({isOpen: true, cashGiven: ''}) : handleCompleteTransaction()} className="w-full md:w-auto px-10 py-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-semibold uppercase tracking-wider rounded-none border border-transparent focus:outline-none focus:ring-1 focus:ring-black flex justify-center items-center">{isCheckingOut ? 'Processing' : 'Execute'}</button>
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => showConfirm("Are you sure you want to clear the items?", () => setCart([]), activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items')} className="w-full md:w-auto px-8 py-2 bg-[#e6e6e6] hover:bg-[#cccccc] text-black border border-gray-400 text-sm font-semibold uppercase tracking-wider rounded-none focus:outline-none focus:border-[#0078D7]">{activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items'}</button>
+          <button onMouseDown={(e) => e.preventDefault()} onClick={() => activeTab === 'checkout' ? setCheckoutModal({isOpen: true, cashGiven: ''}) : handleCompleteTransaction()} className="w-full md:w-auto px-10 py-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-semibold uppercase tracking-wider rounded-none border border-transparent focus:outline-none focus:ring-1 focus:ring-black flex justify-center items-center">{isCheckingOut ? 'Saving...' : 'Complete'}</button>
         </div>
       </div>
       <ReceiptTemplate lastReceipt={lastReceipt} shopSettings={shopSettings} formatDateTime={formatDateTime} />

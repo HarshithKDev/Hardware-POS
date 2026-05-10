@@ -53,7 +53,7 @@ export default function OwnerStats() {
 
   return (
     <div className="animate-fade-in">
-      <h1 className="text-2xl font-light text-black mb-6">Executive Summary</h1>
+      <h1 className="text-2xl font-light text-black mb-6">Business Overview</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <div className="border border-gray-400 bg-[#f9f9f9] p-5 border-l-4 border-l-[#107c10] rounded-none">
           <p className="text-xs font-semibold uppercase text-gray-600 tracking-wider mb-2">Today Revenue</p>

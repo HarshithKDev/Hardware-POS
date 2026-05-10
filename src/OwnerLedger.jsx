@@ -44,22 +44,22 @@ export default function OwnerLedger() {
   };
 
   const getOperationType = (location) => {
-    if (location === 'Store') return 'Point of Sale';
-    if (location === 'Warehouse-Inbound') return 'Receive Stock';
-    if (location === 'Warehouse-Transfer') return 'Transfer Stock';
+    if (location === 'Store') return 'Sale (Checkout)';
+    if (location === 'Warehouse-Inbound') return 'Received New Stock';
+    if (location === 'Warehouse-Transfer') return 'Moved Stock to Store';
     return location;
   };
 
   return (
     <div className="flex flex-col h-full animate-fade-in">
-      <h1 className="text-2xl font-light text-black mb-6">Transaction Ledger</h1>
+      <h1 className="text-2xl font-light text-black mb-6">Sales & Activity History</h1>
       {selectedBill ? (
         <div className="flex flex-col flex-1 pb-4">
-          <div className="mb-4"><button onClick={() => setSelectedBill(null)} className="text-sm font-semibold text-[#0078D7] hover:underline focus:outline-none">← Return to Master Ledger</button></div>
+          <div className="mb-4"><button onClick={() => setSelectedBill(null)} className="text-sm font-semibold text-[#0078D7] hover:underline focus:outline-none">← Back to All History</button></div>
           <div className="border border-gray-400 bg-[#f9f9f9] p-6 mb-6 flex justify-between items-center rounded-none">
-            <div><p className="font-light text-2xl mb-1">Record #{selectedBill.id.split('-')[0]}</p><p className="text-xs font-semibold uppercase tracking-wider text-gray-600">Operator: {selectedBill.cashier_name}</p></div>
+            <div><p className="font-light text-2xl mb-1">Bill #{selectedBill.id.split('-')[0]}</p><p className="text-xs font-semibold uppercase tracking-wider text-gray-600">Staff: {selectedBill.cashier_name}</p></div>
             <div className="text-right">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">{selectedBill.location === 'Store' ? 'Gross Value' : 'Total Items'}</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">{selectedBill.location === 'Store' ? 'Total Bill' : 'Total Items'}</p>
               <p className="text-3xl font-light text-[#0078D7]">{selectedBill.location === 'Store' ? `₹${Number(selectedBill.total_amount).toFixed(2)}` : billItems.reduce((sum, item) => sum + Number(item.quantity), 0)}</p>
             </div>
           </div>
@@ -68,9 +68,9 @@ export default function OwnerLedger() {
               <table className="w-full text-left border-collapse min-w-[600px]">
                 <thead className="bg-[#f3f3f3] sticky top-0 border-b border-gray-400">
                   <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
-                    <th className="p-3 border-r border-gray-300">Nomenclature</th>
+                    <th className="p-3 border-r border-gray-300">Item Name</th>
                     <th className={`p-3 text-center ${selectedBill.location === 'Store' ? 'border-r border-gray-300 w-24' : 'w-32'}`}>Qty</th>
-                    {selectedBill.location === 'Store' && (<><th className="p-3 border-r border-gray-300 text-right w-32">Unit Rate</th><th className="p-3 text-right w-32">Line Net</th></>)}
+                    {selectedBill.location === 'Store' && (<><th className="p-3 border-r border-gray-300 text-right w-32">Price</th><th className="p-3 text-right w-32">Total</th></>)}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 border-b border-gray-400">
@@ -94,10 +94,10 @@ export default function OwnerLedger() {
               <div className="border border-gray-400 bg-white overflow-x-auto flex-1 min-h-[300px] rounded-none">
                 <table className="w-full text-left border-collapse min-w-[600px]">
                   <thead className="bg-[#f3f3f3] sticky top-0 border-b border-gray-400">
-                    <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600"><th className="p-3 border-r border-gray-300 w-64">Timestamp</th><th className="p-3 border-r border-gray-300">Operation Type</th><th className="p-3 text-right w-40">Info</th></tr>
+                    <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600"><th className="p-3 border-r border-gray-300 w-64">Date & Time</th><th className="p-3 border-r border-gray-300">Action Taken</th><th className="p-3 text-right w-40">Info</th></tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 border-b border-gray-400">
-                    {bills.length === 0 ? (<tr><td colSpan="3" className="p-8 text-center text-gray-500 text-sm font-semibold">No transaction records found.</td></tr>) : bills.map(bill => (
+                    {bills.length === 0 ? (<tr><td colSpan="3" className="p-8 text-center text-gray-500 text-sm font-semibold">No records found.</td></tr>) : bills.map(bill => (
                       <tr key={bill.id} onClick={()=>handleBillClick(bill)} className="hover:bg-[#cce8ff] cursor-pointer transition-none">
                         <td className="p-3 border-r border-gray-200 text-sm text-black">{formatDateTime(bill.created_at)}</td>
                         <td className="p-3 border-r border-gray-200 text-sm font-medium text-black">{getOperationType(bill.location)}</td>

@@ -41,7 +41,7 @@ export default function WorkerDashboardView() {
 
   return (
     <div className="flex flex-col h-full bg-white border border-gray-400 rounded-none p-6 animate-fade-in flex-1">
-      <h2 className="text-2xl font-light text-black mb-6">Operator Dashboard</h2>
+      <h2 className="text-2xl font-light text-black mb-6">Staff Dashboard</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div className={`border border-gray-400 bg-[#f9f9f9] p-5 border-l-4 rounded-none ${lowStockCounts.store > 0 ? 'border-l-[#e81123]' : 'border-l-[#0078D7]'}`}>
           <p className="text-xs font-semibold uppercase text-gray-600 tracking-wider mb-2">Low Store Stock Alerts</p>
@@ -53,9 +53,9 @@ export default function WorkerDashboardView() {
         </div>
       </div>
       <div className="flex flex-col md:flex-row gap-4 mb-4">
-        <input type="text" placeholder="Search SKU or Nomenclature..." value={inventorySearch} onChange={e=>{setInventorySearch(e.target.value); setInvPage(0);}} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm w-full md:w-[400px] rounded-none focus:outline-none focus:border-[#0078D7]" />
+        <input type="text" placeholder="Search Barcode or Name..." value={inventorySearch} onChange={e=>{setInventorySearch(e.target.value); setInvPage(0);}} className="border-2 border-gray-300 bg-white px-3 py-1.5 text-sm w-full md:w-[400px] rounded-none focus:outline-none focus:border-[#0078D7]" />
         <select value={sortOption} onChange={(e) => {setSortOption(e.target.value); setInvPage(0);}} className="w-full md:w-auto border-2 border-gray-300 bg-white px-3 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7] cursor-pointer">
-            <option value="barcode-asc">SKU (Ascending)</option><option value="name-asc">All Items (A-Z)</option>
+            <option value="barcode-asc">Barcode (Low to High)</option><option value="name-asc">Item Name (A-Z)</option>
             <option value="low-store">Low Store Stock (&lt; 10)</option><option value="low-warehouse">Low Whse Stock (&lt; 20)</option>
         </select>
       </div>
@@ -63,14 +63,14 @@ export default function WorkerDashboardView() {
         <table className="w-full text-left border-collapse min-w-[600px]">
           <thead className="bg-[#f3f3f3] sticky top-0 border-b border-gray-400">
             <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
-              <th className="p-3 border-r border-gray-300 w-32">SKU Code</th><th className="p-3 border-r border-gray-300">Nomenclature</th>
+              <th className="p-3 border-r border-gray-300 w-32">Barcode</th><th className="p-3 border-r border-gray-300">Product Name</th>
               <th className="p-3 border-r border-gray-300 text-center w-32">MRP</th><th className="p-3 border-r border-gray-300 text-center w-32">Store Qty</th>
               <th className="p-3 text-center w-32">Whse Qty</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 border-b border-gray-400">
             {paginatedInventory.length === 0 ? (
-              <tr><td colSpan="5" className="p-8 text-center text-gray-500 text-sm font-semibold">No items found matching the criteria.</td></tr>
+              <tr><td colSpan="5" className="p-8 text-center text-gray-500 text-sm font-semibold">No items found.</td></tr>
             ) : paginatedInventory.map(item => (
               <tr key={item.id} className="hover:bg-[#f9f9f9]">
                 <td className="p-3 border-r border-gray-200 text-sm font-semibold tracking-wider text-[#0078D7]">{item.barcode}</td>
