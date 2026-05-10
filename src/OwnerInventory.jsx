@@ -46,23 +46,23 @@ export default function OwnerInventory({ viewType, showAlert, showConfirm }) {
   return (
     <div className="flex flex-col flex-1 pb-4 animate-fade-in">
       <div className="flex flex-col md:flex-row gap-4 mb-4">
-        <input type="text" placeholder="Search Barcode or Name..." value={inventorySearch} onChange={e=>{setInventorySearch(e.target.value); setInvPage(0);}} className={`border-2 border-gray-300 bg-white px-3 py-1.5 text-sm w-full md:flex-1 rounded-none focus:outline-none focus:border-[#0078D7] ${viewType === 'store' && 'mb-4 md:mb-0'}`} />
+        <input type="text" placeholder="Search Barcode or Name..." value={inventorySearch} onChange={e=>{setInventorySearch(e.target.value); setInvPage(0);}} className={`h-9 border-2 border-gray-300 bg-white px-3 text-sm w-full md:flex-1 rounded-none focus:outline-none focus:border-[#0078D7] ${viewType === 'store' && 'mb-4 md:mb-0'}`} />
         <div className="relative w-full md:w-[260px] flex-shrink-0">
-          <select value={sortOption} onChange={(e) => {setSortOption(e.target.value); setInvPage(0);}} className="w-full border-2 border-gray-300 bg-white pl-3 pr-8 py-1.5 text-sm rounded-none focus:outline-none focus:border-[#0078D7] appearance-none cursor-pointer font-medium text-gray-700">
+          <select value={sortOption} onChange={(e) => {setSortOption(e.target.value); setInvPage(0);}} className="h-9 w-full border-2 border-gray-300 bg-white pl-3 pr-8 text-sm rounded-none focus:outline-none focus:border-[#0078D7] appearance-none cursor-pointer font-medium text-gray-700">
             <option value="barcode-asc">Barcode (Low to High)</option><option value="barcode-desc">Barcode (High to Low)</option><option value="name-asc">Name (A-Z)</option><option value="name-desc">Name (Z-A)</option>
             {viewType === 'warehouse' && (<><option value="stock-asc">Quantity (Low-High)</option><option value="stock-desc">Quantity (High-Low)</option></>)}
           </select>
           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500"><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg></div>
         </div>
       </div>
-      <div className={`border border-gray-400 overflow-x-auto bg-white flex-1 min-h-[300px] rounded-none`}>
+      <div className={`border border-gray-400 overflow-x-auto bg-white flex-1 min-h-[300px] rounded-none shadow-sm`}>
         <table className={`w-full text-left border-collapse min-w-[${viewType === 'warehouse' ? '900px' : '600px'}]`}>
-          <thead className="bg-[#f3f3f3] sticky top-0 border-b border-gray-400">
+          <thead className="bg-[#f9f9f9] sticky top-0 border-b border-gray-400">
             <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
-              <th className={`p-3 border-r border-gray-300 ${viewType === 'store' ? 'w-32' : 'w-24'}`}>Barcode</th><th className="p-3 border-r border-gray-300">Item Name</th>
-              {viewType === 'warehouse' ? (<><th className="p-3 border-r border-gray-300 text-center w-28">Cost</th><th className="p-3 border-r border-gray-300 text-center w-28">MSP</th></>) : null}
-              <th className={`p-3 border-r border-gray-300 text-center ${viewType === 'warehouse' ? 'w-28' : 'w-32'}`}>MRP</th>
-              <th className={`p-3 text-center ${viewType === 'warehouse' ? 'border-r border-gray-300 w-28' : 'w-32'}`}>{viewType === 'warehouse' ? 'Whse Qty' : 'Store Qty'}</th>
+              <th className={`p-3 border-r border-gray-200 ${viewType === 'store' ? 'w-32' : 'w-24'}`}>Barcode</th><th className="p-3 border-r border-gray-200">Item Name</th>
+              {viewType === 'warehouse' ? (<><th className="p-3 border-r border-gray-200 text-center w-28">Cost</th><th className="p-3 border-r border-gray-200 text-center w-28">MSP</th></>) : null}
+              <th className={`p-3 border-r border-gray-200 text-center ${viewType === 'warehouse' ? 'w-28' : 'w-32'}`}>MRP</th>
+              <th className={`p-3 text-center ${viewType === 'warehouse' ? 'border-r border-gray-200 w-28' : 'w-32'}`}>{viewType === 'warehouse' ? 'Whse Qty' : 'Store Qty'}</th>
               {viewType === 'warehouse' && <th className="p-3 text-center w-40">Actions</th>}
             </tr>
           </thead>
@@ -70,18 +70,18 @@ export default function OwnerInventory({ viewType, showAlert, showConfirm }) {
             {paginatedInventory.length === 0 ? (
               <tr><td colSpan={viewType === 'warehouse' ? "7" : "4"} className="p-8 text-center text-gray-500 text-sm font-semibold">No items found matching the search.</td></tr>
             ) : paginatedInventory.map(item => (
-              <tr key={item.id} className="hover:bg-[#f9f9f9] transition-none">
+              <tr key={item.id} className="hover:bg-[#f3f3f3] transition-none">
                 <td className="p-3 border-r border-gray-200 text-sm font-semibold tracking-wider text-[#0078D7]">{item.barcode}</td>
                 {editingBarcode === item.barcode && viewType === 'warehouse' ? (
                   <>
-                    <td className="p-1 border-r border-gray-200"><input type="text" value={editFormData.name ?? ''} onChange={e=>setEditFormData({...editFormData,name:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
-                    <td className="p-1 border-r border-gray-200"><input type="number" step="1" min="0" value={editFormData.cost_price ?? ''} onChange={e=>setEditFormData({...editFormData,cost_price:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm text-center rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
-                    <td className="p-1 border-r border-gray-200"><input type="number" step="1" min="0" value={editFormData.msp ?? ''} onChange={e=>setEditFormData({...editFormData,msp:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm text-center rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
-                    <td className="p-1 border-r border-gray-200"><input type="number" step="1" min="0" value={editFormData.price ?? ''} onChange={e=>setEditFormData({...editFormData,price:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm text-center rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
-                    <td className="p-1 border-r border-gray-200"><input type="number" step="any" min="0" value={editFormData.stock_warehouse ?? ''} onChange={e=>setEditFormData({...editFormData,stock_warehouse:e.target.value})} className="border-2 border-gray-300 px-2 py-1.5 w-full text-sm text-center rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
-                    <td className="p-2 flex gap-2 justify-center">
-                      <button onClick={handleSaveEdit} className="bg-[#107c10] hover:bg-[#0e6d0e] text-white px-3 py-1.5 text-xs font-semibold rounded-none border border-transparent focus:border-black">Save</button>
-                      <button onClick={()=>setEditingBarcode(null)} className="bg-[#e6e6e6] hover:bg-[#cccccc] text-black px-3 py-1.5 text-xs font-semibold border border-gray-400 rounded-none focus:outline-none focus:border-[#0078D7]">Cancel</button>
+                    <td className="p-1 border-r border-gray-200"><input type="text" value={editFormData.name ?? ''} onChange={e=>setEditFormData({...editFormData,name:e.target.value})} className="h-8 border border-gray-400 px-2 w-full text-sm rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
+                    <td className="p-1 border-r border-gray-200"><input type="number" step="1" min="0" value={editFormData.cost_price ?? ''} onChange={e=>setEditFormData({...editFormData,cost_price:e.target.value})} className="h-8 border border-gray-400 px-2 w-full text-sm text-center rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
+                    <td className="p-1 border-r border-gray-200"><input type="number" step="1" min="0" value={editFormData.msp ?? ''} onChange={e=>setEditFormData({...editFormData,msp:e.target.value})} className="h-8 border border-gray-400 px-2 w-full text-sm text-center rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
+                    <td className="p-1 border-r border-gray-200"><input type="number" step="1" min="0" value={editFormData.price ?? ''} onChange={e=>setEditFormData({...editFormData,price:e.target.value})} className="h-8 border border-gray-400 px-2 w-full text-sm text-center rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
+                    <td className="p-1 border-r border-gray-200"><input type="number" step="any" min="0" value={editFormData.stock_warehouse ?? ''} onChange={e=>setEditFormData({...editFormData,stock_warehouse:e.target.value})} className="h-8 border border-gray-400 px-2 w-full text-sm text-center rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
+                    <td className="p-2 flex gap-1 justify-center">
+                      <button onClick={handleSaveEdit} className="h-8 bg-[#107c10] hover:bg-[#0e6d0e] text-white px-3 text-xs font-semibold rounded-none border border-transparent focus:outline-none">Save</button>
+                      <button onClick={()=>setEditingBarcode(null)} className="h-8 bg-[#e6e6e6] hover:bg-[#cccccc] text-black px-3 text-xs font-semibold border border-gray-400 rounded-none focus:outline-none">Cancel</button>
                     </td>
                   </>
                 ) : (
@@ -92,8 +92,8 @@ export default function OwnerInventory({ viewType, showAlert, showConfirm }) {
                     <td className="p-3 border-r border-gray-200 text-sm text-center text-black font-bold">{viewType === 'warehouse' ? item.stock_warehouse : item.stock_store}</td>
                     {viewType === 'warehouse' && (
                       <td className="p-2 flex gap-2 justify-center items-center h-full">
-                        <button onClick={()=> {setEditingBarcode(item.barcode); setEditFormData({ ...item });}} className="bg-[#e6e6e6] hover:bg-[#cccccc] border border-gray-400 text-black px-4 py-1 text-xs font-semibold rounded-none focus:outline-none focus:border-[#0078D7]">Edit</button>
-                        <button onClick={()=>handleDeleteClick(item.barcode)} className="bg-white border border-[#e81123] text-[#e81123] hover:bg-[#e81123] hover:text-white px-3 py-1 text-xs font-semibold rounded-none focus:outline-none">Remove</button>
+                        <button onClick={()=> {setEditingBarcode(item.barcode); setEditFormData({ ...item });}} className="h-8 bg-[#e6e6e6] hover:bg-[#cccccc] border border-gray-400 text-black px-4 text-xs font-semibold rounded-none focus:outline-none">Edit</button>
+                        <button onClick={()=>handleDeleteClick(item.barcode)} className="h-8 bg-white border border-[#e81123] text-[#e81123] hover:bg-[#e81123] hover:text-white px-3 text-xs font-semibold rounded-none focus:outline-none">Remove</button>
                       </td>
                     )}
                   </>
@@ -103,10 +103,10 @@ export default function OwnerInventory({ viewType, showAlert, showConfirm }) {
           </tbody>
         </table>
       </div>
-      <div className="flex justify-between items-center mt-4 bg-[#f3f3f3] p-3 border border-gray-400 rounded-none">
-        <button onClick={()=>setInvPage(p=>Math.max(0,p-1))} disabled={invPage===0} className="px-6 py-1.5 bg-white border border-gray-400 text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none focus:border-[#0078D7]">Previous</button>
+      <div className="flex justify-between items-center mt-4 bg-[#f3f3f3] p-3 border border-gray-400 rounded-none shadow-sm">
+        <button onClick={()=>setInvPage(p=>Math.max(0,p-1))} disabled={invPage===0} className="h-8 px-6 bg-white border border-gray-400 text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none">Previous</button>
         <span className="text-sm font-semibold text-gray-700">Page {safeInvPage + 1} of {maxPages}</span>
-        <button onClick={()=>setInvPage(p=>p+1)} disabled={(safeInvPage+1)*INV_PER_PAGE>=totalInvItems} className="px-6 py-1.5 bg-white border border-gray-400 text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none focus:border-[#0078D7]">Next</button>
+        <button onClick={()=>setInvPage(p=>p+1)} disabled={(safeInvPage+1)*INV_PER_PAGE>=totalInvItems} className="h-8 px-6 bg-white border border-gray-400 text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none">Next</button>
       </div>
     </div>
   );

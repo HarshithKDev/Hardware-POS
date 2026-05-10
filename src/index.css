@@ -1,1 +1,33 @@
 @import "tailwindcss";
+@tailwind utilities;
+
+/* Windows Theme Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+::-webkit-scrollbar-track {
+  background: #f3f3f3;
+  border-left: 1px solid #e6e6e6;
+}
+::-webkit-scrollbar-thumb {
+  background: #cdcdcd;
+  border: 3px solid #f3f3f3;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a6a6a6;
+}
+::-webkit-scrollbar-corner {
+  background: #f3f3f3;
+}
+
+/* Make the background behind the main app gray */
+body {
+  background-color: #e6e6e6;
+  color: #111111;
+}
+
+/* Ensure inputs don't outline blue by default on some browsers, keep it flat */
+input:focus, select:focus, button:focus {
+  outline: none;
+}
