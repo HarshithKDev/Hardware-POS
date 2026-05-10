@@ -74,34 +74,52 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
       </aside>
 
       <main className="flex-1 p-6 md:p-8 overflow-y-auto bg-white relative">
-        {activeTab === 'dashboard' && <OwnerStats />}
-        {activeTab === 'register' && <OwnerCatalog showAlert={showAlert} />}
-        {activeTab === 'warehouse' && (
-          <div className="flex flex-col h-full animate-fade-in">
-            <h1 className="text-2xl font-light text-black mb-6">Main Storage Actions</h1>
-            <div className="flex gap-1 mb-6 border-b border-gray-300 pb-0">
-              <button onClick={()=>setSearchParams({ sub: 'inventory' })} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${warehouseSubTab==='inventory'?'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold':'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>All Items</button>
-              <button onClick={()=>setSearchParams({ sub: 'receive' })} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${warehouseSubTab==='receive'?'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold':'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Receive Stock</button>
-              <button onClick={()=>setSearchParams({ sub: 'transfer' })} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${warehouseSubTab==='transfer'?'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold':'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Move to Shop</button>
-            </div>
-            {warehouseSubTab === 'inventory' && <OwnerInventory viewType="warehouse" showAlert={showAlert} showConfirm={showConfirm} />}
-            {warehouseSubTab === 'receive' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling defaultTab="receive" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
-            {warehouseSubTab === 'transfer' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling defaultTab="transfer" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
+        
+        {/* Memory-Cached Tabs (Hidden when inactive) */}
+        <div className={activeTab === 'dashboard' ? 'block h-full animate-fade-in' : 'hidden'}>
+          <OwnerStats isActive={activeTab === 'dashboard'} />
+        </div>
+
+        <div className={activeTab === 'register' ? 'block h-full animate-fade-in' : 'hidden'}>
+          <OwnerCatalog showAlert={showAlert} />
+        </div>
+
+        <div className={activeTab === 'warehouse' ? 'flex flex-col h-full animate-fade-in' : 'hidden'}>
+          <h1 className="text-2xl font-light text-black mb-6">Main Storage Actions</h1>
+          <div className="flex gap-1 mb-6 border-b border-gray-300 pb-0">
+            <button onClick={()=>setSearchParams({ sub: 'inventory' })} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${warehouseSubTab==='inventory'?'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold':'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>All Items</button>
+            <button onClick={()=>setSearchParams({ sub: 'receive' })} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${warehouseSubTab==='receive'?'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold':'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Receive Stock</button>
+            <button onClick={()=>setSearchParams({ sub: 'transfer' })} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${warehouseSubTab==='transfer'?'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold':'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Move to Shop</button>
           </div>
-        )}
-        {activeTab === 'store' && (
-          <div className="flex flex-col h-full animate-fade-in">
-            <h1 className="text-2xl font-light text-black mb-6">Shop Front Actions</h1>
-            <div className="flex gap-1 mb-6 border-b border-gray-300 pb-0">
-              <button onClick={()=>setSearchParams({ sub: 'inventory' })} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${storeSubTab==='inventory'?'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold':'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Items in Shop</button>
-              <button onClick={()=>setSearchParams({ sub: 'checkout' })} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${storeSubTab==='checkout'?'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold':'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Checkout Counter</button>
-            </div>
-            {storeSubTab === 'inventory' && <OwnerInventory viewType="store" showAlert={showAlert} showConfirm={showConfirm} />}
-            {storeSubTab === 'checkout' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling defaultTab="checkout" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
+          
+          <div className={warehouseSubTab === 'inventory' ? 'block flex-1' : 'hidden'}>
+            <OwnerInventory viewType="warehouse" showAlert={showAlert} showConfirm={showConfirm} isActive={activeTab === 'warehouse' && warehouseSubTab === 'inventory'} />
           </div>
-        )}
-        {activeTab === 'sales' && <OwnerLedger />}
-        {activeTab === 'staff' && <OwnerStaff showAlert={showAlert} showConfirm={showConfirm} />}
+          {/* Note: Terminals are conditionally destroyed to prevent global barcode scanning conflicts */}
+          {warehouseSubTab === 'receive' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling defaultTab="receive" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
+          {warehouseSubTab === 'transfer' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling defaultTab="transfer" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
+        </div>
+
+        <div className={activeTab === 'store' ? 'flex flex-col h-full animate-fade-in' : 'hidden'}>
+          <h1 className="text-2xl font-light text-black mb-6">Shop Front Actions</h1>
+          <div className="flex gap-1 mb-6 border-b border-gray-300 pb-0">
+            <button onClick={()=>setSearchParams({ sub: 'inventory' })} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${storeSubTab==='inventory'?'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold':'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Items in Shop</button>
+            <button onClick={()=>setSearchParams({ sub: 'checkout' })} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${storeSubTab==='checkout'?'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold':'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Checkout Counter</button>
+          </div>
+          
+          <div className={storeSubTab === 'inventory' ? 'block flex-1' : 'hidden'}>
+            <OwnerInventory viewType="store" showAlert={showAlert} showConfirm={showConfirm} isActive={activeTab === 'store' && storeSubTab === 'inventory'} />
+          </div>
+          {storeSubTab === 'checkout' && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling defaultTab="checkout" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
+        </div>
+
+        <div className={activeTab === 'sales' ? 'block h-full animate-fade-in' : 'hidden'}>
+          <OwnerLedger isActive={activeTab === 'sales'} />
+        </div>
+
+        {/* Staff can be conditionally rendered normally as it doesn't fetch heavy data */}
+        {activeTab === 'staff' && <div className="block h-full animate-fade-in"><OwnerStaff showAlert={showAlert} showConfirm={showConfirm} /></div>}
+
       </main>
     </div>
   );

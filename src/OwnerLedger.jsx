@@ -1,35 +1,61 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, Fragment, useRef } from 'react';
 import { supabase } from './supabaseClient';
 import { Spinner } from './SharedUI';
 
-export default function OwnerLedger() {
+export default function OwnerLedger({ isActive }) {
   const [bills, setBills] = useState([]);
   const [isLoadingBills, setIsLoadingBills] = useState(false);
   const [salesPage, setSalesPage] = useState(0);
   const [hasMoreBills, setHasMoreBills] = useState(true);
-  const [selectedBill, setSelectedBill] = useState(null);
-  const [billItems, setBillItems] = useState([]);
+  const [filter, setFilter] = useState('ALL'); 
+  
+  const [expandedBillId, setExpandedBillId] = useState(null);
+  const [billItemsCache, setBillItemsCache] = useState({});
   const [isLoadingItems, setIsLoadingItems] = useState(false);
+  
+  const isFirstRender = useRef(true);
   const SALES_PER_PAGE = 20;
 
-  useEffect(() => {
-    const fetchBills = async (page) => {
-      try {
-        setIsLoadingBills(true);
-        const from = page * SALES_PER_PAGE;
-        const { data } = await supabase.from('bills').select('*').order('created_at', { ascending: false }).range(from, from + SALES_PER_PAGE - 1);
-        if (data) { setBills(data); setHasMoreBills(data.length === SALES_PER_PAGE); }
-      } finally { setIsLoadingBills(false); }
-    };
-    fetchBills(salesPage);
-  }, [salesPage]);
-
-  const handleBillClick = async (bill) => {
-    setSelectedBill(bill); setIsLoadingItems(true);
+  const fetchBills = async (page, currentFilter) => {
     try {
-      const { data } = await supabase.from('bill_items').select('*').eq('bill_id', bill.id);
-      if (data) setBillItems(data);
-    } finally { setIsLoadingItems(false); }
+      setIsLoadingBills(true);
+      const from = page * SALES_PER_PAGE;
+      let query = supabase.from('bills').select('*').order('created_at', { ascending: false }).range(from, from + SALES_PER_PAGE - 1);
+      
+      if (currentFilter === 'SALE') query = query.eq('location', 'Store');
+      else if (currentFilter === 'RECEIVE') query = query.eq('location', 'Warehouse-Inbound');
+      else if (currentFilter === 'TRANSFER') query = query.eq('location', 'Warehouse-Transfer');
+
+      const { data } = await query;
+      if (data) { setBills(data); setHasMoreBills(data.length === SALES_PER_PAGE); }
+    } finally { setIsLoadingBills(false); }
+  };
+
+  // 1. Fetch data on initial background load or when filters change
+  useEffect(() => {
+    fetchBills(salesPage, filter);
+  }, [salesPage, filter]);
+
+  // 2. Silently fetch fresh data when the user clicks this tab
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    if (isActive) fetchBills(salesPage, filter);
+  }, [isActive]);
+
+  const toggleRow = async (bill) => {
+    if (expandedBillId === bill.id) { setExpandedBillId(null); return; }
+    setExpandedBillId(bill.id);
+    if (!billItemsCache[bill.id]) {
+      setIsLoadingItems(true);
+      try {
+        const { data } = await supabase.from('bill_items').select('*').eq('bill_id', bill.id);
+        if (data) setBillItemsCache(prev => ({ ...prev, [bill.id]: data }));
+      } finally { setIsLoadingItems(false); }
+    }
+  };
+
+  const handleFilterChange = (newFilter) => {
+    setFilter(newFilter); setSalesPage(0); setExpandedBillId(null); 
   };
 
   const formatDateTime = (dateString) => {
@@ -39,8 +65,7 @@ export default function OwnerLedger() {
     let hours = d.getHours();
     const minutes = d.getMinutes().toString().padStart(2, '0');
     const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12 || 12;
-    return `${datePart}, ${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
+    return `${datePart}, ${(hours % 12 || 12).toString().padStart(2, '0')}:${minutes} ${ampm}`;
   };
 
   const getOperationType = (location) => {
@@ -51,70 +76,90 @@ export default function OwnerLedger() {
   };
 
   return (
-    <div className="flex flex-col h-full animate-fade-in">
+    <div className="flex flex-col h-full">
       <h1 className="text-2xl font-light text-black mb-6">Sales & Activity History</h1>
-      {selectedBill ? (
-        <div className="flex flex-col flex-1 pb-4">
-          <div className="mb-4"><button onClick={() => setSelectedBill(null)} className="text-sm font-semibold text-[#0078D7] hover:underline focus:outline-none">← Back to All History</button></div>
-          <div className="border border-gray-400 bg-[#f9f9f9] p-6 mb-6 flex justify-between items-center rounded-none">
-            <div><p className="font-light text-2xl mb-1">Bill #{selectedBill.id.split('-')[0]}</p><p className="text-xs font-semibold uppercase tracking-wider text-gray-600">Staff: {selectedBill.cashier_name}</p></div>
-            <div className="text-right">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">{selectedBill.location === 'Store' ? 'Total Bill' : 'Total Items'}</p>
-              <p className="text-3xl font-light text-[#0078D7]">{selectedBill.location === 'Store' ? `₹${Number(selectedBill.total_amount).toFixed(2)}` : billItems.reduce((sum, item) => sum + Number(item.quantity), 0)}</p>
-            </div>
-          </div>
-          {isLoadingItems ? <div className="p-10 flex justify-center"><Spinner className="w-8 h-8 text-[#0078D7]" /></div> : (
-            <div className="border border-gray-400 bg-white overflow-x-auto flex-1 min-h-[250px] rounded-none">
-              <table className="w-full text-left border-collapse min-w-[600px]">
-                <thead className="bg-[#f3f3f3] sticky top-0 border-b border-gray-400">
-                  <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
-                    <th className="p-3 border-r border-gray-300">Item Name</th>
-                    <th className={`p-3 text-center ${selectedBill.location === 'Store' ? 'border-r border-gray-300 w-24' : 'w-32'}`}>Qty</th>
-                    {selectedBill.location === 'Store' && (<><th className="p-3 border-r border-gray-300 text-right w-32">Price</th><th className="p-3 text-right w-32">Total</th></>)}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 border-b border-gray-400">
-                  {billItems.map(item => (
-                    <tr key={item.id} className="hover:bg-[#f9f9f9]">
-                      <td className="p-3 border-r border-gray-200 text-sm font-medium text-black">{item.name}</td>
-                      <td className={`p-3 text-sm text-center ${selectedBill.location === 'Store' ? 'border-r border-gray-200' : ''}`}>{item.quantity} {item.unit}</td>
-                      {selectedBill.location === 'Store' && (<><td className="p-3 border-r border-gray-200 text-sm text-right">₹{Number(item.price_at_sale).toFixed(2)}</td><td className="p-3 text-sm text-right font-bold text-black">₹{(item.price_at_sale*item.quantity).toFixed(2)}</td></>)}
+
+      <div className="flex flex-col flex-1 pb-4">
+        <div className="flex gap-1 mb-6 border-b border-gray-300 pb-0 overflow-x-auto">
+          <button onClick={() => handleFilterChange('ALL')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none ${filter === 'ALL' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>All Activity</button>
+          <button onClick={() => handleFilterChange('SALE')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none ${filter === 'SALE' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Sales</button>
+          <button onClick={() => handleFilterChange('RECEIVE')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none ${filter === 'RECEIVE' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Received Stock</button>
+          <button onClick={() => handleFilterChange('TRANSFER')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none ${filter === 'TRANSFER' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Moved to Store</button>
+        </div>
+        
+        <div className="border border-gray-400 bg-white flex-1 overflow-y-auto rounded-none shadow-sm min-h-[400px]">
+          <table className="w-full text-left border-collapse min-w-[700px]">
+            <thead className="bg-[#f9f9f9] sticky top-0 border-b border-gray-400 z-10">
+              <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
+                <th className="p-3 border-r border-gray-200 w-48">Date & Time</th>
+                <th className="p-3 border-r border-gray-200 w-48">Action Taken</th>
+                <th className="p-3 border-r border-gray-200 w-32 text-center">Operator</th>
+                <th className="p-3 border-r border-gray-200 text-right w-32">Total (₹)</th>
+                <th className="p-3 text-center w-16">Details</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {isLoadingBills && bills.length === 0 ? (
+                <tr><td colSpan="5" className="p-10 text-center"><Spinner className="w-8 h-8 text-[#0078D7] mx-auto" /></td></tr>
+              ) : bills.length === 0 ? (
+                <tr><td colSpan="5" className="p-8 text-center text-gray-500 text-sm font-semibold">No records found.</td></tr>
+              ) : bills.map(bill => {
+                const isExpanded = expandedBillId === bill.id;
+                const items = billItemsCache[bill.id] || [];
+                const isSale = bill.location === 'Store';
+
+                return (
+                  <Fragment key={bill.id}>
+                    <tr onClick={() => toggleRow(bill)} className={`cursor-pointer transition-none group ${isExpanded ? 'bg-[#cce8ff]' : 'hover:bg-[#e6e6e6] bg-white'}`}>
+                      <td className="p-3 border-r border-gray-200 text-sm text-black">{formatDateTime(bill.created_at)}</td>
+                      <td className="p-3 border-r border-gray-200 text-sm font-medium text-black">{getOperationType(bill.location)}</td>
+                      <td className="p-3 border-r border-gray-200 text-sm text-center text-gray-700 capitalize">{bill.cashier_name}</td>
+                      <td className="p-3 border-r border-gray-200 text-right text-sm font-bold text-[#0078D7]">{isSale ? `₹${Number(bill.total_amount).toFixed(2)}` : '--'}</td>
+                      <td className="p-3 text-center flex justify-center items-center h-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={`w-5 h-5 text-gray-600 group-hover:text-[#0078D7] transition-transform duration-200 ${isExpanded ? 'rotate-180 text-[#0078D7]' : 'rotate-0'}`}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                      </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="flex flex-col flex-1 pb-4">
-          <div className="flex justify-between items-center mb-4"><span className="text-sm font-semibold uppercase tracking-wider text-gray-600">Recent Activity</span></div>
-          {isLoadingBills ? <div className="p-10 flex justify-center"><Spinner className="w-8 h-8 text-[#0078D7]" /></div> : (
-            <>
-              <div className="border border-gray-400 bg-white overflow-x-auto flex-1 min-h-[300px] rounded-none">
-                <table className="w-full text-left border-collapse min-w-[600px]">
-                  <thead className="bg-[#f3f3f3] sticky top-0 border-b border-gray-400">
-                    <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600"><th className="p-3 border-r border-gray-300 w-64">Date & Time</th><th className="p-3 border-r border-gray-300">Action Taken</th><th className="p-3 text-right w-40">Info</th></tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 border-b border-gray-400">
-                    {bills.length === 0 ? (<tr><td colSpan="3" className="p-8 text-center text-gray-500 text-sm font-semibold">No records found.</td></tr>) : bills.map(bill => (
-                      <tr key={bill.id} onClick={()=>handleBillClick(bill)} className="hover:bg-[#cce8ff] cursor-pointer transition-none">
-                        <td className="p-3 border-r border-gray-200 text-sm text-black">{formatDateTime(bill.created_at)}</td>
-                        <td className="p-3 border-r border-gray-200 text-sm font-medium text-black">{getOperationType(bill.location)}</td>
-                        <td className="p-3 text-right text-sm font-bold text-[#0078D7] hover:underline">View Details</td>
+                    {isExpanded && (
+                      <tr className="bg-[#f3f3f3] shadow-[inset_0_4px_6px_-4px_rgba(0,0,0,0.1)]">
+                        <td colSpan="5" className="p-0 border-b-2 border-[#0078D7]">
+                          {isLoadingItems ? (
+                            <div className="p-6 flex justify-center"><Spinner className="w-6 h-6 text-[#0078D7]" /></div>
+                          ) : (
+                            <div className="p-6 px-8">
+                              <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3 border-b border-gray-300 pb-2">Record #{bill.id.split('-')[0]} Details</p>
+                              <table className="w-full text-left bg-white border border-gray-300 rounded-none shadow-sm">
+                                <thead className="bg-[#e6e6e6] border-b border-gray-300">
+                                  <tr className="text-xs font-semibold uppercase text-gray-700">
+                                    <th className="px-4 py-2 border-r border-gray-300">Item Name</th><th className="px-4 py-2 border-r border-gray-300 text-center w-32">Qty</th>
+                                    {isSale && (<><th className="px-4 py-2 border-r border-gray-300 text-right w-32">Unit Price</th><th className="px-4 py-2 text-right w-32">Total</th></>)}
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                  {items.map(item => (
+                                    <tr key={item.id} className="hover:bg-[#f9f9f9]">
+                                      <td className="px-4 py-2 border-r border-gray-200 text-sm font-medium text-black">{item.name}</td>
+                                      <td className="px-4 py-2 border-r border-gray-200 text-sm text-center">{item.quantity} {item.unit}</td>
+                                      {isSale && (<><td className="px-4 py-2 border-r border-gray-200 text-sm text-right">₹{Number(item.price_at_sale).toFixed(2)}</td><td className="px-4 py-2 text-sm text-right font-bold text-black">₹{(item.price_at_sale * item.quantity).toFixed(2)}</td></>)}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="flex justify-between items-center bg-[#f3f3f3] p-3 border border-gray-400 mt-4 rounded-none">
-                <button onClick={()=>setSalesPage(p=>Math.max(0,p-1))} disabled={salesPage===0} className="px-6 py-1.5 bg-white border border-gray-400 text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none focus:border-[#0078D7]">Newer</button>
-                <button onClick={()=>setSalesPage(p=>p+1)} disabled={!hasMoreBills} className="px-6 py-1.5 bg-white border border-gray-400 text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none focus:border-[#0078D7]">Older</button>
-              </div>
-            </>
-          )}
+                    )}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-      )}
+        <div className="flex justify-between items-center bg-[#f3f3f3] p-3 border border-gray-400 mt-4 rounded-none shadow-sm">
+          <button onClick={()=>setSalesPage(p=>Math.max(0,p-1))} disabled={salesPage===0} className="h-8 px-6 bg-white border border-gray-400 text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none">Newer</button>
+          <button onClick={()=>setSalesPage(p=>p+1)} disabled={!hasMoreBills} className="h-8 px-6 bg-white border border-gray-400 text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none">Older</button>
+        </div>
+      </div>
     </div>
   );
 }

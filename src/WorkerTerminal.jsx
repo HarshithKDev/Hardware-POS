@@ -155,7 +155,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
             <table className="w-full text-left border-collapse">
               <thead className="bg-[#f9f9f9] sticky top-0 border-b border-gray-300 z-10">
                 <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
-                  <th className="p-3 border-r border-gray-200 w-1/3">Item Name</th><th className={`p-3 text-center w-40 ${activeTab === 'checkout' ? 'border-r border-gray-200' : ''}`}>Quantity</th>
+                  <th className="p-3 border-r border-gray-200 w-2/5">Item Name</th><th className={`p-3 text-center w-40 ${activeTab === 'checkout' ? 'border-r border-gray-200' : ''}`}>Quantity</th>
                   {activeTab === 'checkout' && (<><th className="p-3 border-r border-gray-200 text-center w-36">Price (₹)</th><th className="p-3 border-r border-gray-200 text-center w-28">Disc (%)</th><th className="p-3 text-right w-32">Total</th></>)}
                 </tr>
               </thead>
@@ -165,7 +165,22 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
                   const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
                   return (
                     <tr key={item.id} className="hover:bg-[#f3f3f3] transition-none">
-                      <td className="p-3 border-r border-gray-200"><p className="text-sm font-semibold text-black">{item.name}</p><p className="text-xs text-[#0078D7] font-mono mt-0.5">#{item.barcode}</p></td>
+                      <td className="p-3 border-r border-gray-200">
+                        <p className="text-sm font-semibold text-black">{item.name}</p>
+                        <div className="flex items-center gap-3 mt-1">
+                          <p className="text-xs text-[#0078D7] font-mono">#{item.barcode}</p>
+                          {activeTab === 'checkout' && (
+                            <div className="flex gap-2">
+                              <span className="text-[10px] text-gray-600 font-semibold bg-[#e6e6e6] px-1.5 py-0.5 border border-gray-300 uppercase tracking-wider">
+                                MRP: ₹{Number(item.price || 0).toFixed(2)}
+                              </span>
+                              <span className="text-[10px] text-gray-600 font-semibold bg-[#e6e6e6] px-1.5 py-0.5 border border-gray-300 uppercase tracking-wider">
+                                MSP: ₹{Number(item.msp || 0).toFixed(2)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </td>
                       <td className={`p-2 ${activeTab === 'checkout' ? 'border-r border-gray-200' : ''}`}>
                         <div className="flex items-center justify-center">
                           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty - 1)} className="w-8 h-8 bg-[#e6e6e6] hover:bg-[#cccccc] text-black font-bold border border-gray-400 border-r-0 rounded-none focus:outline-none">-</button>
@@ -197,7 +212,15 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
                   return (
                     <div key={item.id} className="p-4 flex flex-col gap-3">
                       <div className="flex justify-between items-start">
-                        <div className="pr-2"><p className="text-sm font-semibold text-black">{item.name}</p><p className="text-xs text-[#0078D7] mt-1">#{item.barcode}</p></div>
+                        <div className="pr-2">
+                          <p className="text-sm font-semibold text-black">{item.name}</p>
+                          <p className="text-xs text-[#0078D7] mt-1 mb-1">#{item.barcode}</p>
+                          {activeTab === 'checkout' && (
+                            <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">
+                              MRP: ₹{Number(item.price || 0).toFixed(2)} • MSP: ₹{Number(item.msp || 0).toFixed(2)}
+                            </p>
+                          )}
+                        </div>
                         {activeTab === 'checkout' && (<p className="text-base font-bold text-black">₹{(sellPrice * safeQty).toFixed(2)}</p>)}
                       </div>
                       <div className="flex justify-between items-center mt-1 pt-3 border-t border-gray-200">

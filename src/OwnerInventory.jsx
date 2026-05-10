@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabaseClient';
 
-export default function OwnerInventory({ viewType, showAlert, showConfirm }) {
+export default function OwnerInventory({ viewType, showAlert, showConfirm, isActive }) {
   const [inventorySearch, setInventorySearch] = useState('');
   const [sortOption, setSortOption] = useState('barcode-asc'); 
   const [invPage, setInvPage] = useState(0);
@@ -9,6 +9,7 @@ export default function OwnerInventory({ viewType, showAlert, showConfirm }) {
   const [totalInvItems, setTotalInvItems] = useState(0);
   const [editingBarcode, setEditingBarcode] = useState(null);
   const [editFormData, setEditFormData] = useState({});
+  const isFirstRender = useRef(true);
   const INV_PER_PAGE = 50;
 
   const loadInventory = async () => {
@@ -28,6 +29,11 @@ export default function OwnerInventory({ viewType, showAlert, showConfirm }) {
 
   useEffect(() => { loadInventory(); }, [invPage, inventorySearch, sortOption, viewType]);
 
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    if (isActive) loadInventory();
+  }, [isActive]);
+
   const handleSaveEdit = async () => {
     if (Number(editFormData.cost_price) < 0 || Number(editFormData.price) < 0 || Number(editFormData.msp) < 0) return showAlert("Prices cannot be negative numbers.", "Error");
     if (Number(editFormData.msp) < Number(editFormData.cost_price)) return showAlert("MSP cannot be lower than the Cost Price.", "Error");
@@ -44,7 +50,7 @@ export default function OwnerInventory({ viewType, showAlert, showConfirm }) {
   const safeInvPage = Math.min(invPage, maxPages - 1);
 
   return (
-    <div className="flex flex-col flex-1 pb-4 animate-fade-in">
+    <div className="flex flex-col flex-1 pb-4">
       <div className="flex flex-col md:flex-row gap-4 mb-4">
         <input type="text" placeholder="Search Barcode or Name..." value={inventorySearch} onChange={e=>{setInventorySearch(e.target.value); setInvPage(0);}} className={`h-9 border-2 border-gray-300 bg-white px-3 text-sm w-full md:flex-1 rounded-none focus:outline-none focus:border-[#0078D7] ${viewType === 'store' && 'mb-4 md:mb-0'}`} />
         <div className="relative w-full md:w-[260px] flex-shrink-0">
