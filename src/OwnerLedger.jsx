@@ -11,7 +11,6 @@ export default function OwnerLedger({ isActive }) {
   const [filter, setFilter] = useState('ALL'); 
   const [dateFilter, setDateFilter] = useState('ALL'); 
   const [customDate, setCustomDate] = useState('');    
-  // NEW: State for Date Range
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   
@@ -49,7 +48,6 @@ export default function OwnerLedger({ isActive }) {
           start = `${currentCustomDate}T00:00:00`;
           end = `${currentCustomDate}T23:59:59.999`;
         } else if (currentDateFilter === 'RANGE' && currentStart && currentEnd) {
-          // NEW: Date Range Logic
           start = `${currentStart}T00:00:00`;
           end = `${currentEnd}T23:59:59.999`;
         }
@@ -100,7 +98,7 @@ export default function OwnerLedger({ isActive }) {
   };
 
   const getOperationType = (location) => {
-    if (location === 'Store') return 'Sale';
+    if (location === 'Store') return 'Sale (Checkout)';
     if (location === 'Warehouse-Inbound') return 'Received New Stock';
     if (location === 'Warehouse-Transfer') return 'Moved Stock to Store';
     return location;
@@ -127,20 +125,18 @@ export default function OwnerLedger({ isActive }) {
                 <option value="ALL">All Time</option>
                 <option value="TODAY">Today</option>
                 <option value="YESTERDAY">Yesterday</option>
-                <option value="CUSTOM">Specific Date</option>
-                <option value="RANGE">Date Range</option>
+                <option value="CUSTOM">Specific Date...</option>
+                <option value="RANGE">Date Range...</option>
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-600">
                 <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
               </div>
             </div>
             
-            {/* Custom Date Input */}
             {dateFilter === 'CUSTOM' && (
               <input type="date" value={customDate} onChange={(e) => { setCustomDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-9 border border-gray-400 bg-white px-2 text-sm focus:outline-none focus:border-[#0078D7] rounded-none shadow-sm" />
             )}
 
-            {/* NEW: Date Range Inputs */}
             {dateFilter === 'RANGE' && (
               <div className="flex items-center gap-2 shrink-0">
                 <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-9 border border-gray-400 bg-white px-2 text-sm focus:outline-none focus:border-[#0078D7] rounded-none shadow-sm" title="Start Date" />
@@ -162,7 +158,8 @@ export default function OwnerLedger({ isActive }) {
                 <th className="p-3 text-center w-16">Details</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            {/* ADDED border-b border-gray-300 HERE */}
+            <tbody className="divide-y divide-gray-200 border-b border-gray-300">
               {isLoadingBills && bills.length === 0 ? (
                 <tr><td colSpan="5" className="p-10 text-center"><Spinner className="w-8 h-8 text-[#0078D7] mx-auto" /></td></tr>
               ) : bills.length === 0 ? (
@@ -198,7 +195,8 @@ export default function OwnerLedger({ isActive }) {
                                     {isSale && (<><th className="px-4 py-2 border-r border-gray-300 text-right w-32">Unit Price</th><th className="px-4 py-2 text-right w-32">Total</th></>)}
                                   </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-200">
+                                {/* ADDED border-b border-gray-300 HERE AS WELL */}
+                                <tbody className="divide-y divide-gray-200 border-b border-gray-300">
                                   {items.map(item => (
                                     <tr key={item.id} className="hover:bg-[#f9f9f9]">
                                       <td className="px-4 py-2 border-r border-gray-200 text-sm font-medium text-black">{item.name}</td>
