@@ -7,7 +7,13 @@ export default function OwnerLedger({ isActive }) {
   const [isLoadingBills, setIsLoadingBills] = useState(false);
   const [salesPage, setSalesPage] = useState(0);
   const [hasMoreBills, setHasMoreBills] = useState(true);
+  
   const [filter, setFilter] = useState('ALL'); 
+  const [dateFilter, setDateFilter] = useState('ALL'); 
+  const [customDate, setCustomDate] = useState('');    
+  // NEW: State for Date Range
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   
   const [expandedBillId, setExpandedBillId] = useState(null);
   const [billItemsCache, setBillItemsCache] = useState({});
@@ -16,7 +22,7 @@ export default function OwnerLedger({ isActive }) {
   const isFirstRender = useRef(true);
   const SALES_PER_PAGE = 20;
 
-  const fetchBills = async (page, currentFilter) => {
+  const fetchBills = async (page, currentFilter, currentDateFilter, currentCustomDate, currentStart, currentEnd) => {
     try {
       setIsLoadingBills(true);
       const from = page * SALES_PER_PAGE;
@@ -26,20 +32,45 @@ export default function OwnerLedger({ isActive }) {
       else if (currentFilter === 'RECEIVE') query = query.eq('location', 'Warehouse-Inbound');
       else if (currentFilter === 'TRANSFER') query = query.eq('location', 'Warehouse-Transfer');
 
+      if (currentDateFilter !== 'ALL') {
+        let start, end;
+        const now = new Date();
+        
+        if (currentDateFilter === 'TODAY') {
+          const localDateStr = now.toLocaleDateString('en-CA');
+          start = `${localDateStr}T00:00:00`;
+          end = `${localDateStr}T23:59:59.999`;
+        } else if (currentDateFilter === 'YESTERDAY') {
+          now.setDate(now.getDate() - 1);
+          const localDateStr = now.toLocaleDateString('en-CA');
+          start = `${localDateStr}T00:00:00`;
+          end = `${localDateStr}T23:59:59.999`;
+        } else if (currentDateFilter === 'CUSTOM' && currentCustomDate) {
+          start = `${currentCustomDate}T00:00:00`;
+          end = `${currentCustomDate}T23:59:59.999`;
+        } else if (currentDateFilter === 'RANGE' && currentStart && currentEnd) {
+          // NEW: Date Range Logic
+          start = `${currentStart}T00:00:00`;
+          end = `${currentEnd}T23:59:59.999`;
+        }
+
+        if (start && end) {
+          query = query.gte('created_at', start).lte('created_at', end);
+        }
+      }
+
       const { data } = await query;
       if (data) { setBills(data); setHasMoreBills(data.length === SALES_PER_PAGE); }
     } finally { setIsLoadingBills(false); }
   };
 
-  // 1. Fetch data on initial background load or when filters change
   useEffect(() => {
-    fetchBills(salesPage, filter);
-  }, [salesPage, filter]);
+    fetchBills(salesPage, filter, dateFilter, customDate, startDate, endDate);
+  }, [salesPage, filter, dateFilter, customDate, startDate, endDate]);
 
-  // 2. Silently fetch fresh data when the user clicks this tab
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return; }
-    if (isActive) fetchBills(salesPage, filter);
+    if (isActive) fetchBills(salesPage, filter, dateFilter, customDate, startDate, endDate);
   }, [isActive]);
 
   const toggleRow = async (bill) => {
@@ -69,7 +100,7 @@ export default function OwnerLedger({ isActive }) {
   };
 
   const getOperationType = (location) => {
-    if (location === 'Store') return 'Sale (Checkout)';
+    if (location === 'Store') return 'Sale';
     if (location === 'Warehouse-Inbound') return 'Received New Stock';
     if (location === 'Warehouse-Transfer') return 'Moved Stock to Store';
     return location;
@@ -80,11 +111,44 @@ export default function OwnerLedger({ isActive }) {
       <h1 className="text-2xl font-light text-black mb-6">Sales & Activity History</h1>
 
       <div className="flex flex-col flex-1 pb-4">
-        <div className="flex gap-1 mb-6 border-b border-gray-300 pb-0 overflow-x-auto">
-          <button onClick={() => handleFilterChange('ALL')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none ${filter === 'ALL' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>All Activity</button>
-          <button onClick={() => handleFilterChange('SALE')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none ${filter === 'SALE' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Sales</button>
-          <button onClick={() => handleFilterChange('RECEIVE')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none ${filter === 'RECEIVE' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Received Stock</button>
-          <button onClick={() => handleFilterChange('TRANSFER')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none ${filter === 'TRANSFER' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Moved to Store</button>
+        
+        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-4 mb-6 border-b border-gray-300 pb-0">
+          <div className="flex gap-1 overflow-x-auto w-full xl:w-auto">
+            <button onClick={() => handleFilterChange('ALL')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none ${filter === 'ALL' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>All Activity</button>
+            <button onClick={() => handleFilterChange('SALE')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none ${filter === 'SALE' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Sales</button>
+            <button onClick={() => handleFilterChange('RECEIVE')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none ${filter === 'RECEIVE' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Received Stock</button>
+            <button onClick={() => handleFilterChange('TRANSFER')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none ${filter === 'TRANSFER' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Moved to Store</button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 pb-2 w-full xl:w-auto">
+            <span className="text-xs font-semibold uppercase text-gray-600 whitespace-nowrap">Date Filter:</span>
+            <div className="relative shrink-0">
+              <select value={dateFilter} onChange={(e) => { setDateFilter(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-9 border border-gray-400 bg-white pl-3 pr-8 text-sm focus:outline-none focus:border-[#0078D7] rounded-none cursor-pointer appearance-none shadow-sm">
+                <option value="ALL">All Time</option>
+                <option value="TODAY">Today</option>
+                <option value="YESTERDAY">Yesterday</option>
+                <option value="CUSTOM">Specific Date</option>
+                <option value="RANGE">Date Range</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-600">
+                <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
+              </div>
+            </div>
+            
+            {/* Custom Date Input */}
+            {dateFilter === 'CUSTOM' && (
+              <input type="date" value={customDate} onChange={(e) => { setCustomDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-9 border border-gray-400 bg-white px-2 text-sm focus:outline-none focus:border-[#0078D7] rounded-none shadow-sm" />
+            )}
+
+            {/* NEW: Date Range Inputs */}
+            {dateFilter === 'RANGE' && (
+              <div className="flex items-center gap-2 shrink-0">
+                <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-9 border border-gray-400 bg-white px-2 text-sm focus:outline-none focus:border-[#0078D7] rounded-none shadow-sm" title="Start Date" />
+                <span className="text-gray-500 font-bold text-xs uppercase">to</span>
+                <input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-9 border border-gray-400 bg-white px-2 text-sm focus:outline-none focus:border-[#0078D7] rounded-none shadow-sm" title="End Date" />
+              </div>
+            )}
+          </div>
         </div>
         
         <div className="border border-gray-400 bg-white flex-1 overflow-y-auto rounded-none shadow-sm min-h-[400px]">

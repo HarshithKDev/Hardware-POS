@@ -37,7 +37,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
       setCart(prev => {
         const idx = prev.findIndex(c => c.barcode === cleanBarcode);
         if (idx >= 0) { const up = [...prev]; up[idx] = { ...up[idx], quantity: (Number(up[idx].quantity) || 0) + 1 }; return up; }
-        return [...prev, { ...item, id: Date.now(), customPriceInput: Number(item.price || 0).toFixed(2), discountPct: 0, quantity: 1, unit: item.unit || 'PCS' }];
+        // Default SQFT items to 0 quantity until dimensions are typed
+        return [...prev, { ...item, id: Date.now(), customPriceInput: Number(item.price || 0).toFixed(2), discountPct: 0, quantity: item.unit === 'SQFT' ? 0 : 1, unit: item.unit || 'PCS', length: '', width: '', rolls: '1' }];
       });
     }
   };
@@ -75,6 +76,33 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
     });
   };
 
+  const updateDimensions = (id, field, val) => {
+    setCart(prev => {
+      let limitMsg = '';
+      const newCart = prev.map(i => {
+        if (i.id === id) {
+          const updated = { ...i, [field]: val };
+          const l = Number(updated.length) || 0;
+          const w = Number(updated.width) || 0;
+          const r = updated.rolls === '' ? 1 : (Number(updated.rolls) || 1); // Empty rolls = 1 for math
+          let newQty = parseFloat((l * w * r).toFixed(2));
+          
+          if (activeTab === 'checkout' && newQty > 0) {
+            const maxStock = Number(i.stock_store || 0);
+            if (newQty > maxStock) { 
+              limitMsg = `You only have ${maxStock} of ${i.name} in the store.`; 
+              newQty = maxStock; 
+            }
+          }
+          return { ...updated, quantity: newQty };
+        }
+        return i;
+      });
+      if (limitMsg) setTimeout(() => showAlert(limitMsg, "Stock Limit"), 0);
+      return newCart;
+    });
+  };
+
   const handleCustomPriceChange = (id, val) => setCart(prev => prev.map(i => i.id === id ? { ...i, customPriceInput: val } : i));
   
   const applyCustomPriceBlur = (id) => setCart(prev => prev.map(i => {
@@ -96,6 +124,19 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
     if (finalCart.length === 0) return;
     setIsCheckingOut(true);
     try {
+      if (activeTab === 'checkout') {
+        const barcodes = finalCart.map(item => item.barcode);
+        const { data: liveStock, error: stockError } = await supabase.from('inventory').select('barcode, name, stock_store').in('barcode', barcodes);
+        if (stockError) throw new Error("Could not verify live stock levels. Please check your internet connection.");
+        for (const cartItem of finalCart) {
+          const liveItem = liveStock.find(i => i.barcode === cartItem.barcode);
+          if (!liveItem || Number(liveItem.stock_store) < cartItem.quantity) {
+             const available = liveItem ? liveItem.stock_store : 0;
+             throw new Error(`Someone just bought ${cartItem.name}! There are only ${available} left in the shop.`);
+          }
+        }
+      }
+
       const payload = { p_action: activeTab === 'receive' ? 'RECEIVE' : activeTab === 'transfer' ? 'TRANSFER' : 'SALE', p_location: activeTab === 'receive' ? 'Warehouse-Inbound' : activeTab === 'transfer' ? 'Warehouse-Transfer' : 'Store', p_cashier_name: cashierName || 'System', p_items: finalCart.map(i => ({ barcode: i.barcode, name: i.name, quantity: Number(i.quantity), price: i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0), discountPct: 0, unit: i.unit })) };
       const { data, error } = await supabase.rpc('process_pos_transaction', payload);
       if (error) throw new Error(error.message);
@@ -103,7 +144,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
       setCart([]); setCheckoutModal({ isOpen: false, cashGiven: '' });
       if (refreshInventory) refreshInventory();
       if (activeTab === 'checkout') setTimeout(() => { window.print(); }, 100); else showAlert("Stock updated successfully.", "Success");
-    } catch (e) { showAlert(e.message, "System Error"); } finally { setIsCheckingOut(false); }
+    } catch (e) { showAlert(e.message, "Notice"); } finally { setIsCheckingOut(false); }
   };
 
   const cartTotal = calculateTotal(); const cartUnits = calculateTotalUnits();
@@ -113,6 +154,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
 
   return (
     <>
+      {/* Checkout Modal */}
       {checkoutModal.isOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] print:hidden px-4">
           <div className="bg-white border border-gray-400 w-[450px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
@@ -155,7 +197,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
             <table className="w-full text-left border-collapse">
               <thead className="bg-[#f9f9f9] sticky top-0 border-b border-gray-300 z-10">
                 <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
-                  <th className="p-3 border-r border-gray-200 w-2/5">Item Name</th><th className={`p-3 text-center w-40 ${activeTab === 'checkout' ? 'border-r border-gray-200' : ''}`}>Quantity</th>
+                  <th className="p-3 border-r border-gray-200 w-2/5">Item Name</th><th className={`p-3 text-center w-56 ${activeTab === 'checkout' ? 'border-r border-gray-200' : ''}`}>Quantity</th>
                   {activeTab === 'checkout' && (<><th className="p-3 border-r border-gray-200 text-center w-36">Price (₹)</th><th className="p-3 border-r border-gray-200 text-center w-28">Disc (%)</th><th className="p-3 text-right w-32">Total</th></>)}
                 </tr>
               </thead>
@@ -182,11 +224,22 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
                         </div>
                       </td>
                       <td className={`p-2 ${activeTab === 'checkout' ? 'border-r border-gray-200' : ''}`}>
-                        <div className="flex items-center justify-center">
-                          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty - 1)} className="w-8 h-8 bg-[#e6e6e6] hover:bg-[#cccccc] text-black font-bold border border-gray-400 border-r-0 rounded-none focus:outline-none">-</button>
-                          <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-14 h-8 px-1 text-sm font-semibold text-center border border-gray-400 focus:outline-none focus:border-[#0078D7] focus:z-10 rounded-none" />
-                          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty + 1)} className="w-8 h-8 bg-[#e6e6e6] hover:bg-[#cccccc] text-black font-bold border border-gray-400 border-l-0 rounded-none focus:outline-none">+</button>
-                        </div>
+                        {item.unit === 'SQFT' ? (
+                          <div className="flex items-center justify-center gap-1">
+                            <input type="number" step="any" placeholder="L" value={item.length !== undefined ? item.length : ''} onChange={(e) => updateDimensions(item.id, 'length', e.target.value)} className="w-12 h-8 px-1 text-xs font-semibold text-center border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" title="Length" />
+                            <span className="text-gray-500 font-bold text-xs">x</span>
+                            <input type="number" step="any" placeholder="W" value={item.width !== undefined ? item.width : ''} onChange={(e) => updateDimensions(item.id, 'width', e.target.value)} className="w-12 h-8 px-1 text-xs font-semibold text-center border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" title="Width" />
+                            <span className="text-gray-500 font-bold text-xs">x</span>
+                            <input type="number" step="any" min="1" placeholder="Rolls" value={item.rolls !== undefined ? item.rolls : '1'} onChange={(e) => updateDimensions(item.id, 'rolls', e.target.value)} className="w-12 h-8 px-1 text-xs font-semibold text-center border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" title="Rolls / Qty" />
+                            <span className="text-[#0078D7] font-bold text-sm ml-1 w-10 text-left">={safeQty}</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center">
+                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty - 1)} className="w-8 h-8 bg-[#e6e6e6] hover:bg-[#cccccc] text-black font-bold border border-gray-400 border-r-0 rounded-none focus:outline-none">-</button>
+                            <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-14 h-8 px-1 text-sm font-semibold text-center border border-gray-400 focus:outline-none focus:border-[#0078D7] focus:z-10 rounded-none" />
+                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty + 1)} className="w-8 h-8 bg-[#e6e6e6] hover:bg-[#cccccc] text-black font-bold border border-gray-400 border-l-0 rounded-none focus:outline-none">+</button>
+                          </div>
+                        )}
                       </td>
                       {activeTab === 'checkout' && (<>
                         <td className="p-2 border-r border-gray-200"><input type="number" step="0.01" value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price||0).toFixed(2)} onChange={(e) => handleCustomPriceChange(item.id, e.target.value)} onBlur={() => applyCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 px-2 border border-gray-300 text-sm font-semibold text-center bg-white rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
@@ -201,7 +254,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
           )}
         </div>
         
-        {/* Mobile View Omitted for Brevity but standardizing borders... */}
+        {/* Mobile View */}
         <div className="md:hidden flex-1 overflow-y-auto bg-white divide-y divide-gray-300 border-b border-gray-400">
            {cart.length === 0 ? (
                 <div className="p-10 text-center text-sm font-semibold uppercase tracking-widest text-gray-500">Cart Empty</div>
@@ -224,11 +277,24 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
                         {activeTab === 'checkout' && (<p className="text-base font-bold text-black">₹{(sellPrice * safeQty).toFixed(2)}</p>)}
                       </div>
                       <div className="flex justify-between items-center mt-1 pt-3 border-t border-gray-200">
-                        <div className="flex items-center">
-                          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty - 1)} className="w-10 h-8 bg-[#e6e6e6] active:bg-[#cccccc] text-black font-bold text-lg border border-gray-400 border-r-0 rounded-none">-</button>
-                          <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-12 h-8 px-1 text-sm font-semibold text-center border border-gray-400 focus:outline-none focus:border-[#0078D7] z-10 rounded-none" />
-                          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty + 1)} className="w-10 h-8 bg-[#e6e6e6] active:bg-[#cccccc] text-black font-bold text-lg border border-gray-400 border-l-0 rounded-none">+</button>
-                        </div>
+                        {item.unit === 'SQFT' ? (
+                          <div className="flex items-center gap-1 w-full justify-between">
+                            <div className="flex items-center gap-1">
+                              <input type="number" step="any" placeholder="L" value={item.length !== undefined ? item.length : ''} onChange={(e) => updateDimensions(item.id, 'length', e.target.value)} className="w-10 h-8 px-1 text-xs font-semibold text-center border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" />
+                              <span className="text-gray-500 font-bold text-xs">x</span>
+                              <input type="number" step="any" placeholder="W" value={item.width !== undefined ? item.width : ''} onChange={(e) => updateDimensions(item.id, 'width', e.target.value)} className="w-10 h-8 px-1 text-xs font-semibold text-center border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" />
+                              <span className="text-gray-500 font-bold text-xs">x</span>
+                              <input type="number" step="any" min="1" placeholder="Rolls" value={item.rolls !== undefined ? item.rolls : '1'} onChange={(e) => updateDimensions(item.id, 'rolls', e.target.value)} className="w-10 h-8 px-1 text-xs font-semibold text-center border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" />
+                            </div>
+                            <span className="text-[#0078D7] font-bold text-sm">={safeQty} sqft</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center">
+                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty - 1)} className="w-10 h-8 bg-[#e6e6e6] active:bg-[#cccccc] text-black font-bold text-lg border border-gray-400 border-r-0 rounded-none">-</button>
+                            <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-12 h-8 px-1 text-sm font-semibold text-center border border-gray-400 focus:outline-none focus:border-[#0078D7] z-10 rounded-none" />
+                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty + 1)} className="w-10 h-8 bg-[#e6e6e6] active:bg-[#cccccc] text-black font-bold text-lg border border-gray-400 border-l-0 rounded-none">+</button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );

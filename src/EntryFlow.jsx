@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient'; 
-import { Spinner } from './App'; 
+import { Spinner } from './SharedUI'; 
 
 const EyeIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
@@ -100,10 +100,34 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
       
       if (authError) {
         setError('Incorrect Password or Username. Access denied.');
-      } else {
-        onLoginSuccess(targetId, data.session.access_token);
+        setIsAuthenticating(false);
+        return;
       }
-    } finally { setIsAuthenticating(false); }
+
+      // NEW SECURITY CHECK: Ensure the owner hasn't removed this staff member
+      if (role === 'worker') {
+        const { data: activeWorker, error: dbError } = await supabase
+          .from('workers')
+          .select('name')
+          .ilike('name', targetId) 
+          .single();
+          
+        if (!activeWorker || dbError) {
+          await supabase.auth.signOut(); // Kick them back out
+          setError('Access Denied: Your account was removed by the owner.');
+          setIsAuthenticating(false);
+          return;
+        }
+      }
+
+      // If everything checks out, log them in!
+      onLoginSuccess(targetId, data.session.access_token);
+      
+    } catch (err) { 
+      setError('A system error occurred. Please try again.'); 
+    } finally { 
+      setIsAuthenticating(false); 
+    }
   };
 
   if (isSetupNeeded) {
@@ -113,16 +137,16 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
           <h2 className="text-2xl font-light text-black mb-2">Register Your Shop</h2>
           <p className="text-gray-600 mb-6 text-sm">Create your master account to get started.</p>
           <form onSubmit={handleSetup} className="space-y-4">
-            <div><input type="text" value={shopName} onChange={(e) => setShopName(e.target.value)} placeholder="Shop Name (e.g. Metro Hardware)" className="w-full px-3 py-2 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-lg rounded-none" /></div>
-            <div><input type="text" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder="Owner Name" className="w-full px-3 py-2 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-lg rounded-none" /></div>
+            <div><input type="text" value={shopName} onChange={(e) => setShopName(e.target.value)} placeholder="Shop Name (e.g. Metro Hardware)" className="w-full h-12 px-3 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-lg rounded-none" /></div>
+            <div><input type="text" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder="Owner Name" className="w-full h-12 px-3 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-lg rounded-none" /></div>
             <div className="relative">
-              <input type={showSetupPassword ? "text" : "password"} value={setupPassword} onChange={(e) => setSetupPassword(e.target.value)} placeholder="Set Admin Password (Min 6 chars)" className="w-full px-3 py-2 pr-10 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-lg rounded-none" />
+              <input type={showSetupPassword ? "text" : "password"} value={setupPassword} onChange={(e) => setSetupPassword(e.target.value)} placeholder="Set Admin Password (Min 6 chars)" className="w-full h-12 px-3 pr-10 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-lg rounded-none" />
               <button type="button" onClick={() => setShowSetupPassword(!showSetupPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-[#0078D7] focus:outline-none" tabIndex="-1">
                 {showSetupPassword ? <EyeSlashIcon /> : <EyeIcon />}
               </button>
             </div>
             {error && <p className="text-[#e81123] text-sm font-semibold">{error}</p>}
-            <button type="submit" disabled={isSettingUp} className="w-full py-3 bg-[#0078D7] hover:bg-[#005a9e] text-white text-lg font-medium transition-colors rounded-none border border-[#005a9e] disabled:opacity-50 flex justify-center items-center h-14">
+            <button type="submit" disabled={isSettingUp} className="w-full h-12 bg-[#0078D7] hover:bg-[#005a9e] text-white text-lg font-medium transition-colors rounded-none border border-transparent disabled:opacity-50 flex justify-center items-center">
               {isSettingUp ? <Spinner className="w-6 h-6 text-white" /> : 'Register'}
             </button>
           </form>
@@ -159,17 +183,17 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
             <form onSubmit={handleLogin} className="space-y-4">
               {role === 'worker' && (
                 <div>
-                  <input type="text" value={operatorId} onChange={(e) => setOperatorId(e.target.value)} placeholder="Staff Username" className="w-full px-3 py-3 border border-gray-400 focus:outline-none focus:border-[#0078D7] focus:ring-1 focus:ring-[#0078D7] text-lg rounded-none" autoFocus />
+                  <input type="text" value={operatorId} onChange={(e) => setOperatorId(e.target.value)} placeholder="Staff Username" className="w-full h-12 px-3 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-lg rounded-none" autoFocus />
                 </div>
               )}
               <div className="relative">
-                <input type={showLoginPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={role === 'owner' ? "Owner Password" : "Login PIN"} className="w-full px-3 py-3 pr-10 border border-gray-400 focus:outline-none focus:border-[#0078D7] focus:ring-1 focus:ring-[#0078D7] text-lg rounded-none" autoFocus={role === 'owner'} />
+                <input type={showLoginPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={role === 'owner' ? "Owner Password" : "Login PIN"} className="w-full h-12 px-3 pr-10 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-lg rounded-none" autoFocus={role === 'owner'} />
                 <button type="button" onClick={() => setShowLoginPassword(!showLoginPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-[#0078D7] focus:outline-none" tabIndex="-1">
                   {showLoginPassword ? <EyeSlashIcon /> : <EyeIcon />}
                 </button>
               </div>
               {error && <p className="text-[#e81123] text-sm font-semibold">{error}</p>}
-              <button type="submit" disabled={isAuthenticating} className="w-full py-3 mt-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-lg font-medium transition-colors rounded-none border border-[#005a9e] disabled:opacity-50 flex justify-center items-center h-14">
+              <button type="submit" disabled={isAuthenticating} className="w-full h-12 mt-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-lg font-medium transition-colors rounded-none border border-transparent disabled:opacity-50 flex justify-center items-center">
                 {isAuthenticating ? <Spinner className="w-6 h-6 text-white" /> : 'Login'}
               </button>
             </form>
