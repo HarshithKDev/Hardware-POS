@@ -37,7 +37,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
       setCart(prev => {
         const idx = prev.findIndex(c => c.barcode === cleanBarcode);
         if (idx >= 0) { const up = [...prev]; up[idx] = { ...up[idx], quantity: (Number(up[idx].quantity) || 0) + 1 }; return up; }
-        // Default SQFT items to 0 quantity until dimensions are typed
         return [...prev, { ...item, id: Date.now(), customPriceInput: Number(item.price || 0).toFixed(2), discountPct: 0, quantity: item.unit === 'SQFT' ? 0 : 1, unit: item.unit || 'PCS', length: '', width: '', rolls: '1' }];
       });
     }
@@ -84,7 +83,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
           const updated = { ...i, [field]: val };
           const l = Number(updated.length) || 0;
           const w = Number(updated.width) || 0;
-          const r = updated.rolls === '' ? 1 : (Number(updated.rolls) || 1); // Empty rolls = 1 for math
+          const r = updated.rolls === '' ? 1 : (Number(updated.rolls) || 1); 
           let newQty = parseFloat((l * w * r).toFixed(2));
           
           if (activeTab === 'checkout' && newQty > 0) {
@@ -157,15 +156,28 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
       {/* Checkout Modal */}
       {checkoutModal.isOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] print:hidden px-4">
-          <div className="bg-white border border-gray-400 w-[450px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
+          <div className="bg-white border border-gray-400 w-[450px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none text-black">
             <div className="bg-white flex justify-between items-center pr-1 pl-4 py-1 border-b border-gray-200">
               <span className="text-xs font-semibold uppercase tracking-wider text-black">Checkout Payment</span>
               <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} className="text-gray-600 hover:bg-[#e81123] hover:text-white px-3 py-1.5 leading-none transition-none focus:outline-none rounded-none">✕</button>
             </div>
             <div className="p-6 bg-white">
-              <div className="flex justify-between items-end mb-6 pb-4 border-b border-gray-300"><span className="text-xs font-bold uppercase tracking-wider text-gray-500">Total Due</span><span className="text-4xl font-light text-[#0078D7]">₹{cartTotal.toFixed(2)}</span></div>
-              <div className="mb-6"><label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">Cash Given (₹)</label><input type="number" step="any" autoFocus value={checkoutModal.cashGiven} onChange={(e) => setCheckoutModal({ ...checkoutModal, cashGiven: e.target.value })} placeholder="0.00" className="w-full h-12 px-4 border-2 border-gray-300 bg-white text-2xl font-mono rounded-none focus:outline-none focus:border-[#0078D7]" /></div>
-              {cashGivenCents > 0 && (<div className={`p-4 border ${!isShortfall ? 'bg-[#e6f4ea] border-[#107c10]' : 'bg-[#fde7e9] border-[#e81123]'}`}><div className="flex justify-between items-center"><span className="text-xs font-bold uppercase tracking-wider text-black">{!isShortfall ? 'Give Change' : 'Missing Amount'}</span><span className="text-2xl font-light text-black">₹{(differenceCents / 100).toFixed(2)}</span></div></div>)}
+              <div className="flex justify-between items-end mb-6 pb-4 border-b border-gray-300">
+                <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Total Due</span>
+                <span className="text-4xl font-light text-[#0078D7]">₹{cartTotal.toFixed(2)}</span>
+              </div>
+              <div className="mb-6">
+                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">Cash Given (₹)</label>
+                <input type="number" step="any" autoFocus value={checkoutModal.cashGiven} onChange={(e) => setCheckoutModal({ ...checkoutModal, cashGiven: e.target.value })} placeholder="0.00" className="w-full h-12 px-4 border-2 border-gray-300 bg-white text-black text-2xl font-mono rounded-none focus:outline-none focus:border-[#0078D7]" />
+              </div>
+              {cashGivenCents > 0 && (
+                <div className={`p-4 border ${!isShortfall ? 'pos-success-box' : 'pos-error-box'}`}>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold uppercase tracking-wider text-black">{!isShortfall ? 'Give Change' : 'Missing Amount'}</span>
+                    <span className="text-2xl font-light text-black">₹{(differenceCents / 100).toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="p-4 bg-[#f3f3f3] border-t border-gray-300 flex justify-end gap-2">
               <button onClick={handleCompleteTransaction} disabled={isCheckingOut || isShortfall} className="h-9 px-8 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-semibold rounded-none border border-transparent focus:outline-none focus:ring-2 focus:ring-[#0078D7] focus:ring-offset-1 disabled:opacity-50 flex justify-center items-center min-w-[120px]">{isCheckingOut ? <Spinner className="w-4 h-4 text-white" /> : 'Complete Sale'}</button>
@@ -175,13 +187,14 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
         </div>
       )}
       
-      <div className="flex flex-col flex-1 border border-gray-400 bg-white min-h-[500px] rounded-none shadow-sm">
-        <div className={`p-4 border-b border-gray-400 flex flex-col md:flex-row justify-between gap-4 ${activeTab === 'receive' ? 'bg-[#f4fbf5]' : activeTab === 'transfer' ? 'bg-[#fffaf0]' : 'bg-[#f3f3f3]'}`}>
+      <div className="flex flex-col flex-1 border border-gray-400 bg-white text-black min-h-[500px] rounded-none shadow-sm print:hidden">
+        {/* CRITICAL FIX: Custom class applied here based on active tab */}
+        <div className={`p-4 border-b border-gray-400 flex flex-col md:flex-row justify-between gap-4 ${activeTab === 'receive' ? 'pos-receive-bg' : activeTab === 'transfer' ? 'pos-transfer-bg' : 'bg-[#f3f3f3]'}`}>
           <div className="flex flex-col">
             <h2 className="text-2xl font-light text-black">{activeTab === 'receive' ? 'Receive New Stock' : activeTab === 'transfer' ? 'Move Stock to Store' : 'Checkout Counter'}</h2>
             <form onSubmit={(e) => { e.preventDefault(); processScan(manualBarcode); setManualBarcode(''); }} className="mt-3 flex items-center">
-              <input type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} placeholder="Enter Barcode manually..." className="h-9 border-2 border-gray-300 px-3 text-sm focus:outline-none focus:border-[#0078D7] rounded-none w-full md:w-64" />
-              <button type="submit" className="h-9 bg-[#e6e6e6] px-4 text-sm font-semibold border-2 border-l-0 border-gray-300 hover:bg-[#cccccc] rounded-none focus:outline-none">Add</button>
+              <input type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} placeholder="Enter Barcode manually..." className="h-9 border-2 border-gray-300 bg-white text-black px-3 text-sm focus:outline-none focus:border-[#0078D7] rounded-none w-full md:w-64" />
+              <button type="submit" className="h-9 bg-[#e6e6e6] px-4 text-sm font-semibold border-2 border-l-0 border-gray-300 text-black hover:bg-[#cccccc] rounded-none focus:outline-none">Add</button>
             </form>
           </div>
           <div className="text-left md:text-right border-t border-gray-300 pt-2 md:border-0 md:pt-0 flex flex-col justify-end">
@@ -226,23 +239,23 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
                       <td className={`p-2 ${activeTab === 'checkout' ? 'border-r border-gray-200' : ''}`}>
                         {item.unit === 'SQFT' ? (
                           <div className="flex items-center justify-center gap-1">
-                            <input type="number" step="any" placeholder="L" value={item.length !== undefined ? item.length : ''} onChange={(e) => updateDimensions(item.id, 'length', e.target.value)} className="w-12 h-8 px-1 text-xs font-semibold text-center border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" title="Length" />
+                            <input type="number" step="any" placeholder="L" value={item.length !== undefined ? item.length : ''} onChange={(e) => updateDimensions(item.id, 'length', e.target.value)} className="w-12 h-8 px-1 text-xs font-semibold text-center bg-white text-black border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" title="Length" />
                             <span className="text-gray-500 font-bold text-xs">x</span>
-                            <input type="number" step="any" placeholder="W" value={item.width !== undefined ? item.width : ''} onChange={(e) => updateDimensions(item.id, 'width', e.target.value)} className="w-12 h-8 px-1 text-xs font-semibold text-center border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" title="Width" />
+                            <input type="number" step="any" placeholder="W" value={item.width !== undefined ? item.width : ''} onChange={(e) => updateDimensions(item.id, 'width', e.target.value)} className="w-12 h-8 px-1 text-xs font-semibold text-center bg-white text-black border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" title="Width" />
                             <span className="text-gray-500 font-bold text-xs">x</span>
-                            <input type="number" step="any" min="1" placeholder="Rolls" value={item.rolls !== undefined ? item.rolls : '1'} onChange={(e) => updateDimensions(item.id, 'rolls', e.target.value)} className="w-12 h-8 px-1 text-xs font-semibold text-center border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" title="Rolls / Qty" />
+                            <input type="number" step="any" min="1" placeholder="Rolls" value={item.rolls !== undefined ? item.rolls : '1'} onChange={(e) => updateDimensions(item.id, 'rolls', e.target.value)} className="w-12 h-8 px-1 text-xs font-semibold text-center bg-white text-black border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" title="Rolls / Qty" />
                             <span className="text-[#0078D7] font-bold text-sm ml-1 w-10 text-left">={safeQty}</span>
                           </div>
                         ) : (
                           <div className="flex items-center justify-center">
                             <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty - 1)} className="w-8 h-8 bg-[#e6e6e6] hover:bg-[#cccccc] text-black font-bold border border-gray-400 border-r-0 rounded-none focus:outline-none">-</button>
-                            <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-14 h-8 px-1 text-sm font-semibold text-center border border-gray-400 focus:outline-none focus:border-[#0078D7] focus:z-10 rounded-none" />
+                            <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-14 h-8 px-1 text-sm font-semibold text-center bg-white text-black border border-gray-400 focus:outline-none focus:border-[#0078D7] focus:z-10 rounded-none" />
                             <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty + 1)} className="w-8 h-8 bg-[#e6e6e6] hover:bg-[#cccccc] text-black font-bold border border-gray-400 border-l-0 rounded-none focus:outline-none">+</button>
                           </div>
                         )}
                       </td>
                       {activeTab === 'checkout' && (<>
-                        <td className="p-2 border-r border-gray-200"><input type="number" step="0.01" value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price||0).toFixed(2)} onChange={(e) => handleCustomPriceChange(item.id, e.target.value)} onBlur={() => applyCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 px-2 border border-gray-300 text-sm font-semibold text-center bg-white rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
+                        <td className="p-2 border-r border-gray-200"><input type="number" step="0.01" value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price||0).toFixed(2)} onChange={(e) => handleCustomPriceChange(item.id, e.target.value)} onBlur={() => applyCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 px-2 border border-gray-300 text-sm font-semibold text-center bg-white text-black rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
                         <td className="p-2 border-r border-gray-200 bg-[#f9f9f9]"><input type="number" value={item.discountPct ? Number(item.discountPct).toFixed(1) : '0.0'} disabled className="w-full h-8 px-2 border border-transparent text-sm font-semibold text-center bg-transparent rounded-none outline-none cursor-not-allowed text-gray-500" /></td>
                         <td className="p-3 text-right text-sm font-bold text-black">₹{(sellPrice * safeQty).toFixed(2)}</td>
                       </>)}
@@ -255,7 +268,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
         </div>
         
         {/* Mobile View */}
-        <div className="md:hidden flex-1 overflow-y-auto bg-white divide-y divide-gray-300 border-b border-gray-400">
+        <div className="md:hidden flex-1 overflow-y-auto bg-white text-black divide-y divide-gray-300 border-b border-gray-400">
            {cart.length === 0 ? (
                 <div className="p-10 text-center text-sm font-semibold uppercase tracking-widest text-gray-500">Cart Empty</div>
               ) : (
@@ -280,18 +293,18 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
                         {item.unit === 'SQFT' ? (
                           <div className="flex items-center gap-1 w-full justify-between">
                             <div className="flex items-center gap-1">
-                              <input type="number" step="any" placeholder="L" value={item.length !== undefined ? item.length : ''} onChange={(e) => updateDimensions(item.id, 'length', e.target.value)} className="w-10 h-8 px-1 text-xs font-semibold text-center border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" />
+                              <input type="number" step="any" placeholder="L" value={item.length !== undefined ? item.length : ''} onChange={(e) => updateDimensions(item.id, 'length', e.target.value)} className="w-10 h-8 px-1 text-xs font-semibold text-center bg-white text-black border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" />
                               <span className="text-gray-500 font-bold text-xs">x</span>
-                              <input type="number" step="any" placeholder="W" value={item.width !== undefined ? item.width : ''} onChange={(e) => updateDimensions(item.id, 'width', e.target.value)} className="w-10 h-8 px-1 text-xs font-semibold text-center border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" />
+                              <input type="number" step="any" placeholder="W" value={item.width !== undefined ? item.width : ''} onChange={(e) => updateDimensions(item.id, 'width', e.target.value)} className="w-10 h-8 px-1 text-xs font-semibold text-center bg-white text-black border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" />
                               <span className="text-gray-500 font-bold text-xs">x</span>
-                              <input type="number" step="any" min="1" placeholder="Rolls" value={item.rolls !== undefined ? item.rolls : '1'} onChange={(e) => updateDimensions(item.id, 'rolls', e.target.value)} className="w-10 h-8 px-1 text-xs font-semibold text-center border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" />
+                              <input type="number" step="any" min="1" placeholder="Rolls" value={item.rolls !== undefined ? item.rolls : '1'} onChange={(e) => updateDimensions(item.id, 'rolls', e.target.value)} className="w-10 h-8 px-1 text-xs font-semibold text-center bg-white text-black border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" />
                             </div>
                             <span className="text-[#0078D7] font-bold text-sm">={safeQty} sqft</span>
                           </div>
                         ) : (
                           <div className="flex items-center">
                             <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty - 1)} className="w-10 h-8 bg-[#e6e6e6] active:bg-[#cccccc] text-black font-bold text-lg border border-gray-400 border-r-0 rounded-none">-</button>
-                            <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-12 h-8 px-1 text-sm font-semibold text-center border border-gray-400 focus:outline-none focus:border-[#0078D7] z-10 rounded-none" />
+                            <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-12 h-8 px-1 text-sm font-semibold text-center bg-white text-black border border-gray-400 focus:outline-none focus:border-[#0078D7] z-10 rounded-none" />
                             <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty + 1)} className="w-10 h-8 bg-[#e6e6e6] active:bg-[#cccccc] text-black font-bold text-lg border border-gray-400 border-l-0 rounded-none">+</button>
                           </div>
                         )}

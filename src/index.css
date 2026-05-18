@@ -94,3 +94,15 @@ input:focus, select:focus, button:focus {
   background-color: #2d2d2d !important;
   color: #9ca3af !important;
 }
+
+/* Custom Header Backgrounds (Light Mode Defaults) */
+.pos-receive-bg { background-color: #f4fbf5; }
+.pos-transfer-bg { background-color: #fffaf0; }
+.pos-success-box { background-color: #e6f4ea; border-color: #107c10; }
+.pos-error-box { background-color: #fde7e9; border-color: #e81123; }
+
+/* Custom Header Backgrounds (Dark Mode Overrides) */
+.dark .pos-receive-bg { background-color: #102a1a !important; border-color: #1a5223 !important; }
+.dark .pos-transfer-bg { background-color: #2a2010 !important; border-color: #7a5c15 !important; }
+.dark .pos-success-box { background-color: #102a1a !important; border-color: #1a5223 !important; }
+.dark .pos-error-box { background-color: #2a1012 !important; border-color: #7a151e !important; }

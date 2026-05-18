@@ -19,9 +19,17 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
 
   return (
     <div style={{ fontFamily: "'Roboto', sans-serif" }} className="h-full">
-      <style>{`@media print { @page { margin: 0; size: 80mm auto; } body { margin: 0; padding: 0; } body * { visibility: hidden !important; } #printable-receipt, #printable-receipt * { visibility: visible !important; } #printable-receipt { position: absolute; left: 0; top: 0; width: 80mm; margin: 0; padding: 4mm; } }`}</style>
+      <style>{`
+        @media print { 
+          @page { margin: 0; size: 80mm auto; } 
+          body { margin: 0; padding: 0; background: #ffffff !important; } 
+          body * { visibility: hidden; } 
+          #printable-receipt, #printable-receipt * { visibility: visible; } 
+          #printable-receipt { position: absolute; left: 0; top: 0; width: 80mm; padding: 4mm; } 
+        }
+      `}</style>
       
-      {/* Keeping identical local Modals context as original parent file */}
+      {/* Alert Modal */}
       {alertConfig.isOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] print:hidden px-4">
           <div className="bg-white border-2 border-[#0078D7] w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
@@ -37,6 +45,7 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
         </div>
       )}
 
+      {/* Confirm Modal */}
       {confirmConfig.isOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] print:hidden px-4">
           <div className="bg-white border-2 border-[#0078D7] w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
@@ -53,9 +62,9 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
         </div>
       )}
 
-      <div className="flex flex-col h-full w-full print:hidden font-sans">
+      <div className="flex flex-col h-full w-full font-sans">
         {!hideNav && (
-          <div className="flex gap-1 mb-6 border-b border-gray-300 pb-0 overflow-x-auto whitespace-nowrap overflow-y-hidden">
+          <div className="flex gap-1 mb-6 border-b border-gray-300 pb-0 overflow-x-auto whitespace-nowrap overflow-y-hidden print:hidden">
             <button onClick={() => handleTabSwitch('dashboard')} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${activeTab === 'dashboard' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Dashboard</button>
             <button onClick={() => handleTabSwitch('receive')} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${activeTab === 'receive' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Inbound</button>
             <button onClick={() => handleTabSwitch('transfer')} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${activeTab === 'transfer' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Transfer</button>
