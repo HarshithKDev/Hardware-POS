@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { supabase } from './supabaseClient';
 
 export default function OwnerCategories({ showAlert, showConfirm }) {
@@ -8,6 +8,9 @@ export default function OwnerCategories({ showAlert, showConfirm }) {
   const [newCategory, setNewCategory] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [newSubcategory, setNewSubcategory] = useState('');
+  
+  // State to track which category row is expanded
+  const [expandedCategoryId, setExpandedCategoryId] = useState(null);
 
   const loadData = async () => {
     const { data: catData } = await supabase.from('categories').select('*').order('name', { ascending: true });
@@ -26,7 +29,9 @@ export default function OwnerCategories({ showAlert, showConfirm }) {
       const { error } = await supabase.from('categories').insert([{ name: newCategory.trim() }]);
       if (error) throw error;
       setNewCategory('');
-      loadData();
+      
+      // Wait for the fresh data to load before showing success
+      await loadData(); 
       showAlert('Category added successfully.', 'Success');
     } catch (e) {
       if (e.code === '23505') showAlert('This category already exists.', 'Error');
@@ -45,8 +50,15 @@ export default function OwnerCategories({ showAlert, showConfirm }) {
         category_name: selectedCategory 
       }]);
       if (error) throw error;
+      
+      // Auto-expand the category where the new subcategory was added
+      const parentCat = categories.find(c => c.name === selectedCategory);
+      if (parentCat) setExpandedCategoryId(parentCat.id);
+
       setNewSubcategory('');
-      loadData();
+      
+      // Wait for the fresh data to load before showing success
+      await loadData(); 
       showAlert('Sub-category added successfully.', 'Success');
     } catch (e) {
       showAlert(e.message, 'System Error');
@@ -67,6 +79,14 @@ export default function OwnerCategories({ showAlert, showConfirm }) {
       if (error) showAlert('Failed to delete sub-category.', 'Error');
       else loadData();
     });
+  };
+
+  const toggleCategory = (id) => {
+    if (expandedCategoryId === id) {
+      setExpandedCategoryId(null);
+    } else {
+      setExpandedCategoryId(id);
+    }
   };
 
   return (
@@ -101,34 +121,72 @@ export default function OwnerCategories({ showAlert, showConfirm }) {
         <table className="w-full text-left border-collapse">
           <thead className="bg-[#f9f9f9] sticky top-0 border-b border-gray-400">
             <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
-              <th className="p-3 border-r border-gray-200">Category / Sub-categories</th>
-              <th className="p-3 w-24 text-center">Actions</th>
+              <th className="p-3 border-r border-gray-200">Category Name</th>
+              <th className="p-3 border-r border-gray-200 w-32 text-center">Actions</th>
+              <th className="p-3 text-center w-16">Details</th>
             </tr>
           </thead>
-          {/* UPDATED: Added border-b border-gray-200 here */}
           <tbody className="divide-y divide-gray-200 border-b border-gray-200">
             {categories.length === 0 ? (
-              <tr><td colSpan="2" className="p-8 text-center text-gray-500 text-sm font-semibold">No categories found.</td></tr>
-            ) : categories.map(cat => (
-              <tr key={cat.id} className="hover:bg-[#f3f3f3] transition-none">
-                <td className="p-3 border-r border-gray-200 text-sm text-black">
-                  <span className="font-bold text-base">{cat.name}</span>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {subcategories.filter(sub => sub.category_name === cat.name).map(sub => (
-                      <span key={sub.id} className="bg-white text-xs px-2 py-1 flex items-center gap-1 border border-gray-300 text-gray-700 shadow-sm font-medium">
-                        {sub.name}
-                        <button onClick={() => handleDeleteSubcategory(sub.id, sub.name)} className="text-[#e81123] hover:bg-[#e81123] hover:text-white px-1 font-bold ml-1 transition-colors">✕</button>
-                      </span>
-                    ))}
-                  </div>
-                </td>
-                <td className="p-2 text-center align-top">
-                  <button onClick={() => handleDeleteCategory(cat.id, cat.name)} className="h-8 bg-white border border-[#e81123] text-[#e81123] hover:bg-[#e81123] hover:text-white px-3 text-xs font-semibold rounded-none focus:outline-none">
-                    Remove
-                  </button>
-                </td>
-              </tr>
-            ))}
+              <tr><td colSpan="3" className="p-8 text-center text-gray-500 text-sm font-semibold">No categories found.</td></tr>
+            ) : categories.map(cat => {
+              const isExpanded = expandedCategoryId === cat.id;
+              const catSubcategories = subcategories.filter(sub => sub.category_name === cat.name);
+
+              return (
+                <Fragment key={cat.id}>
+                  <tr 
+                    onClick={() => toggleCategory(cat.id)} 
+                    className={`cursor-pointer transition-none group ${isExpanded ? 'bg-[#cce8ff]' : 'hover:bg-[#e6e6e6] bg-white'}`}
+                  >
+                    <td className="p-3 border-r border-gray-200 text-sm text-black">
+                      <span className="font-bold text-base">{cat.name}</span>
+                      <span className="ml-2 text-gray-500 text-xs">({catSubcategories.length} sub-categories)</span>
+                    </td>
+                    <td className="p-2 border-r border-gray-200 text-center align-middle">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.id, cat.name); }} 
+                        className="h-8 bg-white border border-[#e81123] text-[#e81123] hover:bg-[#e81123] hover:text-white px-3 text-xs font-semibold rounded-none focus:outline-none"
+                      >
+                        Remove
+                      </button>
+                    </td>
+                    <td className="p-3 text-center flex justify-center items-center h-full">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={`w-5 h-5 text-gray-600 group-hover:text-[#0078D7] transition-transform duration-200 ${isExpanded ? 'rotate-180 text-[#0078D7]' : 'rotate-0'}`}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                      </svg>
+                    </td>
+                  </tr>
+                  
+                  {isExpanded && (
+                    <tr className="bg-[#f3f3f3] shadow-[inset_0_4px_6px_-4px_rgba(0,0,0,0.1)]">
+                      <td colSpan="3" className="p-0 border-b-2 border-[#0078D7]">
+                        <div className="p-6 px-8">
+                          <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3 border-b border-gray-300 pb-2">Sub-categories for {cat.name}</p>
+                          {catSubcategories.length === 0 ? (
+                            <p className="text-sm text-gray-500 italic">No sub-categories added yet.</p>
+                          ) : (
+                            <div className="flex flex-wrap gap-3 mt-2">
+                              {catSubcategories.map(sub => (
+                                <span key={sub.id} className="bg-white text-sm px-3 py-1.5 flex items-center gap-2 border border-gray-300 text-gray-700 shadow-sm font-medium">
+                                  {sub.name}
+                                  <button 
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteSubcategory(sub.id, sub.name); }} 
+                                    className="text-[#e81123] hover:bg-[#e81123] hover:text-white px-1.5 py-0.5 rounded-sm font-bold transition-colors"
+                                  >
+                                    ✕
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>
