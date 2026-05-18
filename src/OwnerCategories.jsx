@@ -2,17 +2,14 @@ import { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 
 export default function OwnerCategories({ showAlert, showConfirm }) {
-  // State (an object that holds information that may change) for lists
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
   
-  // State for forms
   const [newCategory, setNewCategory] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [newSubcategory, setNewSubcategory] = useState('');
 
   const loadData = async () => {
-    // Fetch (retrieve data from a source) categories and subcategories
     const { data: catData } = await supabase.from('categories').select('*').order('name', { ascending: true });
     const { data: subData } = await supabase.from('subcategories').select('*').order('name', { ascending: true });
     
@@ -26,7 +23,6 @@ export default function OwnerCategories({ showAlert, showConfirm }) {
     e.preventDefault();
     if (!newCategory.trim()) return showAlert('Category name cannot be empty.', 'Warning');
     try {
-      // Mutation (an action that changes data in the database) to insert a category
       const { error } = await supabase.from('categories').insert([{ name: newCategory.trim() }]);
       if (error) throw error;
       setNewCategory('');
@@ -89,7 +85,6 @@ export default function OwnerCategories({ showAlert, showConfirm }) {
         <div className="bg-[#f3f3f3] border border-gray-400 p-4 rounded-none shadow-sm flex-1">
           <h2 className="text-sm font-semibold uppercase text-gray-700 tracking-wider mb-4">Add Sub-category</h2>
           <form onSubmit={handleAddSubcategory} className="flex flex-col gap-2">
-            {/* Dropdown (a graphical control element that allows the user to choose one value from a list) */}
             <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="h-9 border-2 border-gray-300 bg-white px-3 text-sm focus:outline-none focus:border-[#0078D7]">
               <option value="">-- Select Parent Category --</option>
               {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
@@ -110,7 +105,8 @@ export default function OwnerCategories({ showAlert, showConfirm }) {
               <th className="p-3 w-24 text-center">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          {/* UPDATED: Added border-b border-gray-200 here */}
+          <tbody className="divide-y divide-gray-200 border-b border-gray-200">
             {categories.length === 0 ? (
               <tr><td colSpan="2" className="p-8 text-center text-gray-500 text-sm font-semibold">No categories found.</td></tr>
             ) : categories.map(cat => (
@@ -118,7 +114,6 @@ export default function OwnerCategories({ showAlert, showConfirm }) {
                 <td className="p-3 border-r border-gray-200 text-sm text-black">
                   <span className="font-bold text-base">{cat.name}</span>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {/* Filter (a method to create a new array with all elements that pass a test) */}
                     {subcategories.filter(sub => sub.category_name === cat.name).map(sub => (
                       <span key={sub.id} className="bg-white text-xs px-2 py-1 flex items-center gap-1 border border-gray-300 text-gray-700 shadow-sm font-medium">
                         {sub.name}
