@@ -79,11 +79,6 @@ input:focus, select:focus, button:focus {
 .dark .text-gray-700, .dark .text-gray-600 { color: #d1d5db !important; }
 .dark .text-gray-500 { color: #9ca3af !important; }
 
-/* Border Color Mappings */
-.dark .border-gray-200, .dark .border-gray-300, .dark .border-gray-400 { 
-  border-color: #4b5563 !important; 
-}
-
 /* Form Inputs Mappings */
 .dark input, .dark select {
   background-color: #1e1e1e !important;
@@ -95,14 +90,41 @@ input:focus, select:focus, button:focus {
   color: #9ca3af !important;
 }
 
-/* Custom Header Backgrounds (Light Mode Defaults) */
+/* -------------------------------------------------------------
+   CUSTOM POS COMPONENT BACKGROUNDS
+   ------------------------------------------------------------- */
+/* Light Mode Defaults */
 .pos-receive-bg { background-color: #f4fbf5; }
 .pos-transfer-bg { background-color: #fffaf0; }
-.pos-success-box { background-color: #e6f4ea; border-color: #107c10; }
-.pos-error-box { background-color: #fde7e9; border-color: #e81123; }
+.pos-success-box { background-color: #e6f4ea; border-color: #107c10; border-width: 1px; border-style: solid; }
+.pos-error-box { background-color: #fde7e9; border-color: #e81123; border-width: 1px; border-style: solid; }
 
-/* Custom Header Backgrounds (Dark Mode Overrides) */
-.dark .pos-receive-bg { background-color: #102a1a !important; border-color: #1a5223 !important; }
-.dark .pos-transfer-bg { background-color: #2a2010 !important; border-color: #7a5c15 !important; }
+/* Dark Mode Overrides */
+.dark .pos-receive-bg { background-color: #102a1a !important; border-color: #1a5223 !important; border-bottom-width: 1px; }
+.dark .pos-transfer-bg { background-color: #2a2010 !important; border-color: #7a5c15 !important; border-bottom-width: 1px; }
 .dark .pos-success-box { background-color: #102a1a !important; border-color: #1a5223 !important; }
 .dark .pos-error-box { background-color: #2a1012 !important; border-color: #7a151e !important; }
+
+
+/* -------------------------------------------------------------
+   UNIVERSAL DARK MODE BORDER & TABLE FIX
+   ------------------------------------------------------------- */
+/* 1. Force all standard borders, dividers, and table grids to a brighter, highly visible gray */
+.dark .border-gray-200, 
+.dark .border-gray-300, 
+.dark .border-gray-400,
+.dark table,
+.dark thead,
+.dark tbody,
+.dark tr,
+.dark th,
+.dark td,
+.dark [class*="divide-"] > * {
+  border-color: #4b5563 !important;
+}
+
+/* 2. Fix the sticky header gap bug by replacing the failing border with a seamless shadow using the new brighter color */
+.dark thead.sticky {
+  border-bottom: none !important;
+  box-shadow: 0 1px 0 #4b5563 !important;
+}
