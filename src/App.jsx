@@ -23,6 +23,26 @@ function App() {
   const [isMobileScannerOpen, setIsMobileScannerOpen] = useState(false);
   const [scannedProduct, setScannedProduct] = useState(null);
 
+  // --- DARK MODE STATE & LOGIC ---
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('posDarkMode');
+      if (saved !== null) return JSON.parse(saved);
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('posDarkMode', JSON.stringify(isDarkMode));
+  }, [isDarkMode]);
+  // -------------------------------
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -142,7 +162,7 @@ function App() {
 
       {/* MODALS */}
       {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[500] px-4 print:hidden">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[500] px-4 print:hidden">
           <div className="bg-white border border-gray-400 w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
             <div className="bg-white flex justify-between items-center pr-1 pl-4 py-1 border-b border-gray-200">
               <span className="text-xs font-semibold text-black">Sign Out</span>
@@ -160,7 +180,7 @@ function App() {
       )}
 
       {isMobileScannerOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[500] px-4 print:hidden">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[500] px-4 print:hidden">
           <div className="bg-white w-full max-w-[450px] border border-gray-400 shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
             <div className="bg-white flex justify-between items-center pr-1 pl-4 py-1 border-b border-gray-200">
               <span className="text-xs font-semibold text-black">Mobile Scanner</span>
@@ -178,7 +198,7 @@ function App() {
       )}
 
       {scannedProduct && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[500] px-4 print:hidden">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[500] px-4 print:hidden">
           <div className="bg-white border border-gray-400 w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
             <div className="bg-white flex justify-between items-center pr-1 pl-4 py-1 border-b border-gray-200">
               <span className="text-xs font-semibold text-black">Product Information</span>
@@ -205,22 +225,20 @@ function App() {
         </div>
       )}
 
-      {/* REBUILT NAVBAR: Split into Left and Right sections to guarantee zero overlap */}
+      {/* NAVBAR */}
       <nav className="w-full bg-white border-b border-gray-300 shadow-sm h-[60px] flex items-center justify-between px-4 flex-shrink-0 relative z-[9999]">
         
-        {/* LEFT ALIGNED: Username Box */}
         <div className="h-full flex items-center border-r border-gray-300 pr-4 w-[200px] flex-shrink-0">
           <span className="text-sm font-bold text-black uppercase tracking-wider truncate w-full block">
             {displayUserName}
           </span>
         </div>
 
-        {/* RIGHT ALIGNED: Action Buttons */}
         <div className="flex-1 flex items-center justify-end gap-3 h-full pl-4 overflow-x-auto">
           
           <button 
             onClick={() => setIsMobileScannerOpen(true)} 
-            className="md:hidden px-4 py-2 bg-white border border-gray-400 hover:bg-gray-200 text-xs font-bold uppercase text-black focus:outline-none rounded-none"
+            className="md:hidden px-4 py-2 bg-white border border-gray-400 hover:bg-[#e6e6e6] text-xs font-bold uppercase text-black focus:outline-none rounded-none"
           >
             Scan
           </button>
@@ -229,14 +247,14 @@ function App() {
             <>
               <button 
                 onClick={() => navigate('/owner/dashboard')} 
-                className={`px-6 py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none rounded-none transition-colors border ${location.pathname.startsWith('/owner') ? 'bg-[#0078D7] text-white border-[#0078D7]' : 'bg-white border-gray-400 hover:bg-gray-200 text-black'}`}
+                className={`px-6 py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none rounded-none transition-colors border ${location.pathname.startsWith('/owner') ? 'bg-[#0078D7] text-white border-[#0078D7]' : 'bg-white border-gray-400 hover:bg-[#e6e6e6] text-black'}`}
               >
                 Management
               </button>
 
               <button 
                 onClick={() => navigate('/printer')} 
-                className={`px-6 py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none rounded-none transition-colors border ${location.pathname.startsWith('/printer') ? 'bg-[#0078D7] text-white border-[#0078D7]' : 'bg-white border-gray-400 hover:bg-gray-200 text-black'}`}
+                className={`px-6 py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none rounded-none transition-colors border ${location.pathname.startsWith('/printer') ? 'bg-[#0078D7] text-white border-[#0078D7]' : 'bg-white border-gray-400 hover:bg-[#e6e6e6] text-black'}`}
               >
                 Barcodes
               </button>
@@ -244,14 +262,32 @@ function App() {
           ) : (
             <button 
               onClick={() => navigate('/terminal/dashboard')} 
-              className={`px-6 py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none rounded-none transition-colors border ${location.pathname.startsWith('/terminal') ? 'bg-[#0078D7] text-white border-[#0078D7]' : 'bg-white border-gray-400 hover:bg-gray-200 text-black'}`}
+              className={`px-6 py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none rounded-none transition-colors border ${location.pathname.startsWith('/terminal') ? 'bg-[#0078D7] text-white border-[#0078D7]' : 'bg-white border-gray-400 hover:bg-[#e6e6e6] text-black'}`}
             >
               Terminal
             </button>
           )}
 
-          {/* Vertical Divider Line */}
           <div className="h-8 w-px bg-gray-300 mx-1"></div>
+
+          {/* NEW DARK MODE TOGGLE BUTTON WITH PROFESSIONAL ICONS */}
+          <button 
+            onClick={() => setIsDarkMode(!isDarkMode)} 
+            className="px-3 py-2 bg-white hover:bg-[#e6e6e6] text-black border border-gray-400 transition-colors rounded-none flex items-center justify-center focus:outline-none"
+            title="Toggle Dark Mode"
+          >
+            {isDarkMode ? (
+              /* Sun Outline Icon */
+              <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-[18px] h-[18px]">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+              </svg>
+            ) : (
+              /* Moon Outline Icon */
+              <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-[18px] h-[18px]">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+              </svg>
+            )}
+          </button>
 
           <button 
             onClick={() => setShowLogoutConfirm(true)} 

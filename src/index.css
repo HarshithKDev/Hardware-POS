@@ -1,6 +1,14 @@
 @import "tailwindcss";
 @tailwind utilities;
 
+/* Tell the browser the OS color scheme preference */
+:root {
+  color-scheme: light;
+}
+.dark {
+  color-scheme: dark;
+}
+
 /* Windows Theme Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 14px;
@@ -21,13 +29,68 @@
   background: #f3f3f3;
 }
 
-/* Make the background behind the main app gray */
-body {
-  background-color: #e6e6e6;
-  color: #111111;
+/* Dark Mode Scrollbar Overrides */
+.dark ::-webkit-scrollbar-track {
+  background: #1e1e1e;
+  border-left: 1px solid #121212;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border: 3px solid #1e1e1e;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+.dark ::-webkit-scrollbar-corner {
+  background: #1e1e1e;
 }
 
 /* Ensure inputs don't outline blue by default on some browsers, keep it flat */
 input:focus, select:focus, button:focus {
   outline: none;
+}
+
+/* -------------------------------------------------------------
+  INDUSTRY STANDARD DARK MODE OVERRIDES
+  -------------------------------------------------------------
+*/
+
+/* Base Document Backgrounds */
+.dark {
+  background-color: #121212 !important;
+  color: #f3f3f3 !important;
+}
+
+/* Background Color Mappings */
+.dark .bg-white { background-color: #1e1e1e !important; }
+.dark .bg-\[\#f3f3f3\], .dark .bg-\[\#f9f9f9\] { background-color: #2d2d2d !important; }
+.dark .bg-\[\#e6e6e6\] { background-color: #121212 !important; }
+.dark .bg-\[\#cccccc\] { background-color: #3d3d3d !important; }
+.dark .bg-\[\#cce8ff\] { background-color: #004a80 !important; }
+
+/* Hover Background Mappings (Fixes interactive elements missing hover in dark mode) */
+.dark .hover\:bg-\[\#f3f3f3\]:hover, 
+.dark .hover\:bg-\[\#f9f9f9\]:hover { background-color: #383838 !important; }
+.dark .hover\:bg-\[\#e6e6e6\]:hover { background-color: #2a2a2a !important; }
+.dark .hover\:bg-\[\#cccccc\]:hover { background-color: #4b4b4b !important; }
+
+/* Text Color Mappings */
+.dark .text-black { color: #ffffff !important; }
+.dark .text-gray-700, .dark .text-gray-600 { color: #d1d5db !important; }
+.dark .text-gray-500 { color: #9ca3af !important; }
+
+/* Border Color Mappings */
+.dark .border-gray-200, .dark .border-gray-300, .dark .border-gray-400 { 
+  border-color: #4b5563 !important; 
+}
+
+/* Form Inputs Mappings */
+.dark input, .dark select {
+  background-color: #1e1e1e !important;
+  color: #ffffff !important;
+  border-color: #4b5563 !important;
+}
+.dark input:disabled, .dark select:disabled {
+  background-color: #2d2d2d !important;
+  color: #9ca3af !important;
 }

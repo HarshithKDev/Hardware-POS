@@ -6,7 +6,7 @@ import OwnerInventory from './OwnerInventory';
 import OwnerLedger from './OwnerLedger';
 import OwnerStaff from './OwnerStaff';
 import WorkerBilling from './WorkerBilling';
-import OwnerCategories from './OwnerCategories'; // <-- New Import added here
+import OwnerCategories from './OwnerCategories'; 
 
 export default function OwnerDashboard({ shopSettings, cashierName }) {
   const { tab } = useParams();
@@ -27,6 +27,7 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
   return (
     <div className="flex flex-col md:flex-row bg-white border border-gray-400 h-full shadow-none rounded-none" style={{ fontFamily: "'Roboto', sans-serif" }}>
       
+      {/* ALERTS & MODALS */}
       {alertConfig.isOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] px-4">
           <div className="bg-white border border-gray-400 w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
@@ -58,29 +59,28 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
         </div>
       )}
 
+      {/* MOBILE MENU TOGGLE */}
       <div className="md:hidden flex justify-between items-center bg-[#f3f3f3] p-4 border-b border-gray-400">
         <span className="text-sm font-semibold uppercase text-gray-700 tracking-wider">Menu</span>
         <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="border border-gray-400 bg-white px-4 py-1.5 text-sm focus:outline-none focus:border-[#0078D7] rounded-none">☰</button>
       </div>
 
+      {/* SIDEBAR NAVIGATION */}
       <aside className={`${isSidebarOpen ? 'block' : 'hidden'} md:block w-full md:w-[240px] bg-[#f3f3f3] border-b md:border-r border-gray-400 flex-shrink-0 pt-4`}>
         <div className="flex flex-col gap-1">
-          <button onClick={() => changeTab('dashboard')} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'dashboard' ? 'bg-[#cce8ff] border-l-4 border-[#0078D7] text-black font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-800'}`}>Overview</button>
-          <button onClick={() => changeTab('register')} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'register' ? 'bg-[#cce8ff] border-l-4 border-[#0078D7] text-black font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-800'}`}>Add Items</button>
-          
-          {/* ---> NEW CATEGORIES BUTTON <--- */}
-          <button onClick={() => changeTab('categories')} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'categories' ? 'bg-[#cce8ff] border-l-4 border-[#0078D7] text-black font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-800'}`}>Categories</button>
-
-          <button onClick={() => changeTab('warehouse')} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'warehouse' ? 'bg-[#cce8ff] border-l-4 border-[#0078D7] text-black font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-800'}`}>Main Storage</button>
-          <button onClick={() => changeTab('store')} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'store' ? 'bg-[#cce8ff] border-l-4 border-[#0078D7] text-black font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-800'}`}>Shop Front</button>
-          <button onClick={() => changeTab('sales')} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'sales' ? 'bg-[#cce8ff] border-l-4 border-[#0078D7] text-black font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-800'}`}>Sales History</button>
-          <button onClick={() => changeTab('staff')} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'staff' ? 'bg-[#cce8ff] border-l-4 border-[#0078D7] text-black font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-800'}`}>Manage Staff</button>
+          <button onClick={() => changeTab('dashboard')} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'dashboard' ? 'bg-[#0078D7] border-l-4 border-[#005a9e] text-white font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-700'}`}>Overview</button>
+          <button onClick={() => changeTab('register')} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'register' ? 'bg-[#0078D7] border-l-4 border-[#005a9e] text-white font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-700'}`}>Add Items</button>
+          <button onClick={() => changeTab('categories')} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'categories' ? 'bg-[#0078D7] border-l-4 border-[#005a9e] text-white font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-700'}`}>Categories</button>
+          <button onClick={() => changeTab('warehouse')} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'warehouse' ? 'bg-[#0078D7] border-l-4 border-[#005a9e] text-white font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-700'}`}>Main Storage</button>
+          <button onClick={() => changeTab('store')} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'store' ? 'bg-[#0078D7] border-l-4 border-[#005a9e] text-white font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-700'}`}>Shop Front</button>
+          <button onClick={() => changeTab('sales')} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'sales' ? 'bg-[#0078D7] border-l-4 border-[#005a9e] text-white font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-700'}`}>Sales History</button>
+          <button onClick={() => changeTab('staff')} className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${activeTab === 'staff' ? 'bg-[#0078D7] border-l-4 border-[#005a9e] text-white font-semibold' : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-700'}`}>Manage Staff</button>
         </div>
       </aside>
 
+      {/* MAIN CONTENT AREA */}
       <main className="flex-1 p-6 md:p-8 overflow-y-auto bg-white relative">
         
-        {/* Components are now fully unmounted when not active, saving memory! */}
         {activeTab === 'dashboard' && <OwnerStats isActive={true} />}
 
         {activeTab === 'register' && <OwnerCatalog showAlert={showAlert} />}
@@ -91,9 +91,9 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
           <div className="flex flex-col h-full animate-fade-in">
             <h1 className="text-2xl font-light text-black mb-6">Main Storage Actions</h1>
             <div className="flex gap-1 mb-6 border-b border-gray-300 pb-0">
-              <button onClick={()=>setSearchParams({ sub: 'inventory' })} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${warehouseSubTab==='inventory'?'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold':'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>All Items</button>
-              <button onClick={()=>setSearchParams({ sub: 'receive' })} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${warehouseSubTab==='receive'?'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold':'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Receive Stock</button>
-              <button onClick={()=>setSearchParams({ sub: 'transfer' })} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${warehouseSubTab==='transfer'?'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold':'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Move to Shop</button>
+              <button onClick={()=>setSearchParams({ sub: 'inventory' })} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${warehouseSubTab==='inventory'?'bg-[#0078D7] border-b-2 border-[#005a9e] text-white font-semibold':'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>All Items</button>
+              <button onClick={()=>setSearchParams({ sub: 'receive' })} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${warehouseSubTab==='receive'?'bg-[#0078D7] border-b-2 border-[#005a9e] text-white font-semibold':'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Receive Stock</button>
+              <button onClick={()=>setSearchParams({ sub: 'transfer' })} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${warehouseSubTab==='transfer'?'bg-[#0078D7] border-b-2 border-[#005a9e] text-white font-semibold':'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Move to Shop</button>
             </div>
             
             {warehouseSubTab === 'inventory' && <OwnerInventory viewType="warehouse" showAlert={showAlert} showConfirm={showConfirm} />}
@@ -106,8 +106,8 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
           <div className="flex flex-col h-full animate-fade-in">
             <h1 className="text-2xl font-light text-black mb-6">Shop Front Actions</h1>
             <div className="flex gap-1 mb-6 border-b border-gray-300 pb-0">
-              <button onClick={()=>setSearchParams({ sub: 'inventory' })} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${storeSubTab==='inventory'?'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold':'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Items in Shop</button>
-              <button onClick={()=>setSearchParams({ sub: 'checkout' })} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${storeSubTab==='checkout'?'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold':'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Checkout Counter</button>
+              <button onClick={()=>setSearchParams({ sub: 'inventory' })} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${storeSubTab==='inventory'?'bg-[#0078D7] border-b-2 border-[#005a9e] text-white font-semibold':'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Items in Shop</button>
+              <button onClick={()=>setSearchParams({ sub: 'checkout' })} className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${storeSubTab==='checkout'?'bg-[#0078D7] border-b-2 border-[#005a9e] text-white font-semibold':'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Checkout Counter</button>
             </div>
             
             {storeSubTab === 'inventory' && <OwnerInventory viewType="store" showAlert={showAlert} showConfirm={showConfirm} />}

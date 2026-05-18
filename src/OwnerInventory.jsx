@@ -10,7 +10,6 @@ export default function OwnerInventory({ viewType, showAlert, showConfirm }) {
   const INV_PER_PAGE = 50;
   const queryClient = useQueryClient();
 
-  // Fetch Categories automatically with caching
   const { data: categories } = useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
@@ -20,7 +19,15 @@ export default function OwnerInventory({ viewType, showAlert, showConfirm }) {
     }
   });
 
-  // Fetch Inventory automatically with caching and search/sort filters
+  const { data: subcategories } = useQuery({
+    queryKey: ['subcategories'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('subcategories').select('name, category_name').order('name', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
   const { data: inventoryData, isLoading } = useQuery({
     queryKey: ['inventory', viewType, invPage, inventorySearch, sortOption],
     queryFn: async () => {
@@ -45,12 +52,12 @@ export default function OwnerInventory({ viewType, showAlert, showConfirm }) {
     }
   });
 
-  // Mutation (an operation that changes data in the database) for saving edits
   const updateItemMutation = useMutation({
     mutationFn: async (updatedItem) => {
       const { error } = await supabase.from('inventory').update({
         name: updatedItem.name,
         category: updatedItem.category,
+        sub_category: updatedItem.sub_category,
         cost_price: Number(updatedItem.cost_price || 0),
         msp: Number(updatedItem.msp || 0),
         price: Number(updatedItem.price || 0),
@@ -60,7 +67,8 @@ export default function OwnerInventory({ viewType, showAlert, showConfirm }) {
       }).eq('barcode', updatedItem.barcode);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['inventory'] }), // Invalidating (clearing the cache) forces a fresh fetch
+    // Invalidate (force a fresh fetch from the database to clear the cache)
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['inventory'] }), 
     onError: (e) => showAlert(e.message, "Update Failed")
   });
 
@@ -114,28 +122,29 @@ export default function OwnerInventory({ viewType, showAlert, showConfirm }) {
       </div>
 
       <div className={`border border-gray-400 overflow-x-auto bg-white flex-1 min-h-[300px] rounded-none shadow-sm`}>
-        <table className={`w-full text-left border-collapse min-w-[${viewType === 'warehouse' ? '1000px' : '750px'}]`}>
+        <table className={`w-full text-left border-collapse min-w-[${viewType === 'warehouse' ? '1100px' : '850px'}]`}>
           <thead className="bg-[#f9f9f9] sticky top-0 border-b border-gray-400">
             <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
               <th className={`p-3 border-r border-gray-200 ${viewType === 'store' ? 'w-32' : 'w-24'}`}>Barcode</th>
               <th className="p-3 border-r border-gray-200">Item Name</th>
-              <th className="p-3 border-r border-gray-200 w-32">Category</th>
+              <th className="p-3 border-r border-gray-200 w-28">Category</th>
+              <th className="p-3 border-r border-gray-200 w-28">Sub-Cat</th>
               {viewType === 'warehouse' && (
                 <>
-                  <th className="p-3 border-r border-gray-200 text-center w-28">Cost</th>
-                  <th className="p-3 border-r border-gray-200 text-center w-28">MSP</th>
+                  <th className="p-3 border-r border-gray-200 text-center w-24">Cost</th>
+                  <th className="p-3 border-r border-gray-200 text-center w-24">MSP</th>
                 </>
               )}
-              <th className={`p-3 border-r border-gray-200 text-center ${viewType === 'warehouse' ? 'w-28' : 'w-32'}`}>MRP</th>
-              <th className={`p-3 text-center ${viewType === 'warehouse' ? 'border-r border-gray-200 w-28' : 'w-32'}`}>{viewType === 'warehouse' ? 'Whse Qty' : 'Store Qty'}</th>
-              {viewType === 'warehouse' && <th className="p-3 text-center w-40">Actions</th>}
+              <th className={`p-3 border-r border-gray-200 text-center ${viewType === 'warehouse' ? 'w-24' : 'w-28'}`}>MRP</th>
+              <th className={`p-3 text-center ${viewType === 'warehouse' ? 'border-r border-gray-200 w-24' : 'w-28'}`}>{viewType === 'warehouse' ? 'Whse Qty' : 'Store Qty'}</th>
+              {viewType === 'warehouse' && <th className="p-3 text-center w-32">Actions</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 border-b border-gray-400">
             {isLoading ? (
-              <tr><td colSpan={viewType === 'warehouse' ? "8" : "5"} className="p-8 text-center text-gray-500 text-sm font-semibold">Loading inventory...</td></tr>
+              <tr><td colSpan={viewType === 'warehouse' ? "9" : "6"} className="p-8 text-center text-gray-500 text-sm font-semibold">Loading inventory...</td></tr>
             ) : items.length === 0 ? (
-              <tr><td colSpan={viewType === 'warehouse' ? "8" : "5"} className="p-8 text-center text-gray-500 text-sm font-semibold">No items found matching the search.</td></tr>
+              <tr><td colSpan={viewType === 'warehouse' ? "9" : "6"} className="p-8 text-center text-gray-500 text-sm font-semibold">No items found matching the search.</td></tr>
             ) : (
               items.map(item => (
                 <InventoryRow 
@@ -143,6 +152,7 @@ export default function OwnerInventory({ viewType, showAlert, showConfirm }) {
                   item={item} 
                   viewType={viewType} 
                   categories={categories}
+                  subcategories={subcategories}
                   onSave={(data) => updateItemMutation.mutate(data)}
                   onRemove={handleRemove}
                 />

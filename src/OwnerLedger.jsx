@@ -112,10 +112,10 @@ export default function OwnerLedger({ isActive }) {
         
         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-4 mb-6 border-b border-gray-300 pb-0">
           <div className="flex gap-1 overflow-x-auto w-full xl:w-auto">
-            <button onClick={() => handleFilterChange('ALL')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none ${filter === 'ALL' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>All Activity</button>
-            <button onClick={() => handleFilterChange('SALE')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none ${filter === 'SALE' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Sales</button>
-            <button onClick={() => handleFilterChange('RECEIVE')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none ${filter === 'RECEIVE' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Received Stock</button>
-            <button onClick={() => handleFilterChange('TRANSFER')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none ${filter === 'TRANSFER' ? 'bg-[#cce8ff] border-b-2 border-[#0078D7] text-black font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'}`}>Moved to Store</button>
+            <button onClick={() => handleFilterChange('ALL')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none transition-colors ${filter === 'ALL' ? 'bg-[#0078D7] border-b-2 border-[#005a9e] text-white font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#e6e6e6] text-gray-700 font-medium'}`}>All Activity</button>
+            <button onClick={() => handleFilterChange('SALE')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none transition-colors ${filter === 'SALE' ? 'bg-[#0078D7] border-b-2 border-[#005a9e] text-white font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#e6e6e6] text-gray-700 font-medium'}`}>Sales</button>
+            <button onClick={() => handleFilterChange('RECEIVE')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none transition-colors ${filter === 'RECEIVE' ? 'bg-[#0078D7] border-b-2 border-[#005a9e] text-white font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#e6e6e6] text-gray-700 font-medium'}`}>Received Stock</button>
+            <button onClick={() => handleFilterChange('TRANSFER')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none transition-colors ${filter === 'TRANSFER' ? 'bg-[#0078D7] border-b-2 border-[#005a9e] text-white font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#e6e6e6] text-gray-700 font-medium'}`}>Moved to Store</button>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 pb-2 w-full xl:w-auto">
@@ -158,7 +158,6 @@ export default function OwnerLedger({ isActive }) {
                 <th className="p-3 text-center w-16">Details</th>
               </tr>
             </thead>
-            {/* ADDED border-b border-gray-300 HERE */}
             <tbody className="divide-y divide-gray-200 border-b border-gray-300">
               {isLoadingBills && bills.length === 0 ? (
                 <tr><td colSpan="5" className="p-10 text-center"><Spinner className="w-8 h-8 text-[#0078D7] mx-auto" /></td></tr>
@@ -195,7 +194,6 @@ export default function OwnerLedger({ isActive }) {
                                     {isSale && (<><th className="px-4 py-2 border-r border-gray-300 text-right w-32">Unit Price</th><th className="px-4 py-2 text-right w-32">Total</th></>)}
                                   </tr>
                                 </thead>
-                                {/* ADDED border-b border-gray-300 HERE AS WELL */}
                                 <tbody className="divide-y divide-gray-200 border-b border-gray-300">
                                   {items.map(item => (
                                     <tr key={item.id} className="hover:bg-[#f9f9f9]">
