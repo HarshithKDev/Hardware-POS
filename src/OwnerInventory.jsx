@@ -122,7 +122,8 @@ export default function OwnerInventory({ viewType, showAlert, showConfirm }) {
       </div>
 
       <div className={`border border-gray-400 overflow-x-auto bg-white flex-1 min-h-[300px] rounded-none shadow-sm`}>
-        <table className={`w-full text-left border-collapse min-w-[${viewType === 'warehouse' ? '1100px' : '850px'}]`}>
+        {/* Updated table classes for single-line center alignment */}
+        <table className={`w-full text-center whitespace-nowrap border-collapse min-w-[${viewType === 'warehouse' ? '1100px' : '850px'}]`}>
           <thead className="bg-[#f9f9f9] sticky top-0 border-b border-gray-400">
             <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
               <th className={`p-3 border-r border-gray-200 ${viewType === 'store' ? 'w-32' : 'w-24'}`}>Barcode</th>

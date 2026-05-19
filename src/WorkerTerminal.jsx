@@ -188,7 +188,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
       )}
       
       <div className="flex flex-col flex-1 border border-gray-400 bg-white text-black min-h-[500px] rounded-none shadow-sm print:hidden">
-        {/* CRITICAL FIX: Custom class applied here based on active tab */}
+        {/* Header Block */}
         <div className={`p-4 border-b border-gray-400 flex flex-col md:flex-row justify-between gap-4 ${activeTab === 'receive' ? 'pos-receive-bg' : activeTab === 'transfer' ? 'pos-transfer-bg' : 'bg-[#f3f3f3]'}`}>
           <div className="flex flex-col">
             <h2 className="text-2xl font-light text-black">{activeTab === 'receive' ? 'Receive New Stock' : activeTab === 'transfer' ? 'Move Stock to Store' : 'Checkout Counter'}</h2>
@@ -207,11 +207,19 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
           {cart.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center min-h-[300px]"><p className="text-sm font-semibold uppercase tracking-widest text-gray-500 mb-2">Ready</p><p className="text-xs text-gray-400">Scan items anytime or type the barcode above</p></div>
           ) : (
-            <table className="w-full text-left border-collapse">
+            /* Updated table classes for single-line center alignment */
+            <table className="w-full text-center whitespace-nowrap border-collapse">
               <thead className="bg-[#f9f9f9] sticky top-0 border-b border-gray-300 z-10">
                 <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
-                  <th className="p-3 border-r border-gray-200 w-2/5">Item Name</th><th className={`p-3 text-center w-56 ${activeTab === 'checkout' ? 'border-r border-gray-200' : ''}`}>Quantity</th>
-                  {activeTab === 'checkout' && (<><th className="p-3 border-r border-gray-200 text-center w-36">Price (₹)</th><th className="p-3 border-r border-gray-200 text-center w-28">Disc (%)</th><th className="p-3 text-right w-32">Total</th></>)}
+                  <th className="p-3 border-r border-gray-200 w-2/5 text-center">Item Name</th>
+                  <th className={`p-3 text-center w-56 ${activeTab === 'checkout' ? 'border-r border-gray-200' : ''}`}>Quantity</th>
+                  {activeTab === 'checkout' && (
+                    <>
+                      <th className="p-3 border-r border-gray-200 text-center w-36">Price (₹)</th>
+                      <th className="p-3 border-r border-gray-200 text-center w-28">Disc (%)</th>
+                      <th className="p-3 text-center w-32">Total</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 border-b border-gray-300">
@@ -220,12 +228,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
                   const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
                   return (
                     <tr key={item.id} className="hover:bg-[#f3f3f3] transition-none">
-                      <td className="p-3 border-r border-gray-200">
+                      <td className="p-3 border-r border-gray-200 text-center">
                         <p className="text-sm font-semibold text-black">{item.name}</p>
-                        <div className="flex items-center gap-3 mt-1">
+                        {/* Updated to justify-center to center the flexbox contents */}
+                        <div className="flex items-center justify-center gap-3 mt-1">
                           <p className="text-xs text-[#0078D7] font-mono">#{item.barcode}</p>
                           {activeTab === 'checkout' && (
-                            <div className="flex gap-2">
+                            <div className="flex justify-center gap-2">
                               <span className="text-[10px] text-gray-600 font-semibold bg-[#e6e6e6] px-1.5 py-0.5 border border-gray-300 uppercase tracking-wider">
                                 MRP: ₹{Number(item.price || 0).toFixed(2)}
                               </span>
@@ -257,7 +266,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
                       {activeTab === 'checkout' && (<>
                         <td className="p-2 border-r border-gray-200"><input type="number" step="0.01" value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price||0).toFixed(2)} onChange={(e) => handleCustomPriceChange(item.id, e.target.value)} onBlur={() => applyCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 px-2 border border-gray-300 text-sm font-semibold text-center bg-white text-black rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
                         <td className="p-2 border-r border-gray-200 bg-[#f9f9f9]"><input type="number" value={item.discountPct ? Number(item.discountPct).toFixed(1) : '0.0'} disabled className="w-full h-8 px-2 border border-transparent text-sm font-semibold text-center bg-transparent rounded-none outline-none cursor-not-allowed text-gray-500" /></td>
-                        <td className="p-3 text-right text-sm font-bold text-black">₹{(sellPrice * safeQty).toFixed(2)}</td>
+                        {/* Changed text-right to text-center to keep everything consistent */}
+                        <td className="p-3 text-center text-sm font-bold text-black">₹{(sellPrice * safeQty).toFixed(2)}</td>
                       </>)}
                     </tr>
                   );

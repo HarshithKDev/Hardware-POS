@@ -155,7 +155,7 @@ export default function OwnerCatalog({ showAlert }) {
           <div className="flex flex-col w-40 shrink-0">
             <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">Category</label>
             <select value={newItem.category} onChange={e=>setNewItem({...newItem, category: e.target.value, sub_category: ''})} className="h-10 border-2 border-gray-300 bg-white px-2 text-sm rounded-none focus:outline-none focus:border-[#0078D7] cursor-pointer">
-              <option value="">Select...</option>
+              <option value="">Select</option>
               {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
             </select>
           </div>
@@ -163,7 +163,7 @@ export default function OwnerCatalog({ showAlert }) {
           <div className="flex flex-col w-40 shrink-0">
             <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">Sub-Category</label>
             <select value={newItem.sub_category} onChange={e=>setNewItem({...newItem, sub_category: e.target.value})} disabled={!newItem.category} className="h-10 border-2 border-gray-300 bg-white px-2 text-sm rounded-none focus:outline-none focus:border-[#0078D7] disabled:bg-gray-100 disabled:cursor-not-allowed cursor-pointer">
-              <option value="">Select...</option>
+              <option value="">Select</option>
               {availableSubcategories.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
             </select>
           </div>

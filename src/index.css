@@ -29,22 +29,6 @@
   background: #f3f3f3;
 }
 
-/* Dark Mode Scrollbar Overrides */
-.dark ::-webkit-scrollbar-track {
-  background: #1e1e1e;
-  border-left: 1px solid #121212;
-}
-.dark ::-webkit-scrollbar-thumb {
-  background: #4b5563;
-  border: 3px solid #1e1e1e;
-}
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
-}
-.dark ::-webkit-scrollbar-corner {
-  background: #1e1e1e;
-}
-
 /* Ensure inputs don't outline blue by default on some browsers, keep it flat */
 input:focus, select:focus, button:focus {
   outline: none;
@@ -127,4 +111,69 @@ input:focus, select:focus, button:focus {
 .dark thead.sticky {
   border-bottom: none !important;
   box-shadow: 0 1px 0 #4b5563 !important;
+}
+
+/* -------------------------------------------------------------
+   GLOBAL TABLE & FORM ALIGNMENT FIXES
+   ------------------------------------------------------------- */
+/* Force all table headings and cells to stay on one line and center align */
+th, td {
+  white-space: nowrap !important; /* (a styling rule that prevents text from breaking into multiple lines) */
+  text-align: center !important;  /* (a styling rule that aligns text to the middle of its container) */
+}
+
+/* Force complex table cells that use flexbox (a layout model for arranging elements) to center their content */
+th > div.flex, 
+td > div.flex {
+  justify-content: center !important;
+}
+
+/* Center align headings/labels above input boxes globally */
+label, 
+.form-label {
+  text-align: center !important;
+  display: block !important;
+  width: 100%;
+}
+
+/* -------------------------------------------------------------
+   GLOBAL INPUT & DROPDOWN ALIGNMENT FIX
+   ------------------------------------------------------------- */
+/* Force all form inputs to center their text */
+input {
+  text-align: center !important;
+}
+
+input::placeholder {
+  text-align: center !important;
+}
+
+/* Specific styling for dropdowns to center text and safely position the arrow */
+select {
+  text-align: center !important;
+  text-align-last: center !important; /* (This is the magic property needed specifically for <select> dropdowns) */
+  
+  /* Add equal padding to both sides. 
+     This keeps the text perfectly centered but creates a "safe zone" 
+     on the right so long text never touches the arrow. */
+  padding-left: 1.5rem !important;
+  padding-right: 1.5rem !important;
+  
+  /* Hide the native browser arrow completely */
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  
+  /* Add a custom gray chevron arrow via SVG (Scalable Vector Graphics, an image format written in code) */
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%234b5563' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
+  background-repeat: no-repeat !important;
+  background-size: 1.25em !important;
+  
+  /* Pin the arrow a safe, fixed distance from the right edge */
+  background-position: right 0.5rem center !important;
+}
+
+/* Adjust the custom arrow for Dark Mode so it remains visible */
+.dark select {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23d1d5db' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
 }
