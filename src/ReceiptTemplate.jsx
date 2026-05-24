@@ -1,13 +1,18 @@
-export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateTime }) {
+export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateTime, isPreview = false }) {
   if (!lastReceipt || lastReceipt.type !== 'checkout') return null;
   const totalSavings = lastReceipt.items?.reduce((acc, item) => acc + (Math.max(0, item.mrp - item.finalRate) * item.quantity), 0) || 0;
 
   return (
     <div 
-      id="printable-receipt" 
-      className="hidden print:block w-[80mm] mx-auto p-4" 
-      style={{ fontFamily: "'Courier New', Courier, monospace", color: '#000000', backgroundColor: '#ffffff' }}
+      id={isPreview ? undefined : "printable-receipt"} 
+      className={`${isPreview ? 'mx-auto shadow-md border border-gray-300' : 'hidden print:block'} thermal-receipt`} 
+      style={{ fontFamily: "'Courier New', Courier, monospace", color: '#000000', backgroundColor: '#ffffff', ...(isPreview ? { width: '80mm', minHeight: '100mm' } : {}) }}
     >
+      {!isPreview && (
+        <style type="text/css" media="print">
+          {`@page { size: 80mm auto; margin: 0; }`}
+        </style>
+      )}
       <div className="text-center mb-3">
         <h1 className="text-xl font-bold uppercase text-black" style={{ color: '#000' }}>
           {shopSettings?.shop_name || 'STORE RECEIPT'}

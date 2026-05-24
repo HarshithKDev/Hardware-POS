@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
-import { Spinner } from './SharedUI';
+import { Spinner, PageLoader } from './SharedUI';
 import EntryFlow from './EntryFlow';
 import WorkerBilling from './WorkerBilling';
 import OwnerDashboard from './OwnerDashboard';
@@ -113,10 +113,7 @@ function App() {
         className="w-full min-h-screen flex flex-col items-center justify-center"
         style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
       >
-        <Spinner className="w-8 h-8 mb-4" style={{ color: 'var(--color-accent)' }} />
-        <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
-          Initializing Subsystems
-        </p>
+        <PageLoader text="Initializing Subsystems" />
       </div>
     );
   }

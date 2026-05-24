@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from './supabaseClient';
 import { Spinner } from './SharedUI';
 import ReceiptTemplate from './ReceiptTemplate';
+import { PrintPreviewModal } from './AppModals';
 import { getInventoryItemByBarcode, queueOfflineTransaction } from './services/db';
 import { useApp } from './AppContext';
 import { generateId, formatDateTime } from './utils';
@@ -42,7 +43,7 @@ function CartTable({ cart, activeTab, onUpdateQuantity, onUpdateDimensions, onCu
           const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
           const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
           return (
-            <tr key={item.id} className="transition-none" style={{ borderBottom: '1px solid var(--border-light)' }}>
+            <tr key={item.id} className="animate-fade-in" style={{ borderBottom: '1px solid var(--border-light)' }}>
               <td className="p-3 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
                 <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name}</p>
                 <div className="flex items-center justify-center gap-3 mt-1">
@@ -106,7 +107,7 @@ function CartMobileView({ cart, activeTab, onUpdateQuantity, onUpdateDimensions 
     const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
     const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
     return (
-      <div key={item.id} className="p-4 flex flex-col gap-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
+      <div key={item.id} className="p-4 flex flex-col gap-3 animate-fade-in" style={{ borderBottom: '1px solid var(--border-light)' }}>
         <div className="flex justify-between items-start">
           <div className="pr-2">
             <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name}</p>
@@ -159,6 +160,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [lastReceipt, setLastReceipt] = useState(null);
   const [checkoutModal, setCheckoutModal] = useState({ isOpen: false, cashGiven: '' });
+  const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
 
   const barcodeBuffer = useRef('');
   const lastKeyTime = useRef(Date.now());
@@ -196,7 +198,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   }, []);
 
   useEffect(() => {
-    const isModalOpen = alertConfig.isOpen || confirmConfig.isOpen || checkoutModal.isOpen;
+    const isModalOpen = alertConfig.isOpen || confirmConfig.isOpen || checkoutModal.isOpen || printPreviewOpen;
     const handleGlobalKeyDown = (e) => {
       if (isModalOpen) return;
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
@@ -211,7 +213,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [alertConfig.isOpen, confirmConfig.isOpen, checkoutModal.isOpen, processScan]);
+  }, [alertConfig.isOpen, confirmConfig.isOpen, checkoutModal.isOpen, printPreviewOpen, processScan]);
 
   const updateQuantity = (id, val) => {
     setCart(prev => {
@@ -342,11 +344,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       setCart([]);
       setCheckoutModal({ isOpen: false, cashGiven: '' });
 
-      // Print confirmation instead of auto-printing (fixes #20)
       if (activeTab === 'checkout') {
-        showConfirm('Sale completed! Would you like to print the receipt?', () => {
-          setTimeout(() => { window.print(); }, 100);
-        }, 'Print Receipt');
+        setPrintPreviewOpen(true);
       } else {
         showAlert("Stock updated successfully.", "Success");
       }
@@ -369,13 +368,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       {/* Checkout Modal */}
       {checkoutModal.isOpen && (
         <div
-          className="fixed inset-0 flex items-center justify-center z-[100] print:hidden px-4"
+          className="fixed inset-0 flex items-center justify-center z-[100] print:hidden px-4 animate-fade-in"
           style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
           role="dialog"
           aria-modal="true"
           aria-labelledby="checkout-title"
         >
-          <div className="w-[95%] max-w-[450px] flex flex-col" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
+          <div className="w-[95%] max-w-[450px] flex flex-col animate-scale-in" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
             <div className="flex justify-between items-center pr-1 pl-4 py-1" style={{ borderBottom: '1px solid var(--border-light)' }}>
               <span id="checkout-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Checkout Payment</span>
               <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} className="px-3 py-1.5 leading-none focus:outline-none" aria-label="Close checkout">✕</button>
@@ -470,7 +469,19 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           </button>
         </div>
       </div>
+      
+      {/* Hidden Receipt Template for actual browser printing */}
       <ReceiptTemplate lastReceipt={lastReceipt} shopSettings={shopSettings} formatDateTime={formatDateTime} />
+
+      {/* Custom Print Preview Modal */}
+      <PrintPreviewModal
+        isOpen={printPreviewOpen}
+        onClose={() => setPrintPreviewOpen(false)}
+        type="receipt"
+        title="Receipt Preview"
+      >
+        <ReceiptTemplate lastReceipt={lastReceipt} shopSettings={shopSettings} formatDateTime={formatDateTime} isPreview={true} />
+      </PrintPreviewModal>
     </>
   );
 }

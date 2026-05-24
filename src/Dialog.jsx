@@ -94,7 +94,7 @@ function DialogOverlay({ isOpen, onClose, children, labelId }) {
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center z-[100] px-4 print:hidden"
+      className="fixed inset-0 flex items-center justify-center z-[100] px-4 print:hidden animate-fade-in"
       style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
       onClick={(e) => {
         // Close on backdrop click
@@ -107,7 +107,7 @@ function DialogOverlay({ isOpen, onClose, children, labelId }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelId}
-        className="w-[95%] max-w-[400px] flex flex-col shadow-lg"
+        className="w-[95%] max-w-[400px] flex flex-col shadow-lg animate-scale-in"
         style={{
           backgroundColor: 'var(--bg-secondary)',
           borderWidth: '1px',

@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { supabase } from './supabaseClient';
 import { useQuery } from '@tanstack/react-query';
 import { useApp } from './AppContext';
-import { Spinner } from './SharedUI';
+import { Spinner, PageLoader } from './SharedUI';
 import {
   STORE_LOW_STOCK_THRESHOLD,
   WAREHOUSE_LOW_STOCK_THRESHOLD,
@@ -294,8 +294,7 @@ export default function OwnerStats({ isActive }) {
   if (isLoading || !data) {
     return (
       <div className="h-full flex flex-col items-center justify-center min-h-[300px]">
-        <Spinner className="w-8 h-8 mb-4" style={{ color: 'var(--color-accent)' }} />
-        <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>Loading dashboard...</p>
+        <PageLoader text="Loading dashboard..." />
       </div>
     );
   }

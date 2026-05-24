@@ -4,8 +4,8 @@ import { supabase } from './supabaseClient';
 
 export function LogoutModal({ onConfirm, onCancel }) {
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[500] px-4 print:hidden">
-      <div className="w-[95%] max-w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[500] px-4 print:hidden animate-fade-in">
+      <div className="w-[95%] max-w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none animate-scale-in" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
         <div className="flex justify-between items-center pr-1 pl-4 py-1" style={{ borderBottom: '1px solid var(--border-light)' }}>
           <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Sign Out</span>
           <button onClick={onCancel} className="px-3 py-1.5 leading-none transition-none focus:outline-none rounded-none" style={{ color: 'var(--text-secondary)' }}>✕</button>
@@ -61,8 +61,8 @@ export function MobileScannerModal({ onClose, setScannedProduct }) {
   }, [onClose, setScannedProduct]);
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[500] px-4 print:hidden">
-      <div className="w-[95%] max-w-[450px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[500] px-4 print:hidden animate-fade-in">
+      <div className="w-[95%] max-w-[450px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none animate-scale-in" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
         <div className="flex justify-between items-center pr-1 pl-4 py-1" style={{ borderBottom: '1px solid var(--border-light)' }}>
           <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Mobile Scanner</span>
           <button onClick={onClose} className="px-3 py-1.5 leading-none transition-none focus:outline-none rounded-none" style={{ color: 'var(--text-secondary)' }}>✕</button>
@@ -83,8 +83,8 @@ export function ProductInfoModal({ product, onClose }) {
   if (!product) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[500] px-4 print:hidden">
-      <div className="w-[95%] max-w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[500] px-4 print:hidden animate-fade-in">
+      <div className="w-[95%] max-w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none animate-scale-in" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
         <div className="flex justify-between items-center pr-1 pl-4 py-1" style={{ borderBottom: '1px solid var(--border-light)' }}>
           <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Product Information</span>
           <button onClick={onClose} className="px-3 py-1.5 leading-none transition-none focus:outline-none rounded-none" style={{ color: 'var(--text-secondary)' }}>✕</button>
@@ -105,6 +105,62 @@ export function ProductInfoModal({ product, onClose }) {
         </div>
         <div className="p-4 flex justify-end" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
           <button onClick={onClose} className="px-6 py-1.5 text-white text-sm border border-transparent focus:outline-none focus:ring-1 focus:ring-black rounded-none" style={{ backgroundColor: 'var(--color-accent)' }}>OK</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function PrintPreviewModal({ isOpen, onClose, title = "Print Preview", type = "receipt", children, iframeHtml }) {
+  const iframeRef = useRef(null);
+
+  if (!isOpen) return null;
+
+  const handlePrint = () => {
+    if (type === 'barcode' && iframeRef.current) {
+      iframeRef.current.contentWindow.print();
+    } else {
+      window.print();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[600] px-4 print:hidden animate-fade-in">
+      <div className="w-[95%] max-w-[600px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none animate-scale-in" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+        <div className="flex justify-between items-center pr-1 pl-4 py-1" style={{ borderBottom: '1px solid var(--border-light)' }}>
+          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>{title}</span>
+          <button onClick={onClose} className="px-3 py-1.5 leading-none transition-none focus:outline-none rounded-none" style={{ color: 'var(--text-secondary)' }}>✕</button>
+        </div>
+        
+        <div className="p-6 flex justify-center items-center overflow-auto" style={{ backgroundColor: 'var(--bg-primary)', minHeight: '300px', maxHeight: '60vh' }}>
+          {type === 'receipt' ? (
+            <div className="bg-white p-4 shadow-sm w-[80mm] min-h-[100mm] text-black">
+              {children}
+            </div>
+          ) : (
+            <iframe 
+              ref={iframeRef}
+              srcDoc={iframeHtml} 
+              className="bg-white shadow-sm"
+              style={{ width: '100%', minHeight: '400px', border: 'none' }}
+              title="Barcode Print Preview"
+            />
+          )}
+        </div>
+
+        <div className="p-4 flex flex-col md:flex-row justify-between items-center gap-4" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
+          <p className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+            Note: The system print dialog will open next.
+          </p>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="px-6 py-1.5 text-sm focus:outline-none rounded-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>Cancel</button>
+            <button onClick={handlePrint} className="px-6 py-1.5 text-white text-sm border border-transparent focus:outline-none focus:ring-1 focus:ring-black rounded-none flex items-center gap-2" style={{ backgroundColor: 'var(--color-accent)' }}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0v2.796c0 1.171.95 2.122 2.122 2.122h6.256a2.122 2.122 0 002.122-2.122V8.571zM10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125h4.875" />
+              </svg>
+              Print Now
+            </button>
+          </div>
         </div>
       </div>
     </div>

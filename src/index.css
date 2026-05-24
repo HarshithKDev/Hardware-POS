@@ -200,12 +200,146 @@ textarea:disabled {
   animation: fade-in 0.2s ease-out;
 }
 
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ---------------------------------------------------------------
+   GLOBAL INTERACTIONS (Premium Hover States)
+   --------------------------------------------------------------- */
+
+/* Premium interactive feel for all buttons */
+button {
+  transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1), 
+              filter 0.15s ease-out, 
+              background-color 0.15s ease-out,
+              color 0.15s ease-out,
+              border-color 0.15s ease-out,
+              box-shadow 0.15s ease-out;
+  will-change: transform, filter;
+}
+
+/* Subtle brighten on hover for dark backgrounds, darken for light ones */
+button:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+.dark button:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
+
+/* Satisfying 'press' effect on click */
+button:active:not(:disabled) {
+  transform: scale(0.97) translateY(1px);
+}
+
+/* Premium input focus and hover states */
+input, select {
+  transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+
+input:hover:not(:disabled, :focus), select:hover:not(:disabled, :focus) {
+  border-color: var(--border-heavy) !important;
+}
+
+input:focus, select:focus {
+  border-color: var(--color-accent) !important;
+  box-shadow: 0 0 0 1px var(--color-accent) inset !important;
+}
+
+/* Subtle table row highlighting */
+tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+tbody tr:hover {
+  background-color: var(--bg-hover);
+}
+
+/* Premium Wave Loader */
+.premium-wave-loader {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  height: 48px;
+}
+.premium-wave-loader span {
+  display: inline-block;
+  width: 6px;
+  height: 24px;
+  background-color: var(--color-accent);
+  border-radius: 4px;
+  animation: premium-wave 1s ease-in-out infinite;
+}
+.premium-wave-loader span:nth-child(1) { animation-delay: 0.0s; opacity: 0.6; }
+.premium-wave-loader span:nth-child(2) { animation-delay: 0.1s; opacity: 0.8; }
+.premium-wave-loader span:nth-child(3) { animation-delay: 0.2s; opacity: 1; }
+.premium-wave-loader span:nth-child(4) { animation-delay: 0.3s; opacity: 0.8; }
+.premium-wave-loader span:nth-child(5) { animation-delay: 0.4s; opacity: 0.6; }
+
+@keyframes premium-wave {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1.2); }
+}
+
 /* ---------------------------------------------------------------
    PRINT STYLES
    --------------------------------------------------------------- */
 @media print {
-  .print\\:hidden {
-    display: none;
+  @page {
+    margin: 0;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  #printable-receipt, #printable-receipt *,
+  #printable-barcodes, #printable-barcodes * {
+    visibility: visible;
+  }
+
+  #printable-receipt, #printable-barcodes {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+
+  .thermal-receipt {
+    width: 80mm;
+    max-width: 80mm;
+    margin: 0 auto;
+    padding: 2mm;
+    page-break-after: always;
+  }
+
+  .thermal-barcode {
+    width: 50mm;
+    height: 25mm;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
   }
 }
 .hide-scrollbar::-webkit-scrollbar {

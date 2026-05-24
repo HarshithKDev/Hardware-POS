@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { supabase } from './supabaseClient';
+import { syncInventoryToLocal } from './services/sync';
+import * as XLSX from 'xlsx';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { generateId } from './utils';
 import { BARCODE_START_VALUE, BARCODE_RETRY_ATTEMPTS, UNIT_TYPES, STALE_TIME_5MIN } from './constants';
 import { Spinner } from './SharedUI';
+import { PrintPreviewModal } from './AppModals';
 
 export default function OwnerCatalog() {
   const { showAlert } = useApp();
@@ -16,6 +19,8 @@ export default function OwnerCatalog() {
   });
   const [nextBarcode, setNextBarcode] = useState('');
   const [printLabelCount, setPrintLabelCount] = useState(0);
+  const [barcodePreview, setBarcodePreview] = useState({ isOpen: false, html: '' });
+  const fileInputRef = useRef(null);
 
   // Fetch Categories
   const { data: categories = [] } = useQuery({
@@ -54,8 +59,8 @@ export default function OwnerCatalog() {
   const generateBarcodeLabelsHtml = (itemData) => {
     let html = `<html><head><style>
       @page { margin: 0; size: 50mm 25mm; }
-      body { margin: 0; padding: 0; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; background: #fff; color: #000; }
-      .label { width: 48mm; height: 23mm; text-align: center; border: 1px solid #ddd; padding: 2mm; box-sizing: border-box; page-break-after: always; display: flex; flex-direction: column; justify-content: space-between; }
+      body { margin: 0; padding: 0; font-family: sans-serif; background: #fff; color: #000; }
+      .label { width: 48mm; height: 23mm; text-align: center; border: 1px solid #ddd; padding: 2mm; box-sizing: border-box; page-break-after: always; display: flex; flex-direction: column; justify-content: space-between; margin: 0 auto; }
       .label:last-child { page-break-after: auto; }
       .name { font-size: 10px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 2px; }
       .price { font-size: 12px; font-weight: bold; margin-bottom: 2px; }
@@ -75,7 +80,7 @@ export default function OwnerCatalog() {
         </script>
       `;
     }
-    html += `</body><script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script></html>`;
+    html += `</body></html>`;
     return html;
   };
 
@@ -116,13 +121,8 @@ export default function OwnerCatalog() {
       queryClient.invalidateQueries({ queryKey: ['nextBarcode'] });
       
       if (printLabelCount > 0) {
-        const printWin = window.open('', '_blank');
-        if (printWin) {
-          printWin.document.write(generateBarcodeLabelsHtml(savedItem));
-          printWin.document.close();
-        } else {
-          showAlert("Popup blocked! Could not print labels.", "Notice");
-        }
+        const html = generateBarcodeLabelsHtml(savedItem);
+        setBarcodePreview({ isOpen: true, html });
       }
       
       setForm({ name: '', category: '', sub_category: '', cost_price: '', msp: '', price: '', unit: 'PCS' });
@@ -144,16 +144,126 @@ export default function OwnerCatalog() {
     addItemMutation.mutate({ ...form, barcode: nextBarcode });
   };
 
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      {
+        barcode: '001001', // Example of leading zero preserved by Excel
+        name: 'Example Item (Delete This Row)',
+        category: 'Hardware',
+        sub_category: 'Nails',
+        cost_price: '50',
+        msp: '60',
+        price: '75',
+        unit: 'PCS'
+      }
+    ];
+    
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
+    
+    // Auto-size columns
+    worksheet['!cols'] = [
+      { wch: 15 }, { wch: 35 }, { wch: 15 }, { wch: 15 },
+      { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }
+    ];
+
+    XLSX.writeFile(workbook, 'Inventory_Import_Template.xlsx');
+  };
+
+  const handleImportExcel = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      showAlert('Reading Excel file... Please wait.', 'Info');
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+      if (!jsonData || jsonData.length === 0) {
+        throw new Error('The Excel file appears to be empty.');
+      }
+      
+      showAlert('Importing items... This may take a minute.', 'Info');
+      
+      const formattedData = jsonData.map(row => ({
+        barcode: String(row.barcode || row.Barcode || '').trim(),
+        name: String(row.name || row.Name || '').trim(),
+        category: String(row.category || row.Category || 'Uncategorized').trim(),
+        sub_category: String(row.sub_category || row.Subcategory || '').trim(),
+        cost_price: Number(row.cost_price || row.Cost || 0),
+        msp: Number(row.msp || row.MSP || 0),
+        price: Number(row.price || row.Price || row.MRP || 0),
+        stock_warehouse: 0,
+        stock_store: 0,
+        unit: String(row.unit || row.Unit || 'PCS').trim(),
+        is_active: true
+      })).filter(r => r.barcode && r.name); 
+
+      if (formattedData.length === 0) {
+        throw new Error('No valid rows found. Ensure "barcode" and "name" columns exist.');
+      }
+
+      const { error } = await supabase.from('inventory').upsert(formattedData, { onConflict: 'barcode' });
+      if (error) throw error;
+
+      showAlert(`Successfully imported ${formattedData.length} items! Syncing...`, 'Success');
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['nextBarcode'] });
+      
+      await syncInventoryToLocal();
+      
+    } catch (err) {
+      showAlert(`Import failed: ${err.message}`, 'Error');
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="flex flex-col h-full gap-6 animate-fade-in max-w-4xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-light mb-2" style={{ color: 'var(--text-primary)' }}>Register New Item</h1>
-        <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-          Assigned Barcode: <span className="font-mono font-bold text-lg" style={{ color: 'var(--color-accent)' }}>{nextBarcode || '...'}</span>
-        </p>
-        <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
-          Note: This barcode is provisional. If someone else registers an item at the exact same time, the system will automatically assign the next available number.
-        </p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-light mb-2" style={{ color: 'var(--text-primary)' }}>Register New Item</h1>
+          <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+            Assigned Barcode: <span className="font-mono font-bold text-lg" style={{ color: 'var(--color-accent)' }}>{nextBarcode || '...'}</span>
+          </p>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+            Note: This barcode is provisional. It resolves automatically during concurrent saves.
+          </p>
+        </div>
+        
+        <div className="flex gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={handleDownloadTemplate}
+            className="h-9 px-4 text-xs font-semibold uppercase tracking-wider flex items-center gap-1 transition-colors"
+            style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border-medium)' }}
+          >
+            Template
+          </button>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="h-9 px-4 text-xs font-semibold uppercase tracking-wider flex items-center gap-1 transition-colors"
+            style={{ backgroundColor: 'var(--color-accent)', color: '#ffffff', border: '1px solid var(--color-accent)' }}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+            </svg>
+            Import Excel
+          </button>
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleImportExcel} 
+            accept=".xlsx, .xls" 
+            className="hidden" 
+          />
+        </div>
       </div>
       
       <form onSubmit={handleSubmit} className="p-4 md:p-8 shadow-sm flex flex-col gap-6" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
@@ -235,6 +345,14 @@ export default function OwnerCatalog() {
           </button>
         </div>
       </form>
+
+      <PrintPreviewModal
+        isOpen={barcodePreview.isOpen}
+        onClose={() => setBarcodePreview({ isOpen: false, html: '' })}
+        type="barcode"
+        title="Barcode Label Preview"
+        iframeHtml={barcodePreview.html}
+      />
     </div>
   );
 }

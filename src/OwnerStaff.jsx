@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { generateId } from './utils';
 import { getWorkerEmail } from './constants';
-import { Spinner } from './SharedUI';
+import { Spinner, PageLoader } from './SharedUI';
 
 export default function OwnerStaff() {
   const { showAlert, showConfirm } = useApp();
@@ -142,7 +142,7 @@ export default function OwnerStaff() {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan="2" className="p-8 text-center"><Spinner className="w-8 h-8 mx-auto" style={{ color: 'var(--color-accent)' }} /></td></tr>
+              <tr><td colSpan="2" className="p-8 text-center"><PageLoader text="Loading staff..." /></td></tr>
             ) : staffList.length === 0 ? (
               <tr><td colSpan="2" className="p-8 text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No staff members added yet.</td></tr>
             ) : staffList.map(staff => (

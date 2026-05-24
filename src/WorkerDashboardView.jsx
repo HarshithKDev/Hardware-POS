@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { supabase } from './supabaseClient';
 import { useQuery } from '@tanstack/react-query';
-import { Spinner } from './SharedUI';
+import { Spinner, PageLoader } from './SharedUI';
 import { escapeIlike, debounce } from './utils';
 import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD, INV_PER_PAGE, STALE_TIME_5MIN } from './constants';
 
@@ -122,7 +122,7 @@ export default function WorkerDashboardView() {
           </thead>
           <tbody style={{ borderBottom: '1px solid var(--border-medium)' }}>
             {isLoading ? (
-               <tr><td colSpan="5" className="p-8 text-center"><Spinner className="w-6 h-6 mx-auto" style={{ color: 'var(--color-accent)' }} /></td></tr>
+               <tr><td colSpan="5" className="p-8 text-center"><PageLoader text="Loading items..." /></td></tr>
             ) : paginatedInventory.length === 0 ? (
               <tr><td colSpan="5" className="p-8 text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No items found.</td></tr>
             ) : paginatedInventory.map(item => (

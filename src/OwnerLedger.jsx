@@ -1,10 +1,11 @@
 import { useState, useEffect, Fragment, useCallback } from 'react';
 import { supabase } from './supabaseClient';
-import { Spinner } from './SharedUI';
+import { Spinner, PageLoader } from './SharedUI';
 import { useQuery } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { formatDateTime } from './utils';
 import { SALES_PER_PAGE } from './constants';
+import * as XLSX from 'xlsx';
 
 export default function OwnerLedger({ isActive }) {
   const { showAlert } = useApp();
@@ -91,6 +92,71 @@ export default function OwnerLedger({ isActive }) {
     return location;
   };
 
+  const handleExportCSV = async () => {
+    try {
+      showAlert('Preparing CSV export...', 'Info');
+      let query = supabase.from('bills').select('*').order('created_at', { ascending: false }).limit(10000);
+
+      if (filter === 'SALE') query = query.eq('location', 'Store');
+      if (filter === 'RECEIVE') query = query.eq('location', 'Warehouse-Inbound');
+      if (filter === 'TRANSFER') query = query.eq('location', 'Warehouse-Transfer');
+
+      if (dateFilter !== 'ALL') {
+        let start, end;
+        const now = new Date();
+        if (dateFilter === 'TODAY') {
+          const s = now.toLocaleDateString('en-CA');
+          start = `${s}T00:00:00`; end = `${s}T23:59:59.999`;
+        } else if (dateFilter === 'YESTERDAY') {
+          now.setDate(now.getDate() - 1);
+          const s = now.toLocaleDateString('en-CA');
+          start = `${s}T00:00:00`; end = `${s}T23:59:59.999`;
+        } else if (dateFilter === 'CUSTOM' && customDate) {
+          start = `${customDate}T00:00:00`; end = `${customDate}T23:59:59.999`;
+        } else if (dateFilter === 'RANGE' && startDate && endDate) {
+          start = `${startDate}T00:00:00`; end = `${endDate}T23:59:59.999`;
+        }
+        if (start && end) query = query.gte('created_at', start).lte('created_at', end);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      
+      if (!data || data.length === 0) {
+         return showAlert('No data to export for this filter.', 'Warning');
+      }
+      const exportData = data.map(b => ({
+         'Bill ID': b.id,
+         'Date': formatDateTime(b.created_at).datePart,
+         'Time': formatDateTime(b.created_at).timePart,
+         'Cashier': b.cashier_name || 'System',
+         'Activity Type': getOperationType(b.location),
+         'Total Amount': b.total_amount || 0,
+         'Total Profit': b.total_profit || 0
+      }));
+      
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Ledger");
+      
+      // Auto-size columns loosely based on header length
+      worksheet['!cols'] = [
+        { wch: 15 }, // Bill ID
+        { wch: 15 }, // Date
+        { wch: 10 }, // Time
+        { wch: 20 }, // Cashier
+        { wch: 25 }, // Activity Type
+        { wch: 15 }, // Amount
+        { wch: 15 }, // Profit
+      ];
+
+      XLSX.writeFile(workbook, `Ledger_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+      
+    } catch (e) {
+      showAlert(`Export failed: ${e.message}`, 'Error');
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <h1 className="text-2xl font-light mb-6" style={{ color: 'var(--text-primary)' }}>Sales & Activity History</h1>
@@ -149,6 +215,18 @@ export default function OwnerLedger({ isActive }) {
                 <input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-9 px-2 text-sm focus:outline-none shadow-sm" style={{ border: '1px solid var(--border-medium)' }} aria-label="End date" />
               </div>
             )}
+            
+            <button
+              onClick={handleExportCSV}
+              className="h-9 px-4 ml-auto xl:ml-2 text-xs font-semibold uppercase tracking-wider flex items-center gap-1 shadow-sm transition-colors shrink-0"
+              style={{ backgroundColor: 'var(--color-success)', color: '#ffffff' }}
+              title="Download Excel"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+              <span className="hidden sm:inline">Export Excel</span>
+            </button>
           </div>
         </div>
 
@@ -165,7 +243,7 @@ export default function OwnerLedger({ isActive }) {
             </thead>
             <tbody>
               {isLoadingBills && bills.length === 0 ? (
-                <tr><td colSpan="5" className="p-10 text-center"><Spinner className="w-8 h-8 mx-auto" style={{ color: 'var(--color-accent)' }} /></td></tr>
+                <tr><td colSpan="5" className="p-10 text-center"><PageLoader text="Loading ledger..." /></td></tr>
               ) : bills.length === 0 ? (
                 <tr><td colSpan="5" className="p-8 text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No records found.</td></tr>
               ) : bills.map(bill => {

@@ -38,7 +38,8 @@ export default function BarcodePrinter() {
   };
 
   const updateQuantity = (barcode, newQty) => {
-    const qty = Math.max(1, Number(newQty)); 
+    // Allow empty string so user can clear the input to type a new number
+    const qty = newQty === '' ? '' : Math.max(1, Number(newQty)); 
     setPrintQueue(printQueue.map(item => 
       item.barcode === barcode ? { ...item, printQty: qty } : item
     ));
@@ -48,7 +49,7 @@ export default function BarcodePrinter() {
     setPrintQueue(printQueue.filter(item => item.barcode !== barcode));
   };
 
-  const totalLabels = printQueue.reduce((sum, item) => sum + item.printQty, 0);
+  const totalLabels = printQueue.reduce((sum, item) => sum + (Number(item.printQty) || 0), 0);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh]">
@@ -171,10 +172,10 @@ export default function BarcodePrinter() {
       </div>
 
       {printQueue.length > 0 && (
-        <div className="hidden print:flex flex-wrap content-start justify-start w-full h-full" style={{ backgroundColor: '#ffffff' }}>
+        <div id="printable-barcodes" className="absolute -top-[9999px] left-0 opacity-0 pointer-events-none print:static print:opacity-100 print:pointer-events-auto grid grid-cols-5 gap-x-1 gap-y-4 pt-4 px-2 content-start place-items-center w-full bg-white text-black" style={{ backgroundColor: '#ffffff' }}>
           {printQueue.map((item) => (
-            Array.from({ length: item.printQty }).map((_, index) => (
-              <div key={`${item.barcode}-${index}`} className="flex flex-col items-center justify-center p-1 w-[50mm] h-[25mm] overflow-hidden break-inside-avoid mb-2 mr-2" style={{ border: '1px solid #dddddd', backgroundColor: '#ffffff' }}>
+            Array.from({ length: Number(item.printQty) || 0 }).map((_, index) => (
+              <div key={`${item.barcode}-${index}`} className="thermal-barcode" style={{ backgroundColor: '#ffffff' }}>
                  <p className="text-[9px] font-bold truncate w-full text-center leading-none mb-1" style={{ color: '#000000' }}>{item.name}</p>
                  <Barcode value={item.barcode} width={1} height={25} fontSize={10} margin={0} displayValue={true} lineColor="#000000" background="#ffffff" />
                  <p className="text-[10px] font-bold leading-none mt-1" style={{ color: '#000000' }}>₹{Number(item.price).toFixed(2)}</p>
