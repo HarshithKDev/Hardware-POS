@@ -1,14 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import InventoryRow from './InventoryRow';
 
 export default function OwnerInventory({ viewType, showAlert, showConfirm }) {
   const [inventorySearch, setInventorySearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedSubcategory, setSelectedSubcategory] = useState('');
   const [sortOption, setSortOption] = useState('barcode-asc'); 
   const [invPage, setInvPage] = useState(0);
   const INV_PER_PAGE = 50;
   const queryClient = useQueryClient();
+
+  // Reset pagination (dividing data into separate pages) when filters change
+  useEffect(() => {
+    setInvPage(0);
+  }, [selectedCategory, selectedSubcategory]);
 
   const { data: categories } = useQuery({
     queryKey: ['categories'],
@@ -16,7 +23,8 @@ export default function OwnerInventory({ viewType, showAlert, showConfirm }) {
       const { data, error } = await supabase.from('categories').select('name').order('name', { ascending: true });
       if (error) throw error;
       return data || [];
-    }
+    },
+    staleTime: 1000 * 60 * 5 // Cache (a temporary memory layer) for 5 minutes to prevent loading delays
   });
 
   const { data: subcategories } = useQuery({
@@ -25,17 +33,24 @@ export default function OwnerInventory({ viewType, showAlert, showConfirm }) {
       const { data, error } = await supabase.from('subcategories').select('name, category_name').order('name', { ascending: true });
       if (error) throw error;
       return data || [];
-    }
+    },
+    staleTime: 1000 * 60 * 5
   });
 
   const { data: inventoryData, isLoading } = useQuery({
-    queryKey: ['inventory', viewType, invPage, inventorySearch, sortOption],
+    queryKey: ['inventory', viewType, invPage, inventorySearch, sortOption, selectedCategory, selectedSubcategory],
     queryFn: async () => {
       const from = invPage * INV_PER_PAGE;
       let query = supabase.from('inventory').select('*', { count: 'exact' }).eq('is_active', true);
       
       if (inventorySearch.trim() !== '') {
         query = query.or(`name.ilike.%${inventorySearch}%,barcode.ilike.%${inventorySearch}%`);
+      }
+      if (selectedCategory) {
+        query = query.eq('category', selectedCategory);
+      }
+      if (selectedSubcategory) {
+        query = query.eq('sub_category', selectedSubcategory);
       }
       
       if (sortOption === 'barcode-asc') query = query.order('barcode', { ascending: true });
@@ -49,7 +64,8 @@ export default function OwnerInventory({ viewType, showAlert, showConfirm }) {
       if (error) throw error;
       
       return { items: data || [], total: count || 0 };
-    }
+    },
+    staleTime: 1000 * 60 * 5 // Cache data so it displays instantly on tab switch
   });
 
   const updateItemMutation = useMutation({
@@ -96,9 +112,47 @@ export default function OwnerInventory({ viewType, showAlert, showConfirm }) {
           placeholder="Search Barcode or Name..." 
           value={inventorySearch} 
           onChange={e => { setInventorySearch(e.target.value); setInvPage(0); }} 
-          className={`h-9 border-2 border-gray-300 bg-white px-3 text-sm w-full md:flex-1 rounded-none focus:outline-none focus:border-[#0078D7] ${viewType === 'store' ? 'mb-4 md:mb-0' : ''}`} 
+          className={`h-9 border-2 border-gray-300 bg-white px-3 text-sm w-full md:flex-1 rounded-none focus:outline-none focus:border-[#0078D7]`} 
         />
-        <div className="relative w-full md:w-[260px] flex-shrink-0">
+
+        {/* Category Filter Dropdown */}
+        <div className="relative w-full md:w-[200px] flex-shrink-0">
+          <select 
+            value={selectedCategory} 
+            onChange={(e) => { 
+              setSelectedCategory(e.target.value); 
+              setSelectedSubcategory(''); 
+            }} 
+            className="h-9 w-full border-2 border-gray-300 bg-white pl-3 pr-8 text-sm rounded-none focus:outline-none focus:border-[#0078D7] appearance-none cursor-pointer font-medium text-gray-700"
+          >
+            <option value="">All Categories</option>
+            {categories?.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+            <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
+          </div>
+        </div>
+
+        {/* Sub-Category Filter Dropdown */}
+        <div className="relative w-full md:w-[200px] flex-shrink-0">
+          <select 
+            value={selectedSubcategory} 
+            onChange={(e) => setSelectedSubcategory(e.target.value)} 
+            disabled={!selectedCategory}
+            className="h-9 w-full border-2 border-gray-300 bg-white pl-3 pr-8 text-sm rounded-none focus:outline-none focus:border-[#0078D7] appearance-none cursor-pointer font-medium text-gray-700 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          >
+            <option value="">All Sub-categories</option>
+            {subcategories?.filter(sub => sub.category_name === selectedCategory).map(s => (
+              <option key={s.name} value={s.name}>{s.name}</option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+            <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
+          </div>
+        </div>
+
+        {/* Sort Filter Dropdown */}
+        <div className="relative w-full md:w-[220px] flex-shrink-0">
           <select 
             value={sortOption} 
             onChange={(e) => { setSortOption(e.target.value); setInvPage(0); }} 
@@ -122,7 +176,6 @@ export default function OwnerInventory({ viewType, showAlert, showConfirm }) {
       </div>
 
       <div className={`border border-gray-400 overflow-x-auto bg-white flex-1 min-h-[300px] rounded-none shadow-sm`}>
-        {/* Updated table classes for single-line center alignment */}
         <table className={`w-full text-center whitespace-nowrap border-collapse min-w-[${viewType === 'warehouse' ? '1100px' : '850px'}]`}>
           <thead className="bg-[#f9f9f9] sticky top-0 border-b border-gray-400">
             <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">

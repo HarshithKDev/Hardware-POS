@@ -1,92 +1,113 @@
-import { useState, useEffect, Fragment } from 'react';
+import { useState, Fragment } from 'react';
 import { supabase } from './supabaseClient';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function OwnerCategories({ showAlert, showConfirm }) {
-  const [categories, setCategories] = useState([]);
-  const [subcategories, setSubcategories] = useState([]);
+  const queryClient = useQueryClient();
   
   const [newCategory, setNewCategory] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [newSubcategory, setNewSubcategory] = useState('');
   
-  // State to track which category row is expanded
   const [expandedCategoryId, setExpandedCategoryId] = useState(null);
 
-  const loadData = async () => {
-    const { data: catData } = await supabase.from('categories').select('*').order('name', { ascending: true });
-    const { data: subData } = await supabase.from('subcategories').select('*').order('name', { ascending: true });
-    
-    if (catData) setCategories(catData);
-    if (subData) setSubcategories(subData);
-  };
-
-  useEffect(() => { loadData(); }, []);
-
-  const handleAddCategory = async (e) => {
-    e.preventDefault();
-    if (!newCategory.trim()) return showAlert('Category name cannot be empty.', 'Warning');
-    try {
-      const { error } = await supabase.from('categories').insert([{ name: newCategory.trim() }]);
+  // Fetch Categories with a 5-minute cache 
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('categories').select('*').order('name', { ascending: true });
       if (error) throw error;
+      return data || [];
+    },
+    staleTime: 1000 * 60 * 5
+  });
+
+  // Fetch Subcategories with a 5-minute cache
+  const { data: subcategories = [] } = useQuery({
+    queryKey: ['subcategories'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('subcategories').select('*').order('name', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 1000 * 60 * 5
+  });
+
+  const addCategoryMutation = useMutation({
+    mutationFn: async (name) => {
+      const { error } = await supabase.from('categories').insert([{ name }]);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
       setNewCategory('');
-      
-      // Wait for the fresh data to load before showing success
-      await loadData(); 
       showAlert('Category added successfully.', 'Success');
-    } catch (e) {
+    },
+    onError: (e) => {
       if (e.code === '23505') showAlert('This category already exists.', 'Error');
       else showAlert(e.message, 'System Error');
     }
+  });
+
+  const handleAddCategory = (e) => {
+    e.preventDefault();
+    if (!newCategory.trim()) return showAlert('Category name cannot be empty.', 'Warning');
+    addCategoryMutation.mutate(newCategory.trim());
   };
 
-  const handleAddSubcategory = async (e) => {
+  const addSubcategoryMutation = useMutation({
+    mutationFn: async ({ name, category_name }) => {
+      const { error } = await supabase.from('subcategories').insert([{ name, category_name }]);
+      if (error) throw error;
+      return category_name;
+    },
+    onSuccess: (category_name) => {
+      queryClient.invalidateQueries({ queryKey: ['subcategories'] });
+      setNewSubcategory('');
+      
+      const parentCat = categories.find(c => c.name === category_name);
+      if (parentCat) setExpandedCategoryId(parentCat.id);
+      
+      showAlert('Sub-category added successfully.', 'Success');
+    },
+    onError: (e) => showAlert(e.message, 'System Error')
+  });
+
+  const handleAddSubcategory = (e) => {
     e.preventDefault();
     if (!selectedCategory) return showAlert('Please select a parent category first.', 'Warning');
     if (!newSubcategory.trim()) return showAlert('Sub-category name cannot be empty.', 'Warning');
-    
-    try {
-      const { error } = await supabase.from('subcategories').insert([{ 
-        name: newSubcategory.trim(), 
-        category_name: selectedCategory 
-      }]);
-      if (error) throw error;
-      
-      // Auto-expand the category where the new subcategory was added
-      const parentCat = categories.find(c => c.name === selectedCategory);
-      if (parentCat) setExpandedCategoryId(parentCat.id);
-
-      setNewSubcategory('');
-      
-      // Wait for the fresh data to load before showing success
-      await loadData(); 
-      showAlert('Sub-category added successfully.', 'Success');
-    } catch (e) {
-      showAlert(e.message, 'System Error');
-    }
+    addSubcategoryMutation.mutate({ name: newSubcategory.trim(), category_name: selectedCategory });
   };
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from('categories').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['categories'] }),
+    onError: () => showAlert('Failed to delete category.', 'Error')
+  });
 
   const handleDeleteCategory = (id, name) => {
-    showConfirm(`Delete category "${name}"?`, async () => {
-      const { error } = await supabase.from('categories').delete().eq('id', id);
-      if (error) showAlert('Failed to delete category.', 'Error');
-      else loadData();
-    });
+    showConfirm(`Delete category "${name}"?`, () => deleteCategoryMutation.mutate(id));
   };
 
-  const handleDeleteSubcategory = (id, name) => {
-    showConfirm(`Delete sub-category "${name}"?`, async () => {
+  const deleteSubcategoryMutation = useMutation({
+    mutationFn: async (id) => {
       const { error } = await supabase.from('subcategories').delete().eq('id', id);
-      if (error) showAlert('Failed to delete sub-category.', 'Error');
-      else loadData();
-    });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['subcategories'] }),
+    onError: () => showAlert('Failed to delete sub-category.', 'Error')
+  });
+
+  const handleDeleteSubcategory = (id, name) => {
+    showConfirm(`Delete sub-category "${name}"?`, () => deleteSubcategoryMutation.mutate(id));
   };
 
   const toggleCategory = (id) => {
-    if (expandedCategoryId === id) {
-      setExpandedCategoryId(null);
-    } else {
-      setExpandedCategoryId(id);
-    }
+    setExpandedCategoryId(expandedCategoryId === id ? null : id);
   };
 
   return (
@@ -98,7 +119,7 @@ export default function OwnerCategories({ showAlert, showConfirm }) {
           <h2 className="text-sm font-semibold uppercase text-gray-700 tracking-wider mb-4">Add Category</h2>
           <form onSubmit={handleAddCategory} className="flex gap-2">
             <input type="text" placeholder="Category Name" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} className="flex-1 h-9 border-2 border-gray-300 px-3 text-sm focus:outline-none focus:border-[#0078D7]" />
-            <button type="submit" className="h-9 px-6 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-semibold border border-transparent focus:outline-none rounded-none">Save</button>
+            <button type="submit" disabled={addCategoryMutation.isPending} className="h-9 px-6 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-semibold border border-transparent focus:outline-none rounded-none">Save</button>
           </form>
         </div>
 
@@ -111,17 +132,19 @@ export default function OwnerCategories({ showAlert, showConfirm }) {
             </select>
             <div className="flex gap-2">
               <input type="text" placeholder="Sub-category Name" value={newSubcategory} onChange={(e) => setNewSubcategory(e.target.value)} className="flex-1 h-9 border-2 border-gray-300 px-3 text-sm focus:outline-none focus:border-[#0078D7]" />
-              <button type="submit" className="h-9 px-6 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-semibold border border-transparent focus:outline-none rounded-none">Save</button>
+              <button type="submit" disabled={addSubcategoryMutation.isPending} className="h-9 px-6 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-semibold border border-transparent focus:outline-none rounded-none">Save</button>
             </div>
           </form>
         </div>
       </div>
 
       <div className="border border-gray-400 bg-white flex-1 overflow-y-auto rounded-none shadow-sm">
+        {/* Restored master text-left alignment to the table itself */}
         <table className="w-full text-left border-collapse">
           <thead className="bg-[#f9f9f9] sticky top-0 border-b border-gray-400">
             <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
-              <th className="p-3 border-r border-gray-200">Category Name</th>
+              {/* Forced explicit text-left on the header */}
+              <th className="p-3 border-r border-gray-200 text-left">Category Name</th>
               <th className="p-3 border-r border-gray-200 w-32 text-center">Actions</th>
               <th className="p-3 text-center w-16">Details</th>
             </tr>
@@ -139,9 +162,12 @@ export default function OwnerCategories({ showAlert, showConfirm }) {
                     onClick={() => toggleCategory(cat.id)} 
                     className={`cursor-pointer transition-none group ${isExpanded ? 'bg-[#cce8ff]' : 'hover:bg-[#e6e6e6] bg-white'}`}
                   >
-                    <td className="p-3 border-r border-gray-200 text-sm text-black">
-                      <span className="font-bold text-base">{cat.name}</span>
-                      <span className="ml-2 text-gray-500 text-xs">({catSubcategories.length} sub-categories)</span>
+                    {/* Forced left alignment and wrapped content in a left-justified flex container */}
+                    <td className="p-3 border-r border-gray-200 text-sm text-black text-left">
+                      <div className="flex items-center justify-start w-full text-left">
+                        <span className="font-bold text-base">{cat.name}</span>
+                        <span className="ml-2 text-gray-500 text-xs">({catSubcategories.length} sub-categories)</span>
+                      </div>
                     </td>
                     <td className="p-2 border-r border-gray-200 text-center align-middle">
                       <button 
@@ -161,12 +187,13 @@ export default function OwnerCategories({ showAlert, showConfirm }) {
                   {isExpanded && (
                     <tr className="bg-[#f3f3f3] shadow-[inset_0_4px_6px_-4px_rgba(0,0,0,0.1)]">
                       <td colSpan="3" className="p-0 border-b-2 border-[#0078D7]">
-                        <div className="p-6 px-8">
-                          <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3 border-b border-gray-300 pb-2">Sub-categories for {cat.name}</p>
+                        {/* Forced text-left here as well */}
+                        <div className="p-6 px-8 text-left w-full">
+                          <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3 border-b border-gray-300 pb-2 text-left">Sub-categories for {cat.name}</p>
                           {catSubcategories.length === 0 ? (
-                            <p className="text-sm text-gray-500 italic">No sub-categories added yet.</p>
+                            <p className="text-sm text-gray-500 italic text-left">No sub-categories added yet.</p>
                           ) : (
-                            <div className="flex flex-wrap gap-3 mt-2">
+                            <div className="flex flex-wrap gap-3 mt-2 justify-start">
                               {catSubcategories.map(sub => (
                                 <span key={sub.id} className="bg-white text-sm px-3 py-1.5 flex items-center gap-2 border border-gray-300 text-gray-700 shadow-sm font-medium">
                                   {sub.name}

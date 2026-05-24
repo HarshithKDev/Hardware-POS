@@ -1,5 +1,25 @@
+/* Google Fonts — loaded once here, not injected per-component in JSX */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+
 @import "tailwindcss";
 @tailwind utilities;
+
+/* ---------------------------------------------------------------
+   ROOT RESET
+   Override Vite's default template styles that set max-width/center
+   --------------------------------------------------------------- */
+#root {
+  padding: 0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+  text-align: left !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+* {
+  font-family: 'Roboto', sans-serif !important;
+}
 
 /* Tell the browser the OS color scheme preference */
 :root {
@@ -9,7 +29,9 @@
   color-scheme: dark;
 }
 
-/* Windows Theme Custom Scrollbar */
+/* ---------------------------------------------------------------
+   WINDOWS THEME CUSTOM SCROLLBAR
+   --------------------------------------------------------------- */
 ::-webkit-scrollbar {
   width: 14px;
   height: 14px;
@@ -29,73 +51,68 @@
   background: #f3f3f3;
 }
 
-/* Ensure inputs don't outline blue by default on some browsers, keep it flat */
-input:focus, select:focus, button:focus {
+/* Flat focus style — no blue outline flash */
+input:focus,
+select:focus,
+button:focus {
   outline: none;
 }
 
-/* -------------------------------------------------------------
-  INDUSTRY STANDARD DARK MODE OVERRIDES
-  -------------------------------------------------------------
-*/
-
-/* Base Document Backgrounds */
+/* ---------------------------------------------------------------
+   INDUSTRY STANDARD DARK MODE OVERRIDES
+   --------------------------------------------------------------- */
 .dark {
   background-color: #121212 !important;
   color: #f3f3f3 !important;
 }
 
-/* Background Color Mappings */
-.dark .bg-white { background-color: #1e1e1e !important; }
-.dark .bg-\[\#f3f3f3\], .dark .bg-\[\#f9f9f9\] { background-color: #2d2d2d !important; }
-.dark .bg-\[\#e6e6e6\] { background-color: #121212 !important; }
-.dark .bg-\[\#cccccc\] { background-color: #3d3d3d !important; }
-.dark .bg-\[\#cce8ff\] { background-color: #004a80 !important; }
+.dark .bg-white                      { background-color: #1e1e1e !important; }
+.dark .bg-\[\#f3f3f3\],
+.dark .bg-\[\#f9f9f9\]               { background-color: #2d2d2d !important; }
+.dark .bg-\[\#e6e6e6\]               { background-color: #121212 !important; }
+.dark .bg-\[\#cccccc\]               { background-color: #3d3d3d !important; }
+.dark .bg-\[\#cce8ff\]               { background-color: #004a80 !important; }
 
-/* Hover Background Mappings (Fixes interactive elements missing hover in dark mode) */
-.dark .hover\:bg-\[\#f3f3f3\]:hover, 
-.dark .hover\:bg-\[\#f9f9f9\]:hover { background-color: #383838 !important; }
-.dark .hover\:bg-\[\#e6e6e6\]:hover { background-color: #2a2a2a !important; }
-.dark .hover\:bg-\[\#cccccc\]:hover { background-color: #4b4b4b !important; }
+.dark .hover\:bg-\[\#f3f3f3\]:hover,
+.dark .hover\:bg-\[\#f9f9f9\]:hover  { background-color: #383838 !important; }
+.dark .hover\:bg-\[\#e6e6e6\]:hover  { background-color: #2a2a2a !important; }
+.dark .hover\:bg-\[\#cccccc\]:hover  { background-color: #4b4b4b !important; }
 
-/* Text Color Mappings */
-.dark .text-black { color: #ffffff !important; }
-.dark .text-gray-700, .dark .text-gray-600 { color: #d1d5db !important; }
-.dark .text-gray-500 { color: #9ca3af !important; }
+.dark .text-black                    { color: #ffffff !important; }
+.dark .text-gray-700,
+.dark .text-gray-600                 { color: #d1d5db !important; }
+.dark .text-gray-500                 { color: #9ca3af !important; }
 
-/* Form Inputs Mappings */
-.dark input, .dark select {
+.dark input,
+.dark select {
   background-color: #1e1e1e !important;
   color: #ffffff !important;
   border-color: #4b5563 !important;
 }
-.dark input:disabled, .dark select:disabled {
+.dark input:disabled,
+.dark select:disabled {
   background-color: #2d2d2d !important;
   color: #9ca3af !important;
 }
 
-/* -------------------------------------------------------------
+/* ---------------------------------------------------------------
    CUSTOM POS COMPONENT BACKGROUNDS
-   ------------------------------------------------------------- */
-/* Light Mode Defaults */
-.pos-receive-bg { background-color: #f4fbf5; }
+   --------------------------------------------------------------- */
+.pos-receive-bg  { background-color: #f4fbf5; }
 .pos-transfer-bg { background-color: #fffaf0; }
-.pos-success-box { background-color: #e6f4ea; border-color: #107c10; border-width: 1px; border-style: solid; }
-.pos-error-box { background-color: #fde7e9; border-color: #e81123; border-width: 1px; border-style: solid; }
+.pos-success-box { background-color: #e6f4ea; border: 1px solid #107c10; }
+.pos-error-box   { background-color: #fde7e9; border: 1px solid #e81123; }
 
-/* Dark Mode Overrides */
-.dark .pos-receive-bg { background-color: #102a1a !important; border-color: #1a5223 !important; border-bottom-width: 1px; }
-.dark .pos-transfer-bg { background-color: #2a2010 !important; border-color: #7a5c15 !important; border-bottom-width: 1px; }
+.dark .pos-receive-bg  { background-color: #102a1a !important; border-bottom: 1px solid #1a5223; }
+.dark .pos-transfer-bg { background-color: #2a2010 !important; border-bottom: 1px solid #7a5c15; }
 .dark .pos-success-box { background-color: #102a1a !important; border-color: #1a5223 !important; }
-.dark .pos-error-box { background-color: #2a1012 !important; border-color: #7a151e !important; }
+.dark .pos-error-box   { background-color: #2a1012 !important; border-color: #7a151e !important; }
 
-
-/* -------------------------------------------------------------
+/* ---------------------------------------------------------------
    UNIVERSAL DARK MODE BORDER & TABLE FIX
-   ------------------------------------------------------------- */
-/* 1. Force all standard borders, dividers, and table grids to a brighter, highly visible gray */
-.dark .border-gray-200, 
-.dark .border-gray-300, 
+   --------------------------------------------------------------- */
+.dark .border-gray-200,
+.dark .border-gray-300,
 .dark .border-gray-400,
 .dark table,
 .dark thead,
@@ -107,73 +124,53 @@ input:focus, select:focus, button:focus {
   border-color: #4b5563 !important;
 }
 
-/* 2. Fix the sticky header gap bug by replacing the failing border with a seamless shadow using the new brighter color */
+/* Fix sticky header gap bug */
 .dark thead.sticky {
   border-bottom: none !important;
   box-shadow: 0 1px 0 #4b5563 !important;
 }
 
-/* -------------------------------------------------------------
-   GLOBAL TABLE & FORM ALIGNMENT FIXES
-   ------------------------------------------------------------- */
-/* Force all table headings and cells to stay on one line and center align */
+/* ---------------------------------------------------------------
+   GLOBAL TABLE & FORM ALIGNMENT
+   --------------------------------------------------------------- */
 th, td {
-  white-space: nowrap !important; /* (a styling rule that prevents text from breaking into multiple lines) */
-  text-align: center !important;  /* (a styling rule that aligns text to the middle of its container) */
+  white-space: nowrap !important;
+  text-align: center !important;
 }
 
-/* Force complex table cells that use flexbox (a layout model for arranging elements) to center their content */
-th > div.flex, 
+th > div.flex,
 td > div.flex {
   justify-content: center !important;
 }
 
-/* Center align headings/labels above input boxes globally */
-label, 
+label,
 .form-label {
   text-align: center !important;
   display: block !important;
   width: 100%;
 }
 
-/* -------------------------------------------------------------
-   GLOBAL INPUT & DROPDOWN ALIGNMENT FIX
-   ------------------------------------------------------------- */
-/* Force all form inputs to center their text */
 input {
   text-align: center !important;
 }
-
 input::placeholder {
   text-align: center !important;
 }
 
-/* Specific styling for dropdowns to center text and safely position the arrow */
 select {
   text-align: center !important;
-  text-align-last: center !important; /* (This is the magic property needed specifically for <select> dropdowns) */
-  
-  /* Add equal padding to both sides. 
-     This keeps the text perfectly centered but creates a "safe zone" 
-     on the right so long text never touches the arrow. */
+  text-align-last: center !important;
   padding-left: 1.5rem !important;
   padding-right: 1.5rem !important;
-  
-  /* Hide the native browser arrow completely */
   appearance: none !important;
   -webkit-appearance: none !important;
   -moz-appearance: none !important;
-  
-  /* Add a custom gray chevron arrow via SVG (Scalable Vector Graphics, an image format written in code) */
   background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%234b5563' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
   background-repeat: no-repeat !important;
   background-size: 1.25em !important;
-  
-  /* Pin the arrow a safe, fixed distance from the right edge */
   background-position: right 0.5rem center !important;
 }
 
-/* Adjust the custom arrow for Dark Mode so it remains visible */
 .dark select {
   background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23d1d5db' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
 }

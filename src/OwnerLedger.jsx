@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Fragment, useRef } from 'react';
+import { useState, useEffect, Fragment, useCallback } from 'react';
 import { supabase } from './supabaseClient';
 import { Spinner } from './SharedUI';
 
@@ -7,68 +7,72 @@ export default function OwnerLedger({ isActive }) {
   const [isLoadingBills, setIsLoadingBills] = useState(false);
   const [salesPage, setSalesPage] = useState(0);
   const [hasMoreBills, setHasMoreBills] = useState(true);
-  
-  const [filter, setFilter] = useState('ALL'); 
-  const [dateFilter, setDateFilter] = useState('ALL'); 
-  const [customDate, setCustomDate] = useState('');    
+
+  const [filter, setFilter] = useState('ALL');
+  const [dateFilter, setDateFilter] = useState('ALL');
+  const [customDate, setCustomDate] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  
+
   const [expandedBillId, setExpandedBillId] = useState(null);
   const [billItemsCache, setBillItemsCache] = useState({});
   const [isLoadingItems, setIsLoadingItems] = useState(false);
-  
-  const isFirstRender = useRef(true);
+
   const SALES_PER_PAGE = 20;
 
-  const fetchBills = async (page, currentFilter, currentDateFilter, currentCustomDate, currentStart, currentEnd) => {
+  const fetchBills = useCallback(async (page, currentFilter, currentDateFilter, currentCustomDate, currentStart, currentEnd) => {
     try {
       setIsLoadingBills(true);
       const from = page * SALES_PER_PAGE;
-      let query = supabase.from('bills').select('*').order('created_at', { ascending: false }).range(from, from + SALES_PER_PAGE - 1);
-      
-      if (currentFilter === 'SALE') query = query.eq('location', 'Store');
-      else if (currentFilter === 'RECEIVE') query = query.eq('location', 'Warehouse-Inbound');
-      else if (currentFilter === 'TRANSFER') query = query.eq('location', 'Warehouse-Transfer');
+      let query = supabase
+        .from('bills')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(from, from + SALES_PER_PAGE - 1);
+
+      if (currentFilter === 'SALE')     query = query.eq('location', 'Store');
+      if (currentFilter === 'RECEIVE')  query = query.eq('location', 'Warehouse-Inbound');
+      if (currentFilter === 'TRANSFER') query = query.eq('location', 'Warehouse-Transfer');
 
       if (currentDateFilter !== 'ALL') {
         let start, end;
         const now = new Date();
-        
         if (currentDateFilter === 'TODAY') {
-          const localDateStr = now.toLocaleDateString('en-CA');
-          start = `${localDateStr}T00:00:00`;
-          end = `${localDateStr}T23:59:59.999`;
+          const s = now.toLocaleDateString('en-CA');
+          start = `${s}T00:00:00`; end = `${s}T23:59:59.999`;
         } else if (currentDateFilter === 'YESTERDAY') {
           now.setDate(now.getDate() - 1);
-          const localDateStr = now.toLocaleDateString('en-CA');
-          start = `${localDateStr}T00:00:00`;
-          end = `${localDateStr}T23:59:59.999`;
+          const s = now.toLocaleDateString('en-CA');
+          start = `${s}T00:00:00`; end = `${s}T23:59:59.999`;
         } else if (currentDateFilter === 'CUSTOM' && currentCustomDate) {
-          start = `${currentCustomDate}T00:00:00`;
-          end = `${currentCustomDate}T23:59:59.999`;
+          start = `${currentCustomDate}T00:00:00`; end = `${currentCustomDate}T23:59:59.999`;
         } else if (currentDateFilter === 'RANGE' && currentStart && currentEnd) {
-          start = `${currentStart}T00:00:00`;
-          end = `${currentEnd}T23:59:59.999`;
+          start = `${currentStart}T00:00:00`; end = `${currentEnd}T23:59:59.999`;
         }
-
-        if (start && end) {
-          query = query.gte('created_at', start).lte('created_at', end);
-        }
+        if (start && end) query = query.gte('created_at', start).lte('created_at', end);
       }
 
       const { data } = await query;
-      if (data) { setBills(data); setHasMoreBills(data.length === SALES_PER_PAGE); }
-    } finally { setIsLoadingBills(false); }
-  };
+      if (data) {
+        setBills(data);
+        setHasMoreBills(data.length === SALES_PER_PAGE);
+      }
+    } finally {
+      setIsLoadingBills(false);
+    }
+  }, []);
 
+  // Re-fetch whenever any filter or page changes
   useEffect(() => {
     fetchBills(salesPage, filter, dateFilter, customDate, startDate, endDate);
-  }, [salesPage, filter, dateFilter, customDate, startDate, endDate]);
+  }, [salesPage, filter, dateFilter, customDate, startDate, endDate, fetchBills]);
 
+  // Re-fetch when the parent activates this tab (no ref hack needed — just list isActive)
   useEffect(() => {
-    if (isFirstRender.current) { isFirstRender.current = false; return; }
-    if (isActive) fetchBills(salesPage, filter, dateFilter, customDate, startDate, endDate);
+    if (isActive) {
+      fetchBills(salesPage, filter, dateFilter, customDate, startDate, endDate);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive]);
 
   const toggleRow = async (bill) => {
@@ -79,28 +83,32 @@ export default function OwnerLedger({ isActive }) {
       try {
         const { data } = await supabase.from('bill_items').select('*').eq('bill_id', bill.id);
         if (data) setBillItemsCache(prev => ({ ...prev, [bill.id]: data }));
-      } finally { setIsLoadingItems(false); }
+      } finally {
+        setIsLoadingItems(false);
+      }
     }
   };
 
   const handleFilterChange = (newFilter) => {
-    setFilter(newFilter); setSalesPage(0); setExpandedBillId(null); 
+    setFilter(newFilter);
+    setSalesPage(0);
+    setExpandedBillId(null);
   };
 
   const formatDateTime = (dateString) => {
     if (!dateString) return '';
     const d = new Date(dateString);
     const datePart = d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    let hours = d.getHours();
+    const hours = d.getHours();
     const minutes = d.getMinutes().toString().padStart(2, '0');
     const ampm = hours >= 12 ? 'PM' : 'AM';
     return `${datePart}, ${(hours % 12 || 12).toString().padStart(2, '0')}:${minutes} ${ampm}`;
   };
 
   const getOperationType = (location) => {
-    if (location === 'Store') return 'Sale (Checkout)';
-    if (location === 'Warehouse-Inbound') return 'Received New Stock';
-    if (location === 'Warehouse-Transfer') return 'Moved Stock to Store';
+    if (location === 'Store')               return 'Sale (Checkout)';
+    if (location === 'Warehouse-Inbound')   return 'Received New Stock';
+    if (location === 'Warehouse-Transfer')  return 'Moved Stock to Store';
     return location;
   };
 
@@ -109,34 +117,46 @@ export default function OwnerLedger({ isActive }) {
       <h1 className="text-2xl font-light text-black mb-6">Sales & Activity History</h1>
 
       <div className="flex flex-col flex-1 pb-4">
-        
         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-4 mb-6 border-b border-gray-300 pb-0">
           <div className="flex gap-1 overflow-x-auto w-full xl:w-auto">
-            <button onClick={() => handleFilterChange('ALL')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none transition-colors ${filter === 'ALL' ? 'bg-[#0078D7] border-b-2 border-[#005a9e] text-white font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#e6e6e6] text-gray-700 font-medium'}`}>All Activity</button>
-            <button onClick={() => handleFilterChange('SALE')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none transition-colors ${filter === 'SALE' ? 'bg-[#0078D7] border-b-2 border-[#005a9e] text-white font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#e6e6e6] text-gray-700 font-medium'}`}>Sales</button>
-            <button onClick={() => handleFilterChange('RECEIVE')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none transition-colors ${filter === 'RECEIVE' ? 'bg-[#0078D7] border-b-2 border-[#005a9e] text-white font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#e6e6e6] text-gray-700 font-medium'}`}>Received Stock</button>
-            <button onClick={() => handleFilterChange('TRANSFER')} className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none transition-colors ${filter === 'TRANSFER' ? 'bg-[#0078D7] border-b-2 border-[#005a9e] text-white font-semibold' : 'bg-white border-b-2 border-transparent hover:bg-[#e6e6e6] text-gray-700 font-medium'}`}>Moved to Store</button>
+            {[
+              { key: 'ALL',      label: 'All Activity' },
+              { key: 'SALE',     label: 'Sales' },
+              { key: 'RECEIVE',  label: 'Received Stock' },
+              { key: 'TRANSFER', label: 'Moved to Store' },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => handleFilterChange(key)}
+                className={`h-10 px-6 text-sm uppercase tracking-wider focus:outline-none rounded-none transition-colors ${
+                  filter === key
+                    ? 'bg-[#0078D7] border-b-2 border-[#005a9e] text-white font-semibold'
+                    : 'bg-white border-b-2 border-transparent hover:bg-[#e6e6e6] text-gray-700 font-medium'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
           <div className="flex flex-wrap items-center gap-2 pb-2 w-full xl:w-auto">
             <span className="text-xs font-semibold uppercase text-gray-600 whitespace-nowrap">Date Filter:</span>
             <div className="relative shrink-0">
-              <select value={dateFilter} onChange={(e) => { setDateFilter(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-9 border border-gray-400 bg-white pl-3 pr-8 text-sm focus:outline-none focus:border-[#0078D7] rounded-none cursor-pointer appearance-none shadow-sm">
+              <select
+                value={dateFilter}
+                onChange={(e) => { setDateFilter(e.target.value); setSalesPage(0); setExpandedBillId(null); }}
+                className="h-9 border border-gray-400 bg-white pl-3 pr-8 text-sm focus:outline-none focus:border-[#0078D7] rounded-none cursor-pointer shadow-sm"
+              >
                 <option value="ALL">All Time</option>
                 <option value="TODAY">Today</option>
                 <option value="YESTERDAY">Yesterday</option>
                 <option value="CUSTOM">Specific Date...</option>
                 <option value="RANGE">Date Range...</option>
               </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-600">
-                <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-              </div>
             </div>
-            
             {dateFilter === 'CUSTOM' && (
               <input type="date" value={customDate} onChange={(e) => { setCustomDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-9 border border-gray-400 bg-white px-2 text-sm focus:outline-none focus:border-[#0078D7] rounded-none shadow-sm" />
             )}
-
             {dateFilter === 'RANGE' && (
               <div className="flex items-center gap-2 shrink-0">
                 <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-9 border border-gray-400 bg-white px-2 text-sm focus:outline-none focus:border-[#0078D7] rounded-none shadow-sm" title="Start Date" />
@@ -146,7 +166,7 @@ export default function OwnerLedger({ isActive }) {
             )}
           </div>
         </div>
-        
+
         <div className="border border-gray-400 bg-white flex-1 overflow-y-auto rounded-none shadow-sm min-h-[400px]">
           <table className="w-full text-left border-collapse min-w-[700px]">
             <thead className="bg-[#f9f9f9] sticky top-0 border-b border-gray-400 z-10">
@@ -167,7 +187,6 @@ export default function OwnerLedger({ isActive }) {
                 const isExpanded = expandedBillId === bill.id;
                 const items = billItemsCache[bill.id] || [];
                 const isSale = bill.location === 'Store';
-
                 return (
                   <Fragment key={bill.id}>
                     <tr onClick={() => toggleRow(bill)} className={`cursor-pointer transition-none group ${isExpanded ? 'bg-[#cce8ff]' : 'hover:bg-[#e6e6e6] bg-white'}`}>
@@ -190,8 +209,14 @@ export default function OwnerLedger({ isActive }) {
                               <table className="w-full text-left bg-white border border-gray-300 rounded-none shadow-sm">
                                 <thead className="bg-[#e6e6e6] border-b border-gray-300">
                                   <tr className="text-xs font-semibold uppercase text-gray-700">
-                                    <th className="px-4 py-2 border-r border-gray-300">Item Name</th><th className="px-4 py-2 border-r border-gray-300 text-center w-32">Qty</th>
-                                    {isSale && (<><th className="px-4 py-2 border-r border-gray-300 text-right w-32">Unit Price</th><th className="px-4 py-2 text-right w-32">Total</th></>)}
+                                    <th className="px-4 py-2 border-r border-gray-300">Item Name</th>
+                                    <th className="px-4 py-2 border-r border-gray-300 text-center w-32">Qty</th>
+                                    {isSale && (
+                                      <>
+                                        <th className="px-4 py-2 border-r border-gray-300 text-right w-32">Unit Price</th>
+                                        <th className="px-4 py-2 text-right w-32">Total</th>
+                                      </>
+                                    )}
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200 border-b border-gray-300">
@@ -199,7 +224,12 @@ export default function OwnerLedger({ isActive }) {
                                     <tr key={item.id} className="hover:bg-[#f9f9f9]">
                                       <td className="px-4 py-2 border-r border-gray-200 text-sm font-medium text-black">{item.name}</td>
                                       <td className="px-4 py-2 border-r border-gray-200 text-sm text-center">{item.quantity} {item.unit}</td>
-                                      {isSale && (<><td className="px-4 py-2 border-r border-gray-200 text-sm text-right">₹{Number(item.price_at_sale).toFixed(2)}</td><td className="px-4 py-2 text-sm text-right font-bold text-black">₹{(item.price_at_sale * item.quantity).toFixed(2)}</td></>)}
+                                      {isSale && (
+                                        <>
+                                          <td className="px-4 py-2 border-r border-gray-200 text-sm text-right">₹{Number(item.price_at_sale).toFixed(2)}</td>
+                                          <td className="px-4 py-2 text-sm text-right font-bold text-black">₹{(item.price_at_sale * item.quantity).toFixed(2)}</td>
+                                        </>
+                                      )}
                                     </tr>
                                   ))}
                                 </tbody>
@@ -215,9 +245,10 @@ export default function OwnerLedger({ isActive }) {
             </tbody>
           </table>
         </div>
+
         <div className="flex justify-between items-center bg-[#f3f3f3] p-3 border border-gray-400 mt-4 rounded-none shadow-sm">
-          <button onClick={()=>setSalesPage(p=>Math.max(0,p-1))} disabled={salesPage===0} className="h-8 px-6 bg-white border border-gray-400 text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none">Newer</button>
-          <button onClick={()=>setSalesPage(p=>p+1)} disabled={!hasMoreBills} className="h-8 px-6 bg-white border border-gray-400 text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none">Older</button>
+          <button onClick={() => setSalesPage(p => Math.max(0, p - 1))} disabled={salesPage === 0} className="h-8 px-6 bg-white border border-gray-400 text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none">Newer</button>
+          <button onClick={() => setSalesPage(p => p + 1)} disabled={!hasMoreBills} className="h-8 px-6 bg-white border border-gray-400 text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none">Older</button>
         </div>
       </div>
     </div>

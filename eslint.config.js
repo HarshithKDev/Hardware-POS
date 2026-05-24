@@ -21,12 +21,10 @@ export default [
       'react-refresh': reactRefresh,
     },
     rules: {
-      // We have DELETED the "...recommended.rules" lines that were causing the background warnings!
-      
-      // Keeping all strict rules turned completely OFF
-      'react-refresh/only-export-components': 'off',
-      'no-unused-vars': 'off',
-      'react-hooks/exhaustive-deps': 'off',
+      ...reactHooks.configs.recommended.rules,
+      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      'no-unused-vars': ['warn', { varsIgnorePattern: '^_', argsIgnorePattern: '^_' }],
+      'react-hooks/exhaustive-deps': 'warn',
       'react/prop-types': 'off',
     },
   },
