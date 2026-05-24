@@ -6,40 +6,50 @@ import WorkerBilling from './WorkerBilling';
 import OwnerDashboard from './OwnerDashboard';
 import BarcodePrinter from './BarcodePrinter';
 import { LogoutModal, MobileScannerModal, ProductInfoModal } from './AppModals';
+import { AlertDialog, ConfirmDialog } from './Dialog';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { useApp } from './AppContext';
+import { startBackgroundSync, stopBackgroundSync } from './services/sync';
 
 function App() {
-  const [userRole, setUserRole] = useState(null);
+  const {
+    shopSettings, setShopSettings,
+    userRole, setUserRole,
+    cashierName, setCashierName,
+    isDarkMode, toggleDarkMode,
+    alertConfig, closeAlert,
+    confirmConfig, handleConfirm, closeConfirm,
+  } = useApp();
+
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [shopSettings, setShopSettings] = useState(null);
   const [isSetupNeeded, setIsSetupNeeded] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isMobileScannerOpen, setIsMobileScannerOpen] = useState(false);
   const [scannedProduct, setScannedProduct] = useState(null);
-
-  // --- DARK MODE ---
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('posDarkMode');
-      if (saved !== null) return JSON.parse(saved);
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-    return false;
-  });
-
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('posDarkMode', JSON.stringify(isDarkMode));
-  }, [isDarkMode]);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => { fetchInitialData(); }, []);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (userRole) {
+      startBackgroundSync();
+    }
+    return () => stopBackgroundSync();
+  }, [userRole]);
 
   const fetchInitialData = async () => {
     try {
@@ -60,7 +70,13 @@ function App() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         const savedRole = sessionStorage.getItem('posUserRole');
-        if (savedRole) setUserRole(savedRole);
+        if (savedRole) {
+          setUserRole(savedRole);
+          const displayName = savedRole === 'owner'
+            ? (settingsData?.[0]?.owner_name || 'Administrator')
+            : savedRole;
+          setCashierName(displayName);
+        }
       } else {
         sessionStorage.removeItem('posUserRole');
       }
@@ -71,10 +87,13 @@ function App() {
     }
   };
 
-  // Fixed: accepts role only — access_token is managed by supabase-js internally
   const handleLoginSuccess = (role) => {
     setUserRole(role);
     sessionStorage.setItem('posUserRole', role);
+    const displayName = role === 'owner'
+      ? (shopSettings?.owner_name || 'Administrator')
+      : role;
+    setCashierName(displayName);
     if (role === 'owner') navigate('/owner/dashboard');
     else navigate('/terminal/dashboard');
   };
@@ -82,6 +101,7 @@ function App() {
   const confirmLogout = async () => {
     await supabase.auth.signOut();
     setUserRole(null);
+    setCashierName('');
     sessionStorage.removeItem('posUserRole');
     setShowLogoutConfirm(false);
     navigate('/');
@@ -89,9 +109,14 @@ function App() {
 
   if (isInitialLoad) {
     return (
-      <div className="w-full min-h-screen bg-[#f3f3f3] flex flex-col items-center justify-center text-black">
-        <Spinner className="w-8 h-8 text-[#0078D7] mb-4" />
-        <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">Initializing Subsystems</p>
+      <div
+        className="w-full min-h-screen flex flex-col items-center justify-center"
+        style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
+      >
+        <Spinner className="w-8 h-8 mb-4" style={{ color: 'var(--color-accent)' }} />
+        <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
+          Initializing Subsystems
+        </p>
       </div>
     );
   }
@@ -107,14 +132,27 @@ function App() {
     );
   }
 
-  const displayUserName = userRole === 'owner'
-    ? (shopSettings?.owner_name || 'Administrator')
-    : (userRole || 'Terminal User');
-
   return (
-    <div className="w-full h-screen bg-[#e6e6e6] text-black flex flex-col overflow-hidden">
+    <div
+      className="w-full h-screen flex flex-col overflow-hidden"
+      style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+    >
+      {/* SHARED DIALOGS — rendered from context state */}
+      <AlertDialog
+        isOpen={alertConfig.isOpen}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        onClose={closeAlert}
+      />
+      <ConfirmDialog
+        isOpen={confirmConfig.isOpen}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        onConfirm={handleConfirm}
+        onCancel={closeConfirm}
+      />
 
-      {/* MODALS — rendered from AppModals, not inlined here */}
+      {/* MODALS */}
       {showLogoutConfirm && (
         <LogoutModal
           onConfirm={confirmLogout}
@@ -137,54 +175,114 @@ function App() {
       )}
 
       {/* NAVBAR */}
-      <nav className="w-full bg-white border-b border-gray-300 shadow-sm h-[60px] flex items-center justify-between px-4 flex-shrink-0 relative z-[9999]">
-
-        <div className="h-full flex items-center border-r border-gray-300 pr-4 w-[200px] flex-shrink-0">
-          <span className="text-sm font-bold text-black uppercase tracking-wider truncate w-full block">
-            {displayUserName}
+      <nav
+        className="w-full shadow-sm h-[60px] flex items-center justify-between px-4 flex-shrink-0 relative z-[9999]"
+        style={{
+          backgroundColor: 'var(--bg-secondary)',
+          borderBottom: '1px solid var(--border-medium)',
+        }}
+        role="navigation"
+        aria-label="Main navigation"
+      >
+        <div
+          className="h-full flex items-center pr-2 md:pr-4 max-w-[120px] md:max-w-none md:w-[240px] flex-shrink-0"
+          style={{ borderRight: '1px solid var(--border-medium)' }}
+        >
+          <span
+            className="text-sm font-bold uppercase tracking-wider truncate w-full block"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            {cashierName}
           </span>
         </div>
 
-        <div className="flex-1 flex items-center justify-end gap-3 h-full pl-4 overflow-x-auto">
-
+        <div className="flex-1 flex items-center justify-end gap-2 md:gap-3 h-full pl-2 md:pl-4 overflow-x-auto hide-scrollbar" style={{ scrollbarWidth: 'none' }}>
+          {!isOnline && (
+            <div className="flex items-center gap-1 text-xs font-bold px-2 py-1 bg-[var(--color-error)] text-white mr-auto animate-pulse whitespace-nowrap shrink-0">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18M9.9 9.9l4.242 4.242M6.364 13.435A9 9 0 0113.435 6.364m-4.242 4.243a3 3 0 004.242 4.242" />
+              </svg>
+              <span className="hidden md:inline">OFFLINE MODE</span>
+            </div>
+          )}
           <button
             onClick={() => setIsMobileScannerOpen(true)}
-            className="md:hidden px-4 py-2 bg-white border border-gray-400 hover:bg-[#e6e6e6] text-xs font-bold uppercase text-black focus:outline-none rounded-none"
+            className="md:hidden px-3 py-2 text-xs font-bold uppercase focus:outline-none whitespace-nowrap shrink-0 flex items-center justify-center"
+            style={{
+              backgroundColor: 'var(--bg-secondary)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-medium)',
+            }}
+            aria-label="Open barcode scanner"
           >
-            Scan
+            <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" />
+            </svg>
           </button>
 
           {userRole === 'owner' ? (
             <>
               <button
                 onClick={() => navigate('/owner/dashboard')}
-                className={`px-6 py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none rounded-none transition-colors border ${location.pathname.startsWith('/owner') ? 'bg-[#0078D7] text-white border-[#0078D7]' : 'bg-white border-gray-400 hover:bg-[#e6e6e6] text-black'}`}
+                className="px-3 md:px-6 py-2 md:py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none transition-colors whitespace-nowrap shrink-0 flex items-center justify-center gap-2"
+                style={{
+                  backgroundColor: location.pathname.startsWith('/owner') ? 'var(--color-accent)' : 'var(--bg-secondary)',
+                  color: location.pathname.startsWith('/owner') ? '#ffffff' : 'var(--text-primary)',
+                  border: `1px solid ${location.pathname.startsWith('/owner') ? 'var(--color-accent)' : 'var(--border-medium)'}`,
+                }}
               >
-                Management
+                <span className="hidden md:inline">Management</span>
+                <svg className="w-[18px] h-[18px] md:hidden" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 16.875h3.375m0 0h3.375m-3.375 0V13.5m0 3.375v3.375M6 10.5h2.25a2.25 2.25 0 002.25-2.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v2.25A2.25 2.25 0 006 10.5zm0 9.75h2.25A2.25 2.25 0 0010.5 18v-2.25a2.25 2.25 0 00-2.25-2.25H6a2.25 2.25 0 00-2.25 2.25V18A2.25 2.25 0 006 20.25zm9.75-9.75H18a2.25 2.25 0 002.25-2.25V6A2.25 2.25 0 0018 3.75h-2.25A2.25 2.25 0 0013.5 6v2.25a2.25 2.25 0 002.25 2.25z" />
+                </svg>
               </button>
               <button
                 onClick={() => navigate('/printer')}
-                className={`px-6 py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none rounded-none transition-colors border ${location.pathname.startsWith('/printer') ? 'bg-[#0078D7] text-white border-[#0078D7]' : 'bg-white border-gray-400 hover:bg-[#e6e6e6] text-black'}`}
+                className="px-3 md:px-6 py-2 md:py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none transition-colors whitespace-nowrap shrink-0 flex items-center justify-center gap-2"
+                style={{
+                  backgroundColor: location.pathname.startsWith('/printer') ? 'var(--color-accent)' : 'var(--bg-secondary)',
+                  color: location.pathname.startsWith('/printer') ? '#ffffff' : 'var(--text-primary)',
+                  border: `1px solid ${location.pathname.startsWith('/printer') ? 'var(--color-accent)' : 'var(--border-medium)'}`,
+                }}
               >
-                Barcodes
+                <span className="hidden md:inline">Barcodes</span>
+                <svg className="w-[18px] h-[18px] md:hidden" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
+                </svg>
               </button>
             </>
           ) : (
             <button
               onClick={() => navigate('/terminal/dashboard')}
-              className={`px-6 py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none rounded-none transition-colors border ${location.pathname.startsWith('/terminal') ? 'bg-[#0078D7] text-white border-[#0078D7]' : 'bg-white border-gray-400 hover:bg-[#e6e6e6] text-black'}`}
+              className="px-3 md:px-6 py-2 md:py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none transition-colors whitespace-nowrap shrink-0 flex items-center justify-center gap-2"
+              style={{
+                backgroundColor: location.pathname.startsWith('/terminal') ? 'var(--color-accent)' : 'var(--bg-secondary)',
+                color: location.pathname.startsWith('/terminal') ? '#ffffff' : 'var(--text-primary)',
+                border: `1px solid ${location.pathname.startsWith('/terminal') ? 'var(--color-accent)' : 'var(--border-medium)'}`,
+              }}
             >
-              Terminal
+              <span className="hidden md:inline">Terminal</span>
+              <svg className="w-[18px] h-[18px] md:hidden" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" />
+              </svg>
             </button>
           )}
 
-          <div className="h-8 w-px bg-gray-300 mx-1" />
+          <div className="h-8 w-px mx-1" style={{ backgroundColor: 'var(--border-medium)' }} />
 
           {/* Dark Mode Toggle */}
           <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            className="px-3 py-2 bg-white hover:bg-[#e6e6e6] text-black border border-gray-400 transition-colors rounded-none flex items-center justify-center focus:outline-none"
+            onClick={toggleDarkMode}
+            className="px-3 py-2 transition-colors flex items-center justify-center focus:outline-none focus:ring-1 shrink-0"
+            style={{
+              backgroundColor: 'var(--bg-secondary)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-medium)',
+            }}
             title="Toggle Dark Mode"
+            aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {isDarkMode ? (
               <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-[18px] h-[18px]">
@@ -199,27 +297,33 @@ function App() {
 
           <button
             onClick={() => setShowLogoutConfirm(true)}
-            className="px-6 py-2.5 bg-white hover:bg-[#e81123] hover:text-white hover:border-[#e81123] text-xs font-bold uppercase tracking-wider text-black border border-gray-400 transition-colors rounded-none"
+            className="px-3 md:px-6 py-2 md:py-2.5 text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none whitespace-nowrap shrink-0 flex items-center justify-center gap-2 border bg-[var(--bg-secondary)] text-[var(--color-error)] border-[var(--color-error)] md:text-[var(--text-primary)] md:border-[var(--border-medium)] hover:bg-[var(--color-error)] hover:text-white hover:border-[var(--color-error)]"
           >
-            Sign Out
+            <span className="hidden md:inline">Sign Out</span>
+            <svg className="w-[18px] h-[18px] md:hidden" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+            </svg>
           </button>
-
         </div>
       </nav>
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 w-full max-w-[1920px] mx-auto p-4 md:p-6 overflow-y-auto relative z-10">
+      <main
+        className="flex-1 w-full max-w-[1920px] mx-auto p-4 md:p-6 overflow-y-auto relative z-10"
+        role="main"
+        aria-label="Application content"
+      >
         <Routes>
           {userRole === 'owner' && (
             <>
-              <Route path="/owner/:tab" element={<OwnerDashboard shopSettings={shopSettings} cashierName={displayUserName} />} />
+              <Route path="/owner/:tab" element={<OwnerDashboard />} />
               <Route path="/owner" element={<Navigate to="/owner/dashboard" replace />} />
               <Route path="/printer" element={<BarcodePrinter />} />
             </>
           )}
           {userRole && (
             <>
-              <Route path="/terminal/:tab" element={<WorkerBilling shopSettings={shopSettings} cashierName={displayUserName} />} />
+              <Route path="/terminal/:tab" element={<WorkerBilling />} />
               <Route path="/terminal" element={<Navigate to="/terminal/dashboard" replace />} />
             </>
           )}

@@ -1,81 +1,176 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { supabase, provisioningClient } from './supabaseClient';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useApp } from './AppContext';
+import { generateId } from './utils';
+import { getWorkerEmail } from './constants';
+import { Spinner } from './SharedUI';
 
-export default function OwnerStaff({ showAlert, showConfirm }) {
-  const [workers, setWorkers] = useState([]);
-  const [newWorker, setNewWorker] = useState({ name: '', password: '' });
-  const [isAddingWorker, setIsAddingWorker] = useState(false);
+export default function OwnerStaff() {
+  const { showAlert, showConfirm } = useApp();
+  const queryClient = useQueryClient();
 
-  const fetchWorkers = async () => {
-    const { data } = await supabase.from('workers').select('*').order('name', { ascending: true });
-    if (data) setWorkers(data);
-  };
+  const [newStaffName, setNewStaffName] = useState('');
+  const [newStaffPassword, setNewStaffPassword] = useState('');
 
-  useEffect(() => { fetchWorkers(); }, []);
+  const { data: staffList = [], isLoading } = useQuery({
+    queryKey: ['staff'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('workers').select('*').order('name', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
-  const getFriendlyErrorMessage = (errorMsg) => {
-    const msg = errorMsg.toLowerCase();
-    if (msg.includes('missing email') || msg.includes('invalid email')) return "The Username provided is invalid. Please use only letters and numbers.";
-    if (msg.includes('already registered')) return "A staff member with this exact Username already exists.";
-    if (msg.includes('password should be at least')) return "For security, the Login PIN must be at least 6 characters long.";
-    return errorMsg; 
-  };
-
-  const handleAddWorker = async (e) => {
-    e.preventDefault();
-    const cleanName = newWorker.name.trim();
-    const cleanPin = newWorker.password.trim();
-
-    if (!cleanName || !cleanPin) return showAlert("Please provide both a Username and a Login PIN.", "Error");
-    if (cleanPin.length < 6) return showAlert("The Login PIN must be at least 6 characters long.", "Error");
-
-    try {
-      setIsAddingWorker(true);
-      const emailSafeName = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '');
-      if (!emailSafeName) return showAlert("Username must contain letters or numbers.", "Error");
+  const addStaffMutation = useMutation({
+    mutationFn: async ({ name, password }) => {
+      const email = getWorkerEmail(name);
       
-      const workerEmail = `${emailSafeName}@hardwarepos.com`;
-      const { error: authError } = await provisioningClient.auth.signUp({ email: workerEmail, password: cleanPin });
-      if (authError) throw new Error(getFriendlyErrorMessage(authError.message));
+      const { data: authData, error: authError } = await provisioningClient.auth.signUp({
+        email,
+        password,
+      });
 
-      const { error: dbError } = await supabase.from('workers').insert([{ name: cleanName, password: 'SECURED_IN_AUTH' }]);
-      if (dbError) throw new Error(getFriendlyErrorMessage(dbError.message));
+      if (authError) {
+        if (authError.message.toLowerCase().includes('already registered')) {
+          console.warn('Auth account already exists, attempting to recover DB entry...');
+        } else {
+          throw new Error(authError.message);
+        }
+      } else if (!authData.user) {
+        throw new Error("Failed to create worker account.");
+      }
 
-      setNewWorker({ name: '', password: '' }); 
-      fetchWorkers();
-      showAlert(`Staff member '${cleanName}' added successfully.`, "Success");
-    } catch (e) { showAlert(e.message, "Failed to Add"); } finally { setIsAddingWorker(false); }
+      const { error: dbError } = await supabase.from('workers').insert([{
+        id: generateId(),
+        name: name.trim(),
+        password: 'SECURED_IN_AUTH'
+      }]);
+
+      if (dbError) throw new Error(dbError.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff'] });
+      setNewStaffName('');
+      setNewStaffPassword('');
+      showAlert('Staff member added successfully.', 'Success');
+    },
+    onError: (e) => showAlert(e.message, 'Failed to add staff'),
+  });
+
+  const removeStaffMutation = useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from('workers').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff'] });
+      showAlert(
+        "Worker removed from active staff. \n\nIMPORTANT: To fully revoke login access, you must also delete their account from the Supabase Authentication dashboard.", 
+        "Partial Success"
+      );
+    },
+    onError: (e) => showAlert(e.message, 'Failed to remove staff'),
+  });
+
+  const handleAddStaff = (e) => {
+    e.preventDefault();
+    if (!newStaffName.trim()) return showAlert("Name cannot be empty.", "Validation");
+    if (newStaffPassword.length < 6) return showAlert("Password must be at least 6 characters.", "Validation");
+    addStaffMutation.mutate({ name: newStaffName, password: newStaffPassword });
   };
 
-  const handleDeleteWorker = (id) => {
-    showConfirm("Are you sure you want to remove this staff member?", async () => {
-      await supabase.from('workers').delete().eq('id', id); fetchWorkers(); 
-    });
+  const handleRemove = (id, name) => {
+    showConfirm(
+      `Remove ${name} from staff list? \n\nNote: This will prevent them from opening the terminal, but their Supabase Auth account will still exist.`,
+      () => removeStaffMutation.mutate(id),
+      "Confirm Removal"
+    );
   };
 
   return (
-    <div className="animate-fade-in">
-      <h1 className="text-2xl font-light text-black mb-6">Manage Staff Accounts</h1>
-      <div className="bg-[#f9f9f9] border border-gray-400 p-6 max-w-3xl mb-8 rounded-none">
-        <h2 className="text-sm font-semibold uppercase text-gray-600 mb-6 border-b border-gray-300 pb-2 tracking-wider">Add New Staff Member</h2>
-        <form onSubmit={handleAddWorker} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-          <div className="flex flex-col"><label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">Staff Username</label><input type="text" value={newWorker.name} onChange={e=>setNewWorker({...newWorker,name:e.target.value})} className="border-2 border-gray-300 bg-white px-3 py-2 text-sm rounded-none focus:outline-none focus:border-[#0078D7]" /></div>
-          <div className="flex flex-col"><label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">Login PIN</label><input type="password" value={newWorker.password} onChange={e=>setNewWorker({...newWorker,password:e.target.value})} className="border-2 border-gray-300 bg-white px-3 py-2 text-sm rounded-none focus:outline-none focus:border-[#0078D7]" /></div>
-          <button type="submit" disabled={isAddingWorker} className="bg-[#0078D7] hover:bg-[#005a9e] text-white py-2 text-sm font-semibold rounded-none border border-transparent focus:outline-none focus:ring-1 focus:ring-black">{isAddingWorker ? 'Wait...' : 'Add Staff'}</button>
+    <div className="flex flex-col h-full gap-6 max-w-5xl mx-auto animate-fade-in w-full">
+      <h1 className="text-2xl font-light" style={{ color: 'var(--text-primary)' }}>Manage Staff</h1>
+      
+      <div className="p-6 shadow-sm flex-shrink-0" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+        <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-secondary)' }}>Add New Cashier</h2>
+        <form onSubmit={handleAddStaff} className="flex flex-col md:flex-row gap-4 items-start md:items-end">
+          <div className="w-full md:flex-1">
+            <label className="block text-xs font-semibold uppercase mb-1" style={{ color: 'var(--text-tertiary)' }} htmlFor="staff-name">Full Name</label>
+            <input 
+              id="staff-name"
+              type="text" 
+              value={newStaffName} 
+              onChange={(e) => setNewStaffName(e.target.value)} 
+              placeholder="e.g. John Doe" 
+              className="w-full h-10 px-3 text-sm focus:outline-none" 
+              style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} 
+            />
+          </div>
+          <div className="w-full md:flex-1">
+            <label className="block text-xs font-semibold uppercase mb-1" style={{ color: 'var(--text-tertiary)' }} htmlFor="staff-pwd">Login Password</label>
+            <input 
+              id="staff-pwd"
+              type="text" 
+              value={newStaffPassword} 
+              onChange={(e) => setNewStaffPassword(e.target.value)} 
+              placeholder="Min. 6 characters" 
+              className="w-full h-10 px-3 text-sm focus:outline-none" 
+              style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} 
+            />
+          </div>
+          <div className="w-full md:w-auto">
+            <button 
+              type="submit" 
+              disabled={addStaffMutation.isPending} 
+              className="w-full md:w-auto h-10 px-8 text-white text-sm font-semibold uppercase tracking-wider disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-1 flex justify-center items-center min-w-[150px]" 
+              style={{ backgroundColor: 'var(--color-accent)' }}
+            >
+              {addStaffMutation.isPending ? <Spinner className="w-5 h-5 text-white" /> : 'Create Account'}
+            </button>
+          </div>
         </form>
       </div>
-      
-      <div className="border border-gray-400 bg-white max-w-3xl overflow-x-auto rounded-none">
+
+      <div className="flex-1 overflow-auto shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
         <table className="w-full text-left border-collapse">
-          <thead className="bg-[#f3f3f3]">
-            <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600 border-b border-gray-400"><th className="p-3 border-r border-gray-300">Staff Username</th><th className="p-3 border-r border-gray-300 text-center w-32">Password</th><th className="p-3 text-center w-32">Actions</th></tr>
+          <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
+            <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+              <th className="p-4 w-1/2" style={{ borderRight: '1px solid var(--border-light)' }}>Staff Name</th>
+              <th className="p-4 text-center w-1/2">Actions</th>
+            </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 border-b border-gray-400">
-            {workers.length === 0 ? (<tr><td colSpan="3" className="p-6 text-center text-gray-500 text-sm font-semibold">No staff members found.</td></tr>) : workers.map(w => (
-              <tr key={w.id} className="hover:bg-[#f9f9f9]">
-                <td className="p-3 border-r border-gray-200 text-sm text-black font-medium capitalize">{w.name}</td>
-                <td className="p-3 border-r border-gray-200 text-sm text-center text-gray-500 tracking-widest">••••</td>
-                <td className="p-2 text-center"><button onClick={()=>handleDeleteWorker(w.id)} className="bg-white border border-[#e81123] text-[#e81123] hover:bg-[#e81123] hover:text-white px-4 py-1 text-xs font-semibold rounded-none focus:outline-none">Remove</button></td>
+          <tbody>
+            {isLoading ? (
+              <tr><td colSpan="2" className="p-8 text-center"><Spinner className="w-8 h-8 mx-auto" style={{ color: 'var(--color-accent)' }} /></td></tr>
+            ) : staffList.length === 0 ? (
+              <tr><td colSpan="2" className="p-8 text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No staff members added yet.</td></tr>
+            ) : staffList.map(staff => (
+              <tr key={staff.id} className="transition-colors hover:bg-[var(--bg-hover)]" style={{ borderBottom: '1px solid var(--border-light)' }}>
+                <td className="p-4 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{staff.name}</td>
+                <td className="p-4 text-center">
+                  <button 
+                    onClick={() => handleRemove(staff.id, staff.name)} 
+                    disabled={removeStaffMutation.isPending}
+                    className="h-8 px-4 text-xs font-semibold uppercase tracking-wider focus:outline-none transition-colors disabled:opacity-50"
+                    style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
+                    onMouseEnter={(e) => {
+                      if(!removeStaffMutation.isPending) {
+                        e.target.style.backgroundColor = 'var(--color-error)';
+                        e.target.style.color = '#ffffff';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if(!removeStaffMutation.isPending) {
+                        e.target.style.backgroundColor = 'var(--bg-secondary)';
+                        e.target.style.color = 'var(--color-error)';
+                      }
+                    }}
+                    aria-label={`Remove ${staff.name}`}
+                  >
+                    Remove
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

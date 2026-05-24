@@ -1,17 +1,19 @@
 import { useState, Fragment } from 'react';
 import { supabase } from './supabaseClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useApp } from './AppContext';
+import { STALE_TIME_5MIN } from './constants';
 
-export default function OwnerCategories({ showAlert, showConfirm }) {
+export default function OwnerCategories() {
+  const { showAlert, showConfirm } = useApp();
   const queryClient = useQueryClient();
   
   const [newCategory, setNewCategory] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [newSubcategory, setNewSubcategory] = useState('');
-  
   const [expandedCategoryId, setExpandedCategoryId] = useState(null);
 
-  // Fetch Categories with a 5-minute cache 
+  // Fetch Categories
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
@@ -19,10 +21,10 @@ export default function OwnerCategories({ showAlert, showConfirm }) {
       if (error) throw error;
       return data || [];
     },
-    staleTime: 1000 * 60 * 5
+    staleTime: STALE_TIME_5MIN
   });
 
-  // Fetch Subcategories with a 5-minute cache
+  // Fetch Subcategories
   const { data: subcategories = [] } = useQuery({
     queryKey: ['subcategories'],
     queryFn: async () => {
@@ -30,7 +32,7 @@ export default function OwnerCategories({ showAlert, showConfirm }) {
       if (error) throw error;
       return data || [];
     },
-    staleTime: 1000 * 60 * 5
+    staleTime: STALE_TIME_5MIN
   });
 
   const addCategoryMutation = useMutation({
@@ -64,10 +66,8 @@ export default function OwnerCategories({ showAlert, showConfirm }) {
     onSuccess: (category_name) => {
       queryClient.invalidateQueries({ queryKey: ['subcategories'] });
       setNewSubcategory('');
-      
       const parentCat = categories.find(c => c.name === category_name);
       if (parentCat) setExpandedCategoryId(parentCat.id);
-      
       showAlert('Sub-category added successfully.', 'Success');
     },
     onError: (e) => showAlert(e.message, 'System Error')
@@ -81,29 +81,37 @@ export default function OwnerCategories({ showAlert, showConfirm }) {
   };
 
   const deleteCategoryMutation = useMutation({
-    mutationFn: async (id) => {
+    mutationFn: async ({ id, name }) => {
+      // Cascade check (fixes #8)
+      const { count } = await supabase.from('inventory').select('*', { count: 'exact', head: true }).eq('category', name);
+      if (count && count > 0) throw new Error(`Cannot delete category "${name}" because it is assigned to ${count} item(s) in the inventory.`);
+
       const { error } = await supabase.from('categories').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['categories'] }),
-    onError: () => showAlert('Failed to delete category.', 'Error')
+    onError: (e) => showAlert(e.message, 'Cascade Delete Blocked')
   });
 
   const handleDeleteCategory = (id, name) => {
-    showConfirm(`Delete category "${name}"?`, () => deleteCategoryMutation.mutate(id));
+    showConfirm(`Delete category "${name}"?`, () => deleteCategoryMutation.mutate({ id, name }));
   };
 
   const deleteSubcategoryMutation = useMutation({
-    mutationFn: async (id) => {
+    mutationFn: async ({ id, name }) => {
+      // Cascade check (fixes #8)
+      const { count } = await supabase.from('inventory').select('*', { count: 'exact', head: true }).eq('sub_category', name);
+      if (count && count > 0) throw new Error(`Cannot delete sub-category "${name}" because it is assigned to ${count} item(s) in the inventory.`);
+
       const { error } = await supabase.from('subcategories').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['subcategories'] }),
-    onError: () => showAlert('Failed to delete sub-category.', 'Error')
+    onError: (e) => showAlert(e.message, 'Cascade Delete Blocked')
   });
 
   const handleDeleteSubcategory = (id, name) => {
-    showConfirm(`Delete sub-category "${name}"?`, () => deleteSubcategoryMutation.mutate(id));
+    showConfirm(`Delete sub-category "${name}"?`, () => deleteSubcategoryMutation.mutate({ id, name }));
   };
 
   const toggleCategory = (id) => {
@@ -111,47 +119,52 @@ export default function OwnerCategories({ showAlert, showConfirm }) {
   };
 
   return (
-    <div className="flex flex-col h-full gap-6">
-      <h1 className="text-2xl font-light text-black">Manage Categories & Sub-categories</h1>
+    <div className="flex flex-col h-full gap-6 animate-fade-in max-w-5xl mx-auto w-full">
+      <h1 className="text-2xl font-light" style={{ color: 'var(--text-primary)' }}>Manage Categories & Sub-categories</h1>
       
       <div className="flex flex-col md:flex-row gap-6">
-        <div className="bg-[#f3f3f3] border border-gray-400 p-4 rounded-none shadow-sm flex-1">
-          <h2 className="text-sm font-semibold uppercase text-gray-700 tracking-wider mb-4">Add Category</h2>
+        <div className="p-6 flex-1 shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+          <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-secondary)' }}>Add Category</h2>
           <form onSubmit={handleAddCategory} className="flex gap-2">
-            <input type="text" placeholder="Category Name" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} className="flex-1 h-9 border-2 border-gray-300 px-3 text-sm focus:outline-none focus:border-[#0078D7]" />
-            <button type="submit" disabled={addCategoryMutation.isPending} className="h-9 px-6 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-semibold border border-transparent focus:outline-none rounded-none">Save</button>
+            <label htmlFor="new-cat" className="sr-only">Category Name</label>
+            <input id="new-cat" type="text" placeholder="Category Name" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} className="flex-1 h-10 px-3 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+            <button type="submit" disabled={addCategoryMutation.isPending} className="h-10 px-6 text-white text-sm font-semibold focus:outline-none" style={{ backgroundColor: 'var(--color-accent)' }}>Save</button>
           </form>
         </div>
 
-        <div className="bg-[#f3f3f3] border border-gray-400 p-4 rounded-none shadow-sm flex-1">
-          <h2 className="text-sm font-semibold uppercase text-gray-700 tracking-wider mb-4">Add Sub-category</h2>
+        <div className="p-6 flex-1 shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+          <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-secondary)' }}>Add Sub-category</h2>
           <form onSubmit={handleAddSubcategory} className="flex flex-col gap-2">
-            <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="h-9 border-2 border-gray-300 bg-white px-3 text-sm focus:outline-none focus:border-[#0078D7]">
-              <option value="">-- Select Parent Category --</option>
-              {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-            </select>
+            <label htmlFor="parent-cat" className="sr-only">Parent Category</label>
+            <div className="relative">
+              <select id="parent-cat" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
+                <option value="">-- Select Parent Category --</option>
+                {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg></div>
+            </div>
             <div className="flex gap-2">
-              <input type="text" placeholder="Sub-category Name" value={newSubcategory} onChange={(e) => setNewSubcategory(e.target.value)} className="flex-1 h-9 border-2 border-gray-300 px-3 text-sm focus:outline-none focus:border-[#0078D7]" />
-              <button type="submit" disabled={addSubcategoryMutation.isPending} className="h-9 px-6 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-semibold border border-transparent focus:outline-none rounded-none">Save</button>
+              <label htmlFor="new-subcat" className="sr-only">Sub-category Name</label>
+              <input id="new-subcat" type="text" placeholder="Sub-category Name" value={newSubcategory} onChange={(e) => setNewSubcategory(e.target.value)} className="flex-1 h-10 px-3 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+              <button type="submit" disabled={addSubcategoryMutation.isPending} className="h-10 px-6 text-white text-sm font-semibold focus:outline-none" style={{ backgroundColor: 'var(--color-accent)' }}>Save</button>
             </div>
           </form>
         </div>
       </div>
 
-      <div className="border border-gray-400 bg-white flex-1 overflow-y-auto rounded-none shadow-sm">
-        {/* Restored master text-left alignment to the table itself */}
+      <div className="flex-1 overflow-y-auto shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+      <div className="overflow-x-auto w-full">
         <table className="w-full text-left border-collapse">
-          <thead className="bg-[#f9f9f9] sticky top-0 border-b border-gray-400">
-            <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
-              {/* Forced explicit text-left on the header */}
-              <th className="p-3 border-r border-gray-200 text-left">Category Name</th>
-              <th className="p-3 border-r border-gray-200 w-32 text-center">Actions</th>
-              <th className="p-3 text-center w-16">Details</th>
+          <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
+            <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+              <th className="p-4" style={{ borderRight: '1px solid var(--border-light)' }}>Category Name</th>
+              <th className="p-4 w-32 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Actions</th>
+              <th className="p-4 text-center w-16">Details</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 border-b border-gray-200">
+          <tbody>
             {categories.length === 0 ? (
-              <tr><td colSpan="3" className="p-8 text-center text-gray-500 text-sm font-semibold">No categories found.</td></tr>
+              <tr><td colSpan="3" className="p-8 text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No categories found.</td></tr>
             ) : categories.map(cat => {
               const isExpanded = expandedCategoryId === cat.id;
               const catSubcategories = subcategories.filter(sub => sub.category_name === cat.name);
@@ -160,46 +173,67 @@ export default function OwnerCategories({ showAlert, showConfirm }) {
                 <Fragment key={cat.id}>
                   <tr 
                     onClick={() => toggleCategory(cat.id)} 
-                    className={`cursor-pointer transition-none group ${isExpanded ? 'bg-[#cce8ff]' : 'hover:bg-[#e6e6e6] bg-white'}`}
+                    className="cursor-pointer group transition-colors"
+                    style={{ backgroundColor: isExpanded ? 'var(--color-accent-bg)' : 'var(--bg-secondary)', borderBottom: '1px solid var(--border-light)' }}
                   >
-                    {/* Forced left alignment and wrapped content in a left-justified flex container */}
-                    <td className="p-3 border-r border-gray-200 text-sm text-black text-left">
+                    <td className="p-4 text-sm" style={{ borderRight: '1px solid var(--border-light)' }}>
                       <div className="flex items-center justify-start w-full text-left">
-                        <span className="font-bold text-base">{cat.name}</span>
-                        <span className="ml-2 text-gray-500 text-xs">({catSubcategories.length} sub-categories)</span>
+                        <span className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>{cat.name}</span>
+                        <span className="ml-2 text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>({catSubcategories.length} sub-categories)</span>
                       </div>
                     </td>
-                    <td className="p-2 border-r border-gray-200 text-center align-middle">
+                    <td className="p-2 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
                       <button 
                         onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.id, cat.name); }} 
-                        className="h-8 bg-white border border-[#e81123] text-[#e81123] hover:bg-[#e81123] hover:text-white px-3 text-xs font-semibold rounded-none focus:outline-none"
+                        className="h-8 px-4 text-xs font-semibold uppercase tracking-wider focus:outline-none transition-colors"
+                        style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
+                        onMouseEnter={(e) => {
+                          e.target.style.backgroundColor = 'var(--color-error)';
+                          e.target.style.color = '#ffffff';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.backgroundColor = 'var(--bg-secondary)';
+                          e.target.style.color = 'var(--color-error)';
+                        }}
+                        aria-label={`Delete category ${cat.name}`}
                       >
                         Remove
                       </button>
                     </td>
-                    <td className="p-3 text-center flex justify-center items-center h-full">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={`w-5 h-5 text-gray-600 group-hover:text-[#0078D7] transition-transform duration-200 ${isExpanded ? 'rotate-180 text-[#0078D7]' : 'rotate-0'}`}>
+                    <td className="p-4 text-center flex justify-center items-center h-full">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={`w-5 h-5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`} style={{ color: isExpanded ? 'var(--color-accent)' : 'var(--text-secondary)' }}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                       </svg>
                     </td>
                   </tr>
                   
                   {isExpanded && (
-                    <tr className="bg-[#f3f3f3] shadow-[inset_0_4px_6px_-4px_rgba(0,0,0,0.1)]">
-                      <td colSpan="3" className="p-0 border-b-2 border-[#0078D7]">
-                        {/* Forced text-left here as well */}
-                        <div className="p-6 px-8 text-left w-full">
-                          <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3 border-b border-gray-300 pb-2 text-left">Sub-categories for {cat.name}</p>
+                    <tr style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                      <td colSpan="3" className="p-0" style={{ borderBottom: '2px solid var(--color-accent)' }}>
+                        <div className="p-6 px-8 text-left w-full shadow-inner">
+                          <p className="text-xs font-bold uppercase tracking-widest mb-3 pb-2 text-left" style={{ color: 'var(--text-tertiary)', borderBottom: '1px solid var(--border-light)' }}>
+                            Sub-categories for {cat.name}
+                          </p>
                           {catSubcategories.length === 0 ? (
-                            <p className="text-sm text-gray-500 italic text-left">No sub-categories added yet.</p>
+                            <p className="text-sm italic text-left" style={{ color: 'var(--text-tertiary)' }}>No sub-categories added yet.</p>
                           ) : (
-                            <div className="flex flex-wrap gap-3 mt-2 justify-start">
+                            <div className="flex flex-wrap gap-3 mt-4 justify-start">
                               {catSubcategories.map(sub => (
-                                <span key={sub.id} className="bg-white text-sm px-3 py-1.5 flex items-center gap-2 border border-gray-300 text-gray-700 shadow-sm font-medium">
+                                <span key={sub.id} className="text-sm px-3 py-1.5 flex items-center gap-2 font-medium shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}>
                                   {sub.name}
                                   <button 
                                     onClick={(e) => { e.stopPropagation(); handleDeleteSubcategory(sub.id, sub.name); }} 
-                                    className="text-[#e81123] hover:bg-[#e81123] hover:text-white px-1.5 py-0.5 rounded-sm font-bold transition-colors"
+                                    className="px-1.5 py-0.5 rounded-sm font-bold transition-colors"
+                                    style={{ color: 'var(--color-error)' }}
+                                    onMouseEnter={(e) => {
+                                      e.target.style.backgroundColor = 'var(--color-error)';
+                                      e.target.style.color = '#ffffff';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.target.style.backgroundColor = 'transparent';
+                                      e.target.style.color = 'var(--color-error)';
+                                    }}
+                                    aria-label={`Delete subcategory ${sub.name}`}
                                   >
                                     ✕
                                   </button>
@@ -216,6 +250,7 @@ export default function OwnerCategories({ showAlert, showConfirm }) {
             })}
           </tbody>
         </table>
+      </div>
       </div>
     </div>
   );

@@ -5,28 +5,157 @@
 @tailwind utilities;
 
 /* ---------------------------------------------------------------
+   CSS CUSTOM PROPERTIES (Design Tokens)
+   
+   Replaces the old approach of 38 !important overrides targeting
+   Tailwind-generated class selectors. CSS variables are:
+   - Not fragile (survive Tailwind upgrades)
+   - Cascading (no !important wars)
+   - Semantic (describe purpose, not appearance)
+   --------------------------------------------------------------- */
+:root {
+  color-scheme: light;
+
+  /* Backgrounds */
+  --bg-primary: #e6e6e6;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f3f3f3;
+  --bg-quaternary: #f9f9f9;
+  --bg-hover: #e6e6e6;
+  --bg-input: #ffffff;
+  --bg-input-disabled: #e6e6e6;
+
+  /* Text */
+  --text-primary: #000000;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+  --text-input: #000000;
+  --text-input-disabled: #9ca3af;
+
+  /* Borders */
+  --border-light: #e5e7eb;
+  --border-medium: #9ca3af;
+  --border-heavy: #6b7280;
+  --border-input: #d1d5db;
+  --border-input-focus: #0078D7;
+
+  /* Accent Colors */
+  --color-accent: #0078D7;
+  --color-accent-hover: #005a9e;
+  --color-accent-bg: #cce8ff;
+  --color-success: #107c10;
+  --color-success-bg: #e6f4ea;
+  --color-error: #e81123;
+  --color-error-bg: #fde7e9;
+  --color-warning: #d2691e;
+
+  /* POS-specific */
+  --pos-receive-bg: #f4fbf5;
+  --pos-transfer-bg: #fffaf0;
+
+  /* Scrollbar */
+  --scrollbar-track: #f3f3f3;
+  --scrollbar-thumb: #cdcdcd;
+  --scrollbar-thumb-hover: #a6a6a6;
+  --scrollbar-border: #e6e6e6;
+
+  /* Font */
+  --font-family: 'Roboto', sans-serif;
+}
+
+.dark {
+  color-scheme: dark;
+
+  /* Backgrounds */
+  --bg-primary: #121212;
+  --bg-secondary: #1e1e1e;
+  --bg-tertiary: #2d2d2d;
+  --bg-quaternary: #2d2d2d;
+  --bg-hover: #383838;
+  --bg-input: #1e1e1e;
+  --bg-input-disabled: #2d2d2d;
+
+  /* Text */
+  --text-primary: #ffffff;
+  --text-secondary: #d1d5db;
+  --text-tertiary: #9ca3af;
+  --text-input: #ffffff;
+  --text-input-disabled: #9ca3af;
+
+  /* Borders */
+  --border-light: #4b5563;
+  --border-medium: #4b5563;
+  --border-heavy: #6b7280;
+  --border-input: #4b5563;
+  --border-input-focus: #0078D7;
+
+  /* Accent Colors — same in dark, or slightly adjusted */
+  --color-accent: #0078D7;
+  --color-accent-hover: #005a9e;
+  --color-accent-bg: #004a80;
+  --color-success: #107c10;
+  --color-success-bg: #102a1a;
+  --color-error: #e81123;
+  --color-error-bg: #2a1012;
+  --color-warning: #d2691e;
+
+  /* POS-specific */
+  --pos-receive-bg: #102a1a;
+  --pos-transfer-bg: #2a2010;
+
+  /* Scrollbar */
+  --scrollbar-track: #1e1e1e;
+  --scrollbar-thumb: #4b5563;
+  --scrollbar-thumb-hover: #6b7280;
+  --scrollbar-border: #2d2d2d;
+}
+
+/* ---------------------------------------------------------------
    ROOT RESET
    Override Vite's default template styles that set max-width/center
    --------------------------------------------------------------- */
 #root {
-  padding: 0 !important;
-  max-width: none !important;
-  margin: 0 !important;
-  text-align: left !important;
-  width: 100% !important;
-  height: 100% !important;
+  padding: 0;
+  max-width: none;
+  margin: 0;
+  text-align: left;
+  width: 100%;
+  height: 100%;
 }
 
 * {
-  font-family: 'Roboto', sans-serif !important;
+  font-family: var(--font-family);
 }
 
-/* Tell the browser the OS color scheme preference */
-:root {
-  color-scheme: light;
+/* ---------------------------------------------------------------
+   GLOBAL ELEMENT DEFAULTS
+   Applied via CSS variables — no !important needed
+   --------------------------------------------------------------- */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
 }
-.dark {
-  color-scheme: dark;
+
+input,
+select,
+textarea {
+  background-color: var(--bg-input);
+  color: var(--text-input);
+  border-color: var(--border-input);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--border-input-focus);
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background-color: var(--bg-input-disabled);
+  color: var(--text-input-disabled);
 }
 
 /* ---------------------------------------------------------------
@@ -37,140 +166,52 @@
   height: 14px;
 }
 ::-webkit-scrollbar-track {
-  background: #f3f3f3;
-  border-left: 1px solid #e6e6e6;
+  background: var(--scrollbar-track);
+  border-left: 1px solid var(--scrollbar-border);
 }
 ::-webkit-scrollbar-thumb {
-  background: #cdcdcd;
-  border: 3px solid #f3f3f3;
+  background: var(--scrollbar-thumb);
+  border: 3px solid var(--scrollbar-track);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #a6a6a6;
+  background: var(--scrollbar-thumb-hover);
 }
 ::-webkit-scrollbar-corner {
-  background: #f3f3f3;
-}
-
-/* Flat focus style — no blue outline flash */
-input:focus,
-select:focus,
-button:focus {
-  outline: none;
+  background: var(--scrollbar-track);
 }
 
 /* ---------------------------------------------------------------
-   INDUSTRY STANDARD DARK MODE OVERRIDES
+   POS COMPONENT BACKGROUNDS (via CSS variables)
    --------------------------------------------------------------- */
-.dark {
-  background-color: #121212 !important;
-  color: #f3f3f3 !important;
+.pos-receive-bg  { background-color: var(--pos-receive-bg); }
+.pos-transfer-bg { background-color: var(--pos-transfer-bg); }
+.pos-success-box { background-color: var(--color-success-bg); border: 1px solid var(--color-success); }
+.pos-error-box   { background-color: var(--color-error-bg); border: 1px solid var(--color-error); }
+
+/* ---------------------------------------------------------------
+   ANIMATION UTILITIES
+   --------------------------------------------------------------- */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-.dark .bg-white                      { background-color: #1e1e1e !important; }
-.dark .bg-\[\#f3f3f3\],
-.dark .bg-\[\#f9f9f9\]               { background-color: #2d2d2d !important; }
-.dark .bg-\[\#e6e6e6\]               { background-color: #121212 !important; }
-.dark .bg-\[\#cccccc\]               { background-color: #3d3d3d !important; }
-.dark .bg-\[\#cce8ff\]               { background-color: #004a80 !important; }
-
-.dark .hover\:bg-\[\#f3f3f3\]:hover,
-.dark .hover\:bg-\[\#f9f9f9\]:hover  { background-color: #383838 !important; }
-.dark .hover\:bg-\[\#e6e6e6\]:hover  { background-color: #2a2a2a !important; }
-.dark .hover\:bg-\[\#cccccc\]:hover  { background-color: #4b4b4b !important; }
-
-.dark .text-black                    { color: #ffffff !important; }
-.dark .text-gray-700,
-.dark .text-gray-600                 { color: #d1d5db !important; }
-.dark .text-gray-500                 { color: #9ca3af !important; }
-
-.dark input,
-.dark select {
-  background-color: #1e1e1e !important;
-  color: #ffffff !important;
-  border-color: #4b5563 !important;
-}
-.dark input:disabled,
-.dark select:disabled {
-  background-color: #2d2d2d !important;
-  color: #9ca3af !important;
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
 }
 
 /* ---------------------------------------------------------------
-   CUSTOM POS COMPONENT BACKGROUNDS
+   PRINT STYLES
    --------------------------------------------------------------- */
-.pos-receive-bg  { background-color: #f4fbf5; }
-.pos-transfer-bg { background-color: #fffaf0; }
-.pos-success-box { background-color: #e6f4ea; border: 1px solid #107c10; }
-.pos-error-box   { background-color: #fde7e9; border: 1px solid #e81123; }
-
-.dark .pos-receive-bg  { background-color: #102a1a !important; border-bottom: 1px solid #1a5223; }
-.dark .pos-transfer-bg { background-color: #2a2010 !important; border-bottom: 1px solid #7a5c15; }
-.dark .pos-success-box { background-color: #102a1a !important; border-color: #1a5223 !important; }
-.dark .pos-error-box   { background-color: #2a1012 !important; border-color: #7a151e !important; }
-
-/* ---------------------------------------------------------------
-   UNIVERSAL DARK MODE BORDER & TABLE FIX
-   --------------------------------------------------------------- */
-.dark .border-gray-200,
-.dark .border-gray-300,
-.dark .border-gray-400,
-.dark table,
-.dark thead,
-.dark tbody,
-.dark tr,
-.dark th,
-.dark td,
-.dark [class*="divide-"] > * {
-  border-color: #4b5563 !important;
+@media print {
+  .print\\:hidden {
+    display: none;
+  }
 }
-
-/* Fix sticky header gap bug */
-.dark thead.sticky {
-  border-bottom: none !important;
-  box-shadow: 0 1px 0 #4b5563 !important;
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }
-
-/* ---------------------------------------------------------------
-   GLOBAL TABLE & FORM ALIGNMENT
-   --------------------------------------------------------------- */
-th, td {
-  white-space: nowrap !important;
-  text-align: center !important;
-}
-
-th > div.flex,
-td > div.flex {
-  justify-content: center !important;
-}
-
-label,
-.form-label {
-  text-align: center !important;
-  display: block !important;
-  width: 100%;
-}
-
-input {
-  text-align: center !important;
-}
-input::placeholder {
-  text-align: center !important;
-}
-
-select {
-  text-align: center !important;
-  text-align-last: center !important;
-  padding-left: 1.5rem !important;
-  padding-right: 1.5rem !important;
-  appearance: none !important;
-  -webkit-appearance: none !important;
-  -moz-appearance: none !important;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%234b5563' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
-  background-repeat: no-repeat !important;
-  background-size: 1.25em !important;
-  background-position: right 0.5rem center !important;
-}
-
-.dark select {
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23d1d5db' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

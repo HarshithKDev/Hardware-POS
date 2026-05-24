@@ -1,60 +1,217 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from './supabaseClient';
 import { Spinner } from './SharedUI';
 import ReceiptTemplate from './ReceiptTemplate';
+import { getInventoryItemByBarcode, queueOfflineTransaction } from './services/db';
+import { useApp } from './AppContext';
+import { generateId, formatDateTime } from './utils';
+import { SCAN_TIMEOUT_MS } from './constants';
 
-export default function WorkerTerminal({ activeTab, shopSettings, cashierName, refreshInventory, showAlert, showConfirm, isModalOpen }) {
+// ---------------------------------------------------------------
+// Extracted sub-components (Phase 5 decomposition)
+// ---------------------------------------------------------------
+
+/** Desktop cart table */
+function CartTable({ cart, activeTab, onUpdateQuantity, onUpdateDimensions, onCustomPriceChange, onCustomPriceBlur }) {
+  if (cart.length === 0) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center min-h-[300px]">
+        <p className="text-sm font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--text-tertiary)' }}>Ready</p>
+        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Scan items anytime or type the barcode above</p>
+      </div>
+    );
+  }
+
+  return (
+    <table className="w-full text-center whitespace-nowrap border-collapse" role="table">
+      <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-light)' }}>
+        <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+          <th className="p-3 w-2/5 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Item Name</th>
+          <th className={`p-3 text-center w-56 ${activeTab === 'checkout' ? '' : ''}`} style={activeTab === 'checkout' ? { borderRight: '1px solid var(--border-light)' } : {}}>Quantity</th>
+          {activeTab === 'checkout' && (
+            <>
+              <th className="p-3 text-center w-36" style={{ borderRight: '1px solid var(--border-light)' }}>Price (₹)</th>
+              <th className="p-3 text-center w-28" style={{ borderRight: '1px solid var(--border-light)' }}>Disc (%)</th>
+              <th className="p-3 text-center w-32">Total</th>
+            </>
+          )}
+        </tr>
+      </thead>
+      <tbody style={{ borderBottom: '1px solid var(--border-light)' }}>
+        {cart.map(item => {
+          const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
+          const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
+          return (
+            <tr key={item.id} className="transition-none" style={{ borderBottom: '1px solid var(--border-light)' }}>
+              <td className="p-3 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name}</p>
+                <div className="flex items-center justify-center gap-3 mt-1">
+                  <p className="text-xs font-mono" style={{ color: 'var(--color-accent)' }}>#{item.barcode}</p>
+                  {activeTab === 'checkout' && (
+                    <div className="flex justify-center gap-2">
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
+                        MRP: ₹{Number(item.price || 0).toFixed(2)}
+                      </span>
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
+                        MSP: ₹{Number(item.msp || 0).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </td>
+              <td className="p-2" style={activeTab === 'checkout' ? { borderRight: '1px solid var(--border-light)' } : {}}>
+                {item.unit === 'SQFT' ? (
+                  <div className="flex items-center justify-center gap-1">
+                    <input type="number" step="any" placeholder="L" value={item.length !== undefined ? item.length : ''} onChange={(e) => onUpdateDimensions(item.id, 'length', e.target.value)} className="w-12 h-8 px-1 text-xs font-semibold text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)' }} title="Length" aria-label="Length" />
+                    <span className="font-bold text-xs" style={{ color: 'var(--text-tertiary)' }}>x</span>
+                    <input type="number" step="any" placeholder="W" value={item.width !== undefined ? item.width : ''} onChange={(e) => onUpdateDimensions(item.id, 'width', e.target.value)} className="w-12 h-8 px-1 text-xs font-semibold text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)' }} title="Width" aria-label="Width" />
+                    <span className="font-bold text-xs" style={{ color: 'var(--text-tertiary)' }}>x</span>
+                    <input type="number" step="any" min="1" placeholder="Rolls" value={item.rolls !== undefined ? item.rolls : '1'} onChange={(e) => onUpdateDimensions(item.id, 'rolls', e.target.value)} className="w-12 h-8 px-1 text-xs font-semibold text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)' }} title="Rolls / Qty" aria-label="Rolls" />
+                    <span className="font-bold text-sm ml-1 w-10 text-left" style={{ color: 'var(--color-accent)' }}>={safeQty}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center">
+                    <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-8 h-8 font-bold focus:outline-none" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)', borderRight: 'none' }} aria-label={`Decrease ${item.name} quantity`}>-</button>
+                    <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-14 h-8 px-1 text-sm font-semibold text-center focus:outline-none focus:z-10" style={{ border: '1px solid var(--border-medium)' }} aria-label={`${item.name} quantity`} />
+                    <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-8 h-8 font-bold focus:outline-none" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)', borderLeft: 'none' }} aria-label={`Increase ${item.name} quantity`}>+</button>
+                  </div>
+                )}
+              </td>
+              {activeTab === 'checkout' && (<>
+                <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }}>
+                  <input type="number" step="0.01" value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price||0).toFixed(2)} onChange={(e) => onCustomPriceChange(item.id, e.target.value)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} price`} />
+                </td>
+                <td className="p-2" style={{ borderRight: '1px solid var(--border-light)', backgroundColor: 'var(--bg-quaternary)' }}>
+                  <input type="number" value={item.discountPct ? Number(item.discountPct).toFixed(1) : '0.0'} disabled className="w-full h-8 px-2 text-sm font-semibold text-center bg-transparent outline-none cursor-not-allowed" style={{ color: 'var(--text-tertiary)', border: 'none' }} aria-label={`${item.name} discount`} />
+                </td>
+                <td className="p-3 text-center text-sm font-bold" style={{ color: 'var(--text-primary)' }}>₹{(sellPrice * safeQty).toFixed(2)}</td>
+              </>)}
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+/** Mobile cart view */
+function CartMobileView({ cart, activeTab, onUpdateQuantity, onUpdateDimensions }) {
+  if (cart.length === 0) {
+    return (
+      <div className="p-10 text-center text-sm font-semibold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>Cart Empty</div>
+    );
+  }
+
+  return cart.map((item) => {
+    const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
+    const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
+    return (
+      <div key={item.id} className="p-4 flex flex-col gap-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
+        <div className="flex justify-between items-start">
+          <div className="pr-2">
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name}</p>
+            <p className="text-xs mt-1 mb-1" style={{ color: 'var(--color-accent)' }}>#{item.barcode}</p>
+            {activeTab === 'checkout' && (
+              <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>
+                MRP: ₹{Number(item.price || 0).toFixed(2)} • MSP: ₹{Number(item.msp || 0).toFixed(2)}
+              </p>
+            )}
+          </div>
+          {activeTab === 'checkout' && (
+            <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>₹{(sellPrice * safeQty).toFixed(2)}</p>
+          )}
+        </div>
+        <div className="flex justify-between items-center mt-1 pt-3" style={{ borderTop: '1px solid var(--border-light)' }}>
+          {item.unit === 'SQFT' ? (
+            <div className="flex items-center gap-1 w-full justify-between">
+              <div className="flex items-center gap-1">
+                <input type="number" step="any" placeholder="L" value={item.length !== undefined ? item.length : ''} onChange={(e) => onUpdateDimensions(item.id, 'length', e.target.value)} className="w-10 h-8 px-1 text-xs font-semibold text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)' }} aria-label="Length" />
+                <span className="font-bold text-xs" style={{ color: 'var(--text-tertiary)' }}>x</span>
+                <input type="number" step="any" placeholder="W" value={item.width !== undefined ? item.width : ''} onChange={(e) => onUpdateDimensions(item.id, 'width', e.target.value)} className="w-10 h-8 px-1 text-xs font-semibold text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)' }} aria-label="Width" />
+                <span className="font-bold text-xs" style={{ color: 'var(--text-tertiary)' }}>x</span>
+                <input type="number" step="any" min="1" placeholder="Rolls" value={item.rolls !== undefined ? item.rolls : '1'} onChange={(e) => onUpdateDimensions(item.id, 'rolls', e.target.value)} className="w-10 h-8 px-1 text-xs font-semibold text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)' }} aria-label="Rolls" />
+              </div>
+              <span className="font-bold text-sm" style={{ color: 'var(--color-accent)' }}>={safeQty} sqft</span>
+            </div>
+          ) : (
+            <div className="flex items-center">
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-10 h-8 font-bold text-lg focus:outline-none" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)', borderRight: 'none' }} aria-label={`Decrease ${item.name} quantity`}>-</button>
+              <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-12 h-8 px-1 text-sm font-semibold text-center focus:outline-none z-10" style={{ border: '1px solid var(--border-medium)' }} aria-label={`${item.name} quantity`} />
+              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-10 h-8 font-bold text-lg focus:outline-none" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)', borderLeft: 'none' }} aria-label={`Increase ${item.name} quantity`}>+</button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  });
+}
+
+// ---------------------------------------------------------------
+// Main WorkerTerminal component (orchestrator)
+// ---------------------------------------------------------------
+export default function WorkerTerminal({ activeTab, shopSettings, cashierName }) {
+  const { showAlert, showConfirm, alertConfig, confirmConfig } = useApp();
+
   const [cart, setCart] = useState(() => {
-    try { const saved = localStorage.getItem(`pos_cart_${activeTab}`); return saved ? JSON.parse(saved) : []; } catch (e) { return []; }
+    try { const saved = localStorage.getItem(`pos_cart_${activeTab}`); return saved ? JSON.parse(saved) : []; } catch { return []; }
   });
   const [manualBarcode, setManualBarcode] = useState('');
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [lastReceipt, setLastReceipt] = useState(null);
   const [checkoutModal, setCheckoutModal] = useState({ isOpen: false, cashGiven: '' });
-  
+
   const barcodeBuffer = useRef('');
   const lastKeyTime = useRef(Date.now());
   const cartRef = useRef(cart);
-  
-  useEffect(() => { cartRef.current = cart; localStorage.setItem(`pos_cart_${activeTab}`, JSON.stringify(cart)); }, [cart, activeTab]);
+  // Refs for values used inside the keydown closure (fixes stale closure #18)
+  const activeTabRef = useRef(activeTab);
+  const showAlertRef = useRef(showAlert);
 
-  const processScan = async (scannedCode) => {
-    const cleanBarcode = scannedCode.trim(); 
+  useEffect(() => { cartRef.current = cart; localStorage.setItem(`pos_cart_${activeTab}`, JSON.stringify(cart)); }, [cart, activeTab]);
+  useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
+  useEffect(() => { showAlertRef.current = showAlert; }, [showAlert]);
+
+  const processScan = useCallback(async (scannedCode) => {
+    const cleanBarcode = scannedCode.trim();
     if (!cleanBarcode) return;
     let item = cartRef.current.find(i => i.barcode === cleanBarcode);
     if (!item) {
-      const { data, error } = await supabase.from('inventory').select('*').eq('barcode', cleanBarcode).eq('is_active', true).single();
-      if (error || !data) return showAlert(`Barcode ${cleanBarcode} not found in the system.`, "Error");
-      item = data;
+      item = await getInventoryItemByBarcode(cleanBarcode);
+      if (!item) return showAlertRef.current(`Barcode ${cleanBarcode} not found in the system.`, "Error");
     }
     if (item) {
-      if (activeTab === 'checkout') {
+      const currentTab = activeTabRef.current;
+      if (currentTab === 'checkout') {
         const currentCartItem = cartRef.current.find(c => c.barcode === cleanBarcode);
         const currentQty = currentCartItem ? (Number(currentCartItem.quantity) || 0) : 0;
-        if (Number(item.stock_store || 0) <= 0) return showAlert(`${item.name} is out of stock in the store.`, "Out of Stock");
-        if (currentQty >= Number(item.stock_store || 0)) return showAlert(`You only have ${item.stock_store} of ${item.name} in the store.`, "Stock Limit");
+        if (Number(item.stock_store || 0) <= 0) return showAlertRef.current(`${item.name} is out of stock in the store.`, "Out of Stock");
+        if (currentQty >= Number(item.stock_store || 0)) return showAlertRef.current(`You only have ${item.stock_store} of ${item.name} in the store.`, "Stock Limit");
       }
       setCart(prev => {
         const idx = prev.findIndex(c => c.barcode === cleanBarcode);
         if (idx >= 0) { const up = [...prev]; up[idx] = { ...up[idx], quantity: (Number(up[idx].quantity) || 0) + 1 }; return up; }
-        return [...prev, { ...item, id: Date.now(), customPriceInput: Number(item.price || 0).toFixed(2), discountPct: 0, quantity: item.unit === 'SQFT' ? 0 : 1, unit: item.unit || 'PCS', length: '', width: '', rolls: '1' }];
+        return [...prev, { ...item, id: generateId(), customPriceInput: Number(item.price || 0).toFixed(2), discountPct: 0, quantity: item.unit === 'SQFT' ? 0 : 1, unit: item.unit || 'PCS', length: '', width: '', rolls: '1' }];
       });
     }
-  };
+  }, []);
 
   useEffect(() => {
+    const isModalOpen = alertConfig.isOpen || confirmConfig.isOpen || checkoutModal.isOpen;
     const handleGlobalKeyDown = (e) => {
-      if (isModalOpen || checkoutModal.isOpen) return;
+      if (isModalOpen) return;
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
       const currentTime = Date.now();
-      if (currentTime - lastKeyTime.current > 200) barcodeBuffer.current = '';
+      if (currentTime - lastKeyTime.current > SCAN_TIMEOUT_MS) barcodeBuffer.current = '';
       lastKeyTime.current = currentTime;
-      if (e.key === 'Enter') { if (barcodeBuffer.current.length > 0) { e.preventDefault(); processScan(barcodeBuffer.current); barcodeBuffer.current = ''; } } 
-      else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) { barcodeBuffer.current += e.key; }
+      if (e.key === 'Enter') {
+        if (barcodeBuffer.current.length > 0) { e.preventDefault(); processScan(barcodeBuffer.current); barcodeBuffer.current = ''; }
+      } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        barcodeBuffer.current += e.key;
+      }
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [isModalOpen, checkoutModal.isOpen]);
+  }, [alertConfig.isOpen, confirmConfig.isOpen, checkoutModal.isOpen, processScan]);
 
   const updateQuantity = (id, val) => {
     setCart(prev => {
@@ -83,15 +240,11 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
           const updated = { ...i, [field]: val };
           const l = Number(updated.length) || 0;
           const w = Number(updated.width) || 0;
-          const r = updated.rolls === '' ? 1 : (Number(updated.rolls) || 1); 
+          const r = updated.rolls === '' ? 1 : (Number(updated.rolls) || 1);
           let newQty = parseFloat((l * w * r).toFixed(2));
-          
           if (activeTab === 'checkout' && newQty > 0) {
             const maxStock = Number(i.stock_store || 0);
-            if (newQty > maxStock) { 
-              limitMsg = `You only have ${maxStock} of ${i.name} in the store.`; 
-              newQty = maxStock; 
-            }
+            if (newQty > maxStock) { limitMsg = `You only have ${maxStock} of ${i.name} in the store.`; newQty = maxStock; }
           }
           return { ...updated, quantity: newQty };
         }
@@ -103,7 +256,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
   };
 
   const handleCustomPriceChange = (id, val) => setCart(prev => prev.map(i => i.id === id ? { ...i, customPriceInput: val } : i));
-  
+
   const applyCustomPriceBlur = (id) => setCart(prev => prev.map(i => {
     if (i.id === id) {
       let val = Number(i.customPriceInput); if (isNaN(val)) val = Number(i.price || 0);
@@ -117,217 +270,204 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName, r
 
   const calculateTotal = () => cart.reduce((tot, i) => tot + Math.round((i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0)) * 100) * (i.quantity === '' ? 0 : Number(i.quantity)), 0) / 100;
   const calculateTotalUnits = () => cart.reduce((tot, i) => tot + (i.quantity === '' ? 0 : Number(i.quantity)), 0);
-  
+
   const handleCompleteTransaction = async () => {
     const finalCart = cart.filter(i => Number(i.quantity) > 0);
     if (finalCart.length === 0) return;
     setIsCheckingOut(true);
     try {
-      if (activeTab === 'checkout') {
-        const barcodes = finalCart.map(item => item.barcode);
-        const { data: liveStock, error: stockError } = await supabase.from('inventory').select('barcode, name, stock_store').in('barcode', barcodes);
-        if (stockError) throw new Error("Could not verify live stock levels. Please check your internet connection.");
-        for (const cartItem of finalCart) {
-          const liveItem = liveStock.find(i => i.barcode === cartItem.barcode);
-          if (!liveItem || Number(liveItem.stock_store) < cartItem.quantity) {
-             const available = liveItem ? liveItem.stock_store : 0;
-             throw new Error(`Someone just bought ${cartItem.name}! There are only ${available} left in the shop.`);
+      if (activeTab === 'checkout' && navigator.onLine) {
+        try {
+          const barcodes = finalCart.map(item => item.barcode);
+          const { data: liveStock, error: stockError } = await supabase.from('inventory').select('barcode, name, stock_store').in('barcode', barcodes);
+          if (!stockError && liveStock) {
+            for (const cartItem of finalCart) {
+              const liveItem = liveStock.find(i => i.barcode === cartItem.barcode);
+              if (!liveItem || Number(liveItem.stock_store) < cartItem.quantity) {
+                const available = liveItem ? liveItem.stock_store : 0;
+                throw new Error(`Someone just bought ${cartItem.name}! There are only ${available} left in the shop.`);
+              }
+            }
           }
+        } catch (e) {
+          if (e.message.includes('left in the shop')) throw e;
         }
       }
 
-      const payload = { p_action: activeTab === 'receive' ? 'RECEIVE' : activeTab === 'transfer' ? 'TRANSFER' : 'SALE', p_location: activeTab === 'receive' ? 'Warehouse-Inbound' : activeTab === 'transfer' ? 'Warehouse-Transfer' : 'Store', p_cashier_name: cashierName || 'System', p_items: finalCart.map(i => ({ barcode: i.barcode, name: i.name, quantity: Number(i.quantity), price: i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0), discountPct: 0, unit: i.unit })) };
-      const { data, error } = await supabase.rpc('process_pos_transaction', payload);
-      if (error) throw new Error(error.message);
-      setLastReceipt({ id: data.bill_id.split('-')[0], items: finalCart.map(i => { const finalRate = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0); return { ...i, quantity: Number(i.quantity), finalRate, mrp: Number(i.price || 0), lineTotal: finalRate * Number(i.quantity) }; }), total: calculateTotal(), date: new Date(), type: activeTab });
-      setCart([]); setCheckoutModal({ isOpen: false, cashGiven: '' });
-      if (refreshInventory) refreshInventory();
-      if (activeTab === 'checkout') setTimeout(() => { window.print(); }, 100); else showAlert("Stock updated successfully.", "Success");
-    } catch (e) { showAlert(e.message, "Notice"); } finally { setIsCheckingOut(false); }
+      const payload = {
+        p_action: activeTab === 'receive' ? 'RECEIVE' : activeTab === 'transfer' ? 'TRANSFER' : 'SALE',
+        p_location: activeTab === 'receive' ? 'Warehouse-Inbound' : activeTab === 'transfer' ? 'Warehouse-Transfer' : 'Store',
+        p_cashier_name: cashierName || 'System',
+        p_items: finalCart.map(i => ({
+          barcode: i.barcode,
+          name: i.name,
+          quantity: Number(i.quantity),
+          price: i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0),
+          discountPct: 0,
+          unit: i.unit,
+        })),
+      };
+
+      let successData = null;
+      if (navigator.onLine) {
+        try {
+          const { data, error } = await supabase.rpc('process_pos_transaction', payload);
+          if (error) throw error;
+          successData = data;
+        } catch (error) {
+          if (error.message === 'Failed to fetch' || error.code === '503') {
+            await queueOfflineTransaction(payload);
+            successData = { bill_id: 'OFFL-' + generateId().substring(0, 5).toUpperCase() };
+            setTimeout(() => showAlertRef.current("Transaction queued offline. It will sync automatically when internet returns.", "Offline Mode"), 100);
+          } else {
+            throw new Error(error.message);
+          }
+        }
+      } else {
+        await queueOfflineTransaction(payload);
+        successData = { bill_id: 'OFFL-' + generateId().substring(0, 5).toUpperCase() };
+        setTimeout(() => showAlertRef.current("Transaction queued offline. It will sync automatically when internet returns.", "Offline Mode"), 100);
+      }
+
+      setLastReceipt({
+        id: successData.bill_id.split('-')[0],
+        items: finalCart.map(i => {
+          const finalRate = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0);
+          return { ...i, quantity: Number(i.quantity), finalRate, mrp: Number(i.price || 0), lineTotal: finalRate * Number(i.quantity) };
+        }),
+        total: calculateTotal(),
+        date: new Date(),
+        type: activeTab,
+      });
+      setCart([]);
+      setCheckoutModal({ isOpen: false, cashGiven: '' });
+
+      // Print confirmation instead of auto-printing (fixes #20)
+      if (activeTab === 'checkout') {
+        showConfirm('Sale completed! Would you like to print the receipt?', () => {
+          setTimeout(() => { window.print(); }, 100);
+        }, 'Print Receipt');
+      } else {
+        showAlert("Stock updated successfully.", "Success");
+      }
+    } catch (e) {
+      showAlert(e.message, "Notice");
+    } finally {
+      setIsCheckingOut(false);
+    }
   };
 
-  const cartTotal = calculateTotal(); const cartUnits = calculateTotalUnits();
-  const cartTotalCents = Math.round(cartTotal * 100); const cashGivenCents = Math.round(Number(checkoutModal.cashGiven || 0) * 100);
-  const differenceCents = Math.abs(cashGivenCents - cartTotalCents); const isShortfall = cashGivenCents > 0 && cashGivenCents < cartTotalCents;
-  const formatDateTime = (dateObj) => { if (!dateObj) return { datePart: '', timePart: '' }; const d = dateObj; let hours = d.getHours(); const ampm = hours >= 12 ? 'PM' : 'AM'; hours = hours % 12 || 12; return { datePart: d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }), timePart: `${hours.toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')} ${ampm}` }; };
+  const cartTotal = calculateTotal();
+  const cartUnits = calculateTotalUnits();
+  const cartTotalCents = Math.round(cartTotal * 100);
+  const cashGivenCents = Math.round(Number(checkoutModal.cashGiven || 0) * 100);
+  const differenceCents = Math.abs(cashGivenCents - cartTotalCents);
+  const isShortfall = cashGivenCents > 0 && cashGivenCents < cartTotalCents;
 
   return (
     <>
       {/* Checkout Modal */}
       {checkoutModal.isOpen && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] print:hidden px-4">
-          <div className="bg-white border border-gray-400 w-[450px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none text-black">
-            <div className="bg-white flex justify-between items-center pr-1 pl-4 py-1 border-b border-gray-200">
-              <span className="text-xs font-semibold uppercase tracking-wider text-black">Checkout Payment</span>
-              <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} className="text-gray-600 hover:bg-[#e81123] hover:text-white px-3 py-1.5 leading-none transition-none focus:outline-none rounded-none">✕</button>
+        <div
+          className="fixed inset-0 flex items-center justify-center z-[100] print:hidden px-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="checkout-title"
+        >
+          <div className="w-[95%] max-w-[450px] flex flex-col" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
+            <div className="flex justify-between items-center pr-1 pl-4 py-1" style={{ borderBottom: '1px solid var(--border-light)' }}>
+              <span id="checkout-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Checkout Payment</span>
+              <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} className="px-3 py-1.5 leading-none focus:outline-none" aria-label="Close checkout">✕</button>
             </div>
-            <div className="p-6 bg-white">
-              <div className="flex justify-between items-end mb-6 pb-4 border-b border-gray-300">
-                <span className="text-xs font-bold uppercase tracking-wider text-gray-500">Total Due</span>
-                <span className="text-4xl font-light text-[#0078D7]">₹{cartTotal.toFixed(2)}</span>
+            <div className="p-6">
+              <div className="flex justify-between items-end mb-6 pb-4" style={{ borderBottom: '1px solid var(--border-light)' }}>
+                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Total Due</span>
+                <span className="text-4xl font-light" style={{ color: 'var(--color-accent)' }} aria-live="polite">₹{cartTotal.toFixed(2)}</span>
               </div>
               <div className="mb-6">
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2">Cash Given (₹)</label>
-                <input type="number" step="any" autoFocus value={checkoutModal.cashGiven} onChange={(e) => setCheckoutModal({ ...checkoutModal, cashGiven: e.target.value })} placeholder="0.00" className="w-full h-12 px-4 border-2 border-gray-300 bg-white text-black text-2xl font-mono rounded-none focus:outline-none focus:border-[#0078D7]" />
+                <label htmlFor="cash-given" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Cash Given (₹)</label>
+                <input id="cash-given" type="number" step="any" autoFocus value={checkoutModal.cashGiven} onChange={(e) => setCheckoutModal({ ...checkoutModal, cashGiven: e.target.value })} placeholder="0.00" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
               </div>
               {cashGivenCents > 0 && (
-                <div className={`p-4 border ${!isShortfall ? 'pos-success-box' : 'pos-error-box'}`}>
+                <div className={`p-4 ${!isShortfall ? 'pos-success-box' : 'pos-error-box'}`} aria-live="polite">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold uppercase tracking-wider text-black">{!isShortfall ? 'Give Change' : 'Missing Amount'}</span>
-                    <span className="text-2xl font-light text-black">₹{(differenceCents / 100).toFixed(2)}</span>
+                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>{!isShortfall ? 'Give Change' : 'Missing Amount'}</span>
+                    <span className="text-2xl font-light" style={{ color: 'var(--text-primary)' }}>₹{(differenceCents / 100).toFixed(2)}</span>
                   </div>
                 </div>
               )}
             </div>
-            <div className="p-4 bg-[#f3f3f3] border-t border-gray-300 flex justify-end gap-2">
-              <button onClick={handleCompleteTransaction} disabled={isCheckingOut || isShortfall} className="h-9 px-8 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-semibold rounded-none border border-transparent focus:outline-none focus:ring-2 focus:ring-[#0078D7] focus:ring-offset-1 disabled:opacity-50 flex justify-center items-center min-w-[120px]">{isCheckingOut ? <Spinner className="w-4 h-4 text-white" /> : 'Complete Sale'}</button>
-              <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} disabled={isCheckingOut} className="h-9 px-8 bg-[#e6e6e6] hover:bg-[#cccccc] text-black border border-gray-400 text-sm font-semibold rounded-none disabled:opacity-50 focus:outline-none">Cancel</button>
+            <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
+              <button onClick={handleCompleteTransaction} disabled={isCheckingOut || isShortfall} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none disabled:opacity-50 flex justify-center items-center min-w-[120px]" style={{ backgroundColor: 'var(--color-accent)' }}>
+                {isCheckingOut ? <Spinner className="w-4 h-4 text-white" /> : 'Complete Sale'}
+              </button>
+              <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} disabled={isCheckingOut} className="h-9 px-8 text-sm font-semibold disabled:opacity-50 focus:outline-none" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}>Cancel</button>
             </div>
           </div>
         </div>
       )}
-      
-      <div className="flex flex-col flex-1 border border-gray-400 bg-white text-black min-h-[500px] rounded-none shadow-sm print:hidden">
+
+      <div className="flex flex-col flex-1 min-h-[500px] shadow-sm print:hidden" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
         {/* Header Block */}
-        <div className={`p-4 border-b border-gray-400 flex flex-col md:flex-row justify-between gap-4 ${activeTab === 'receive' ? 'pos-receive-bg' : activeTab === 'transfer' ? 'pos-transfer-bg' : 'bg-[#f3f3f3]'}`}>
+        <div className={`p-4 flex flex-col md:flex-row justify-between gap-4 ${activeTab === 'receive' ? 'pos-receive-bg' : activeTab === 'transfer' ? 'pos-transfer-bg' : ''}`} style={{ borderBottom: '1px solid var(--border-medium)', ...(activeTab !== 'receive' && activeTab !== 'transfer' ? { backgroundColor: 'var(--bg-tertiary)' } : {}) }}>
           <div className="flex flex-col">
-            <h2 className="text-2xl font-light text-black">{activeTab === 'receive' ? 'Receive New Stock' : activeTab === 'transfer' ? 'Move Stock to Store' : 'Checkout Counter'}</h2>
+            <h2 className="text-2xl font-light" style={{ color: 'var(--text-primary)' }}>
+              {activeTab === 'receive' ? 'Receive New Stock' : activeTab === 'transfer' ? 'Move Stock to Store' : 'Checkout Counter'}
+            </h2>
             <form onSubmit={(e) => { e.preventDefault(); processScan(manualBarcode); setManualBarcode(''); }} className="mt-3 flex items-center">
-              <input type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} placeholder="Enter Barcode manually..." className="h-9 border-2 border-gray-300 bg-white text-black px-3 text-sm focus:outline-none focus:border-[#0078D7] rounded-none w-full md:w-64" />
-              <button type="submit" className="h-9 bg-[#e6e6e6] px-4 text-sm font-semibold border-2 border-l-0 border-gray-300 text-black hover:bg-[#cccccc] rounded-none focus:outline-none">Add</button>
+              <label htmlFor="manual-barcode" className="sr-only">Barcode</label>
+              <input id="manual-barcode" type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} placeholder="Enter Barcode manually..." className="h-9 px-3 text-sm focus:outline-none w-full md:w-64" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+              <button type="submit" className="h-9 px-4 text-sm font-semibold focus:outline-none" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '2px solid var(--border-input)', borderLeft: 'none' }}>Add</button>
             </form>
           </div>
-          <div className="text-left md:text-right border-t border-gray-300 pt-2 md:border-0 md:pt-0 flex flex-col justify-end">
-            <span className="text-xs uppercase font-semibold text-gray-500 tracking-wider block mb-1">{activeTab === 'checkout' ? 'Total Price' : 'Total Units'}</span>
-            <span className="text-4xl font-light text-[#0078D7]">{activeTab === 'checkout' ? `₹${cartTotal.toFixed(2)}` : cartUnits}</span>
+          <div className="text-left md:text-right flex flex-col justify-end pt-2 md:pt-0" style={{ borderTop: window.innerWidth < 768 ? `1px solid var(--border-light)` : 'none' }}>
+            <span className="text-xs uppercase font-semibold tracking-wider block mb-1" style={{ color: 'var(--text-tertiary)' }}>{activeTab === 'checkout' ? 'Total Price' : 'Total Units'}</span>
+            <span className="text-4xl font-light" style={{ color: 'var(--color-accent)' }} aria-live="polite">
+              {activeTab === 'checkout' ? `₹${cartTotal.toFixed(2)}` : cartUnits}
+            </span>
           </div>
         </div>
 
-        <div className="hidden md:block flex-1 overflow-y-auto bg-white rounded-none">
-          {cart.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center min-h-[300px]"><p className="text-sm font-semibold uppercase tracking-widest text-gray-500 mb-2">Ready</p><p className="text-xs text-gray-400">Scan items anytime or type the barcode above</p></div>
-          ) : (
-            /* Updated table classes for single-line center alignment */
-            <table className="w-full text-center whitespace-nowrap border-collapse">
-              <thead className="bg-[#f9f9f9] sticky top-0 border-b border-gray-300 z-10">
-                <tr className="text-xs font-semibold uppercase tracking-wider text-gray-600">
-                  <th className="p-3 border-r border-gray-200 w-2/5 text-center">Item Name</th>
-                  <th className={`p-3 text-center w-56 ${activeTab === 'checkout' ? 'border-r border-gray-200' : ''}`}>Quantity</th>
-                  {activeTab === 'checkout' && (
-                    <>
-                      <th className="p-3 border-r border-gray-200 text-center w-36">Price (₹)</th>
-                      <th className="p-3 border-r border-gray-200 text-center w-28">Disc (%)</th>
-                      <th className="p-3 text-center w-32">Total</th>
-                    </>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 border-b border-gray-300">
-                {cart.map(item => {
-                  const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
-                  const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
-                  return (
-                    <tr key={item.id} className="hover:bg-[#f3f3f3] transition-none">
-                      <td className="p-3 border-r border-gray-200 text-center">
-                        <p className="text-sm font-semibold text-black">{item.name}</p>
-                        {/* Updated to justify-center to center the flexbox contents */}
-                        <div className="flex items-center justify-center gap-3 mt-1">
-                          <p className="text-xs text-[#0078D7] font-mono">#{item.barcode}</p>
-                          {activeTab === 'checkout' && (
-                            <div className="flex justify-center gap-2">
-                              <span className="text-[10px] text-gray-600 font-semibold bg-[#e6e6e6] px-1.5 py-0.5 border border-gray-300 uppercase tracking-wider">
-                                MRP: ₹{Number(item.price || 0).toFixed(2)}
-                              </span>
-                              <span className="text-[10px] text-gray-600 font-semibold bg-[#e6e6e6] px-1.5 py-0.5 border border-gray-300 uppercase tracking-wider">
-                                MSP: ₹{Number(item.msp || 0).toFixed(2)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className={`p-2 ${activeTab === 'checkout' ? 'border-r border-gray-200' : ''}`}>
-                        {item.unit === 'SQFT' ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <input type="number" step="any" placeholder="L" value={item.length !== undefined ? item.length : ''} onChange={(e) => updateDimensions(item.id, 'length', e.target.value)} className="w-12 h-8 px-1 text-xs font-semibold text-center bg-white text-black border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" title="Length" />
-                            <span className="text-gray-500 font-bold text-xs">x</span>
-                            <input type="number" step="any" placeholder="W" value={item.width !== undefined ? item.width : ''} onChange={(e) => updateDimensions(item.id, 'width', e.target.value)} className="w-12 h-8 px-1 text-xs font-semibold text-center bg-white text-black border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" title="Width" />
-                            <span className="text-gray-500 font-bold text-xs">x</span>
-                            <input type="number" step="any" min="1" placeholder="Rolls" value={item.rolls !== undefined ? item.rolls : '1'} onChange={(e) => updateDimensions(item.id, 'rolls', e.target.value)} className="w-12 h-8 px-1 text-xs font-semibold text-center bg-white text-black border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" title="Rolls / Qty" />
-                            <span className="text-[#0078D7] font-bold text-sm ml-1 w-10 text-left">={safeQty}</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center">
-                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty - 1)} className="w-8 h-8 bg-[#e6e6e6] hover:bg-[#cccccc] text-black font-bold border border-gray-400 border-r-0 rounded-none focus:outline-none">-</button>
-                            <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-14 h-8 px-1 text-sm font-semibold text-center bg-white text-black border border-gray-400 focus:outline-none focus:border-[#0078D7] focus:z-10 rounded-none" />
-                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty + 1)} className="w-8 h-8 bg-[#e6e6e6] hover:bg-[#cccccc] text-black font-bold border border-gray-400 border-l-0 rounded-none focus:outline-none">+</button>
-                          </div>
-                        )}
-                      </td>
-                      {activeTab === 'checkout' && (<>
-                        <td className="p-2 border-r border-gray-200"><input type="number" step="0.01" value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price||0).toFixed(2)} onChange={(e) => handleCustomPriceChange(item.id, e.target.value)} onBlur={() => applyCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 px-2 border border-gray-300 text-sm font-semibold text-center bg-white text-black rounded-none focus:outline-none focus:border-[#0078D7]" /></td>
-                        <td className="p-2 border-r border-gray-200 bg-[#f9f9f9]"><input type="number" value={item.discountPct ? Number(item.discountPct).toFixed(1) : '0.0'} disabled className="w-full h-8 px-2 border border-transparent text-sm font-semibold text-center bg-transparent rounded-none outline-none cursor-not-allowed text-gray-500" /></td>
-                        {/* Changed text-right to text-center to keep everything consistent */}
-                        <td className="p-3 text-center text-sm font-bold text-black">₹{(sellPrice * safeQty).toFixed(2)}</td>
-                      </>)}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-        
-        {/* Mobile View */}
-        <div className="md:hidden flex-1 overflow-y-auto bg-white text-black divide-y divide-gray-300 border-b border-gray-400">
-           {cart.length === 0 ? (
-                <div className="p-10 text-center text-sm font-semibold uppercase tracking-widest text-gray-500">Cart Empty</div>
-              ) : (
-                cart.map((item) => {
-                  const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
-                  const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
-                  return (
-                    <div key={item.id} className="p-4 flex flex-col gap-3">
-                      <div className="flex justify-between items-start">
-                        <div className="pr-2">
-                          <p className="text-sm font-semibold text-black">{item.name}</p>
-                          <p className="text-xs text-[#0078D7] mt-1 mb-1">#{item.barcode}</p>
-                          {activeTab === 'checkout' && (
-                            <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">
-                              MRP: ₹{Number(item.price || 0).toFixed(2)} • MSP: ₹{Number(item.msp || 0).toFixed(2)}
-                            </p>
-                          )}
-                        </div>
-                        {activeTab === 'checkout' && (<p className="text-base font-bold text-black">₹{(sellPrice * safeQty).toFixed(2)}</p>)}
-                      </div>
-                      <div className="flex justify-between items-center mt-1 pt-3 border-t border-gray-200">
-                        {item.unit === 'SQFT' ? (
-                          <div className="flex items-center gap-1 w-full justify-between">
-                            <div className="flex items-center gap-1">
-                              <input type="number" step="any" placeholder="L" value={item.length !== undefined ? item.length : ''} onChange={(e) => updateDimensions(item.id, 'length', e.target.value)} className="w-10 h-8 px-1 text-xs font-semibold text-center bg-white text-black border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" />
-                              <span className="text-gray-500 font-bold text-xs">x</span>
-                              <input type="number" step="any" placeholder="W" value={item.width !== undefined ? item.width : ''} onChange={(e) => updateDimensions(item.id, 'width', e.target.value)} className="w-10 h-8 px-1 text-xs font-semibold text-center bg-white text-black border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" />
-                              <span className="text-gray-500 font-bold text-xs">x</span>
-                              <input type="number" step="any" min="1" placeholder="Rolls" value={item.rolls !== undefined ? item.rolls : '1'} onChange={(e) => updateDimensions(item.id, 'rolls', e.target.value)} className="w-10 h-8 px-1 text-xs font-semibold text-center bg-white text-black border border-gray-400 focus:outline-none focus:border-[#0078D7] rounded-none" />
-                            </div>
-                            <span className="text-[#0078D7] font-bold text-sm">={safeQty} sqft</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center">
-                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty - 1)} className="w-10 h-8 bg-[#e6e6e6] active:bg-[#cccccc] text-black font-bold text-lg border border-gray-400 border-r-0 rounded-none">-</button>
-                            <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => updateQuantity(item.id, e.target.value)} className="w-12 h-8 px-1 text-sm font-semibold text-center bg-white text-black border border-gray-400 focus:outline-none focus:border-[#0078D7] z-10 rounded-none" />
-                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => updateQuantity(item.id, safeQty + 1)} className="w-10 h-8 bg-[#e6e6e6] active:bg-[#cccccc] text-black font-bold text-lg border border-gray-400 border-l-0 rounded-none">+</button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
+        {/* Desktop View */}
+        <div className="hidden md:block flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+          <CartTable
+            cart={cart}
+            activeTab={activeTab}
+            onUpdateQuantity={updateQuantity}
+            onUpdateDimensions={updateDimensions}
+            onCustomPriceChange={handleCustomPriceChange}
+            onCustomPriceBlur={applyCustomPriceBlur}
+          />
         </div>
 
-        <div className="p-4 bg-[#f3f3f3] flex flex-col md:flex-row justify-between gap-3">
-          <button onMouseDown={(e) => e.preventDefault()} onClick={() => showConfirm("Are you sure you want to clear the items?", () => setCart([]), activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items')} className="w-full md:w-auto h-10 px-8 bg-[#e6e6e6] hover:bg-[#cccccc] text-black border border-gray-400 text-sm font-semibold uppercase tracking-wider rounded-none focus:outline-none">{activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items'}</button>
-          <button onMouseDown={(e) => e.preventDefault()} onClick={() => activeTab === 'checkout' ? setCheckoutModal({isOpen: true, cashGiven: ''}) : handleCompleteTransaction()} className="w-full md:w-auto h-10 px-10 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-semibold uppercase tracking-wider rounded-none border border-transparent focus:outline-none focus:ring-2 focus:ring-[#0078D7] focus:ring-offset-1 flex justify-center items-center">{isCheckingOut ? 'Saving...' : 'Complete'}</button>
+        {/* Mobile View */}
+        <div className="md:hidden flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
+          <CartMobileView
+            cart={cart}
+            activeTab={activeTab}
+            onUpdateQuantity={updateQuantity}
+            onUpdateDimensions={updateDimensions}
+          />
+        </div>
+
+        <div className="p-4 flex flex-col md:flex-row justify-between gap-3" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => showConfirm("Are you sure you want to clear the items?", () => setCart([]), activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items')}
+            className="w-full md:w-auto h-10 px-8 text-sm font-semibold uppercase tracking-wider focus:outline-none"
+            style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
+          >
+            {activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items'}
+          </button>
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => activeTab === 'checkout' ? setCheckoutModal({ isOpen: true, cashGiven: '' }) : handleCompleteTransaction()}
+            className="w-full md:w-auto h-10 px-10 text-white text-sm font-semibold uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-offset-1 flex justify-center items-center"
+            style={{ backgroundColor: 'var(--color-accent)', border: '1px solid transparent' }}
+          >
+            {isCheckingOut ? 'Saving...' : 'Complete'}
+          </button>
         </div>
       </div>
       <ReceiptTemplate lastReceipt={lastReceipt} shopSettings={shopSettings} formatDateTime={formatDateTime} />

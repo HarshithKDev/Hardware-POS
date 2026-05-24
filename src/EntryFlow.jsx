@@ -123,24 +123,26 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
 
   if (isSetupNeeded) {
     return (
-      <div className="min-h-screen bg-[#0078D7] flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white p-8 border border-gray-400 shadow-[2px_2px_0px_rgba(0,0,0,0.2)] rounded-none">
-          <h2 className="text-2xl font-light text-black mb-2">Register Your Shop</h2>
-          <p className="text-gray-600 mb-6 text-sm">Create your master account to get started.</p>
+      <div className="min-h-screen flex flex-col items-center justify-center p-4" style={{ backgroundColor: 'var(--bg-primary)' }}>
+        <div className="w-full max-w-md p-6 md:p-8 shadow-sm rounded-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+          <h2 className="text-2xl font-light mb-2" style={{ color: 'var(--text-primary)' }}>Register Your Shop</h2>
+          <p className="mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>Create your master account to get started.</p>
           <form onSubmit={handleSetup} className="space-y-4">
             <input
               type="text"
               value={shopName}
               onChange={(e) => setShopName(e.target.value)}
               placeholder="Shop Name (e.g. Metro Hardware)"
-              className="w-full h-12 px-3 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-lg rounded-none"
+              className="w-full h-12 px-3 focus:outline-none text-lg rounded-none"
+              style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
             />
             <input
               type="text"
               value={ownerName}
               onChange={(e) => setOwnerName(e.target.value)}
               placeholder="Owner Name"
-              className="w-full h-12 px-3 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-lg rounded-none"
+              className="w-full h-12 px-3 focus:outline-none text-lg rounded-none"
+              style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
             />
             <div className="relative">
               <input
@@ -148,22 +150,25 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
                 value={setupPassword}
                 onChange={(e) => setSetupPassword(e.target.value)}
                 placeholder="Set Admin Password (Min 6 chars)"
-                className="w-full h-12 px-3 pr-10 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-lg rounded-none"
+                className="w-full h-12 px-3 pr-10 focus:outline-none text-lg rounded-none"
+                style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
               />
               <button
                 type="button"
                 onClick={() => setShowSetupPassword(!showSetupPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-[#0078D7] focus:outline-none"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center focus:outline-none"
+                style={{ color: 'var(--text-tertiary)' }}
                 tabIndex="-1"
               >
                 {showSetupPassword ? <EyeSlashIcon /> : <EyeIcon />}
               </button>
             </div>
-            {error && <p className="text-[#e81123] text-sm font-semibold">{error}</p>}
+            {error && <p className="text-sm font-semibold" style={{ color: 'var(--color-error)' }}>{error}</p>}
             <button
               type="submit"
               disabled={isSettingUp}
-              className="w-full h-12 bg-[#0078D7] hover:bg-[#005a9e] text-white text-lg font-medium transition-colors rounded-none border border-transparent disabled:opacity-50 flex justify-center items-center"
+              className="w-full h-12 text-white text-lg font-medium transition-colors rounded-none border border-transparent disabled:opacity-50 flex justify-center items-center"
+              style={{ backgroundColor: 'var(--color-accent)' }}
             >
               {isSettingUp ? <Spinner className="w-6 h-6 text-white" /> : 'Register'}
             </button>
@@ -174,14 +179,14 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
   }
 
   return (
-    <div className="min-h-screen bg-[#0078D7] flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white p-8 border border-gray-400 shadow-[2px_2px_0px_rgba(0,0,0,0.2)] rounded-none overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4" style={{ backgroundColor: 'var(--bg-primary)' }}>
+      <div className="w-full max-w-md p-6 md:p-8 shadow-sm rounded-none overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
 
-        <div className="text-center mb-8 border-b border-gray-400 pb-4">
-          <h1 className="text-xl font-bold uppercase tracking-widest text-black leading-snug w-[85%] max-w-[320px] mx-auto">
+        <div className="text-center mb-8 pb-4" style={{ borderBottom: '1px solid var(--border-medium)' }}>
+          <h1 className="text-xl font-bold uppercase tracking-widest leading-snug w-[85%] max-w-[320px] mx-auto" style={{ color: 'var(--text-primary)' }}>
             {shopSettings?.shop_name}
           </h1>
-          <p className="text-xs text-gray-500 uppercase mt-2">Select User to Continue</p>
+          <p className="text-xs uppercase mt-2" style={{ color: 'var(--text-tertiary)' }}>Select User to Continue</p>
         </div>
 
         {step === 1 && (
@@ -189,13 +194,15 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
             <div className="space-y-4">
               <button
                 onClick={() => handleRoleSelect('worker')}
-                className="w-full py-4 bg-[#f3f3f3] hover:bg-[#e6e6e6] text-black border border-gray-400 text-lg transition-colors rounded-none text-center font-medium"
+                className="w-full py-4 text-lg transition-colors rounded-none text-center font-medium"
+                style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
               >
                 Staff Login
               </button>
               <button
                 onClick={() => handleRoleSelect('owner')}
-                className="w-full py-4 bg-[#1e1e1e] hover:bg-[#333333] text-white border border-gray-600 text-lg transition-colors rounded-none text-center font-medium"
+                className="w-full py-4 text-white text-lg transition-colors rounded-none text-center font-medium"
+                style={{ backgroundColor: 'var(--color-accent)', border: '1px solid transparent' }}
               >
                 Owner Login
               </button>
@@ -207,12 +214,13 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
           <div>
             <button
               onClick={() => { setStep(1); setError(''); setPassword(''); setOperatorId(''); }}
-              className="text-sm text-[#0078D7] hover:underline mb-4 flex items-center"
+              className="text-sm hover:underline mb-4 flex items-center"
+              style={{ color: 'var(--color-accent)' }}
             >
               ← Back
             </button>
-            <h2 className="text-2xl font-light text-black mb-2">Welcome Back</h2>
-            <p className="text-gray-600 mb-6 text-sm">
+            <h2 className="text-2xl font-light mb-2" style={{ color: 'var(--text-primary)' }}>Welcome Back</h2>
+            <p className="mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
               {role === 'owner' ? 'Enter Owner Password' : 'Enter Staff Details'}
             </p>
             <form onSubmit={handleLogin} className="space-y-4">
@@ -221,8 +229,9 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
                   type="text"
                   value={operatorId}
                   onChange={(e) => setOperatorId(e.target.value)}
-                  placeholder="Staff Username"
-                  className="w-full h-12 px-3 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-lg rounded-none"
+                  placeholder="Staff Name"
+                  className="w-full h-12 px-3 focus:outline-none text-lg rounded-none"
+                  style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
                   autoFocus
                 />
               )}
@@ -232,23 +241,26 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={role === 'owner' ? 'Owner Password' : 'Login PIN'}
-                  className="w-full h-12 px-3 pr-10 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-lg rounded-none"
+                  className="w-full h-12 px-3 pr-10 focus:outline-none text-lg rounded-none"
+                  style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
                   autoFocus={role === 'owner'}
                 />
                 <button
                   type="button"
                   onClick={() => setShowLoginPassword(!showLoginPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-[#0078D7] focus:outline-none"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center focus:outline-none"
+                  style={{ color: 'var(--text-tertiary)' }}
                   tabIndex="-1"
                 >
                   {showLoginPassword ? <EyeSlashIcon /> : <EyeIcon />}
                 </button>
               </div>
-              {error && <p className="text-[#e81123] text-sm font-semibold">{error}</p>}
+              {error && <p className="text-sm font-semibold" style={{ color: 'var(--color-error)' }}>{error}</p>}
               <button
                 type="submit"
                 disabled={isAuthenticating}
-                className="w-full h-12 mt-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-lg font-medium transition-colors rounded-none border border-transparent disabled:opacity-50 flex justify-center items-center"
+                className="w-full h-12 mt-2 text-white text-lg font-medium transition-colors rounded-none border border-transparent disabled:opacity-50 flex justify-center items-center"
+                style={{ backgroundColor: 'var(--color-accent)' }}
               >
                 {isAuthenticating ? <Spinner className="w-6 h-6 text-white" /> : 'Login'}
               </button>

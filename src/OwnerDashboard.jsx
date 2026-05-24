@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useApp } from './AppContext';
 import OwnerStats from './OwnerStats';
 import OwnerCatalog from './OwnerCatalog';
 import OwnerInventory from './OwnerInventory';
@@ -8,16 +9,15 @@ import OwnerStaff from './OwnerStaff';
 import WorkerBilling from './WorkerBilling';
 import OwnerCategories from './OwnerCategories';
 
-export default function OwnerDashboard({ shopSettings, cashierName }) {
+export default function OwnerDashboard() {
   const { tab } = useParams();
   const activeTab = tab || 'dashboard';
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [alertConfig, setAlertConfig] = useState({ isOpen: false, message: '', title: 'Notice' });
-  const [confirmConfig, setConfirmConfig] = useState({ isOpen: false, message: '', title: 'Confirm Action', onConfirm: null });
+  const { shopSettings, cashierName } = useApp();
 
-  // Fix: use separate URL param keys so warehouse and store subtabs don't collide
+  // Separate URL param keys so warehouse and store subtabs don't collide
   const warehouseSubTab = searchParams.get('wsub') || 'inventory';
   const storeSubTab = searchParams.get('ssub') || 'inventory';
 
@@ -26,86 +26,72 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
     setIsSidebarOpen(false);
   };
 
-  const showAlert = (message, title = 'Notice') =>
-    setAlertConfig({ isOpen: true, message, title });
-
-  const showConfirm = (message, onConfirmCallback, title = 'Confirm Action') =>
-    setConfirmConfig({ isOpen: true, message, title, onConfirm: onConfirmCallback });
-
   return (
-    <div className="flex flex-col md:flex-row bg-white border border-gray-400 h-full shadow-none rounded-none">
-
-      {/* ALERT MODAL */}
-      {alertConfig.isOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] px-4">
-          <div className="bg-white border border-gray-400 w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
-            <div className="bg-white flex justify-between items-center pr-1 pl-4 py-1 border-b border-gray-200">
-              <span className="text-xs font-semibold uppercase tracking-wider text-black">{alertConfig.title}</span>
-              <button onClick={() => setAlertConfig({ ...alertConfig, isOpen: false })} className="text-gray-600 hover:bg-[#e81123] hover:text-white px-3 py-1.5 leading-none transition-none focus:outline-none rounded-none">✕</button>
-            </div>
-            <div className="p-6 bg-white">
-              <p className="text-sm font-medium text-black">{alertConfig.message}</p>
-            </div>
-            <div className="p-4 bg-[#f3f3f3] border-t border-gray-300 flex justify-end">
-              <button onClick={() => setAlertConfig({ ...alertConfig, isOpen: false })} className="px-6 py-1.5 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm border border-transparent focus:outline-none focus:ring-1 focus:ring-black rounded-none">OK</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CONFIRM MODAL */}
-      {confirmConfig.isOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] px-4">
-          <div className="bg-white border border-gray-400 w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
-            <div className="bg-white flex justify-between items-center pr-1 pl-4 py-1 border-b border-gray-200">
-              <span className="text-xs font-semibold uppercase tracking-wider text-black">{confirmConfig.title}</span>
-              <button onClick={() => setConfirmConfig({ ...confirmConfig, isOpen: false })} className="text-gray-600 hover:bg-[#e81123] hover:text-white px-3 py-1.5 leading-none transition-none focus:outline-none rounded-none">✕</button>
-            </div>
-            <div className="p-6 bg-white">
-              <p className="text-sm font-medium text-black">{confirmConfig.message}</p>
-            </div>
-            <div className="p-4 bg-[#f3f3f3] border-t border-gray-300 flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  if (confirmConfig.onConfirm) confirmConfig.onConfirm();
-                  setConfirmConfig({ ...confirmConfig, isOpen: false });
-                }}
-                className="px-6 py-1.5 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm border border-transparent focus:outline-none focus:ring-1 focus:ring-black rounded-none"
-              >
-                Confirm
-              </button>
-              <button onClick={() => setConfirmConfig({ ...confirmConfig, isOpen: false })} className="px-6 py-1.5 bg-[#e6e6e6] hover:bg-[#cccccc] text-black border border-gray-400 text-sm focus:outline-none focus:border-[#0078D7] rounded-none">Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
-
+    <div
+      className="flex flex-col md:flex-row h-full shadow-none"
+      style={{
+        backgroundColor: 'var(--bg-secondary)',
+        border: '1px solid var(--border-medium)',
+      }}
+    >
       {/* MOBILE MENU TOGGLE */}
-      <div className="md:hidden flex justify-between items-center bg-[#f3f3f3] p-4 border-b border-gray-400">
-        <span className="text-sm font-semibold uppercase text-gray-700 tracking-wider">Menu</span>
-        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="border border-gray-400 bg-white px-4 py-1.5 text-sm focus:outline-none focus:border-[#0078D7] rounded-none">☰</button>
+      <div
+        className="md:hidden flex justify-between items-center p-4"
+        style={{
+          backgroundColor: 'var(--bg-tertiary)',
+          borderBottom: '1px solid var(--border-medium)',
+        }}
+      >
+        <span className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+          Menu
+        </span>
+        <button
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="px-4 py-1.5 text-sm focus:outline-none"
+          style={{
+            backgroundColor: 'var(--bg-secondary)',
+            border: '1px solid var(--border-medium)',
+          }}
+          aria-label="Toggle sidebar menu"
+          aria-expanded={isSidebarOpen}
+        >
+          ☰
+        </button>
       </div>
 
       {/* SIDEBAR */}
-      <aside className={`${isSidebarOpen ? 'block' : 'hidden'} md:block w-full md:w-[240px] bg-[#f3f3f3] border-b md:border-r border-gray-400 flex-shrink-0 pt-4`}>
+      <aside
+        className={`${isSidebarOpen ? 'block' : 'hidden'} md:block w-full md:w-[240px] flex-shrink-0 pt-4`}
+        style={{
+          backgroundColor: 'var(--bg-tertiary)',
+          borderRight: '1px solid var(--border-medium)',
+        }}
+        role="navigation"
+        aria-label="Dashboard navigation"
+      >
         <div className="flex flex-col gap-1">
           {[
             { key: 'dashboard', label: 'Overview' },
-            { key: 'register',  label: 'Add Items' },
+            { key: 'register', label: 'Add Items' },
             { key: 'categories', label: 'Categories' },
             { key: 'warehouse', label: 'Main Storage' },
-            { key: 'store',     label: 'Shop Front' },
-            { key: 'sales',     label: 'Sales History' },
-            { key: 'staff',     label: 'Manage Staff' },
+            { key: 'store', label: 'Shop Front' },
+            { key: 'sales', label: 'Sales History' },
+            { key: 'staff', label: 'Manage Staff' },
           ].map(({ key, label }) => (
             <button
               key={key}
               onClick={() => changeTab(key)}
-              className={`text-left px-6 py-2.5 text-sm transition-none focus:outline-none rounded-none ${
-                activeTab === key
-                  ? 'bg-[#0078D7] border-l-4 border-[#005a9e] text-white font-semibold'
-                  : 'border-l-4 border-transparent hover:bg-[#e6e6e6] text-gray-700'
-              }`}
+              className="text-left px-6 py-2.5 text-sm focus:outline-none"
+              style={{
+                backgroundColor: activeTab === key ? 'var(--color-accent)' : 'transparent',
+                color: activeTab === key ? '#ffffff' : 'var(--text-secondary)',
+                fontWeight: activeTab === key ? '600' : '400',
+                borderLeft: activeTab === key
+                  ? '4px solid var(--color-accent-hover)'
+                  : '4px solid transparent',
+              }}
+              aria-current={activeTab === key ? 'page' : undefined}
             >
               {label}
             </button>
@@ -114,72 +100,121 @@ export default function OwnerDashboard({ shopSettings, cashierName }) {
       </aside>
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 p-6 md:p-8 overflow-y-auto bg-white relative">
-
+      <main
+        className="flex-1 p-4 md:p-8 overflow-y-auto relative"
+        style={{ backgroundColor: 'var(--bg-secondary)' }}
+        role="main"
+        aria-label="Dashboard content"
+      >
         {activeTab === 'dashboard' && <OwnerStats isActive={true} />}
 
-        {activeTab === 'register' && <OwnerCatalog showAlert={showAlert} />}
+        {activeTab === 'register' && <OwnerCatalog />}
 
-        {activeTab === 'categories' && <OwnerCategories showAlert={showAlert} showConfirm={showConfirm} />}
+        {activeTab === 'categories' && <OwnerCategories />}
 
         {activeTab === 'warehouse' && (
           <div className="flex flex-col h-full animate-fade-in">
-            <h1 className="text-2xl font-light text-black mb-6">Main Storage Actions</h1>
-            <div className="flex gap-1 mb-6 border-b border-gray-300 pb-0">
+            <h1 className="text-2xl font-light mb-6" style={{ color: 'var(--text-primary)' }}>
+              Main Storage Actions
+            </h1>
+            <div
+              className="flex gap-1 mb-6 pb-0"
+              style={{ borderBottom: '1px solid var(--border-light)' }}
+              role="tablist"
+              aria-label="Warehouse tabs"
+            >
               {[
                 { key: 'inventory', label: 'All Items' },
-                { key: 'receive',   label: 'Receive Stock' },
-                { key: 'transfer',  label: 'Move to Shop' },
+                { key: 'receive', label: 'Receive Stock' },
+                { key: 'transfer', label: 'Move to Shop' },
               ].map(({ key, label }) => (
                 <button
                   key={key}
                   onClick={() => setSearchParams({ wsub: key })}
-                  className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${
-                    warehouseSubTab === key
-                      ? 'bg-[#0078D7] border-b-2 border-[#005a9e] text-white font-semibold'
-                      : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'
-                  }`}
+                  className="px-6 py-2 text-sm uppercase tracking-wider focus:outline-none"
+                  style={{
+                    backgroundColor: warehouseSubTab === key ? 'var(--color-accent)' : 'var(--bg-secondary)',
+                    color: warehouseSubTab === key ? '#ffffff' : 'var(--text-secondary)',
+                    fontWeight: warehouseSubTab === key ? '600' : '500',
+                    borderBottom: warehouseSubTab === key
+                      ? '2px solid var(--color-accent-hover)'
+                      : '2px solid transparent',
+                  }}
+                  role="tab"
+                  aria-selected={warehouseSubTab === key}
                 >
                   {label}
                 </button>
               ))}
             </div>
-            {warehouseSubTab === 'inventory' && <OwnerInventory viewType="warehouse" showAlert={showAlert} showConfirm={showConfirm} />}
-            {warehouseSubTab === 'receive'   && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling defaultTab="receive"  hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
-            {warehouseSubTab === 'transfer'  && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling defaultTab="transfer" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
+            {warehouseSubTab === 'inventory' && <OwnerInventory viewType="warehouse" />}
+            {warehouseSubTab === 'receive' && (
+              <div style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }} className="flex-1 mb-4">
+                <WorkerBilling defaultTab="receive" hideNav={true} />
+              </div>
+            )}
+            {warehouseSubTab === 'transfer' && (
+              <div style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }} className="flex-1 mb-4">
+                <WorkerBilling defaultTab="transfer" hideNav={true} />
+              </div>
+            )}
           </div>
         )}
 
         {activeTab === 'store' && (
           <div className="flex flex-col h-full animate-fade-in">
-            <h1 className="text-2xl font-light text-black mb-6">Shop Front Actions</h1>
-            <div className="flex gap-1 mb-6 border-b border-gray-300 pb-0">
+            <h1 className="text-2xl font-light mb-6" style={{ color: 'var(--text-primary)' }}>
+              Shop Front Actions
+            </h1>
+            <div
+              className="flex gap-1 mb-6 pb-0"
+              style={{ borderBottom: '1px solid var(--border-light)' }}
+              role="tablist"
+              aria-label="Store tabs"
+            >
               {[
                 { key: 'inventory', label: 'Items in Shop' },
-                { key: 'checkout',  label: 'Checkout Counter' },
+                { key: 'checkout', label: 'Checkout Counter' },
               ].map(({ key, label }) => (
                 <button
                   key={key}
                   onClick={() => setSearchParams({ ssub: key })}
-                  className={`px-6 py-2 text-sm uppercase tracking-wider focus:outline-none rounded-none ${
-                    storeSubTab === key
-                      ? 'bg-[#0078D7] border-b-2 border-[#005a9e] text-white font-semibold'
-                      : 'bg-white border-b-2 border-transparent hover:bg-[#f3f3f3] text-gray-700 font-medium'
-                  }`}
+                  className="px-6 py-2 text-sm uppercase tracking-wider focus:outline-none"
+                  style={{
+                    backgroundColor: storeSubTab === key ? 'var(--color-accent)' : 'var(--bg-secondary)',
+                    color: storeSubTab === key ? '#ffffff' : 'var(--text-secondary)',
+                    fontWeight: storeSubTab === key ? '600' : '500',
+                    borderBottom: storeSubTab === key
+                      ? '2px solid var(--color-accent-hover)'
+                      : '2px solid transparent',
+                  }}
+                  role="tab"
+                  aria-selected={storeSubTab === key}
                 >
                   {label}
                 </button>
               ))}
             </div>
-            {storeSubTab === 'inventory' && <OwnerInventory viewType="store" showAlert={showAlert} showConfirm={showConfirm} />}
-            {storeSubTab === 'checkout'  && <div className="border border-gray-400 bg-white flex-1 mb-4 rounded-none"><WorkerBilling defaultTab="checkout" hideNav={true} shopSettings={shopSettings} cashierName={cashierName} /></div>}
+            {storeSubTab === 'inventory' && <OwnerInventory viewType="store" />}
+            {storeSubTab === 'checkout' && (
+              <div style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }} className="flex-1 mb-4">
+                <WorkerBilling defaultTab="checkout" hideNav={true} />
+              </div>
+            )}
           </div>
         )}
 
-        {activeTab === 'sales' && <div className="block h-full animate-fade-in"><OwnerLedger isActive={true} /></div>}
+        {activeTab === 'sales' && (
+          <div className="block h-full animate-fade-in">
+            <OwnerLedger isActive={true} />
+          </div>
+        )}
 
-        {activeTab === 'staff' && <div className="block h-full animate-fade-in"><OwnerStaff showAlert={showAlert} showConfirm={showConfirm} /></div>}
-
+        {activeTab === 'staff' && (
+          <div className="block h-full animate-fade-in">
+            <OwnerStaff />
+          </div>
+        )}
       </main>
     </div>
   );

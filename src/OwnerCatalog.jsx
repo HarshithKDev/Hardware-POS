@@ -1,186 +1,240 @@
-import { useState, useEffect } from 'react';
-import Barcode from 'react-barcode';
+import { useState } from 'react';
 import { supabase } from './supabaseClient';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useApp } from './AppContext';
+import { generateId } from './utils';
+import { BARCODE_START_VALUE, BARCODE_RETRY_ATTEMPTS, UNIT_TYPES, STALE_TIME_5MIN } from './constants';
+import { Spinner } from './SharedUI';
 
-export default function OwnerCatalog({ showAlert }) {
-  const [newItem, setNewItem] = useState({ name: '', category: '', sub_category: '', price: '', cost_price: '', msp: '', stock_warehouse: '', unit: 'PCS' });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [nextBarcode, setNextBarcode] = useState('Loading...');
-  
-  const [categories, setCategories] = useState([]);
-  const [subcategories, setSubcategories] = useState([]);
-  
-  const [printModal, setPrintModal] = useState({ isOpen: false, item: null, qty: 1 });
+export default function OwnerCatalog() {
+  const { showAlert } = useApp();
+  const queryClient = useQueryClient();
 
-  const fetchInitialData = async () => {
-    try {
-      const { data: latestItem } = await supabase.from('inventory').select('barcode').order('barcode', { ascending: false }).limit(1);
-      setNextBarcode(latestItem && latestItem.length > 0 ? (parseInt(latestItem[0].barcode, 10) + 1).toString() : '1001');
-      
-      const { data: catData } = await supabase.from('categories').select('*');
-      const { data: subData } = await supabase.from('subcategories').select('*');
-      if (catData) setCategories(catData);
-      if (subData) setSubcategories(subData);
-    } catch(e) { setNextBarcode('Error'); }
+  const [form, setForm] = useState({
+    name: '', category: '', sub_category: '', cost_price: '',
+    msp: '', price: '', unit: 'PCS'
+  });
+  const [nextBarcode, setNextBarcode] = useState('');
+  const [printLabelCount, setPrintLabelCount] = useState(0);
+
+  // Fetch Categories
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('categories').select('*').order('name', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: STALE_TIME_5MIN,
+  });
+
+  // Fetch Subcategories
+  const { data: subcategories = [] } = useQuery({
+    queryKey: ['subcategories'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('subcategories').select('*').order('name', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: STALE_TIME_5MIN,
+  });
+
+  // Fetch next barcode
+  useQuery({
+    queryKey: ['nextBarcode'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('inventory').select('barcode').order('barcode', { ascending: false }).limit(1);
+      if (error) throw error;
+      const next = data && data.length > 0 ? (parseInt(data[0].barcode, 10) + 1).toString() : BARCODE_START_VALUE;
+      setNextBarcode(next);
+      return next;
+    },
+  });
+
+  const generateBarcodeLabelsHtml = (itemData) => {
+    let html = `<html><head><style>
+      @page { margin: 0; size: 50mm 25mm; }
+      body { margin: 0; padding: 0; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; background: #fff; color: #000; }
+      .label { width: 48mm; height: 23mm; text-align: center; border: 1px solid #ddd; padding: 2mm; box-sizing: border-box; page-break-after: always; display: flex; flex-direction: column; justify-content: space-between; }
+      .label:last-child { page-break-after: auto; }
+      .name { font-size: 10px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 2px; }
+      .price { font-size: 12px; font-weight: bold; margin-bottom: 2px; }
+      .barcode-text { font-size: 14px; letter-spacing: 2px; font-family: monospace; }
+    </style></head><body>`;
+    for (let i = 0; i < printLabelCount; i++) {
+      html += `
+        <div class="label">
+          <div class="name">${itemData.name}</div>
+          <div class="price">MRP: ₹${itemData.price}</div>
+          <svg id="barcode-${i}"></svg>
+          <div class="barcode-text">${itemData.barcode}</div>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+        <script>
+          JsBarcode("#barcode-${i}", "${itemData.barcode}", { format: "CODE128", width: 1.5, height: 30, displayValue: false, margin: 0 });
+        </script>
+      `;
+    }
+    html += `</body><script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script></html>`;
+    return html;
   };
 
-  useEffect(() => { fetchInitialData(); }, []);
+  const addItemMutation = useMutation({
+    mutationFn: async (itemData) => {
+      let currentBarcode = itemData.barcode;
+      // Retry loop to handle TOCTOU collision when multiple users create items at once
+      for (let attempt = 0; attempt < BARCODE_RETRY_ATTEMPTS; attempt++) {
+        const { error } = await supabase.from('inventory').insert([{
+          id: generateId(),
+          barcode: currentBarcode,
+          name: itemData.name,
+          category: itemData.category || null,
+          sub_category: itemData.sub_category || null,
+          cost_price: Number(itemData.cost_price),
+          msp: Number(itemData.msp),
+          price: Number(itemData.price),
+          stock_warehouse: 0,
+          stock_store: 0,
+          unit: itemData.unit,
+          is_active: true
+        }]);
 
-  const handleAddItem = async (e) => {
-    e.preventDefault(); 
-    if (!newItem.name || !newItem.price || !newItem.cost_price || !newItem.msp) return showAlert("Please fill all the boxes.", "Error");
-    if (!newItem.category || !newItem.sub_category) return showAlert("Please select a Category and Sub-category.", "Error");
-    if (Number(newItem.cost_price) < 0 || Number(newItem.price) < 0 || Number(newItem.msp) < 0) return showAlert("Prices cannot be negative numbers.", "Error");
-    if (Number(newItem.msp) < Number(newItem.cost_price)) return showAlert("MSP cannot be lower than the Cost Price.", "Error");
-    if (Number(newItem.msp) > Number(newItem.price)) return showAlert("MSP cannot be higher than MRP.", "Error");
+        if (!error) return { ...itemData, barcode: currentBarcode };
 
-    try {
-      setIsSubmitting(true);
-      let success = false; let attempts = 0; let safeBarcode = nextBarcode;
-      while (!success && attempts < 3) {
-        try {
-          // Payload (the data being sent to the database)
-          const { error } = await supabase.from('inventory').insert([{ 
-            barcode: safeBarcode, 
-            name: newItem.name, 
-            category: newItem.category,
-            sub_category: newItem.sub_category,
-            cost_price: Number(newItem.cost_price || 0), 
-            msp: Number(newItem.msp || 0), 
-            price: Number(newItem.price || 0), 
-            stock_warehouse: 0, 
-            stock_store: 0, 
-            unit: newItem.unit, 
-            is_active: true 
-          }]);
-          if (error) throw error; success = true; 
-        } catch (insertError) {
-          if (insertError.message?.includes('duplicate key') || insertError.code === '23505') { attempts++; safeBarcode = (parseInt(safeBarcode, 10) + 1).toString(); } else throw insertError; 
+        if (error.code === '23505' && error.message.includes('barcode')) {
+          console.warn(`Barcode ${currentBarcode} taken, retrying... (Attempt ${attempt + 1}/${BARCODE_RETRY_ATTEMPTS})`);
+          const { data: latest } = await supabase.from('inventory').select('barcode').order('barcode', { ascending: false }).limit(1);
+          currentBarcode = latest && latest.length > 0 ? (parseInt(latest[0].barcode, 10) + 1).toString() : (parseInt(currentBarcode, 10) + 1).toString();
+        } else {
+          throw error;
         }
       }
-      if (!success) throw new Error("The system is busy. Please try again.");
+      throw new Error(`Failed to generate a unique barcode after ${BARCODE_RETRY_ATTEMPTS} attempts. Please try again.`);
+    },
+    onSuccess: (savedItem) => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['nextBarcode'] });
       
-      const savedItemData = { barcode: safeBarcode, name: newItem.name, price: Number(newItem.price || 0) };
+      if (printLabelCount > 0) {
+        const printWin = window.open('', '_blank');
+        if (printWin) {
+          printWin.document.write(generateBarcodeLabelsHtml(savedItem));
+          printWin.document.close();
+        } else {
+          showAlert("Popup blocked! Could not print labels.", "Notice");
+        }
+      }
       
-      setNewItem({ name: '', category: '', sub_category: '', cost_price: '', msp: '', price: '', unit: 'PCS' }); 
-      fetchInitialData(); 
-      setPrintModal({ isOpen: true, item: savedItemData, qty: 1 });
+      setForm({ name: '', category: '', sub_category: '', cost_price: '', msp: '', price: '', unit: 'PCS' });
+      setPrintLabelCount(0);
+      showAlert(`Added "${savedItem.name}" with Barcode ${savedItem.barcode}.`, "Success");
+    },
+    onError: (e) => {
+      showAlert(e.message, "Failed to Add Item");
+    }
+  });
 
-    } catch (e) { showAlert(e.message || "Error saving item.", "System Error"); } finally { setIsSubmitting(false); }
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!form.name.trim()) return showAlert("Item name is required.", "Validation Error");
+    if (Number(form.msp) < Number(form.cost_price)) return showAlert("MSP cannot be lower than Cost Price.", "Validation Error");
+    if (Number(form.price) < Number(form.msp)) return showAlert("Selling Price cannot be lower than MSP.", "Validation Error");
+    if (!nextBarcode) return showAlert("System is generating the next barcode, please wait.", "Notice");
+
+    addItemMutation.mutate({ ...form, barcode: nextBarcode });
   };
 
-  const handleClosePrintModal = () => { setPrintModal({ isOpen: false, item: null, qty: 1 }); };
-  const safePrintQty = printModal.qty === '' || printModal.qty < 1 ? 1 : parseInt(printModal.qty);
-
-  const availableSubcategories = subcategories.filter(sub => sub.category_name === newItem.category);
-
   return (
-    <div className="w-full animate-fade-in relative">
-      
-      {printModal.isOpen && (
-        <style>{`
-          @media print { 
-            body * { visibility: hidden !important; } 
-            #new-barcode-print, #new-barcode-print * { visibility: visible !important; } 
-            #new-barcode-print { position: absolute; left: 0; top: 0; width: 100%; display: flex !important; flex-wrap: wrap; align-content: flex-start; } 
-          }
-        `}</style>
-      )}
-
-      {printModal.isOpen && printModal.item && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[200] print:hidden px-4">
-          <div className="bg-white border border-gray-400 w-[400px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] flex flex-col rounded-none">
-            <div className="bg-[#f3f3f3] flex justify-between items-center pr-1 pl-4 py-1 border-b border-gray-300">
-              <span className="text-xs font-semibold uppercase tracking-wider text-black">Print Barcode Labels</span>
-              <button onClick={handleClosePrintModal} className="text-gray-600 hover:bg-[#e81123] hover:text-white px-3 py-1.5 focus:outline-none rounded-none">✕</button>
-            </div>
-            
-            <div className="p-6 bg-white flex flex-col items-center">
-              <p className="text-sm text-[#107c10] font-bold mb-4">✓ Item Registered Successfully</p>
-              
-              <div className="border border-gray-300 p-4 mb-5 bg-[#f9f9f9] text-center w-[50mm] shadow-sm">
-                <p className="text-xs font-bold text-black mb-1 truncate">{printModal.item.name}</p>
-                <div className="flex justify-center bg-white p-1 border border-gray-200">
-                  <Barcode value={printModal.item.barcode} width={1.2} height={40} fontSize={12} margin={0} />
-                </div>
-                <p className="text-sm font-bold text-black mt-1">₹{printModal.item.price.toFixed(2)}</p>
-              </div>
-              
-              <div className="w-full">
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-2 text-center">Number of Labels to Print</label>
-                <input 
-                  type="number" 
-                  min="1" 
-                  value={printModal.qty} 
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setPrintModal({...printModal, qty: val === '' ? '' : parseInt(val)});
-                  }} 
-                  onBlur={() => {
-                    if (printModal.qty === '' || printModal.qty < 1) setPrintModal({...printModal, qty: 1});
-                  }}
-                  className="w-full h-10 px-3 border-2 border-gray-300 bg-white text-lg rounded-none focus:outline-none focus:border-[#0078D7] text-center font-bold" 
-                />
-              </div>
-            </div>
-            
-            <div className="p-3 bg-[#f3f3f3] border-t border-gray-300 flex justify-end gap-2">
-              <button onClick={() => { window.print(); handleClosePrintModal(); }} className="h-9 px-8 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm font-semibold rounded-none focus:outline-none focus:ring-2 focus:ring-[#0078D7] focus:ring-offset-1">Print Now</button>
-              <button onClick={handleClosePrintModal} className="h-9 px-6 bg-[#e6e6e6] hover:bg-[#cccccc] text-black text-sm font-semibold border border-gray-400 rounded-none focus:outline-none">Skip</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {printModal.isOpen && printModal.item && (
-        <div id="new-barcode-print" className="hidden print:flex flex-wrap content-start justify-start bg-white w-full h-full">
-          {/* Array.from (a method to create a new array from an iterable object) */}
-          {Array.from({ length: safePrintQty }).map((_, index) => (
-            <div key={`${printModal.item.barcode}-${index}`} className="flex flex-col items-center justify-center p-1 border-gray-200 w-[50mm] h-[25mm] overflow-hidden break-inside-avoid mb-2 mr-2">
-               <p className="text-[9px] font-bold text-black truncate w-full text-center leading-none mb-1">{printModal.item.name}</p>
-               <Barcode value={printModal.item.barcode} width={1} height={25} fontSize={10} margin={0} displayValue={true} />
-               <p className="text-[10px] font-bold text-black leading-none mt-1">₹{printModal.item.price.toFixed(2)}</p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <h1 className="text-2xl font-light text-black mb-6">Add New Item</h1>
-      <div className="bg-[#f3f3f3] border border-gray-400 p-6 w-full rounded-none">
-        <h2 className="text-sm font-semibold uppercase text-gray-600 mb-6 border-b border-gray-300 pb-2 tracking-wider">Item Details</h2>
-        <form onSubmit={handleAddItem} className="flex flex-wrap gap-4 items-end w-full">
-          <div className="flex flex-col w-32 shrink-0"><label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">Barcode</label><input type="text" value={nextBarcode} disabled className="h-10 border-2 border-gray-300 bg-[#e6e6e6] text-[#0078D7] px-3 text-sm text-center font-bold focus:outline-none" /></div>
-          <div className="flex flex-col flex-1 min-w-[200px]"><label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">Product Name</label><input type="text" value={newItem.name} onChange={e=>setNewItem({...newItem,name:e.target.value})} className="h-10 border-2 border-gray-300 bg-white px-3 text-sm rounded-none focus:outline-none focus:border-[#0078D7]" /></div>
-          
-          <div className="flex flex-col w-40 shrink-0">
-            <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">Category</label>
-            <select value={newItem.category} onChange={e=>setNewItem({...newItem, category: e.target.value, sub_category: ''})} className="h-10 border-2 border-gray-300 bg-white px-2 text-sm rounded-none focus:outline-none focus:border-[#0078D7] cursor-pointer">
-              <option value="">Select</option>
-              {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-            </select>
-          </div>
-          
-          <div className="flex flex-col w-40 shrink-0">
-            <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">Sub-Category</label>
-            <select value={newItem.sub_category} onChange={e=>setNewItem({...newItem, sub_category: e.target.value})} disabled={!newItem.category} className="h-10 border-2 border-gray-300 bg-white px-2 text-sm rounded-none focus:outline-none focus:border-[#0078D7] disabled:bg-gray-100 disabled:cursor-not-allowed cursor-pointer">
-              <option value="">Select</option>
-              {availableSubcategories.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-            </select>
-          </div>
-
-          <div className="flex flex-col w-24 shrink-0">
-            <label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">Unit Type</label>
-            <select value={newItem.unit} onChange={e=>setNewItem({...newItem,unit:e.target.value})} className="h-10 border-2 border-gray-300 bg-white px-2 text-sm rounded-none focus:outline-none focus:border-[#0078D7] cursor-pointer font-medium text-gray-700">
-              <option value="PCS">Pieces</option><option value="GRAMS">Grams</option><option value="SQFT">Sq Ft</option>
-            </select>
-          </div>
-          
-          <div className="flex flex-col w-24 shrink-0"><label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">Cost (₹)</label><input type="number" step="1" min="0" value={newItem.cost_price} onChange={e=>setNewItem({...newItem,cost_price:e.target.value})} className="h-10 border-2 border-gray-300 bg-white px-3 text-sm rounded-none focus:outline-none focus:border-[#0078D7]" /></div>
-          <div className="flex flex-col w-24 shrink-0"><label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">MSP (₹)</label><input type="number" step="1" min="0" value={newItem.msp} onChange={e=>setNewItem({...newItem,msp:e.target.value})} className="h-10 border-2 border-gray-300 bg-white px-3 text-sm rounded-none focus:outline-none focus:border-[#0078D7]" /></div>
-          <div className="flex flex-col w-24 shrink-0"><label className="text-xs font-semibold mb-1.5 uppercase text-gray-700">MRP (₹)</label><input type="number" step="1" min="0" value={newItem.price} onChange={e=>setNewItem({...newItem,price:e.target.value})} className="h-10 border-2 border-gray-300 bg-white px-3 text-sm rounded-none focus:outline-none focus:border-[#0078D7]" /></div>
-          <div className="w-full xl:w-32 shrink-0"><button type="submit" disabled={isSubmitting} className="h-10 bg-[#0078D7] hover:bg-[#005a9e] text-white px-4 text-sm font-semibold rounded-none focus:outline-none w-full flex items-center justify-center">{isSubmitting ? 'Wait...' : 'Save Item'}</button></div>
-        </form>
+    <div className="flex flex-col h-full gap-6 animate-fade-in max-w-4xl mx-auto">
+      <div>
+        <h1 className="text-2xl font-light mb-2" style={{ color: 'var(--text-primary)' }}>Register New Item</h1>
+        <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+          Assigned Barcode: <span className="font-mono font-bold text-lg" style={{ color: 'var(--color-accent)' }}>{nextBarcode || '...'}</span>
+        </p>
+        <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
+          Note: This barcode is provisional. If someone else registers an item at the exact same time, the system will automatically assign the next available number.
+        </p>
       </div>
+      
+      <form onSubmit={handleSubmit} className="p-4 md:p-8 shadow-sm flex flex-col gap-6" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="md:col-span-2">
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-name">Nomenclature</label>
+            <input id="item-name" type="text" autoFocus required value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} placeholder="e.g. 10mm Steel Rebar" className="w-full h-10 px-3 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-cat">Category</label>
+            <div className="relative">
+              <select id="item-cat" value={form.category} onChange={(e) => setForm({...form, category: e.target.value, sub_category: ''})} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
+                <option value="">-- None --</option>
+                {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg></div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-subcat">Sub-category</label>
+            <div className="relative">
+              <select id="item-subcat" value={form.sub_category} onChange={(e) => setForm({...form, sub_category: e.target.value})} disabled={!form.category} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer disabled:cursor-not-allowed" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
+                <option value="">-- None --</option>
+                {subcategories.filter(sub => sub.category_name === form.category).map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg></div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-cost">Cost Price (₹)</label>
+            <input id="item-cost" type="number" step="any" min="0" required value={form.cost_price} onChange={(e) => setForm({...form, cost_price: e.target.value})} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-msp">Minimum Selling Price (₹)</label>
+            <input id="item-msp" type="number" step="any" min="0" required value={form.msp} onChange={(e) => setForm({...form, msp: e.target.value})} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-mrp">Maximum Retail Price (₹)</label>
+            <input id="item-mrp" type="number" step="any" min="0" required value={form.price} onChange={(e) => setForm({...form, price: e.target.value})} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-unit">Unit Type</label>
+            <div className="relative">
+              <select id="item-unit" value={form.unit} onChange={(e) => setForm({...form, unit: e.target.value})} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
+                {UNIT_TYPES.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 pt-6 flex flex-col md:flex-row justify-between items-center gap-4" style={{ borderTop: '1px solid var(--border-light)' }}>
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <label htmlFor="print-qty" className="text-sm font-semibold whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>Print Labels:</label>
+            <input 
+              id="print-qty"
+              type="number" 
+              min="0" 
+              max="50" 
+              value={printLabelCount} 
+              onChange={(e) => setPrintLabelCount(Math.max(0, parseInt(e.target.value) || 0))} 
+              className="w-20 h-10 px-2 text-center text-sm font-bold focus:outline-none" 
+              style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} 
+            />
+          </div>
+          <button 
+            type="submit" 
+            disabled={addItemMutation.isPending || !nextBarcode} 
+            className="w-full md:w-auto h-10 px-10 text-white text-sm font-semibold uppercase tracking-wider disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-1 flex justify-center items-center min-w-[200px]" 
+            style={{ backgroundColor: 'var(--color-accent)' }}
+          >
+            {addItemMutation.isPending ? <Spinner className="w-5 h-5 text-white" /> : 'Save Item'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

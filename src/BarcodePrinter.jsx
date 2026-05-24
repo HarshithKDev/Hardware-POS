@@ -53,10 +53,10 @@ export default function BarcodePrinter() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh]">
       
-      <div className="w-full max-w-4xl bg-white border border-gray-400 rounded-none shadow-none print:hidden animate-fade-in">
-        <div className="bg-[#f3f3f3] p-4 text-black border-b border-gray-400">
+      <div className="w-full max-w-4xl rounded-none shadow-none print:hidden animate-fade-in" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+        <div className="p-4" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
           <h1 className="text-xl font-light">Print Barcode Labels</h1>
-          <p className="text-gray-500 text-xs mt-1">Build a queue of products to print multiple labels at once.</p>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>Build a queue of products to print multiple labels at once.</p>
         </div>
 
         <div className="p-8">
@@ -65,22 +65,26 @@ export default function BarcodePrinter() {
             <div className="space-y-6">
               
               <div className="relative">
-                <label className="block text-sm text-gray-600 mb-1">Search Product Name or Barcode</label>
+                <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>Search Product Name or Barcode</label>
                 <input 
                   type="text" 
                   value={searchTerm} 
                   onChange={(e) => setSearchTerm(e.target.value)} 
                   placeholder="e.g., Brass Handle or 1001..." 
-                  className="w-full px-3 py-2 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-sm rounded-none text-black"
+                  className="w-full px-3 py-2 focus:outline-none text-sm rounded-none"
+                  style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
                 />
                 
                 {filteredInventory.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-400 shadow-lg max-h-60 overflow-y-auto">
+                  <div className="absolute z-10 w-full mt-1 shadow-lg max-h-60 overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
                     {filteredInventory.map(item => (
                       <div 
                         key={item.id} 
                         onClick={() => handleSelectItem(item)}
-                        className="p-3 hover:bg-[#0078D7] hover:text-white cursor-pointer border-b border-gray-200 last:border-0 transition-colors text-black"
+                        className="p-3 cursor-pointer transition-colors group"
+                        style={{ borderBottom: '1px solid var(--border-light)', color: 'var(--text-primary)' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-accent)'; e.currentTarget.style.color = '#fff'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-primary)'; }}
                       >
                         <p className="font-medium text-sm">{item.name}</p>
                         <p className="text-xs opacity-80">#{item.barcode} • ₹{Number(item.price).toFixed(2)}</p>
@@ -91,32 +95,33 @@ export default function BarcodePrinter() {
               </div>
 
               {printQueue.length > 0 && (
-                <div className="bg-white border border-gray-400 rounded-none overflow-hidden">
+                <div className="rounded-none overflow-x-auto" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-[#e6e6e6] text-black text-xs uppercase border-b border-gray-400">
-                        <th className="p-2 border-r border-gray-300">Item</th>
-                        <th className="p-2 border-r border-gray-300 w-20 text-center">Qty</th>
+                      <tr className="text-xs uppercase" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
+                        <th className="p-2" style={{ borderRight: '1px solid var(--border-light)' }}>Item</th>
+                        <th className="p-2 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Qty</th>
                         <th className="p-2 w-10 text-center"></th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className="divide-y" style={{ divideColor: 'var(--border-light)' }}>
                       {printQueue.map((item) => (
-                        <tr key={item.barcode} className="hover:bg-[#f0f0f0]">
-                          <td className="p-2 border-r border-gray-200 text-sm text-black">
-                            {item.name} <span className="block text-xs text-gray-400">#{item.barcode}</span>
+                        <tr key={item.barcode} className="transition-colors hover:bg-[var(--bg-hover)]">
+                          <td className="p-2 text-sm" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
+                            {item.name} <span className="block text-xs" style={{ color: 'var(--text-tertiary)' }}>#{item.barcode}</span>
                           </td>
-                          <td className="p-2 border-r border-gray-200 text-center">
+                          <td className="p-2 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
                             <input 
                               type="number" 
                               min="1" 
                               value={item.printQty} 
                               onChange={(e) => updateQuantity(item.barcode, e.target.value)} 
-                              className="w-full px-1 py-1 border border-gray-400 focus:outline-none focus:border-[#0078D7] text-sm rounded-none text-center text-black"
+                              className="w-full px-1 py-1 focus:outline-none text-sm rounded-none text-center"
+                              style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
                             />
                           </td>
                           <td className="p-2 text-center">
-                            <button onClick={() => removeFromQueue(item.barcode)} className="text-[#e81123] hover:text-red-700 font-bold text-lg leading-none">×</button>
+                            <button onClick={() => removeFromQueue(item.barcode)} className="font-bold text-lg leading-none" style={{ color: 'var(--color-error)' }}>×</button>
                           </td>
                         </tr>
                       ))}
@@ -129,13 +134,15 @@ export default function BarcodePrinter() {
                 <div className="flex gap-4">
                   <button 
                     onClick={() => setPrintQueue([])}
-                    className="px-4 py-2 bg-[#e6e6e6] hover:bg-[#cccccc] text-black text-sm transition-colors rounded-none border border-gray-400"
+                    className="px-4 py-2 text-sm transition-colors rounded-none focus:outline-none"
+                    style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
                   >
                     Clear All
                   </button>
                   <button 
                     onClick={() => window.print()}
-                    className="flex-1 py-2 bg-[#0078D7] hover:bg-[#005a9e] text-white text-sm transition-colors rounded-none border border-[#005a9e]"
+                    className="flex-1 py-2 text-white text-sm transition-colors rounded-none border-transparent focus:outline-none"
+                    style={{ backgroundColor: 'var(--color-accent)' }}
                   >
                     Print All {totalLabels} Label{totalLabels !== 1 ? 's' : ''}
                   </button>
@@ -143,18 +150,19 @@ export default function BarcodePrinter() {
               )}
             </div>
 
-            <div className="border border-gray-400 bg-[#f9f9f9] p-6 flex flex-col items-center justify-center min-h-75">
-              <p className="text-xs text-gray-500 uppercase mb-4">Label Format Preview</p>
+            <div className="p-6 flex flex-col items-center justify-center min-h-75" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}>
+              <p className="text-xs uppercase mb-4" style={{ color: 'var(--text-secondary)' }}>Label Format Preview</p>
               {printQueue.length > 0 ? (
-                <div className="text-center bg-white p-3 border border-gray-300 shadow-sm inline-block w-[50mm]">
-                  <p className="text-xs font-bold text-black mb-1 truncate mx-auto">{printQueue[0].name}</p>
+                <div className="text-center p-3 shadow-sm inline-block w-[50mm]" style={{ backgroundColor: '#ffffff', border: '1px solid #dddddd' }}>
+                  <p className="text-xs font-bold mb-1 truncate mx-auto" style={{ color: '#000000' }}>{printQueue[0].name}</p>
                   <div className="flex justify-center">
-                    <Barcode value={printQueue[0].barcode} width={1.2} height={40} fontSize={12} margin={0} />
+                    {/* React Barcode will render inline styles automatically, but ensure it receives standard colors */}
+                    <Barcode value={printQueue[0].barcode} width={1.2} height={40} fontSize={12} margin={0} lineColor="#000000" background="#ffffff" />
                   </div>
-                  <p className="text-sm font-bold text-black mt-1">₹{Number(printQueue[0].price).toFixed(2)}</p>
+                  <p className="text-sm font-bold mt-1" style={{ color: '#000000' }}>₹{Number(printQueue[0].price).toFixed(2)}</p>
                 </div>
               ) : (
-                <p className="text-gray-400 text-sm">Add items to queue to see preview</p>
+                <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Add items to queue to see preview</p>
               )}
             </div>
 
@@ -163,13 +171,13 @@ export default function BarcodePrinter() {
       </div>
 
       {printQueue.length > 0 && (
-        <div className="hidden print:flex flex-wrap content-start justify-start bg-white w-full h-full">
+        <div className="hidden print:flex flex-wrap content-start justify-start w-full h-full" style={{ backgroundColor: '#ffffff' }}>
           {printQueue.map((item) => (
             Array.from({ length: item.printQty }).map((_, index) => (
-              <div key={`${item.barcode}-${index}`} className="flex flex-col items-center justify-center p-1 border-gray-200 w-[50mm] h-[25mm] overflow-hidden break-inside-avoid mb-2 mr-2">
-                 <p className="text-[9px] font-bold text-black truncate w-full text-center leading-none mb-1">{item.name}</p>
-                 <Barcode value={item.barcode} width={1} height={25} fontSize={10} margin={0} displayValue={true} />
-                 <p className="text-[10px] font-bold text-black leading-none mt-1">₹{Number(item.price).toFixed(2)}</p>
+              <div key={`${item.barcode}-${index}`} className="flex flex-col items-center justify-center p-1 w-[50mm] h-[25mm] overflow-hidden break-inside-avoid mb-2 mr-2" style={{ border: '1px solid #dddddd', backgroundColor: '#ffffff' }}>
+                 <p className="text-[9px] font-bold truncate w-full text-center leading-none mb-1" style={{ color: '#000000' }}>{item.name}</p>
+                 <Barcode value={item.barcode} width={1} height={25} fontSize={10} margin={0} displayValue={true} lineColor="#000000" background="#ffffff" />
+                 <p className="text-[10px] font-bold leading-none mt-1" style={{ color: '#000000' }}>₹{Number(item.price).toFixed(2)}</p>
               </div>
             ))
           ))}
