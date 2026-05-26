@@ -14,7 +14,7 @@ export default function OwnerInventory({ viewType }) {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedSubcategory, setSelectedSubcategory] = useState('');
-  const [sortOption, setSortOption] = useState('barcode-asc');
+  const [sortOption, setSortOption] = useState('barcode-desc');
   const [invPage, setInvPage] = useState(0);
   const queryClient = useQueryClient();
 

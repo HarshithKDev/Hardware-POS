@@ -173,7 +173,7 @@ function App() {
 
       {/* NAVBAR */}
       <nav
-        className="w-full shadow-sm h-[60px] flex items-center justify-between px-4 flex-shrink-0 relative z-[9999]"
+        className="w-full shadow-sm h-[60px] flex-shrink-0 relative z-[9999]"
         style={{
           backgroundColor: 'var(--bg-secondary)',
           borderBottom: '1px solid var(--border-medium)',
@@ -181,19 +181,20 @@ function App() {
         role="navigation"
         aria-label="Main navigation"
       >
-        <div
-          className="h-full flex items-center pr-2 md:pr-4 max-w-[120px] md:max-w-none md:w-[240px] flex-shrink-0"
-          style={{ borderRight: '1px solid var(--border-medium)' }}
-        >
-          <span
-            className="text-sm font-bold uppercase tracking-wider truncate w-full block"
-            style={{ color: 'var(--text-primary)' }}
+        <div className="w-full max-w-[1920px] mx-auto flex items-center justify-between h-full">
+          <div
+            className="h-full flex items-center justify-center flex-shrink-0 px-4 md:px-0 w-auto md:w-[265px]"
+            style={{ borderRight: '1px solid var(--border-medium)' }}
           >
-            {cashierName}
-          </span>
-        </div>
+            <span
+              className="text-sm font-bold uppercase tracking-wider truncate text-center w-full"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              {cashierName}
+            </span>
+          </div>
 
-        <div className="flex-1 flex items-center justify-end gap-2 md:gap-3 h-full pl-2 md:pl-4 overflow-x-auto hide-scrollbar" style={{ scrollbarWidth: 'none' }}>
+        <div className="flex-1 flex items-center justify-end gap-2 md:gap-3 h-full pl-2 pr-4 md:pl-4 overflow-x-auto hide-scrollbar" style={{ scrollbarWidth: 'none' }}>
           {!isOnline && (
             <div className="flex items-center gap-1 text-xs font-bold px-2 py-1 bg-[var(--color-error)] text-white mr-auto animate-pulse whitespace-nowrap shrink-0">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -301,6 +302,7 @@ function App() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
             </svg>
           </button>
+        </div>
         </div>
       </nav>
 

@@ -3,7 +3,9 @@ import { supabase } from './supabaseClient';
 import { Spinner } from './SharedUI';
 import ReceiptTemplate from './ReceiptTemplate';
 import { PrintPreviewModal } from './AppModals';
-import { getInventoryItemByBarcode, queueOfflineTransaction } from './services/db';
+import { useQueryClient } from '@tanstack/react-query';
+import { getInventoryItemByBarcode, queueOfflineTransaction, getInventoryByQuery, saveInventoryBatch } from './services/db';
+import { syncInventoryToLocal } from './services/sync';
 import { useApp } from './AppContext';
 import { generateId, formatDateTime } from './utils';
 import { SCAN_TIMEOUT_MS } from './constants';
@@ -152,6 +154,7 @@ function CartMobileView({ cart, activeTab, onUpdateQuantity, onUpdateDimensions 
 // ---------------------------------------------------------------
 export default function WorkerTerminal({ activeTab, shopSettings, cashierName }) {
   const { showAlert, showConfirm, alertConfig, confirmConfig } = useApp();
+  const queryClient = useQueryClient();
 
   const [cart, setCart] = useState(() => {
     try { const saved = localStorage.getItem(`pos_cart_${activeTab}`); return saved ? JSON.parse(saved) : []; } catch { return []; }
@@ -161,6 +164,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const [lastReceipt, setLastReceipt] = useState(null);
   const [checkoutModal, setCheckoutModal] = useState({ isOpen: false, cashGiven: '' });
   const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const barcodeBuffer = useRef('');
   const lastKeyTime = useRef(Date.now());
@@ -172,6 +177,29 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   useEffect(() => { cartRef.current = cart; localStorage.setItem(`pos_cart_${activeTab}`, JSON.stringify(cart)); }, [cart, activeTab]);
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
   useEffect(() => { showAlertRef.current = showAlert; }, [showAlert]);
+
+  useEffect(() => {
+    if (manualBarcode.trim().length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    const fetchSuggestions = async () => {
+      try {
+        const { data } = await getInventoryByQuery({
+          limit: 10,
+          offset: 0,
+          search: manualBarcode,
+        });
+        setSuggestions(data || []);
+        setShowSuggestions(true);
+      } catch (error) {
+        console.error("Suggestion fetch error:", error);
+      }
+    };
+    const timer = setTimeout(fetchSuggestions, 200);
+    return () => clearTimeout(timer);
+  }, [manualBarcode]);
 
   const processScan = useCallback(async (scannedCode) => {
     const cleanBarcode = scannedCode.trim();
@@ -331,6 +359,30 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         setTimeout(() => showAlertRef.current("Transaction queued offline. It will sync automatically when internet returns.", "Offline Mode"), 100);
       }
 
+      // Manually update local IDB for instant feedback
+      for (const item of finalCart) {
+        const localItem = await getInventoryItemByBarcode(item.barcode);
+        if (localItem) {
+          if (activeTab === 'receive') {
+            localItem.stock_warehouse = (Number(localItem.stock_warehouse) || 0) + Number(item.quantity);
+          } else if (activeTab === 'transfer') {
+            localItem.stock_warehouse = Math.max(0, (Number(localItem.stock_warehouse) || 0) - Number(item.quantity));
+            localItem.stock_store = (Number(localItem.stock_store) || 0) + Number(item.quantity);
+          } else if (activeTab === 'checkout') {
+            localItem.stock_store = Math.max(0, (Number(localItem.stock_store) || 0) - Number(item.quantity));
+          }
+          await saveInventoryBatch([localItem]);
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+
+      if (navigator.onLine) {
+        // Trigger background sync to ensure true consistency with server
+        syncInventoryToLocal().then(() => {
+          queryClient.invalidateQueries({ queryKey: ['inventory'] });
+        });
+      }
+
       setLastReceipt({
         id: successData.bill_id.split('-')[0],
         items: finalCart.map(i => {
@@ -414,10 +466,29 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             <h2 className="text-2xl font-light" style={{ color: 'var(--text-primary)' }}>
               {activeTab === 'receive' ? 'Receive New Stock' : activeTab === 'transfer' ? 'Move Stock to Store' : 'Checkout Counter'}
             </h2>
-            <form onSubmit={(e) => { e.preventDefault(); processScan(manualBarcode); setManualBarcode(''); }} className="mt-3 flex items-center">
+            <form onSubmit={(e) => { e.preventDefault(); processScan(manualBarcode); setManualBarcode(''); setShowSuggestions(false); }} className="mt-3 flex items-center relative">
               <label htmlFor="manual-barcode" className="sr-only">Barcode</label>
-              <input id="manual-barcode" type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} placeholder="Enter Barcode manually..." className="h-9 px-3 text-sm focus:outline-none w-full md:w-64" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+              <input id="manual-barcode" type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} onFocus={() => manualBarcode.trim().length >= 2 && setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder="Search barcode or name..." className="h-9 px-3 text-sm focus:outline-none w-full md:w-64" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} autoComplete="off" />
               <button type="submit" className="h-9 px-4 text-sm font-semibold focus:outline-none" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '2px solid var(--border-input)', borderLeft: 'none' }}>Add</button>
+              {showSuggestions && suggestions.length > 0 && (
+                <ul className="absolute top-[100%] left-0 w-full md:w-64 bg-[var(--bg-secondary)] border border-[var(--border-medium)] z-50 max-h-60 overflow-y-auto shadow-lg mt-1 rounded-sm">
+                  {suggestions.map((item) => (
+                    <li 
+                      key={item.barcode} 
+                      className="px-3 py-2 cursor-pointer hover:bg-[var(--bg-hover)] text-sm flex justify-between border-b border-[var(--border-light)] last:border-0"
+                      onMouseDown={(e) => { 
+                        e.preventDefault(); 
+                        setManualBarcode(''); 
+                        setShowSuggestions(false);
+                        processScan(item.barcode); 
+                      }}
+                    >
+                      <span className="truncate pr-2 font-medium" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
+                      <span className="text-[10px] font-mono whitespace-nowrap self-center px-1.5 py-0.5 rounded-sm" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)' }}>#{item.barcode}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </form>
           </div>
           <div className="text-left md:text-right flex flex-col justify-end pt-2 md:pt-0" style={{ borderTop: window.innerWidth < 768 ? `1px solid var(--border-light)` : 'none' }}>

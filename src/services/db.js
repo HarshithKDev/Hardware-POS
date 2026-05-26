@@ -42,6 +42,7 @@ export const getInventoryByQuery = async ({ limit, offset, search, category, sub
   const db = await initDB();
   const tx = db.transaction('inventory', 'readonly');
   let allItems = await tx.store.getAll();
+  allItems = allItems.filter(i => i.is_active !== false);
 
   if (search) {
     const s = search.toLowerCase();

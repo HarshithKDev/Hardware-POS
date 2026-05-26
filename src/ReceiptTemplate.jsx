@@ -5,8 +5,8 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
   return (
     <div 
       id={isPreview ? undefined : "printable-receipt"} 
-      className={`${isPreview ? 'mx-auto shadow-md border border-gray-300' : 'hidden print:block'} thermal-receipt`} 
-      style={{ fontFamily: "'Courier New', Courier, monospace", color: '#000000', backgroundColor: '#ffffff', ...(isPreview ? { width: '80mm', minHeight: '100mm' } : {}) }}
+      className={`${isPreview ? 'mx-auto shadow-md border border-gray-300 w-full p-4 md:p-6 bg-white box-border' : 'hidden print:block'} thermal-receipt`} 
+      style={{ fontFamily: "'Courier New', Courier, monospace", color: '#000000', backgroundColor: '#ffffff', ...(isPreview ? { minHeight: '100mm' } : {}) }}
     >
       {!isPreview && (
         <style type="text/css" media="print">

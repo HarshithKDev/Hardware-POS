@@ -133,9 +133,9 @@ export function PrintPreviewModal({ isOpen, onClose, title = "Print Preview", ty
           <button onClick={onClose} className="px-3 py-1.5 leading-none transition-none focus:outline-none rounded-none" style={{ color: 'var(--text-secondary)' }}>✕</button>
         </div>
         
-        <div className="p-6 flex justify-center items-center overflow-auto" style={{ backgroundColor: 'var(--bg-primary)', minHeight: '300px', maxHeight: '60vh' }}>
+        <div className="p-4 md:p-6 flex justify-center items-center overflow-auto" style={{ backgroundColor: 'var(--bg-primary)', minHeight: '300px', maxHeight: '60vh' }}>
           {type === 'receipt' ? (
-            <div className="bg-white p-4 shadow-sm w-[80mm] min-h-[100mm] text-black">
+            <div className="w-full max-w-[350px] min-h-[100mm] text-black">
               {children}
             </div>
           ) : (
