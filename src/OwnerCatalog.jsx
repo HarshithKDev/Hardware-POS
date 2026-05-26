@@ -15,11 +15,11 @@ export default function OwnerCatalog() {
 
   const [form, setForm] = useState({
     name: '', category: '', sub_category: '', cost_price: '',
-    msp: '', price: '', unit: 'PCS'
+    msp: '', price: '', unit: 'PCS', min_quantity: ''
   });
   const [nextBarcode, setNextBarcode] = useState('');
   const [printLabelCount, setPrintLabelCount] = useState(0);
-  const [barcodePreview, setBarcodePreview] = useState({ isOpen: false, html: '' });
+  const [barcodePreview, setBarcodePreview] = useState({ isOpen: false, previewHtml: '', printHtml: '' });
   const fileInputRef = useRef(null);
 
   // Fetch Categories
@@ -56,31 +56,60 @@ export default function OwnerCatalog() {
     },
   });
 
-  const generateBarcodeLabelsHtml = (itemData) => {
-    let html = `<html><head><style>
-      @page { margin: 0; size: 50mm 25mm; }
-      body { margin: 0; padding: 0; font-family: sans-serif; background: #fff; color: #000; }
-      .label { width: 48mm; height: 23mm; text-align: center; border: 1px solid #ddd; padding: 2mm; box-sizing: border-box; page-break-after: always; display: flex; flex-direction: column; justify-content: space-between; margin: 0 auto; }
-      .label:last-child { page-break-after: auto; }
-      .name { font-size: 10px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 2px; }
-      .price { font-size: 12px; font-weight: bold; margin-bottom: 2px; }
-      .barcode-text { font-size: 14px; letter-spacing: 2px; font-family: monospace; }
-    </style></head><body>`;
-    for (let i = 0; i < printLabelCount; i++) {
+  // Single barcode preview for the modal
+  const generateSinglePreviewHtml = (itemData) => {
+    return `<html><head>
+      <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script>
+      <style>
+        body { margin: 0; padding: 20px; font-family: sans-serif; background: #fff; color: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; box-sizing: border-box; }
+        .label { width: 50mm; text-align: center; border: 1px solid #ccc; padding: 3mm; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 2px; }
+        .name { font-size: 10px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }
+        .price { font-size: 11px; font-weight: bold; }
+        .barcode-text { font-size: 12px; letter-spacing: 2px; font-family: monospace; }
+      </style></head><body>
+      <div class="label">
+        <div class="name">${itemData.name}</div>
+        <div class="price">MRP: ₹${itemData.price}</div>
+        <svg id="barcode-0"></svg>
+        <div class="barcode-text">${itemData.barcode}</div>
+      </div>
+      <script>
+        JsBarcode("#barcode-0", "${itemData.barcode}", { format: "CODE128", width: 1.5, height: 30, displayValue: false, margin: 0 });
+      <\/script>
+    </body></html>`;
+  };
+
+  // Full grid for actual printing (5 per row, A4)
+  const generatePrintHtml = (itemData, count) => {
+    let html = `<html><head>
+      <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script>
+      <style>
+        @page { margin: 5mm; size: A4; }
+        body { margin: 0; padding: 0; font-family: sans-serif; background: #fff; color: #000; }
+        .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2mm; width: 100%; }
+        .label { height: 24mm; text-align: center; border: 1px solid #ccc; padding: 1.5mm; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; }
+        .name { font-size: 8px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }
+        .price { font-size: 9px; font-weight: bold; }
+        .barcode-text { font-size: 10px; letter-spacing: 1.5px; font-family: monospace; }
+        svg { max-width: 100%; }
+      </style></head><body>
+      <div class="grid">`;
+    for (let i = 0; i < count; i++) {
       html += `
         <div class="label">
           <div class="name">${itemData.name}</div>
           <div class="price">MRP: ₹${itemData.price}</div>
           <svg id="barcode-${i}"></svg>
           <div class="barcode-text">${itemData.barcode}</div>
-        </div>
-        <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-        <script>
-          JsBarcode("#barcode-${i}", "${itemData.barcode}", { format: "CODE128", width: 1.5, height: 30, displayValue: false, margin: 0 });
-        </script>
-      `;
+        </div>`;
     }
-    html += `</body></html>`;
+    html += `</div>
+      <script>
+        for (let i = 0; i < ${count}; i++) {
+          JsBarcode("#barcode-" + i, "${itemData.barcode}", { format: "CODE128", width: 1.5, height: 25, displayValue: false, margin: 0 });
+        }
+      <\/script>
+    </body></html>`;
     return html;
   };
 
@@ -101,6 +130,7 @@ export default function OwnerCatalog() {
           stock_warehouse: 0,
           stock_store: 0,
           unit: itemData.unit,
+          min_quantity: Number(itemData.min_quantity) || 0,
           is_active: true
         }]);
 
@@ -121,11 +151,12 @@ export default function OwnerCatalog() {
       queryClient.invalidateQueries({ queryKey: ['nextBarcode'] });
       
       if (printLabelCount > 0) {
-        const html = generateBarcodeLabelsHtml(savedItem);
-        setBarcodePreview({ isOpen: true, html });
+        const previewHtml = generateSinglePreviewHtml(savedItem);
+        const printHtml = generatePrintHtml(savedItem, printLabelCount);
+        setBarcodePreview({ isOpen: true, previewHtml, printHtml });
       }
       
-      setForm({ name: '', category: '', sub_category: '', cost_price: '', msp: '', price: '', unit: 'PCS' });
+      setForm({ name: '', category: '', sub_category: '', cost_price: '', msp: '', price: '', unit: 'PCS', min_quantity: '' });
       setPrintLabelCount(0);
       showAlert(`Added "${savedItem.name}" with Barcode ${savedItem.barcode}.`, "Success");
     },
@@ -154,7 +185,8 @@ export default function OwnerCatalog() {
         cost_price: '50',
         msp: '60',
         price: '75',
-        unit: 'PCS'
+        unit: 'PCS',
+        min_quantity: '10'
       }
     ];
     
@@ -165,7 +197,7 @@ export default function OwnerCatalog() {
     // Auto-size columns
     worksheet['!cols'] = [
       { wch: 15 }, { wch: 35 }, { wch: 15 }, { wch: 15 },
-      { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }
+      { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }
     ];
 
     XLSX.writeFile(workbook, 'Inventory_Import_Template.xlsx');
@@ -200,6 +232,7 @@ export default function OwnerCatalog() {
         stock_warehouse: 0,
         stock_store: 0,
         unit: String(row.unit || row.Unit || 'PCS').trim(),
+        min_quantity: Number(row.min_quantity || row.Min_Quantity || row['Min Quantity'] || 0),
         is_active: true
       })).filter(r => r.barcode && r.name); 
 
@@ -319,6 +352,14 @@ export default function OwnerCatalog() {
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg></div>
             </div>
           </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-min-qty">Min Quantity</label>
+            <div className="relative">
+              <input id="item-min-qty" type="number" step="1" min="0" value={form.min_quantity} onChange={(e) => setForm({...form, min_quantity: e.target.value})} placeholder="e.g. 10" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+              <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{UNIT_TYPES.find(u => u.value === form.unit)?.label || form.unit}</span>
+            </div>
+          </div>
         </div>
 
         <div className="mt-4 pt-6 flex flex-col md:flex-row justify-between items-center gap-4" style={{ borderTop: '1px solid var(--border-light)' }}>
@@ -330,7 +371,7 @@ export default function OwnerCatalog() {
               min="0" 
               max="50" 
               value={printLabelCount} 
-              onChange={(e) => setPrintLabelCount(Math.max(0, parseInt(e.target.value) || 0))} 
+              onChange={(e) => setPrintLabelCount(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value)))}
               className="w-20 h-10 px-2 text-center text-sm font-bold focus:outline-none" 
               style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} 
             />
@@ -348,10 +389,11 @@ export default function OwnerCatalog() {
 
       <PrintPreviewModal
         isOpen={barcodePreview.isOpen}
-        onClose={() => setBarcodePreview({ isOpen: false, html: '' })}
+        onClose={() => setBarcodePreview({ isOpen: false, previewHtml: '', printHtml: '' })}
         type="barcode"
         title="Barcode Label Preview"
-        iframeHtml={barcodePreview.html}
+        iframeHtml={barcodePreview.previewHtml}
+        printHtml={barcodePreview.printHtml}
       />
     </div>
   );
