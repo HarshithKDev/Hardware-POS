@@ -58,8 +58,17 @@ export const getInventoryByQuery = async ({ limit, offset, search, category, sub
     allItems = allItems.filter(i => i.sub_category === subcategory);
   }
 
-  if (sortOption === 'barcode-asc') allItems.sort((a, b) => a.barcode.localeCompare(b.barcode));
-  else if (sortOption === 'barcode-desc') allItems.sort((a, b) => b.barcode.localeCompare(a.barcode));
+  const compareBarcodes = (a, b) => {
+    const numA = parseInt(a, 10);
+    const numB = parseInt(b, 10);
+    if (!isNaN(numA) && !isNaN(numB)) {
+      return numA - numB;
+    }
+    return String(a).localeCompare(String(b));
+  };
+
+  if (sortOption === 'barcode-asc') allItems.sort((a, b) => compareBarcodes(a.barcode, b.barcode));
+  else if (sortOption === 'barcode-desc') allItems.sort((a, b) => compareBarcodes(b.barcode, a.barcode));
   else if (sortOption === 'name-asc') allItems.sort((a, b) => a.name.localeCompare(b.name));
   else if (sortOption === 'name-desc') allItems.sort((a, b) => b.name.localeCompare(a.name));
   else if (sortOption === 'stock-asc') allItems.sort((a, b) => Number(viewType === 'warehouse' ? a.stock_warehouse : a.stock_store) - Number(viewType === 'warehouse' ? b.stock_warehouse : b.stock_store));

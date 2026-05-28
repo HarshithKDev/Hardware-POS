@@ -8,6 +8,7 @@ import OwnerLedger from './OwnerLedger';
 import OwnerStaff from './OwnerStaff';
 import WorkerBilling from './WorkerBilling';
 import OwnerCategories from './OwnerCategories';
+import OwnerAuditLogs from './OwnerAuditLogs';
 
 export default function OwnerDashboard() {
   const { tab } = useParams();
@@ -78,6 +79,7 @@ export default function OwnerDashboard() {
             { key: 'store', label: 'Shop Front' },
             { key: 'sales', label: 'Sales History' },
             { key: 'staff', label: 'Manage Staff' },
+            { key: 'audit', label: 'Audit Logs' },
           ].map(({ key, label }) => (
             <button
               key={key}
@@ -213,6 +215,12 @@ export default function OwnerDashboard() {
         {activeTab === 'staff' && (
           <div className="block h-full animate-fade-in">
             <OwnerStaff />
+          </div>
+        )}
+
+        {activeTab === 'audit' && (
+          <div className="block h-full animate-fade-in">
+            <OwnerAuditLogs />
           </div>
         )}
       </main>

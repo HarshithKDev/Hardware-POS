@@ -8,6 +8,7 @@ import { generateId } from './utils';
 import { BARCODE_START_VALUE, BARCODE_RETRY_ATTEMPTS, UNIT_TYPES, STALE_TIME_5MIN } from './constants';
 import { Spinner } from './SharedUI';
 import { PrintPreviewModal } from './AppModals';
+import { saveInventoryBatch } from './services/db';
 
 export default function OwnerCatalog() {
   const { showAlert } = useApp();
@@ -44,15 +45,18 @@ export default function OwnerCatalog() {
     staleTime: STALE_TIME_5MIN,
   });
 
-  // Fetch next barcode
   useQuery({
     queryKey: ['nextBarcode'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('inventory').select('barcode').order('barcode', { ascending: false }).limit(1);
+      const { data, error } = await supabase.from('inventory').select('barcode');
       if (error) throw error;
-      const next = data && data.length > 0 ? (parseInt(data[0].barcode, 10) + 1).toString() : BARCODE_START_VALUE;
-      setNextBarcode(next);
-      return next;
+      const next = data?.reduce((max, item) => {
+        const num = parseInt(item.barcode, 10);
+        return !isNaN(num) ? Math.max(max, num) : max;
+      }, parseInt(BARCODE_START_VALUE, 10) - 1) || parseInt(BARCODE_START_VALUE, 10) - 1;
+      const nextString = (next + 1).toString();
+      setNextBarcode(nextString);
+      return nextString;
     },
   });
 
@@ -75,7 +79,7 @@ export default function OwnerCatalog() {
       </div>
       <script>
         JsBarcode("#barcode-0", "${itemData.barcode}", { format: "CODE128", width: 1.5, height: 30, displayValue: false, margin: 0 });
-      <\/script>
+      </script>
     </body></html>`;
   };
 
@@ -108,7 +112,7 @@ export default function OwnerCatalog() {
         for (let i = 0; i < ${count}; i++) {
           JsBarcode("#barcode-" + i, "${itemData.barcode}", { format: "CODE128", width: 1.5, height: 25, displayValue: false, margin: 0 });
         }
-      <\/script>
+      </script>
     </body></html>`;
     return html;
   };
@@ -146,7 +150,12 @@ export default function OwnerCatalog() {
       }
       throw new Error(`Failed to generate a unique barcode after ${BARCODE_RETRY_ATTEMPTS} attempts. Please try again.`);
     },
-    onSuccess: (savedItem) => {
+    onSuccess: async (savedItem) => {
+      try {
+        await saveInventoryBatch([savedItem]);
+      } catch (err) {
+        console.error("Local save failed", err);
+      }
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['nextBarcode'] });
       
@@ -240,10 +249,64 @@ export default function OwnerCatalog() {
         throw new Error('No valid rows found. Ensure "barcode" and "name" columns exist.');
       }
 
-      const { error } = await supabase.from('inventory').upsert(formattedData, { onConflict: 'barcode' });
+      // Auto-create missing categories and sub-categories
+      const uniqueCategories = [...new Set(formattedData.map(r => r.category).filter(Boolean))];
+      const existingCatNames = categories.map(c => c.name);
+      const newCatsToInsert = uniqueCategories.filter(c => !existingCatNames.includes(c)).map(name => ({ name }));
+      
+      if (newCatsToInsert.length > 0) {
+        const { error: catError } = await supabase.from('categories').insert(newCatsToInsert);
+        if (catError) console.error("Error auto-creating categories:", catError);
+        else queryClient.invalidateQueries({ queryKey: ['categories'] });
+      }
+
+      const uniqueSubcategories = [];
+      formattedData.forEach(r => {
+        if (r.category && r.sub_category) {
+          if (!uniqueSubcategories.some(sub => sub.category === r.category && sub.sub_category === r.sub_category)) {
+            uniqueSubcategories.push({ category: r.category, sub_category: r.sub_category });
+          }
+        }
+      });
+      
+      const newSubsToInsert = uniqueSubcategories.filter(sub => {
+        return !subcategories.some(e => e.name === sub.sub_category && e.category_name === sub.category);
+      }).map(sub => ({ name: sub.sub_category, category_name: sub.category }));
+
+      if (newSubsToInsert.length > 0) {
+        const { error: subError } = await supabase.from('subcategories').insert(newSubsToInsert);
+        if (subError) console.error("Error auto-creating sub-categories:", subError);
+        else queryClient.invalidateQueries({ queryKey: ['subcategories'] });
+      }
+
+      // Resolve barcode conflicts to avoid overwriting existing items
+      const { data: existingInventory } = await supabase.from('inventory').select('barcode');
+      const existingBarcodes = new Set(existingInventory?.map(i => i.barcode) || []);
+      let maxBarcodeNum = existingInventory?.reduce((max, item) => {
+        const num = parseInt(item.barcode, 10);
+        return !isNaN(num) ? Math.max(max, num) : max;
+      }, parseInt(BARCODE_START_VALUE, 10) - 1) || parseInt(BARCODE_START_VALUE, 10) - 1;
+
+      let conflictCount = 0;
+      formattedData.forEach(row => {
+        if (existingBarcodes.has(row.barcode)) {
+          maxBarcodeNum++;
+          row.barcode = maxBarcodeNum.toString();
+          conflictCount++;
+        }
+        existingBarcodes.add(row.barcode);
+        row.id = generateId();
+      });
+
+      const { error } = await supabase.from('inventory').insert(formattedData);
       if (error) throw error;
 
-      showAlert(`Successfully imported ${formattedData.length} items! Syncing...`, 'Success');
+      if (conflictCount > 0) {
+        showAlert(`Imported ${formattedData.length} items. Auto-assigned new barcodes to ${conflictCount} conflicting items!`, 'Success');
+      } else {
+        showAlert(`Successfully imported ${formattedData.length} items! Syncing...`, 'Success');
+      }
+
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['nextBarcode'] });
       

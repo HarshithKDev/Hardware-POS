@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from './supabaseClient';
-import { getInventoryByQuery } from './services/db';
+import { getInventoryByQuery, saveInventoryBatch, getInventoryItemByBarcode } from './services/db';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { escapeIlike, debounce } from './utils';
@@ -78,30 +78,80 @@ export default function OwnerInventory({ viewType }) {
   });
 
   const updateItemMutation = useMutation({
-    mutationFn: async (updatedItem) => {
+    mutationFn: async ({ oldItem, newItem }) => {
       const { error } = await supabase.from('inventory').update({
-        name: updatedItem.name,
-        category: updatedItem.category,
-        sub_category: updatedItem.sub_category,
-        cost_price: Number(updatedItem.cost_price || 0),
-        msp: Number(updatedItem.msp || 0),
-        price: Number(updatedItem.price || 0),
-        stock_warehouse: Number(updatedItem.stock_warehouse || 0),
-        stock_store: Number(updatedItem.stock_store || 0),
-        unit: updatedItem.unit,
-      }).eq('barcode', updatedItem.barcode);
+        name: newItem.name,
+        category: newItem.category,
+        sub_category: newItem.sub_category,
+        cost_price: Number(newItem.cost_price || 0),
+        msp: Number(newItem.msp || 0),
+        price: Number(newItem.price || 0),
+        stock_warehouse: Number(newItem.stock_warehouse || 0),
+        stock_store: Number(newItem.stock_store || 0),
+        unit: newItem.unit,
+      }).eq('barcode', newItem.barcode);
       if (error) throw error;
+
+      // Calculate changes for audit log
+      const changes = [];
+      if (oldItem.name !== newItem.name) changes.push(`Name: ${oldItem.name} -> ${newItem.name}`);
+      if (oldItem.category !== newItem.category) changes.push(`Category: ${oldItem.category} -> ${newItem.category}`);
+      if (Number(oldItem.cost_price || 0) !== Number(newItem.cost_price || 0)) changes.push(`Cost: ${oldItem.cost_price} -> ${newItem.cost_price}`);
+      if (Number(oldItem.price || 0) !== Number(newItem.price || 0)) changes.push(`MRP: ${oldItem.price} -> ${newItem.price}`);
+      if (Number(oldItem.stock_warehouse || 0) !== Number(newItem.stock_warehouse || 0)) changes.push(`Whse Stock: ${oldItem.stock_warehouse} -> ${newItem.stock_warehouse}`);
+      if (Number(oldItem.stock_store || 0) !== Number(newItem.stock_store || 0)) changes.push(`Store Stock: ${oldItem.stock_store} -> ${newItem.stock_store}`);
+      
+      if (changes.length > 0) {
+        const { error: logError } = await supabase.from('audit_logs').insert([{
+          action_type: 'UPDATE',
+          barcode: newItem.barcode,
+          item_name: newItem.name,
+          changes: changes.join(', '),
+          performed_by: 'Owner'
+        }]);
+        if (logError) console.error("Failed to insert audit log", logError);
+      }
+
+      return newItem;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['inventory'] }),
+    onSuccess: async (updatedItem) => {
+      try {
+        const localItem = await getInventoryItemByBarcode(updatedItem.barcode);
+        if (localItem) {
+          await saveInventoryBatch([{ ...localItem, ...updatedItem }]);
+        }
+      } catch (e) {
+        console.error("Local IDB update failed", e);
+      }
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    },
     onError: (e) => showAlert(e.message, "Update Failed"),
   });
 
   const handleRemove = (barcode) => {
     showConfirm("Remove this item from the active list?", async () => {
+      const itemToDelete = items.find(i => i.barcode === barcode);
       const { error } = await supabase.from('inventory').update({ is_active: false }).eq('barcode', barcode);
       if (error) {
         showAlert(error.message, "Error Removing Item");
       } else {
+        if (itemToDelete) {
+          await supabase.from('audit_logs').insert([{
+            action_type: 'DELETE',
+            barcode: barcode,
+            item_name: itemToDelete.name,
+            changes: `Item deactivated (Whse Stock: ${itemToDelete.stock_warehouse}, Store Stock: ${itemToDelete.stock_store})`,
+            performed_by: 'Owner'
+          }]);
+        }
+        try {
+          const localItem = await getInventoryItemByBarcode(barcode);
+          if (localItem) {
+            await saveInventoryBatch([{ ...localItem, is_active: false }]);
+          }
+        } catch (e) {
+          console.error("Local IDB remove failed", e);
+        }
         queryClient.invalidateQueries({ queryKey: ['inventory'] });
       }
     });

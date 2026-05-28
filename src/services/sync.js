@@ -17,12 +17,9 @@ export const syncInventoryToLocal = async () => {
     const { error: pingError } = await supabase.from('inventory').select('id').limit(1);
     if (pingError) throw pingError;
 
-    // Clear existing cache for a fresh sync
-    // In a more robust system, we would do delta syncs based on updated_at
-    await clearInventoryCache();
-
     let offset = 0;
     let hasMore = true;
+    const allData = [];
 
     while (hasMore) {
       const { data, error } = await supabase
@@ -36,7 +33,7 @@ export const syncInventoryToLocal = async () => {
       }
 
       if (data && data.length > 0) {
-        await saveInventoryBatch(data);
+        allData.push(...data);
         offset += PAGE_SIZE;
         if (data.length < PAGE_SIZE) {
           hasMore = false;
@@ -44,6 +41,12 @@ export const syncInventoryToLocal = async () => {
       } else {
         hasMore = false;
       }
+    }
+
+    // Perform atomic-like swap locally to prevent "missing items" during sync
+    await clearInventoryCache();
+    if (allData.length > 0) {
+      await saveInventoryBatch(allData);
     }
 
     await setSyncStatus('inventory_sync', { status: 'idle', last_sync: new Date().toISOString() });

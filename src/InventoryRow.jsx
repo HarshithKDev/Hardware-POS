@@ -5,7 +5,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
   const [formData, setFormData] = useState(item);
 
   const handleSave = () => {
-    onSave(formData);
+    onSave({ oldItem: item, newItem: formData });
     setIsEditing(false);
   };
 
