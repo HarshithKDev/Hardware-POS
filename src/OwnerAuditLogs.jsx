@@ -62,7 +62,7 @@ export default function OwnerAuditLogs() {
               <th className="p-3 w-40" style={{ borderRight: '1px solid var(--border-light)' }}>Date & Time</th>
               <th className="p-3 w-28" style={{ borderRight: '1px solid var(--border-light)' }}>Action</th>
               <th className="p-3 w-28" style={{ borderRight: '1px solid var(--border-light)' }}>Barcode</th>
-              <th className="p-3 w-48" style={{ borderRight: '1px solid var(--border-light)' }}>Item Name</th>
+              <th className="p-3 w-48" style={{ borderRight: '1px solid var(--border-light)' }}>Name</th>
               <th className="p-3" style={{ borderRight: '1px solid var(--border-light)' }}>Changes</th>
               <th className="p-3 w-28 text-center">User</th>
             </tr>
@@ -88,7 +88,9 @@ export default function OwnerAuditLogs() {
                       {log.action_type}
                     </span>
                   </td>
-                  <td className="p-3 text-sm font-mono font-semibold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--color-accent)' }}>{log.barcode}</td>
+                  <td className="p-3 text-sm font-mono font-semibold text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--color-accent)' }}>
+                    {log.barcode === 'CATEGORY' || log.barcode === 'SUB-CATEGORY' ? <span style={{ color: 'var(--text-tertiary)' }}>—</span> : log.barcode}
+                  </td>
                   <td className="p-3 text-sm font-medium" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{log.item_name}</td>
                   <td className="p-3 text-sm whitespace-normal" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{log.changes}</td>
                   <td className="p-3 text-xs text-center font-bold" style={{ color: 'var(--text-tertiary)' }}>{log.performed_by}</td>

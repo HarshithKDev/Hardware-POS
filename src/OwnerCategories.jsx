@@ -39,6 +39,14 @@ export default function OwnerCategories() {
     mutationFn: async (name) => {
       const { error } = await supabase.from('categories').insert([{ name }]);
       if (error) throw error;
+      
+      await supabase.from('audit_logs').insert([{
+        action_type: 'CREATE',
+        barcode: 'CATEGORY',
+        item_name: name,
+        changes: `Added Category: ${name}`,
+        performed_by: 'Owner'
+      }]);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
@@ -61,6 +69,15 @@ export default function OwnerCategories() {
     mutationFn: async ({ name, category_name }) => {
       const { error } = await supabase.from('subcategories').insert([{ name, category_name }]);
       if (error) throw error;
+      
+      await supabase.from('audit_logs').insert([{
+        action_type: 'CREATE',
+        barcode: 'SUB-CATEGORY',
+        item_name: name,
+        changes: `Added Sub-category: ${name} (under ${category_name})`,
+        performed_by: 'Owner'
+      }]);
+      
       return category_name;
     },
     onSuccess: (category_name) => {
@@ -83,11 +100,19 @@ export default function OwnerCategories() {
   const deleteCategoryMutation = useMutation({
     mutationFn: async ({ id, name }) => {
       // Cascade check (fixes #8)
-      const { count } = await supabase.from('inventory').select('*', { count: 'exact', head: true }).eq('category', name);
-      if (count && count > 0) throw new Error(`Cannot delete category "${name}" because it is assigned to ${count} item(s) in the inventory.`);
+      const { count } = await supabase.from('inventory').select('*', { count: 'exact', head: true }).eq('category', name).eq('is_active', true);
+      if (count && count > 0) throw new Error(`Cannot delete category "${name}" because it is assigned to ${count} active item(s) in the inventory.`);
 
-      const { error } = await supabase.from('categories').delete().eq('id', id);
+      const { error } = await supabase.from('categories').delete().eq('name', name);
       if (error) throw error;
+
+      await supabase.from('audit_logs').insert([{
+        action_type: 'DELETE',
+        barcode: 'CATEGORY',
+        item_name: name,
+        changes: `Deleted Category: ${name}`,
+        performed_by: 'Owner'
+      }]);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['categories'] }),
     onError: (e) => showAlert(e.message, 'Cascade Delete Blocked')
@@ -98,20 +123,31 @@ export default function OwnerCategories() {
   };
 
   const deleteSubcategoryMutation = useMutation({
-    mutationFn: async ({ id, name }) => {
+    mutationFn: async ({ id, name, category_name }) => {
       // Cascade check (fixes #8)
-      const { count } = await supabase.from('inventory').select('*', { count: 'exact', head: true }).eq('sub_category', name);
-      if (count && count > 0) throw new Error(`Cannot delete sub-category "${name}" because it is assigned to ${count} item(s) in the inventory.`);
+      const { count } = await supabase.from('inventory').select('*', { count: 'exact', head: true }).eq('sub_category', name).eq('is_active', true);
+      if (count && count > 0) throw new Error(`Cannot delete sub-category "${name}" because it is assigned to ${count} active item(s) in the inventory.`);
 
-      const { error } = await supabase.from('subcategories').delete().eq('id', id);
+      const query = supabase.from('subcategories').delete().eq('name', name);
+      if (category_name) query.eq('category_name', category_name);
+      
+      const { error } = await query;
       if (error) throw error;
+
+      await supabase.from('audit_logs').insert([{
+        action_type: 'DELETE',
+        barcode: 'SUB-CATEGORY',
+        item_name: name,
+        changes: `Deleted Sub-category: ${name} (from ${category_name || 'unknown'})`,
+        performed_by: 'Owner'
+      }]);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['subcategories'] }),
     onError: (e) => showAlert(e.message, 'Cascade Delete Blocked')
   });
 
-  const handleDeleteSubcategory = (id, name) => {
-    showConfirm(`Delete sub-category "${name}"?`, () => deleteSubcategoryMutation.mutate({ id, name }));
+  const handleDeleteSubcategory = (id, name, category_name) => {
+    showConfirm(`Delete sub-category "${name}"?`, () => deleteSubcategoryMutation.mutate({ id, name, category_name }));
   };
 
   const toggleCategory = (id) => {
@@ -217,27 +253,32 @@ export default function OwnerCategories() {
                           {catSubcategories.length === 0 ? (
                             <p className="text-sm italic text-left" style={{ color: 'var(--text-tertiary)' }}>No sub-categories added yet.</p>
                           ) : (
-                            <div className="flex flex-wrap gap-3 mt-4 justify-start">
+                            <div className="flex flex-col gap-2 mt-4 max-w-md w-full">
                               {catSubcategories.map(sub => (
-                                <span key={sub.id} className="text-sm px-3 py-1.5 flex items-center gap-2 font-medium shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}>
-                                  {sub.name}
+                                <div key={sub.id} className="group flex items-center justify-between px-4 py-3 rounded-sm transition-colors" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+                                  <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                                    {sub.name}
+                                  </span>
                                   <button 
-                                    onClick={(e) => { e.stopPropagation(); handleDeleteSubcategory(sub.id, sub.name); }} 
-                                    className="px-1.5 py-0.5 rounded-sm font-bold transition-colors"
-                                    style={{ color: 'var(--color-error)' }}
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteSubcategory(sub.id, sub.name, sub.category_name); }} 
+                                    className="p-1.5 rounded-sm transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                    style={{ color: 'var(--text-tertiary)' }}
                                     onMouseEnter={(e) => {
-                                      e.target.style.backgroundColor = 'var(--color-error)';
-                                      e.target.style.color = '#ffffff';
+                                      e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                                      e.currentTarget.style.color = 'var(--color-error)';
                                     }}
                                     onMouseLeave={(e) => {
-                                      e.target.style.backgroundColor = 'transparent';
-                                      e.target.style.color = 'var(--color-error)';
+                                      e.currentTarget.style.backgroundColor = 'transparent';
+                                      e.currentTarget.style.color = 'var(--text-tertiary)';
                                     }}
                                     aria-label={`Delete subcategory ${sub.name}`}
+                                    title={`Delete ${sub.name}`}
                                   >
-                                    ✕
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                    </svg>
                                   </button>
-                                </span>
+                                </div>
                               ))}
                             </div>
                           )}

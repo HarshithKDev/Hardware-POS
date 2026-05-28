@@ -3,6 +3,8 @@ import { supabase } from './supabaseClient';
 import { useQuery } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { Spinner, PageLoader } from './SharedUI';
+import OwnerFailedSyncsModal from './OwnerFailedSyncsModal';
+import { getFailedTransactions } from './services/db';
 import {
   STORE_LOW_STOCK_THRESHOLD,
   WAREHOUSE_LOW_STOCK_THRESHOLD,
@@ -277,6 +279,7 @@ export default function OwnerStats({ isActive }) {
       storeCapital,
       weeklyTrend,
       topProducts,
+      failedSyncs: await getFailedTransactions(),
     };
   }, []);
 
@@ -311,12 +314,27 @@ export default function OwnerStats({ isActive }) {
     todaysTrueRevenue, todaysGrossProfit, todaysTotalCost, todaysSalesDetails,
     lowStoreItems, deadStockItems, deadStockValue,
     totalInventoryValue, warehouseCapital, storeCapital,
-    weeklyTrend, topProducts,
+    weeklyTrend, topProducts, failedSyncs
   } = data;
 
   return (
     <div className="h-full relative pb-10">
       <h1 className="text-2xl font-light mb-6" style={{ color: 'var(--text-primary)' }}>Business Overview</h1>
+
+      {failedSyncs && failedSyncs.length > 0 && (
+        <div className="mb-6 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm" style={{ backgroundColor: 'rgba(239, 68, 68, 0.05)', border: '1px solid var(--color-error)' }}>
+          <div className="flex items-center gap-4">
+            <span className="text-3xl">⚠️</span>
+            <div>
+              <p className="text-sm font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--color-error)' }}>{failedSyncs.length} Offline Transaction(s) Failed to Sync</p>
+              <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>These transactions encountered errors when uploading to the cloud and require manual review to resolve.</p>
+            </div>
+          </div>
+          <button onClick={() => setActiveModal('failed-syncs')} className="px-5 py-2.5 text-xs font-bold text-white uppercase tracking-wider shrink-0 shadow-sm hover:opacity-90 transition-opacity" style={{ backgroundColor: 'var(--color-error)' }}>
+            Review Issues
+          </button>
+        </div>
+      )}
 
       {/* ROW 1: TODAY'S VITALS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
@@ -374,6 +392,7 @@ export default function OwnerStats({ isActive }) {
                 {activeModal === 'profit' && "Today's Profit & Sales Breakdown"}
                 {activeModal === 'low-store' && `Items Running Low in Store Front (< ${STORE_LOW_STOCK_THRESHOLD})`}
                 {activeModal === 'dead-stock' && 'Dead Stock (0 Sales in Last 30 Days)'}
+                {activeModal === 'failed-syncs' && 'Failed Offline Transactions'}
               </span>
               <button onClick={() => setActiveModal(null)} className="px-3 py-1.5 focus:outline-none" aria-label="Close details" style={{ color: 'var(--text-secondary)' }}>✕</button>
             </div>
@@ -463,6 +482,10 @@ export default function OwnerStats({ isActive }) {
                     </tbody>
                   </table>
                 </div>
+              )}
+
+              {activeModal === 'failed-syncs' && (
+                <OwnerFailedSyncsModal failedSyncs={failedSyncs} onClose={() => setActiveModal(null)} />
               )}
             </div>
 

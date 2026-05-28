@@ -84,7 +84,7 @@ export const getInventoryByQuery = async ({ limit, offset, search, category, sub
 export const queueOfflineTransaction = async (payload) => {
   const db = await initDB();
   const timestamp = new Date().toISOString();
-  await db.put('offline_queue', { ...payload, queued_at: timestamp });
+  await db.put('offline_queue', { ...payload, queued_at: timestamp, status: 'pending', error_message: null });
 };
 
 export const getOfflineQueue = async () => {
@@ -95,6 +95,28 @@ export const getOfflineQueue = async () => {
 export const deleteOfflineTransaction = async (id) => {
   const db = await initDB();
   await db.delete('offline_queue', id);
+};
+
+export const markTransactionFailed = async (id, errorMessage) => {
+  const db = await initDB();
+  const tx = await db.get('offline_queue', id);
+  if (tx) {
+    await db.put('offline_queue', { ...tx, status: 'failed', error_message: errorMessage });
+  }
+};
+
+export const requeueTransaction = async (id) => {
+  const db = await initDB();
+  const tx = await db.get('offline_queue', id);
+  if (tx) {
+    await db.put('offline_queue', { ...tx, status: 'pending', error_message: null });
+  }
+};
+
+export const getFailedTransactions = async () => {
+  const db = await initDB();
+  const all = await db.getAll('offline_queue');
+  return all.filter(tx => tx.status === 'failed');
 };
 
 export const getSyncStatus = async (key) => {

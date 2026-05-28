@@ -4,7 +4,8 @@ import {
   saveInventoryBatch, 
   getOfflineQueue, 
   deleteOfflineTransaction,
-  setSyncStatus
+  setSyncStatus,
+  markTransactionFailed
 } from './db';
 
 const PAGE_SIZE = 500;
@@ -59,8 +60,10 @@ export const syncInventoryToLocal = async () => {
 
 export const flushOfflineQueue = async () => {
   try {
-    const queue = await getOfflineQueue();
+    let queue = await getOfflineQueue();
     if (!queue || queue.length === 0) return;
+    queue = queue.filter(tx => tx.status !== 'failed');
+    if (queue.length === 0) return;
 
     // Check connection first
     const { error: pingError } = await supabase.from('inventory').select('id').limit(1);
@@ -81,15 +84,14 @@ export const flushOfflineQueue = async () => {
         
         if (error) {
           console.error(`Failed to sync transaction ${tx.id}:`, error);
-          // If it's a structural error (e.g., negative stock), we might want to log it
-          // and still delete the transaction to prevent infinite loops, 
-          // but for now we'll leave it in the queue for manual review.
+          await markTransactionFailed(tx.id, error.message);
         } else {
           await deleteOfflineTransaction(tx.id);
           console.log(`Successfully synced offline transaction ${tx.id}`);
         }
       } catch (e) {
         console.error('Exception while flushing transaction:', e);
+        await markTransactionFailed(tx.id, e.message || 'Unknown exception');
       }
     }
   } catch (err) {
