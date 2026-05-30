@@ -86,7 +86,7 @@ export default function OwnerLedger({ isActive }) {
   };
 
   const getOperationType = (location) => {
-    if (location === 'Store') return 'Sale (Checkout)';
+    if (location === 'Store') return 'Sale';
     if (location === 'Warehouse-Inbound') return 'Received New Stock';
     if (location === 'Warehouse-Transfer') return 'Moved Stock to Store';
     return location;
