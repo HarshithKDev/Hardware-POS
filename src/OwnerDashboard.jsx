@@ -20,7 +20,6 @@ export default function OwnerDashboard() {
 
   // Separate URL param keys so warehouse and store subtabs don't collide
   const warehouseSubTab = searchParams.get('wsub') || 'inventory';
-  const storeSubTab = searchParams.get('ssub') || 'inventory';
 
   const changeTab = (newTab) => {
     navigate(`/owner/${newTab}`);
@@ -76,7 +75,7 @@ export default function OwnerDashboard() {
             { key: 'register', label: 'Add Items' },
             { key: 'categories', label: 'Categories' },
             { key: 'warehouse', label: 'Main Storage' },
-            { key: 'store', label: 'Shop Front' },
+            { key: 'checkout', label: 'Checkout Counter' },
             { key: 'sales', label: 'Sales History' },
             { key: 'staff', label: 'Manage Staff' },
             { key: 'audit', label: 'Audit Logs' },
@@ -165,46 +164,14 @@ export default function OwnerDashboard() {
           </div>
         )}
 
-        {activeTab === 'store' && (
+        {activeTab === 'checkout' && (
           <div className="flex flex-col h-full animate-fade-in">
             <h1 className="text-2xl font-light mb-6" style={{ color: 'var(--text-primary)' }}>
-              Shop Front Actions
+              Checkout Counter
             </h1>
-            <div
-              className="flex gap-1 mb-6 pb-0"
-              style={{ borderBottom: '1px solid var(--border-light)' }}
-              role="tablist"
-              aria-label="Store tabs"
-            >
-              {[
-                { key: 'inventory', label: 'Items in Shop' },
-                { key: 'checkout', label: 'Checkout Counter' },
-              ].map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setSearchParams({ ssub: key })}
-                  className="px-6 py-2 text-sm uppercase tracking-wider focus:outline-none"
-                  style={{
-                    backgroundColor: storeSubTab === key ? 'var(--color-accent)' : 'var(--bg-secondary)',
-                    color: storeSubTab === key ? '#ffffff' : 'var(--text-secondary)',
-                    fontWeight: storeSubTab === key ? '600' : '500',
-                    borderBottom: storeSubTab === key
-                      ? '2px solid var(--color-accent-hover)'
-                      : '2px solid transparent',
-                  }}
-                  role="tab"
-                  aria-selected={storeSubTab === key}
-                >
-                  {label}
-                </button>
-              ))}
+            <div style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }} className="flex-1 mb-4">
+              <WorkerBilling defaultTab="checkout" hideNav={true} />
             </div>
-            {storeSubTab === 'inventory' && <OwnerInventory viewType="store" />}
-            {storeSubTab === 'checkout' && (
-              <div style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }} className="flex-1 mb-4">
-                <WorkerBilling defaultTab="checkout" hideNav={true} />
-              </div>
-            )}
           </div>
         )}
 

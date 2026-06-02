@@ -266,31 +266,26 @@ export default function OwnerInventory({ viewType }) {
       </div>
 
       <div className="overflow-x-auto flex-1 min-h-[300px] shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}>
-        <table className={`w-full text-center whitespace-nowrap border-collapse min-w-[${viewType === 'warehouse' ? '1100px' : '850px'}]`}>
+        <table className={`w-full text-center whitespace-nowrap border-collapse min-w-[1100px]`}>
           <thead className="sticky top-0" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-              <th className={`p-3 ${viewType === 'store' ? 'w-32' : 'w-24'}`} style={{ borderRight: '1px solid var(--border-light)' }}>Barcode</th>
-              <th className="p-3" style={{ borderRight: '1px solid var(--border-light)' }}>Item Name</th>
+              <th className="p-3 min-w-[120px]" style={{ borderRight: '1px solid var(--border-light)' }}>Barcode</th>
+              <th className="p-3 min-w-[160px]" style={{ borderRight: '1px solid var(--border-light)' }}>Item Details</th>
               <th className="p-3 w-28" style={{ borderRight: '1px solid var(--border-light)' }}>Category</th>
-              <th className="p-3 w-28" style={{ borderRight: '1px solid var(--border-light)' }}>Sub-Cat</th>
-              {viewType === 'warehouse' && (
-                <>
-                  <th className="p-3 text-center w-24" style={{ borderRight: '1px solid var(--border-light)' }}>Cost</th>
-                  <th className="p-3 text-center w-24" style={{ borderRight: '1px solid var(--border-light)' }}>MSP</th>
-                </>
-              )}
-              <th className={`p-3 text-center ${viewType === 'warehouse' ? 'w-24' : 'w-28'}`} style={{ borderRight: '1px solid var(--border-light)' }}>MRP</th>
-              <th className={`p-3 text-center ${viewType === 'warehouse' ? 'w-24' : 'w-28'}`} style={viewType === 'warehouse' ? { borderRight: '1px solid var(--border-light)' } : {}}>
-                {viewType === 'warehouse' ? 'Whse Qty' : 'Store Qty'}
-              </th>
-              {viewType === 'warehouse' && <th className="p-3 text-center w-32">Actions</th>}
+              <th className="p-3 w-28" style={{ borderRight: '1px solid var(--border-light)' }}>Sub-category</th>
+              <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Cost</th>
+              <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>MSP</th>
+              <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>MRP</th>
+              <th className="p-3 w-24 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Whse Qty</th>
+              <th className="p-3 w-24 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Store Qty</th>
+              <th className="p-2 w-36 text-center">Actions</th>
             </tr>
           </thead>
           <tbody style={{ borderBottom: '1px solid var(--border-medium)' }}>
             {isLoading ? (
-              <tr><td colSpan={viewType === 'warehouse' ? "9" : "6"} className="p-8 text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>Loading inventory...</td></tr>
+              <tr><td colSpan="10" className="p-8 text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>Loading inventory...</td></tr>
             ) : items.length === 0 ? (
-              <tr><td colSpan={viewType === 'warehouse' ? "9" : "6"} className="p-8 text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No items found matching the search.</td></tr>
+              <tr><td colSpan="10" className="p-8 text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No items found matching the search.</td></tr>
             ) : (
               items.map(item => (
                 <InventoryRow

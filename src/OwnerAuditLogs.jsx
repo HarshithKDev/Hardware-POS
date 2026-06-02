@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
-import { Spinner } from './SharedUI';
+import { Spinner, PageLoader } from './SharedUI';
 
 export default function OwnerAuditLogs() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -164,9 +164,9 @@ export default function OwnerAuditLogs() {
               <th className="p-3 w-32 text-center">User</th>
             </tr>
           </thead>
-          <tbody style={{ borderBottom: '1px solid var(--border-medium)' }}>
+          <tbody>
             {isLoading ? (
-              <tr><td colSpan="6" className="p-10 text-center"><Spinner size="md" /></td></tr>
+              <tr><td colSpan="6" className="h-[50vh] align-middle text-center"><PageLoader text="Loading logs..." /></td></tr>
             ) : error ? (
               <tr><td colSpan="6" className="p-8 text-center text-sm font-semibold text-[var(--color-error)]">Failed to load logs: {error.message}</td></tr>
             ) : filteredLogs.length === 0 ? (

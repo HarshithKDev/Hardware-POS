@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
 import WorkerDashboardView from './WorkerDashboardView';
 import WorkerTerminal from './WorkerTerminal';
@@ -10,9 +12,31 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
   const navigate = useNavigate();
   const { shopSettings, cashierName } = useApp();
 
+  const { data: workerData, isLoading } = useQuery({
+    queryKey: ['workerPermissions', cashierName],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('workers').select('password').eq('name', cashierName).single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: cashierName !== 'owner',
+  });
+
+  // Default to true while loading so we don't flash hiding the tab
+  const isBillable = cashierName === 'owner' || isLoading || !workerData?.password?.includes('NON_BILLABLE');
+
   const handleTabSwitch = (newTab) => {
     if (!hideNav) navigate(`/terminal/${newTab}`);
   };
+
+  const tabs = [
+    { key: 'dashboard', label: 'Dashboard' },
+    { key: 'receive', label: 'Inbound' },
+    { key: 'transfer', label: 'Transfer' },
+  ];
+  if (isBillable) {
+    tabs.push({ key: 'checkout', label: 'Terminal' });
+  }
 
   return (
     <div style={{ fontFamily: "var(--font-family)" }} className="h-full">
@@ -34,12 +58,7 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
             role="tablist"
             aria-label="Terminal tabs"
           >
-            {[
-              { key: 'dashboard', label: 'Dashboard' },
-              { key: 'receive', label: 'Inbound' },
-              { key: 'transfer', label: 'Transfer' },
-              { key: 'checkout', label: 'Terminal' },
-            ].map(({ key, label }) => (
+            {tabs.map(({ key, label }) => (
               <button
                 key={key}
                 onClick={() => handleTabSwitch(key)}
@@ -63,6 +82,11 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
 
         {activeTab === 'dashboard' ? (
           <WorkerDashboardView />
+        ) : activeTab === 'checkout' && !isBillable ? (
+          <div className="flex flex-col items-center justify-center h-full flex-1">
+            <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
+            <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Your account does not have billing permissions.</p>
+          </div>
         ) : (
           <WorkerTerminal
             activeTab={activeTab}
