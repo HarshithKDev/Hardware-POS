@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function InventoryRow({ item, viewType, categories, subcategories, onSave, onRemove }) {
+export default function InventoryRow({ item, viewType, categories, subcategories, onSave, onRemove, onRestore }) {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(item);
 
@@ -69,6 +69,11 @@ export default function InventoryRow({ item, viewType, categories, subcategories
         <td className="p-2 flex gap-1 justify-center items-center h-full">
           <button onClick={() => { setIsEditing(true); setFormData(item); }} className="h-8 px-3 text-xs font-semibold rounded-none focus:outline-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>Edit</button>
           <button onClick={() => onRemove(item.barcode)} className="h-8 px-2 text-xs font-semibold rounded-none focus:outline-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--color-error)', color: 'var(--color-error)' }}>Remove</button>
+        </td>
+      )}
+      {viewType === 'recycle' && (
+        <td className="p-2 flex gap-1 justify-center items-center h-full">
+          <button onClick={() => onRestore(item.barcode)} className="h-8 px-4 text-xs font-bold uppercase tracking-wider rounded-sm focus:outline-none transition-colors hover:brightness-110 shadow-sm" style={{ backgroundColor: 'var(--color-success)', color: '#ffffff' }}>Restore</button>
         </td>
       )}
     </tr>

@@ -30,11 +30,6 @@ export default function OwnerInventory({ viewType }) {
     debouncedSetSearch(e.target.value);
   }, [debouncedSetSearch]);
 
-  // Reset pagination when filters change
-  useEffect(() => {
-    setInvPage(0);
-  }, [selectedCategory, selectedSubcategory]);
-
   const { data: categories } = useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
@@ -70,7 +65,8 @@ export default function OwnerInventory({ viewType }) {
         category: selectedCategory,
         subcategory: selectedSubcategory,
         sortOption: sortOption,
-        viewType: viewType
+        viewType: viewType === 'recycle' ? 'warehouse' : viewType,
+        status: viewType === 'recycle' ? 'deactivated' : 'active'
       });
       return { items: data || [], total: totalCount || 0 };
     },
@@ -97,6 +93,7 @@ export default function OwnerInventory({ viewType }) {
       if (oldItem.name !== newItem.name) changes.push(`Name: ${oldItem.name} -> ${newItem.name}`);
       if (oldItem.category !== newItem.category) changes.push(`Category: ${oldItem.category} -> ${newItem.category}`);
       if (Number(oldItem.cost_price || 0) !== Number(newItem.cost_price || 0)) changes.push(`Cost: ${oldItem.cost_price} -> ${newItem.cost_price}`);
+      if (Number(oldItem.msp || 0) !== Number(newItem.msp || 0)) changes.push(`MSP: ${oldItem.msp} -> ${newItem.msp}`);
       if (Number(oldItem.price || 0) !== Number(newItem.price || 0)) changes.push(`MRP: ${oldItem.price} -> ${newItem.price}`);
       if (Number(oldItem.stock_warehouse || 0) !== Number(newItem.stock_warehouse || 0)) changes.push(`Whse Stock: ${oldItem.stock_warehouse} -> ${newItem.stock_warehouse}`);
       if (Number(oldItem.stock_store || 0) !== Number(newItem.stock_store || 0)) changes.push(`Store Stock: ${oldItem.stock_store} -> ${newItem.stock_store}`);
@@ -157,6 +154,36 @@ export default function OwnerInventory({ viewType }) {
     });
   };
 
+  const handleRestore = (barcode) => {
+    showConfirm("Restore this item to active inventory?", async () => {
+      const itemToRestore = items.find(i => i.barcode === barcode);
+      const { error } = await supabase.from('inventory').update({ is_active: true }).eq('barcode', barcode);
+      if (error) {
+        showAlert(error.message, "Error Restoring Item");
+      } else {
+        if (itemToRestore) {
+          await supabase.from('audit_logs').insert([{
+            action_type: 'RESTORE',
+            barcode: barcode,
+            item_name: itemToRestore.name,
+            changes: `Item restored from Recycle Bin`,
+            performed_by: 'Owner'
+          }]);
+        }
+        try {
+          const localItem = await getInventoryItemByBarcode(barcode);
+          if (localItem) {
+            await saveInventoryBatch([{ ...localItem, is_active: true }]);
+          }
+        } catch (e) {
+          console.error("Local IDB restore failed", e);
+        }
+        queryClient.invalidateQueries({ queryKey: ['inventory'] });
+        showAlert(`${itemToRestore?.name || barcode} restored successfully!`, "Item Restored");
+      }
+    });
+  };
+
   const items = inventoryData?.items || [];
   const totalInvItems = inventoryData?.total || 0;
   const maxPages = Math.max(1, Math.ceil(totalInvItems / INV_PER_PAGE));
@@ -179,7 +206,7 @@ export default function OwnerInventory({ viewType }) {
         <div className="relative w-full md:w-[200px] flex-shrink-0">
           <select
             value={selectedCategory}
-            onChange={(e) => { setSelectedCategory(e.target.value); setSelectedSubcategory(''); }}
+            onChange={(e) => { setSelectedCategory(e.target.value); setSelectedSubcategory(''); setInvPage(0); }}
             className="h-9 w-full pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer font-medium"
             style={{ border: '2px solid var(--border-input)', color: 'var(--text-secondary)' }}
             aria-label="Filter by category"
@@ -196,7 +223,7 @@ export default function OwnerInventory({ viewType }) {
         <div className="relative w-full md:w-[200px] flex-shrink-0">
           <select
             value={selectedSubcategory}
-            onChange={(e) => setSelectedSubcategory(e.target.value)}
+            onChange={(e) => { setSelectedSubcategory(e.target.value); setInvPage(0); }}
             disabled={!selectedCategory}
             className="h-9 w-full pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer font-medium disabled:cursor-not-allowed"
             style={{ border: '2px solid var(--border-input)', color: 'var(--text-secondary)' }}
@@ -274,6 +301,7 @@ export default function OwnerInventory({ viewType }) {
                   subcategories={subcategories}
                   onSave={(data) => updateItemMutation.mutate(data)}
                   onRemove={handleRemove}
+                  onRestore={handleRestore}
                 />
               ))
             )}

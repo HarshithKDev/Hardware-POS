@@ -38,17 +38,26 @@ export const getInventoryItemByBarcode = async (barcode) => {
   return db.get('inventory', barcode);
 };
 
-export const getInventoryByQuery = async ({ limit, offset, search, category, subcategory, sortOption, viewType }) => {
+export const getInventoryByQuery = async ({ limit, offset, search, category, subcategory, sortOption, viewType, status = 'active' }) => {
   const db = await initDB();
   const tx = db.transaction('inventory', 'readonly');
   let allItems = await tx.store.getAll();
-  allItems = allItems.filter(i => i.is_active !== false);
+  
+  if (status === 'deactivated') {
+    allItems = allItems.filter(i => i.is_active === false);
+  } else {
+    allItems = allItems.filter(i => i.is_active !== false);
+  }
 
   if (search) {
     const s = search.toLowerCase();
+    const escapedS = s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regexStr = /[0-9]$/.test(s) ? escapedS + "(?![0-9])" : escapedS;
+    const searchRegex = new RegExp(regexStr, 'i');
+
     allItems = allItems.filter(i => 
-      (i.name && i.name.toLowerCase().includes(s)) || 
-      (i.barcode && i.barcode.toLowerCase().includes(s))
+      (i.name && searchRegex.test(i.name)) || 
+      (i.barcode && searchRegex.test(i.barcode))
     );
   }
   if (category) {

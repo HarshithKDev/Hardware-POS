@@ -129,6 +129,7 @@ export default function OwnerDashboard() {
                 { key: 'inventory', label: 'All Items' },
                 { key: 'receive', label: 'Receive Stock' },
                 { key: 'transfer', label: 'Move to Shop' },
+                { key: 'recycle', label: 'Recycle Bin' },
               ].map(({ key, label }) => (
                 <button
                   key={key}
@@ -160,6 +161,7 @@ export default function OwnerDashboard() {
                 <WorkerBilling defaultTab="transfer" hideNav={true} />
               </div>
             )}
+            {warehouseSubTab === 'recycle' && <OwnerInventory viewType="recycle" />}
           </div>
         )}
 
