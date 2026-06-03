@@ -295,7 +295,7 @@ function App() {
 
           <button
             onClick={() => setShowLogoutConfirm(true)}
-            className="px-3 md:px-6 py-2 md:py-2.5 text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none whitespace-nowrap shrink-0 flex items-center justify-center gap-2 border bg-[var(--bg-secondary)] text-[var(--color-error)] border-[var(--color-error)] md:text-[var(--text-primary)] md:border-[var(--border-medium)] hover:bg-[var(--color-error)] hover:text-white hover:border-[var(--color-error)]"
+            className="px-3 md:px-6 py-2 md:py-2.5 text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none whitespace-nowrap shrink-0 flex items-center justify-center gap-2 border bg-[var(--color-error)] text-white border-[var(--color-error)] hover:bg-[#c90f1f] hover:border-[#c90f1f]"
           >
             <span className="hidden md:inline">Sign Out</span>
             <svg className="w-[18px] h-[18px] md:hidden" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">

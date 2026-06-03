@@ -83,9 +83,9 @@ export default function OwnerDashboard() {
             <button
               key={key}
               onClick={() => changeTab(key)}
-              className="text-left px-6 py-2.5 text-sm focus:outline-none"
+              className="text-left px-6 py-2.5 text-sm focus:outline-none transition-colors hover:bg-[var(--bg-hover)]"
               style={{
-                backgroundColor: activeTab === key ? 'var(--color-accent)' : 'transparent',
+                backgroundColor: activeTab === key ? 'var(--color-accent)' : undefined,
                 color: activeTab === key ? '#ffffff' : 'var(--text-secondary)',
                 fontWeight: activeTab === key ? '600' : '400',
                 borderLeft: activeTab === key

@@ -24,7 +24,7 @@ export default function AppNavbar({ displayUserName, userRole, setIsMobileScanne
           <button onClick={() => navigate('/terminal/dashboard')} className={`h-9 px-6 text-xs font-bold uppercase tracking-wider rounded-none transition-none border ${location.pathname.startsWith('/terminal') ? 'bg-[#0078D7] text-white border-[#0078D7]' : 'bg-white border-gray-400 hover:bg-[#e6e6e6] active:bg-[#cccccc] text-black'}`}>Terminal</button>
         )}
         <div className="h-8 w-px bg-gray-300 mx-1"></div>
-        <button onClick={() => setShowLogoutConfirm(true)} className="h-9 px-6 bg-white hover:bg-[#e81123] hover:text-white hover:border-[#e81123] text-xs font-bold uppercase tracking-wider text-black border border-gray-400 transition-none rounded-none">Sign Out</button>
+        <button onClick={() => setShowLogoutConfirm(true)} className="h-9 px-6 bg-[#e81123] hover:bg-[#c90f1f] text-white text-xs font-bold uppercase tracking-wider border border-[#e81123] hover:border-[#c90f1f] transition-colors rounded-none">Sign Out</button>
       </div>
     </nav>
   );
