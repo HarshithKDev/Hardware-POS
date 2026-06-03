@@ -151,7 +151,7 @@ export default function OwnerStaff() {
         <table className="w-full text-left border-collapse">
           <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-              <th className="p-4 w-5/12" style={{ borderRight: '1px solid var(--border-light)' }}>Staff Name</th>
+              <th className="p-4 w-5/12 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Staff Name</th>
               <th className="p-4 w-4/12 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Account Type</th>
               <th className="p-4 text-center w-3/12">Actions</th>
             </tr>
@@ -163,7 +163,7 @@ export default function OwnerStaff() {
               <tr><td colSpan="3" className="p-8 text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No staff members added yet.</td></tr>
             ) : staffList.map(staff => (
               <tr key={staff.id} className="transition-colors hover:bg-[var(--bg-hover)]" style={{ borderBottom: '1px solid var(--border-light)' }}>
-                <td className="p-4 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{staff.name}</td>
+                <td className="p-4 text-sm font-medium text-center" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{staff.name}</td>
                 <td className="p-4 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
                   {staff.password?.includes('NON_BILLABLE') ? (
                     <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-sm" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-error)' }}>

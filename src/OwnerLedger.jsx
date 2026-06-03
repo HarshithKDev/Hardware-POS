@@ -181,9 +181,9 @@ export default function OwnerLedger({ isActive }) {
           <table className="w-full text-left border-collapse min-w-[700px]">
             <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
               <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                <th className="p-3 w-48" style={{ borderRight: '1px solid var(--border-light)' }}>Date & Time</th>
+                <th className="p-3 w-48 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Date & Time</th>
                 <th className="p-3 w-32 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Cashier</th>
-                <th className="p-3 w-32 text-right" style={{ borderRight: '1px solid var(--border-light)' }}>Total (₹)</th>
+                <th className="p-3 w-32 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Total (₹)</th>
                 <th className="p-3 text-center w-16">Details</th>
               </tr>
             </thead>
@@ -205,13 +205,13 @@ export default function OwnerLedger({ isActive }) {
                         borderBottom: '1px solid var(--border-light)',
                       }}
                     >
-                      <td className="p-3 text-sm" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>
+                      <td className="p-3 text-sm text-center" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>
                         {formatDateTime(bill.created_at).full}
                       </td>
                       <td className="p-3 text-sm text-center capitalize" style={{ color: 'var(--text-secondary)', borderRight: '1px solid var(--border-light)' }}>
                         {bill.cashier_name}
                       </td>
-                      <td className="p-3 text-right text-sm font-bold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>
+                      <td className="p-3 text-center text-sm font-bold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>
                         ₹{Number(bill.total_amount).toFixed(2)}
                       </td>
                       <td className="p-3 text-center flex justify-center items-center h-full">
@@ -234,19 +234,19 @@ export default function OwnerLedger({ isActive }) {
                                 <table className="w-full text-left border-collapse shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-light)' }}>
                                   <thead style={{ backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-light)' }}>
                                     <tr className="text-xs font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>
-                                      <th className="px-4 py-2" style={{ borderRight: '1px solid var(--border-light)' }}>Item Name</th>
+                                      <th className="px-4 py-2 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Item Name</th>
                                       <th className="px-4 py-2 text-center w-32" style={{ borderRight: '1px solid var(--border-light)' }}>Qty</th>
-                                      <th className="px-4 py-2 text-right w-32" style={{ borderRight: '1px solid var(--border-light)' }}>Unit Price</th>
-                                      <th className="px-4 py-2 text-right w-32">Total</th>
+                                      <th className="px-4 py-2 text-center w-32" style={{ borderRight: '1px solid var(--border-light)' }}>Unit Price</th>
+                                      <th className="px-4 py-2 text-center w-32">Total</th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {items.map(item => (
                                       <tr key={item.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
-                                        <td className="px-4 py-2 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
+                                        <td className="px-4 py-2 text-sm font-medium text-center" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
                                         <td className="px-4 py-2 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)' }}>{item.quantity} {item.unit}</td>
-                                        <td className="px-4 py-2 text-sm text-right" style={{ borderRight: '1px solid var(--border-light)' }}>₹{Number(item.price_at_sale).toFixed(2)}</td>
-                                        <td className="px-4 py-2 text-sm text-right font-bold" style={{ color: 'var(--text-primary)' }}>₹{(item.price_at_sale * item.quantity).toFixed(2)}</td>
+                                        <td className="px-4 py-2 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)' }}>₹{Number(item.price_at_sale).toFixed(2)}</td>
+                                        <td className="px-4 py-2 text-sm text-center font-bold" style={{ color: 'var(--text-primary)' }}>₹{(item.price_at_sale * item.quantity).toFixed(2)}</td>
                                       </tr>
                                     ))}
                                   </tbody>

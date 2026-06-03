@@ -156,11 +156,11 @@ export default function OwnerAuditLogs() {
         <table className="w-full text-left whitespace-nowrap border-collapse min-w-[900px]">
           <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-              <th className="p-3 w-44" style={{ borderRight: '1px solid var(--border-light)' }}>Date & Time</th>
+              <th className="p-3 w-44 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Date & Time</th>
               <th className="p-3 w-28 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Action</th>
               <th className="p-3 w-32 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Barcode</th>
-              <th className="p-3 w-56" style={{ borderRight: '1px solid var(--border-light)' }}>Item Name</th>
-              <th className="p-3" style={{ borderRight: '1px solid var(--border-light)' }}>Changes Logged</th>
+              <th className="p-3 w-56 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Item Name</th>
+              <th className="p-3 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Changes Logged</th>
               <th className="p-3 w-32 text-center">User</th>
             </tr>
           </thead>
@@ -176,7 +176,7 @@ export default function OwnerAuditLogs() {
                 const styles = getActionStyles(log.action_type);
                 return (
                   <tr key={log.id} className="transition-colors hover:bg-[var(--bg-hover)] group" style={{ borderBottom: '1px solid var(--border-light)' }}>
-                    <td className="p-3 text-xs font-medium" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>
+                    <td className="p-3 text-xs font-medium text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>
                       {log.date}
                     </td>
                     <td className="p-3 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
@@ -190,10 +190,10 @@ export default function OwnerAuditLogs() {
                     <td className="p-3 text-sm font-mono font-semibold text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--color-accent)' }}>
                       {log.barcode === 'CATEGORY' || log.barcode === 'SUB-CATEGORY' || log.barcode === '---' ? <span style={{ color: 'var(--text-tertiary)' }}>—</span> : log.barcode}
                     </td>
-                    <td className="p-3 text-sm font-medium" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
+                    <td className="p-3 text-sm font-medium text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
                       {log.item_name}
                     </td>
-                    <td className="p-3 text-sm whitespace-normal" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
+                    <td className="p-3 text-sm whitespace-normal text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
                       {log.changes}
                     </td>
                     <td className="p-3 text-xs text-center font-bold capitalize" style={{ color: 'var(--text-tertiary)' }}>
