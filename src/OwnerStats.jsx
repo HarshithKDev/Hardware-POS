@@ -427,7 +427,7 @@ export default function OwnerStats({ isActive }) {
                       </thead>
                       <tbody>
                         {todaysSalesDetails.length === 0 ? (
-                          <tr><td colSpan="5" className="p-8 text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No sales recorded today.</td></tr>
+                          <tr><td colSpan="5" className="h-[50vh] align-middle text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No sales recorded today.</td></tr>
                         ) : todaysSalesDetails.map((item, idx) => (
                           <tr key={idx} style={{ borderBottom: '1px solid var(--border-light)' }}>
                             <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
@@ -469,7 +469,7 @@ export default function OwnerStats({ isActive }) {
                         </tr>
                       ))}
                       {activeModal === 'dead-stock' && deadStockItems.length === 0 && (
-                        <tr><td colSpan="4" className="p-8 text-center text-sm font-semibold" style={{ color: 'var(--color-success)' }}>Great job! All your stock is active and moving.</td></tr>
+                        <tr><td colSpan="4" className="h-[50vh] align-middle text-center text-sm font-semibold" style={{ color: 'var(--color-success)' }}>Great job! All your stock is active and moving.</td></tr>
                       )}
                       {activeModal === 'dead-stock' && deadStockItems.map(item => (
                         <tr key={item.barcode} style={{ borderBottom: '1px solid var(--border-light)' }}>

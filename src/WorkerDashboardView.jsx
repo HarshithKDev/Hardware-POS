@@ -110,7 +110,7 @@ export default function WorkerDashboardView() {
       </div>
 
       <div className="overflow-x-auto flex-1 min-h-[300px] rounded-none shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}>
-        <table className="w-full text-left border-collapse min-w-[600px]">
+        <table className="w-full h-full text-center whitespace-nowrap border-collapse min-w-[1000px]">
           <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
               <th className="p-3 w-32" style={{ borderRight: '1px solid var(--border-light)' }}>Barcode</th>
@@ -122,9 +122,9 @@ export default function WorkerDashboardView() {
           </thead>
           <tbody style={{ borderBottom: '1px solid var(--border-medium)' }}>
             {isLoading ? (
-               <tr><td colSpan="5" className="p-8 text-center"><PageLoader text="Loading items..." /></td></tr>
+               <tr><td colSpan="5" className="h-full text-center"><PageLoader text="Loading items..." /></td></tr>
             ) : paginatedInventory.length === 0 ? (
-              <tr><td colSpan="5" className="p-8 text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No items found.</td></tr>
+              <tr><td colSpan="5" className="h-full align-middle text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No items found.</td></tr>
             ) : paginatedInventory.map(item => (
               <tr key={item.id} className="transition-colors hover:bg-[var(--bg-hover)]" style={{ borderBottom: '1px solid var(--border-light)' }}>
                 <td className="p-3 text-sm font-semibold tracking-wider font-mono" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{item.barcode}</td>

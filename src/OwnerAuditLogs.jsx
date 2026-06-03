@@ -153,7 +153,7 @@ export default function OwnerAuditLogs() {
       </div>
 
       <div className="flex-1 overflow-auto shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}>
-        <table className="w-full text-left whitespace-nowrap border-collapse min-w-[900px]">
+        <table className="w-full h-full text-left whitespace-nowrap border-collapse min-w-[900px]">
           <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
               <th className="p-3 w-44 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Date & Time</th>
@@ -170,7 +170,7 @@ export default function OwnerAuditLogs() {
             ) : error ? (
               <tr><td colSpan="6" className="p-8 text-center text-sm font-semibold text-[var(--color-error)]">Failed to load logs: {error.message}</td></tr>
             ) : filteredLogs.length === 0 ? (
-              <tr><td colSpan="6" className="p-8 text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No matching audit logs found.</td></tr>
+              <tr><td colSpan="6" className="h-full align-middle text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No matching audit logs found.</td></tr>
             ) : (
               filteredLogs.map(log => {
                 const styles = getActionStyles(log.action_type);

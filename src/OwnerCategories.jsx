@@ -200,7 +200,7 @@ export default function OwnerCategories() {
           </thead>
           <tbody>
             {categories.length === 0 ? (
-              <tr><td colSpan="3" className="p-8 text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No categories found.</td></tr>
+              <tr><td colSpan="3" className="h-[50vh] align-middle text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No categories found.</td></tr>
             ) : categories.map(cat => {
               const isExpanded = expandedCategoryId === cat.id;
               const catSubcategories = subcategories.filter(sub => sub.category_name === cat.name);

@@ -141,7 +141,7 @@ export default function OwnerLedger({ isActive }) {
               <select
                 value={dateFilter}
                 onChange={(e) => { setDateFilter(e.target.value); setSalesPage(0); setExpandedBillId(null); }}
-                className="h-9 pl-3 pr-8 text-sm focus:outline-none cursor-pointer shadow-sm"
+                className="h-9 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer shadow-sm"
                 style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
                 aria-label="Date filter"
               >
@@ -151,6 +151,9 @@ export default function OwnerLedger({ isActive }) {
                 <option value="CUSTOM">Specific Date...</option>
                 <option value="RANGE">Date Range...</option>
               </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}>
+                <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
+              </div>
             </div>
             {dateFilter === 'CUSTOM' && (
               <input type="date" value={customDate} onChange={(e) => { setCustomDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-9 px-2 text-sm focus:outline-none shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
@@ -178,7 +181,7 @@ export default function OwnerLedger({ isActive }) {
         </div>
 
         <div className="flex-1 overflow-auto shadow-sm min-h-[400px]" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}>
-          <table className="w-full text-left border-collapse min-w-[700px]">
+          <table className="w-full h-full text-left border-collapse min-w-[700px]">
             <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
               <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                 <th className="p-3 w-48 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Date & Time</th>
@@ -189,9 +192,9 @@ export default function OwnerLedger({ isActive }) {
             </thead>
             <tbody>
               {isLoadingBills && bills.length === 0 ? (
-                <tr><td colSpan="4" className="p-10 text-center"><PageLoader text="Loading sales..." /></td></tr>
+                <tr><td colSpan="4" className="h-full text-center"><PageLoader text="Loading sales..." /></td></tr>
               ) : bills.length === 0 ? (
-                <tr><td colSpan="4" className="p-8 text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No sales records found.</td></tr>
+                <tr><td colSpan="4" className="h-full align-middle text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No sales records found.</td></tr>
               ) : bills.map(bill => {
                 const isExpanded = expandedBillId === bill.id;
                 const items = billItemsCache[bill.id] || [];

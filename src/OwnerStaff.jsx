@@ -123,16 +123,21 @@ export default function OwnerStaff() {
           </div>
           <div className="w-full md:flex-1">
             <label className="block text-xs font-semibold uppercase mb-1" style={{ color: 'var(--text-tertiary)' }} htmlFor="staff-type">Account Type</label>
-            <select
-              id="staff-type"
-              value={newStaffIsBillable}
-              onChange={(e) => setNewStaffIsBillable(e.target.value === 'true')}
-              className="w-full h-10 px-3 text-sm focus:outline-none"
-              style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
-            >
-              <option value="true">Billable</option>
-              <option value="false">Non-Billable</option>
-            </select>
+            <div className="relative">
+              <select
+                id="staff-type"
+                value={newStaffIsBillable}
+                onChange={(e) => setNewStaffIsBillable(e.target.value === 'true')}
+                className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer"
+                style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
+              >
+                <option value="true">Billable</option>
+                <option value="false">Non-Billable</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}>
+                <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
+              </div>
+            </div>
           </div>
           <div className="w-full md:w-auto">
             <button
@@ -148,7 +153,7 @@ export default function OwnerStaff() {
       </div>
 
       <div className="flex-1 overflow-auto shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
-        <table className="w-full text-left border-collapse">
+        <table className="w-full h-full text-left border-collapse">
           <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
               <th className="p-4 w-5/12 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Staff Name</th>
@@ -158,9 +163,9 @@ export default function OwnerStaff() {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan="3" className="h-[50vh] align-middle text-center"><PageLoader text="Loading staff..." /></td></tr>
+              <tr><td colSpan="3" className="h-full align-middle text-center"><PageLoader text="Loading staff..." /></td></tr>
             ) : staffList.length === 0 ? (
-              <tr><td colSpan="3" className="p-8 text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No staff members added yet.</td></tr>
+              <tr><td colSpan="3" className="h-full align-middle text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No staff members added yet.</td></tr>
             ) : staffList.map(staff => (
               <tr key={staff.id} className="transition-colors hover:bg-[var(--bg-hover)]" style={{ borderBottom: '1px solid var(--border-light)' }}>
                 <td className="p-4 text-sm font-medium text-center" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{staff.name}</td>
