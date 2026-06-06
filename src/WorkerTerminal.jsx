@@ -166,6 +166,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [looseItemModal, setLooseItemModal] = useState({ isOpen: false, item: null, qty: '' });
 
   const barcodeBuffer = useRef('');
   const lastKeyTime = useRef(Date.now());
@@ -217,6 +218,11 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         if (Number(item.stock_store || 0) <= 0) return showAlertRef.current(`${item.name} is out of stock in the store.`, "Out of Stock");
         if (currentQty >= Number(item.stock_store || 0)) return showAlertRef.current(`You only have ${item.stock_store} of ${item.name} in the store.`, "Stock Limit");
       }
+      if (item.is_loose_item) {
+        setLooseItemModal({ isOpen: true, item, qty: '' });
+        return;
+      }
+
       setCart(prev => {
         const idx = prev.findIndex(c => c.barcode === cleanBarcode);
         if (idx >= 0) { const up = [...prev]; up[idx] = { ...up[idx], quantity: (Number(up[idx].quantity) || 0) + 1 }; return up; }
@@ -226,7 +232,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   }, []);
 
   useEffect(() => {
-    const isModalOpen = alertConfig.isOpen || confirmConfig.isOpen || checkoutModal.isOpen || printPreviewOpen;
+    const isModalOpen = alertConfig.isOpen || confirmConfig.isOpen || checkoutModal.isOpen || printPreviewOpen || looseItemModal.isOpen;
     const handleGlobalKeyDown = (e) => {
       if (isModalOpen) return;
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
@@ -241,7 +247,46 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [alertConfig.isOpen, confirmConfig.isOpen, checkoutModal.isOpen, printPreviewOpen, processScan]);
+  }, [alertConfig.isOpen, confirmConfig.isOpen, checkoutModal.isOpen, printPreviewOpen, looseItemModal.isOpen, processScan]);
+
+  const handleLooseItemSubmit = (e) => {
+    if (e) e.preventDefault();
+    const { item, qty } = looseItemModal;
+    const addQty = Number(qty) || 0;
+    if (addQty <= 0) {
+      setLooseItemModal({ isOpen: false, item: null, qty: '' });
+      return;
+    }
+    
+    if (activeTab === 'checkout') {
+      const currentCartItem = cart.find(c => c.barcode === item.barcode);
+      const currentQty = currentCartItem ? (Number(currentCartItem.quantity) || 0) : 0;
+      const proposedQty = currentQty + addQty;
+      if (proposedQty > Number(item.stock_store || 0)) {
+        showAlert(`You only have ${item.stock_store} of ${item.name} in the store.`, "Stock Limit");
+        return;
+      }
+    }
+
+    setCart(prev => {
+      const idx = prev.findIndex(c => c.barcode === item.barcode);
+      if (idx >= 0) { 
+        const up = [...prev]; 
+        up[idx] = { ...up[idx], quantity: (Number(up[idx].quantity) || 0) + addQty }; 
+        return up; 
+      }
+      return [...prev, { 
+        ...item, 
+        id: generateId(), 
+        customPriceInput: Number(item.price || 0).toFixed(2), 
+        discountPct: 0, 
+        quantity: addQty, 
+        unit: item.unit || 'PCS', 
+        length: '', width: '', rolls: '1' 
+      }];
+    });
+    setLooseItemModal({ isOpen: false, item: null, qty: '' });
+  };
 
   const updateQuantity = (id, val) => {
     setCart(prev => {
@@ -456,6 +501,29 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} disabled={isCheckingOut} className="h-9 px-8 text-sm font-semibold disabled:opacity-50 focus:outline-none" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}>Cancel</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Loose Item Quantity Modal */}
+      {looseItemModal.isOpen && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-[110] print:hidden px-4 animate-fade-in"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+        >
+          <form onSubmit={handleLooseItemSubmit} className="w-[95%] max-w-[400px] flex flex-col animate-scale-in" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
+            <div className="flex justify-between items-center pr-1 pl-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
+              <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Loose Item Quantity</span>
+              <button type="button" onClick={() => setLooseItemModal({ isOpen: false, item: null, qty: '' })} className="px-3 py-1.5 leading-none focus:outline-none text-lg">✕</button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm mb-4 font-semibold">{looseItemModal.item?.name}</p>
+              <label htmlFor="loose-qty" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Enter Quantity</label>
+              <input id="loose-qty" type="number" step="any" min="0" autoFocus value={looseItemModal.qty} onChange={(e) => setLooseItemModal({ ...looseItemModal, qty: e.target.value })} placeholder="0" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+            </div>
+            <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
+              <button type="submit" disabled={!looseItemModal.qty} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none disabled:opacity-50" style={{ backgroundColor: 'var(--color-accent)' }}>Add to Cart</button>
+            </div>
+          </form>
         </div>
       )}
 

@@ -188,18 +188,6 @@ function App() {
         />
       )}
 
-      {/* TEMPORARY DEBUG OVERLAY */}
-      <div 
-        className="fixed bottom-4 right-4 bg-black/80 text-green-400 p-4 text-xs font-mono z-[99999] rounded border border-green-500 max-w-sm break-all"
-        onClick={(e) => e.currentTarget.style.display = 'none'}
-      >
-        <p className="font-bold text-white mb-1">🔍 DEBUG INFO (Click to hide)</p>
-        <p>UA: {navigator.userAgent}</p>
-        <p>Viewport: {window.innerWidth}x{window.innerHeight}</p>
-        <p>PixelRatio: {window.devicePixelRatio}</p>
-        <p>BaseFontSize: {getComputedStyle(document.documentElement).fontSize}</p>
-      </div>
-
       {/* NAVBAR */}
       <nav
         className="w-full shadow-sm h-[60px] flex-shrink-0 relative z-[9999]"

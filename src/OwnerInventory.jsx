@@ -85,6 +85,7 @@ export default function OwnerInventory({ viewType }) {
         stock_warehouse: Number(newItem.stock_warehouse || 0),
         stock_store: Number(newItem.stock_store || 0),
         unit: newItem.unit,
+        is_loose_item: Boolean(newItem.is_loose_item)
       }).eq('barcode', newItem.barcode);
       if (error) throw error;
 

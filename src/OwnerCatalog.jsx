@@ -16,7 +16,7 @@ export default function OwnerCatalog() {
 
   const [form, setForm] = useState({
     name: '', category: '', sub_category: '', cost_price: '',
-    msp: '', price: '', unit: 'PCS', min_quantity: ''
+    msp: '', price: '', unit: 'PCS', min_quantity: '', is_loose_item: false
   });
   const [nextBarcode, setNextBarcode] = useState('');
   const [printLabelCount, setPrintLabelCount] = useState(0);
@@ -135,6 +135,7 @@ export default function OwnerCatalog() {
           stock_store: 0,
           unit: itemData.unit,
           min_quantity: Number(itemData.min_quantity) || 0,
+          is_loose_item: Boolean(itemData.is_loose_item),
           is_active: true
         }]);
 
@@ -165,7 +166,7 @@ export default function OwnerCatalog() {
         setBarcodePreview({ isOpen: true, previewHtml, printHtml });
       }
       
-      setForm({ name: '', category: '', sub_category: '', cost_price: '', msp: '', price: '', unit: 'PCS', min_quantity: '' });
+      setForm({ name: '', category: '', sub_category: '', cost_price: '', msp: '', price: '', unit: 'PCS', min_quantity: '', is_loose_item: false });
       setPrintLabelCount(0);
       showAlert(`Added "${savedItem.name}" with Barcode ${savedItem.barcode}.`, "Success");
     },
@@ -422,6 +423,22 @@ export default function OwnerCatalog() {
               <input id="item-min-qty" type="number" step="1" min="0" value={form.min_quantity} onChange={(e) => setForm({...form, min_quantity: e.target.value})} placeholder="e.g. 10" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
               <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{UNIT_TYPES.find(u => u.value === form.unit)?.label || form.unit}</span>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Item Type</label>
+            <label className="flex items-center w-full h-10 px-3 cursor-pointer" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)' }}>
+              <input 
+                type="checkbox" 
+                checked={form.is_loose_item} 
+                onChange={(e) => setForm({...form, is_loose_item: e.target.checked})} 
+                className="w-4 h-4 mr-3"
+                style={{ accentColor: 'var(--color-accent)' }}
+              />
+              <span className="text-sm font-medium select-none" style={{ color: 'var(--text-input)' }}>
+                Is Loose Item (Prompt Qty)
+              </span>
+            </label>
           </div>
         </div>
 
