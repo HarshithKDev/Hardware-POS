@@ -38,9 +38,26 @@ function App() {
     const handleOffline = () => setIsOnline(false);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+
+    // Fluid scaling: perfectly matches UI proportions across any browser/zoom
+    const handleResize = () => {
+      const baseWidth = 1440; // The Mac viewport width they consider "normal"
+      const currentWidth = window.innerWidth;
+      if (currentWidth < baseWidth) {
+        // Proportionally scale down base font size
+        const newSize = (currentWidth / baseWidth) * 16;
+        document.documentElement.style.fontSize = `${Math.max(10, newSize)}px`;
+      } else {
+        document.documentElement.style.fontSize = '16px';
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Initial scale
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('resize', handleResize);
     };
   }, []);
 

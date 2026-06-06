@@ -127,30 +127,12 @@
   font-family: var(--font-family);
 }
 
-/* Enforce 16px base font size to prevent browsers with larger defaults from zooming the UI */
+/* Enforce base font size to prevent browsers with larger defaults from zooming the UI */
 html {
   font-size: 16px;
   -webkit-text-size-adjust: 100%;
   -moz-text-size-adjust: 100%;
   text-size-adjust: 100%;
-}
-
-@media (max-width: 1600px) {
-  html {
-    font-size: 14px;
-  }
-}
-
-@media (max-width: 1366px) {
-  html {
-    font-size: 12px;
-  }
-}
-
-@media (max-width: 1024px) {
-  html {
-    font-size: 11px;
-  }
 }
 
 /* ---------------------------------------------------------------
