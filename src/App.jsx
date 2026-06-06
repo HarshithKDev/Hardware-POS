@@ -183,7 +183,7 @@ function App() {
       >
         <div className="w-full max-w-[1920px] mx-auto flex items-center justify-between h-full">
           <div
-            className="h-full flex items-center justify-center flex-shrink-0 px-4 md:px-0 w-auto md:w-[265px]"
+            className="h-full flex items-center justify-center flex-shrink-0 px-4 md:px-0 w-auto md:w-[16.5rem]"
             style={{ borderRight: '1px solid var(--border-medium)' }}
           >
             <span

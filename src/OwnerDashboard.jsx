@@ -61,7 +61,7 @@ export default function OwnerDashboard() {
 
       {/* SIDEBAR */}
       <aside
-        className={`${isSidebarOpen ? 'block' : 'hidden'} md:block w-full md:w-[240px] flex-shrink-0 pt-4`}
+        className={`${isSidebarOpen ? 'block' : 'hidden'} md:block w-full md:w-[15rem] flex-shrink-0 pt-4`}
         style={{
           backgroundColor: 'var(--bg-tertiary)',
           borderRight: '1px solid var(--border-medium)',
