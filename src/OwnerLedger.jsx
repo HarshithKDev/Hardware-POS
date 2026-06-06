@@ -181,7 +181,7 @@ export default function OwnerLedger({ isActive }) {
         </div>
 
         <div className="flex-1 overflow-auto shadow-sm min-h-[400px]" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}>
-          <table className="w-full h-full text-left border-collapse min-w-[700px]">
+          <table className={`w-full text-left border-collapse min-w-[700px] ${(isLoadingBills && bills.length === 0 || bills.length === 0) ? 'h-full' : ''}`}>
             <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
               <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                 <th className="p-3 w-48 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Date & Time</th>

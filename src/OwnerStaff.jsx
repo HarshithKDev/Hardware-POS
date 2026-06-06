@@ -153,7 +153,7 @@ export default function OwnerStaff() {
       </div>
 
       <div className="flex-1 overflow-auto shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
-        <table className="w-full h-full text-left border-collapse">
+        <table className={`w-full text-left border-collapse ${(isLoading || staffList.length === 0) ? 'h-full' : ''}`}>
           <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
               <th className="p-4 w-5/12 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Staff Name</th>

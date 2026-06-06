@@ -110,7 +110,7 @@ export default function WorkerDashboardView() {
       </div>
 
       <div className="overflow-x-auto flex-1 min-h-[300px] rounded-none shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}>
-        <table className="w-full h-full text-center whitespace-nowrap border-collapse min-w-[1000px]">
+        <table className={`w-full text-center whitespace-nowrap border-collapse min-w-[1000px] ${(isLoading || paginatedInventory.length === 0) ? 'h-full' : ''}`}>
           <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
               <th className="p-3 w-32" style={{ borderRight: '1px solid var(--border-light)' }}>Barcode</th>

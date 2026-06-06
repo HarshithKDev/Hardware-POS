@@ -266,7 +266,7 @@ export default function OwnerInventory({ viewType }) {
       </div>
 
       <div className="overflow-x-auto flex-1 min-h-[300px] shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}>
-        <table className={`w-full h-full text-center whitespace-nowrap border-collapse min-w-[1100px]`}>
+        <table className={`w-full text-center whitespace-nowrap border-collapse min-w-[1100px] ${(isLoading || items.length === 0) ? 'h-full' : ''}`}>
           <thead className="sticky top-0" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
               <th className="p-3 min-w-[120px]" style={{ borderRight: '1px solid var(--border-light)' }}>Barcode</th>

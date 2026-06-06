@@ -190,7 +190,7 @@ export default function OwnerCategories() {
 
       <div className="flex-1 overflow-y-auto shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
       <div className="overflow-x-auto w-full">
-        <table className="w-full text-left border-collapse">
+        <table className={`w-full text-left border-collapse ${categories.length === 0 ? 'h-full' : ''}`}>
           <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
               <th className="p-4" style={{ borderRight: '1px solid var(--border-light)' }}>Category Name</th>
