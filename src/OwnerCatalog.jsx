@@ -16,7 +16,7 @@ export default function OwnerCatalog() {
 
   const [form, setForm] = useState({
     name: '', category: '', sub_category: '', cost_price: '',
-    msp: '', price: '', unit: 'PCS', min_quantity: '', is_loose_item: false
+    msp: '', price: '', unit: 'PCS', min_quantity: '', item_type: 'standard'
   });
   const [nextBarcode, setNextBarcode] = useState('');
   const [printLabelCount, setPrintLabelCount] = useState(0);
@@ -135,7 +135,8 @@ export default function OwnerCatalog() {
           stock_store: 0,
           unit: itemData.unit,
           min_quantity: Number(itemData.min_quantity) || 0,
-          is_loose_item: Boolean(itemData.is_loose_item),
+          is_loose_item: itemData.item_type === 'loose',
+          is_cuttable: itemData.item_type === 'cuttable',
           is_active: true
         }]);
 
@@ -159,14 +160,14 @@ export default function OwnerCatalog() {
       }
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['nextBarcode'] });
-      
+
       if (printLabelCount > 0) {
         const previewHtml = generateSinglePreviewHtml(savedItem);
         const printHtml = generatePrintHtml(savedItem, printLabelCount);
         setBarcodePreview({ isOpen: true, previewHtml, printHtml });
       }
-      
-      setForm({ name: '', category: '', sub_category: '', cost_price: '', msp: '', price: '', unit: 'PCS', min_quantity: '', is_loose_item: false });
+
+      setForm({ name: '', category: '', sub_category: '', cost_price: '', msp: '', price: '', unit: 'PCS', min_quantity: '', item_type: 'standard' });
       setPrintLabelCount(0);
       showAlert(`Added "${savedItem.name}" with Barcode ${savedItem.barcode}.`, "Success");
     },
@@ -199,11 +200,11 @@ export default function OwnerCatalog() {
         min_quantity: '10'
       }
     ];
-    
+
     const worksheet = XLSX.utils.json_to_sheet(templateData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
-    
+
     // Auto-size columns
     worksheet['!cols'] = [
       { wch: 15 }, { wch: 35 }, { wch: 15 }, { wch: 15 },
@@ -228,9 +229,9 @@ export default function OwnerCatalog() {
       if (!jsonData || jsonData.length === 0) {
         throw new Error('The Excel file appears to be empty.');
       }
-      
+
       showAlert('Importing items... This may take a minute.', 'Info');
-      
+
       const formattedData = jsonData.map(row => ({
         barcode: String(row.barcode || row.Barcode || '').trim(),
         name: String(row.name || row.Name || '').trim(),
@@ -244,7 +245,7 @@ export default function OwnerCatalog() {
         unit: String(row.unit || row.Unit || 'PCS').trim(),
         min_quantity: Number(row.min_quantity || row.Min_Quantity || row['Min Quantity'] || 0),
         is_active: true
-      })).filter(r => r.barcode && r.name); 
+      })).filter(r => r.barcode && r.name);
 
       if (formattedData.length === 0) {
         throw new Error('No valid rows found. Ensure "barcode" and "name" columns exist.');
@@ -254,7 +255,7 @@ export default function OwnerCatalog() {
       const uniqueCategories = [...new Set(formattedData.map(r => r.category).filter(Boolean))];
       const existingCatNames = categories.map(c => c.name);
       const newCatsToInsert = uniqueCategories.filter(c => !existingCatNames.includes(c)).map(name => ({ name }));
-      
+
       if (newCatsToInsert.length > 0) {
         const { error: catError } = await supabase.from('categories').insert(newCatsToInsert);
         if (catError) console.error("Error auto-creating categories:", catError);
@@ -269,7 +270,7 @@ export default function OwnerCatalog() {
           }
         }
       });
-      
+
       const newSubsToInsert = uniqueSubcategories.filter(sub => {
         return !subcategories.some(e => e.name === sub.sub_category && e.category_name === sub.category);
       }).map(sub => ({ name: sub.sub_category, category_name: sub.category }));
@@ -310,9 +311,9 @@ export default function OwnerCatalog() {
 
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['nextBarcode'] });
-      
+
       await syncInventoryToLocal();
-      
+
     } catch (err) {
       showAlert(`Import failed: ${err.message}`, 'Error');
     } finally {
@@ -332,7 +333,7 @@ export default function OwnerCatalog() {
             Note: This barcode is provisional. It resolves automatically during concurrent saves.
           </p>
         </div>
-        
+
         <div className="flex gap-2 shrink-0">
           <button
             type="button"
@@ -353,113 +354,114 @@ export default function OwnerCatalog() {
             </svg>
             Import Excel
           </button>
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleImportExcel} 
-            accept=".xlsx, .xls" 
-            className="hidden" 
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImportExcel}
+            accept=".xlsx, .xls"
+            className="hidden"
           />
         </div>
       </div>
-      
+
       <form onSubmit={handleSubmit} className="p-4 md:p-8 shadow-sm flex flex-col gap-6" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="md:col-span-2">
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-name">Nomenclature</label>
-            <input id="item-name" type="text" autoFocus required value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} placeholder="e.g. 10mm Steel Rebar" className="w-full h-10 px-3 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+            <input id="item-name" type="text" autoFocus required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. 10mm Steel Rebar" className="w-full h-10 px-3 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
           </div>
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-cat">Category</label>
             <div className="relative">
-              <select id="item-cat" value={form.category} onChange={(e) => setForm({...form, category: e.target.value, sub_category: ''})} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
+              <select id="item-cat" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value, sub_category: '' })} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
                 <option value="">-- None --</option>
                 {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
               </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg></div>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-subcat">Sub-category</label>
             <div className="relative">
-              <select id="item-subcat" value={form.sub_category} onChange={(e) => setForm({...form, sub_category: e.target.value})} disabled={!form.category} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer disabled:cursor-not-allowed" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
+              <select id="item-subcat" value={form.sub_category} onChange={(e) => setForm({ ...form, sub_category: e.target.value })} disabled={!form.category} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer disabled:cursor-not-allowed" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
                 <option value="">-- None --</option>
                 {subcategories.filter(sub => sub.category_name === form.category).map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
               </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg></div>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-cost">Cost Price (₹)</label>
-            <input id="item-cost" type="number" step="any" min="0" required value={form.cost_price} onChange={(e) => setForm({...form, cost_price: e.target.value})} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+            <input id="item-cost" type="number" step="any" min="0" required value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
           </div>
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-msp">Minimum Selling Price (₹)</label>
-            <input id="item-msp" type="number" step="any" min="0" required value={form.msp} onChange={(e) => setForm({...form, msp: e.target.value})} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+            <input id="item-msp" type="number" step="any" min="0" required value={form.msp} onChange={(e) => setForm({ ...form, msp: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
           </div>
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-mrp">Maximum Retail Price (₹)</label>
-            <input id="item-mrp" type="number" step="any" min="0" required value={form.price} onChange={(e) => setForm({...form, price: e.target.value})} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+            <input id="item-mrp" type="number" step="any" min="0" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
           </div>
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-unit">Unit Type</label>
             <div className="relative">
-              <select id="item-unit" value={form.unit} onChange={(e) => setForm({...form, unit: e.target.value})} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
+              <select id="item-unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
                 {UNIT_TYPES.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
               </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg></div>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-min-qty">Min Quantity</label>
             <div className="relative">
-              <input id="item-min-qty" type="number" step="1" min="0" value={form.min_quantity} onChange={(e) => setForm({...form, min_quantity: e.target.value})} placeholder="e.g. 10" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+              <input id="item-min-qty" type="number" step="1" min="0" value={form.min_quantity} onChange={(e) => setForm({ ...form, min_quantity: e.target.value })} placeholder="e.g. 10" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
               <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{UNIT_TYPES.find(u => u.value === form.unit)?.label || form.unit}</span>
             </div>
           </div>
-
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Item Type</label>
-            <label className="flex items-center w-full h-10 px-3 cursor-pointer" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)' }}>
-              <input 
-                type="checkbox" 
-                checked={form.is_loose_item} 
-                onChange={(e) => setForm({...form, is_loose_item: e.target.checked})} 
-                className="w-4 h-4 mr-3"
-                style={{ accentColor: 'var(--color-accent)' }}
-              />
-              <span className="text-sm font-medium select-none" style={{ color: 'var(--text-input)' }}>
-                Is Loose Item (Prompt Qty)
-              </span>
-            </label>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-type">Item Type</label>
+            <div className="relative">
+              <select 
+                id="item-type" 
+                value={form.item_type} 
+                onChange={(e) => setForm({...form, item_type: e.target.value})} 
+                className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer" 
+                style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
+              >
+                <option value="standard">Standard Item</option>
+                <option value="loose">Loose / Bulk Box (Prompt Qty)</option>
+                <option value="cuttable">Cuttable Stock (Pipes/Mesh)</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg></div>
+            </div>
           </div>
         </div>
 
         <div className="mt-4 pt-6 flex flex-col md:flex-row justify-between items-center gap-4" style={{ borderTop: '1px solid var(--border-light)' }}>
           <div className="flex items-center gap-3 w-full md:w-auto">
             <label htmlFor="print-qty" className="text-sm font-semibold whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>Print Labels:</label>
-            <input 
+            <input
               id="print-qty"
-              type="number" 
-              min="0" 
-              max="50" 
-              value={printLabelCount} 
+              type="number"
+              min="0"
+              max="50"
+              value={printLabelCount}
               onChange={(e) => setPrintLabelCount(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value)))}
-              className="w-20 h-10 px-2 text-center text-sm font-bold focus:outline-none" 
-              style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} 
+              className="w-20 h-10 px-2 text-center text-sm font-bold focus:outline-none"
+              style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
             />
           </div>
-          <button 
-            type="submit" 
-            disabled={addItemMutation.isPending || !nextBarcode} 
-            className="w-full md:w-auto h-10 px-10 text-white text-sm font-semibold uppercase tracking-wider disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-1 flex justify-center items-center min-w-[200px]" 
+          <button
+            type="submit"
+            disabled={addItemMutation.isPending || !nextBarcode}
+            className="w-full md:w-auto h-10 px-10 text-white text-sm font-semibold uppercase tracking-wider disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-1 flex justify-center items-center min-w-[200px]"
             style={{ backgroundColor: 'var(--color-accent)' }}
           >
             {addItemMutation.isPending ? <Spinner className="w-5 h-5 text-white" /> : 'Save Item'}

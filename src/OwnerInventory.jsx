@@ -6,6 +6,7 @@ import { useApp } from './AppContext';
 import { escapeIlike, debounce } from './utils';
 import { INV_PER_PAGE, STALE_TIME_5MIN } from './constants';
 import InventoryRow from './InventoryRow';
+import StockInstancesModal from './StockInstancesModal';
 
 export default function OwnerInventory({ viewType }) {
   const { showAlert, showConfirm } = useApp();
@@ -16,6 +17,7 @@ export default function OwnerInventory({ viewType }) {
   const [selectedSubcategory, setSelectedSubcategory] = useState('');
   const [sortOption, setSortOption] = useState('barcode-desc');
   const [invPage, setInvPage] = useState(0);
+  const [instancesModal, setInstancesModal] = useState({ isOpen: false, item: null });
   const queryClient = useQueryClient();
 
   // Debounced search (fixes #17)
@@ -298,6 +300,7 @@ export default function OwnerInventory({ viewType }) {
                   onSave={(data) => updateItemMutation.mutate(data)}
                   onRemove={handleRemove}
                   onRestore={handleRestore}
+                  onManageInstances={(item) => setInstancesModal({ isOpen: true, item })}
                 />
               ))
             )}
@@ -326,6 +329,12 @@ export default function OwnerInventory({ viewType }) {
           Next
         </button>
       </div>
+
+      <StockInstancesModal 
+        isOpen={instancesModal.isOpen} 
+        onClose={() => setInstancesModal({ isOpen: false, item: null })} 
+        item={instancesModal.item} 
+      />
     </div>
   );
 }

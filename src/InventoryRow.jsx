@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function InventoryRow({ item, viewType, categories, subcategories, onSave, onRemove, onRestore }) {
+export default function InventoryRow({ item, viewType, categories, subcategories, onSave, onRemove, onRestore, onManageInstances }) {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(item);
 
@@ -45,10 +45,16 @@ export default function InventoryRow({ item, viewType, categories, subcategories
         <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}><input type="number" step="any" min="0" value={formData.stock_warehouse ?? ''} onChange={e=>setFormData({...formData, stock_warehouse: e.target.value})} className="h-8 px-2 w-full text-sm text-center rounded-none focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} /></td>
         <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}><input type="number" step="any" min="0" value={formData.stock_store ?? ''} onChange={e=>setFormData({...formData, stock_store: e.target.value})} className="h-8 px-2 w-full text-sm text-center rounded-none focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} /></td>
         <td className="p-2 flex flex-col gap-1 justify-center items-center">
-          <label className="flex items-center gap-1 text-[10px] cursor-pointer mb-1">
-            <input type="checkbox" checked={formData.is_loose_item || false} onChange={e => setFormData({...formData, is_loose_item: e.target.checked})} className="w-3 h-3 cursor-pointer" />
-            <span style={{ color: 'var(--text-secondary)' }}>Loose</span>
-          </label>
+          <div className="flex gap-2 mb-1 justify-center">
+            <label className="flex items-center gap-1 text-[10px] cursor-pointer">
+              <input type="checkbox" checked={formData.is_loose_item || false} onChange={e => setFormData({...formData, is_loose_item: e.target.checked, is_cuttable: e.target.checked ? false : formData.is_cuttable})} className="w-3 h-3 cursor-pointer" />
+              <span style={{ color: 'var(--text-secondary)' }}>Loose</span>
+            </label>
+            <label className="flex items-center gap-1 text-[10px] cursor-pointer">
+              <input type="checkbox" checked={formData.is_cuttable || false} onChange={e => setFormData({...formData, is_cuttable: e.target.checked, is_loose_item: e.target.checked ? false : formData.is_loose_item})} className="w-3 h-3 cursor-pointer" />
+              <span style={{ color: 'var(--text-secondary)' }}>Cuttable</span>
+            </label>
+          </div>
           <div className="flex gap-1">
             <button onClick={handleSave} className="h-8 text-white px-2 text-xs font-semibold rounded-none focus:outline-none" style={{ backgroundColor: 'var(--color-success)' }}>Save</button>
             <button onClick={handleCancel} className="h-8 px-2 text-xs font-semibold rounded-none focus:outline-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>Cancel</button>
@@ -65,7 +71,10 @@ export default function InventoryRow({ item, viewType, categories, subcategories
         <div className="flex items-center gap-2">
           {item.name}
           {item.is_loose_item && (
-            <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded-sm" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)', border: '1px solid var(--border-medium)' }}>Loose</span>
+            <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded-sm whitespace-nowrap" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)', border: '1px solid var(--border-medium)' }}>Loose</span>
+          )}
+          {item.is_cuttable && (
+            <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded-sm whitespace-nowrap" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)', border: '1px solid var(--border-medium)' }}>Cuttable</span>
           )}
         </div>
       </td>
@@ -77,9 +86,14 @@ export default function InventoryRow({ item, viewType, categories, subcategories
       <td className="p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{item.stock_warehouse}</td>
       <td className="p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{item.stock_store}</td>
       {viewType === 'warehouse' && (
-        <td className="p-2 flex gap-1 justify-center items-center h-full">
-          <button onClick={() => { setIsEditing(true); setFormData(item); }} className="h-8 px-3 text-xs font-semibold rounded-none focus:outline-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>Edit</button>
-          <button onClick={() => onRemove(item.barcode)} className="h-8 px-2 text-xs font-semibold rounded-none focus:outline-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--color-error)', color: 'var(--color-error)' }}>Remove</button>
+        <td className="p-2 text-center h-full align-middle">
+          <div className="flex gap-1 justify-center items-center">
+            <button onClick={() => { setIsEditing(true); setFormData(item); }} className="h-8 px-2 text-xs font-semibold rounded-none focus:outline-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>Edit</button>
+            {item.is_cuttable && (
+              <button onClick={() => onManageInstances(item)} className="h-8 px-2 text-xs font-semibold rounded-none focus:outline-none whitespace-nowrap" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--color-accent)' }}>Pieces</button>
+            )}
+            <button onClick={() => onRemove(item.barcode)} className="h-8 px-2 text-xs font-semibold rounded-none focus:outline-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--color-error)', color: 'var(--color-error)' }}>Remove</button>
+          </div>
         </td>
       )}
       {viewType === 'recycle' && (

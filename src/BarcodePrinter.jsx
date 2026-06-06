@@ -12,13 +12,29 @@ export default function BarcodePrinter() {
     const delayDebounceFn = setTimeout(async () => {
       if (searchTerm.trim() === '') { setFilteredInventory([]); return; }
       
-      const { data } = await supabase.from('inventory')
+      const { data: invData } = await supabase.from('inventory')
         .select('*')
         .or(`name.ilike.%${searchTerm}%,barcode.ilike.%${searchTerm}%`)
         .eq('is_active', true)
         .limit(10);
         
-      if (data) setFilteredInventory(data);
+      const { data: instData } = await supabase.from('stock_instances')
+        .select('*, inventory:parent_barcode (name, price)')
+        .ilike('instance_barcode', `%${searchTerm}%`)
+        .eq('is_active', true)
+        .limit(10);
+
+      const combined = [];
+      if (invData) combined.push(...invData);
+      if (instData) {
+        combined.push(...instData.map(inst => ({
+          id: inst.id,
+          barcode: inst.instance_barcode,
+          name: `${inst.inventory?.name || 'Unknown'} (${inst.current_length})`,
+          price: inst.inventory?.price || 0,
+        })));
+      }
+      setFilteredInventory(combined);
     }, 300); // Waits 300ms after user stops typing to ping database
 
     return () => clearTimeout(delayDebounceFn);

@@ -28,6 +28,7 @@ export const UNIT_TYPES = [
   { value: 'PCS', label: 'Pieces' },
   { value: 'GRAMS', label: 'Grams' },
   { value: 'SQFT', label: 'Sq Ft' },
+  { value: 'METER', label: 'Meters (m)' },
 ];
 
 // --- React Query Cache ---
