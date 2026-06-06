@@ -135,15 +135,21 @@ html {
   text-size-adjust: 100%;
 }
 
-@media (max-width: 1440px) {
+@media (max-width: 1600px) {
   html {
     font-size: 14px;
   }
 }
 
+@media (max-width: 1366px) {
+  html {
+    font-size: 12px;
+  }
+}
+
 @media (max-width: 1024px) {
   html {
-    font-size: 13px;
+    font-size: 11px;
   }
 }
 
