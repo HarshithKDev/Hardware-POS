@@ -1,10 +1,34 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from './supabaseClient';
 import StockInstancesModal from './StockInstancesModal';
 
 export default function InventoryRow({ item, viewType, categories, subcategories, onSave, onRemove, onRestore }) {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(item);
   const [isExpanded, setIsExpanded] = useState(false);
+
+  const { data: pieceCounts } = useQuery({
+    queryKey: ['piece_counts', item.barcode],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('stock_instances')
+        .select('location')
+        .eq('parent_barcode', item.barcode)
+        .eq('is_active', true);
+      if (error) throw error;
+      
+      let whse = 0;
+      let store = 0;
+      data.forEach(d => {
+        if (d.location === 'Store') store++;
+        else whse++;
+      });
+      return { warehouse: whse, store: store };
+    },
+    enabled: !!item.is_cuttable,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const handleSave = () => {
     onSave({ oldItem: item, newItem: formData });
@@ -44,8 +68,8 @@ export default function InventoryRow({ item, viewType, categories, subcategories
         <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}><input type="number" step="1" min="0" value={formData.cost_price ?? ''} onChange={e=>setFormData({...formData, cost_price: e.target.value})} className="h-8 px-2 w-full text-sm text-center rounded-none focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} /></td>
         <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}><input type="number" step="1" min="0" value={formData.msp ?? ''} onChange={e=>setFormData({...formData, msp: e.target.value})} className="h-8 px-2 w-full text-sm text-center rounded-none focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} /></td>
         <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}><input type="number" step="1" min="0" value={formData.price ?? ''} onChange={e=>setFormData({...formData, price: e.target.value})} className="h-8 px-2 w-full text-sm text-center rounded-none focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} /></td>
-        <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}><input type="number" step="any" min="0" value={formData.stock_warehouse ?? ''} onChange={e=>setFormData({...formData, stock_warehouse: e.target.value})} className="h-8 px-2 w-full text-sm text-center rounded-none focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} /></td>
-        <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}><input type="number" step="any" min="0" value={formData.stock_store ?? ''} onChange={e=>setFormData({...formData, stock_store: e.target.value})} className="h-8 px-2 w-full text-sm text-center rounded-none focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} /></td>
+        <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}><input type="number" step="any" min="0" value={formData.stock_warehouse ?? ''} onChange={e=>setFormData({...formData, stock_warehouse: e.target.value})} className="h-8 px-2 w-full text-sm text-center rounded-none focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} disabled={item.is_cuttable} title={item.is_cuttable ? "Cannot edit warehouse aggregate for cuttable item directly" : ""} /></td>
+        <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}><input type="number" step="any" min="0" value={formData.stock_store ?? ''} onChange={e=>setFormData({...formData, stock_store: e.target.value})} className="h-8 px-2 w-full text-sm text-center rounded-none focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} disabled={item.is_cuttable} title={item.is_cuttable ? "Cannot edit store aggregate for cuttable item directly" : ""} /></td>
         <td className="p-2 flex flex-col gap-1 justify-center items-center">
           <div className="flex gap-2 mb-1 justify-center">
             <label className="flex items-center gap-1 text-[10px] cursor-pointer">
@@ -53,7 +77,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
               <span style={{ color: 'var(--text-secondary)' }}>Loose</span>
             </label>
             <label className="flex items-center gap-1 text-[10px] cursor-pointer">
-              <input type="checkbox" checked={formData.is_cuttable || false} onChange={e => setFormData({...formData, is_cuttable: e.target.checked, is_loose_item: e.target.checked ? false : formData.is_loose_item})} className="w-3 h-3 cursor-pointer" />
+              <input type="checkbox" checked={formData.is_cuttable || false} onChange={e => setFormData({...formData, is_cuttable: e.target.checked, is_loose_item: e.target.checked ? false : formData.is_loose_item})} className="w-3 h-3 cursor-pointer" disabled />
               <span style={{ color: 'var(--text-secondary)' }}>Cuttable</span>
             </label>
           </div>
@@ -63,8 +87,8 @@ export default function InventoryRow({ item, viewType, categories, subcategories
           </div>
           {formData.unit === 'SQFT' && (
             <div className="flex gap-2 justify-center">
-              <input type="number" step="any" min="0" placeholder="Def. Length" value={formData.default_length ?? ''} onChange={e=>setFormData({...formData, default_length: e.target.value})} className="h-8 px-2 w-16 text-xs text-center rounded-none focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} title="Default Length" />
-              <input type="number" step="any" min="0" placeholder="Def. Height" value={formData.default_width ?? ''} onChange={e=>setFormData({...formData, default_width: e.target.value})} className="h-8 px-2 w-16 text-xs text-center rounded-none focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} title="Default Height" />
+              <input type="number" step="any" min="0" placeholder="Def. Length" value={formData.default_length ?? ''} onChange={e=>setFormData({...formData, default_length: e.target.value})} className="h-8 px-2 w-16 text-xs text-center rounded-none focus:outline-none disabled:opacity-50" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} title={Number(item.stock_warehouse) > 0 || Number(item.stock_store) > 0 ? "Cannot edit dimensions while active stock exists" : "Default Length"} disabled={Number(item.stock_warehouse) > 0 || Number(item.stock_store) > 0} />
+              <input type="number" step="any" min="0" placeholder="Def. Height" value={formData.default_width ?? ''} onChange={e=>setFormData({...formData, default_width: e.target.value})} className="h-8 px-2 w-16 text-xs text-center rounded-none focus:outline-none disabled:opacity-50" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} title={Number(item.stock_warehouse) > 0 || Number(item.stock_store) > 0 ? "Cannot edit dimensions while active stock exists" : "Default Height"} disabled={Number(item.stock_warehouse) > 0 || Number(item.stock_store) > 0} />
             </div>
           )}
         </td>
@@ -96,8 +120,12 @@ export default function InventoryRow({ item, viewType, categories, subcategories
       <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{Number(item.cost_price||0).toFixed(2)}</td>
       <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{Number(item.msp||0).toFixed(2)}</td>
       <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(item.price||0).toFixed(2)}</td>
-      <td className="p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{item.stock_warehouse} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.unit || ''}</span></td>
-      <td className="p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{item.stock_store} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.unit || ''}</span></td>
+      <td className="p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
+        {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : item.stock_warehouse} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
+      </td>
+      <td className="p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
+        {item.is_cuttable ? (pieceCounts ? pieceCounts.store : '...') : item.stock_store} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
+      </td>
       {viewType === 'warehouse' && (
         <td className="p-2 text-center h-full align-middle">
           <div className="flex gap-1 justify-center items-center" onClick={e => e.stopPropagation()}>

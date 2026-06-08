@@ -414,7 +414,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           // They searched the generic parent name
           setSelectPieceModal({ isOpen: true, item, instances: [], isLoading: true });
           if (navigator.onLine) {
-            supabase.from('stock_instances').select('*').eq('parent_barcode', item.barcode).eq('is_active', true)
+            supabase.from('stock_instances').select('*').eq('parent_barcode', item.barcode).eq('is_active', true).eq('location', 'Store')
               .then(({ data }) => setSelectPieceModal(prev => ({ ...prev, instances: data || [], isLoading: false })))
               .catch(() => setSelectPieceModal(prev => ({ ...prev, isLoading: false })));
           } else {
@@ -506,7 +506,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const handleCutLengthSubmit = (e) => {
     if (e) e.preventDefault();
     const { item, instance, cutQty, discardScrap } = cutLengthModal;
-    const addQty = Number(cutQty) || 0;
+    const addQty = Math.round((Number(cutQty) || 0) * 100) / 100;
 
     if (addQty <= 0) {
       setCutLengthModal({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false });
@@ -514,18 +514,19 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     }
 
     const currentLength = Number(instance.current_length);
-    if (!isNaN(currentLength) && addQty > currentLength) {
-      showAlert(`You are trying to cut ${addQty}${item.unit}, but the piece only has ${currentLength}${item.unit} left!`, "Invalid Cut");
+    const alreadyInCart = cart.filter(c => c.instance_barcode === instance.instance_barcode).reduce((tot, c) => tot + Number(c.length || 0), 0);
+    const availableLength = currentLength - alreadyInCart;
+    if (!isNaN(currentLength) && addQty > availableLength) {
+      if (alreadyInCart > 0) {
+        showAlert(`You already have ${alreadyInCart}${item.unit} of this piece in the cart. You only have ${availableLength.toFixed(2)}${item.unit} left!`, "Invalid Cut");
+      } else {
+        showAlert(`You are trying to cut ${addQty}${item.unit}, but the piece only has ${currentLength}${item.unit} left!`, "Invalid Cut");
+      }
       return;
     }
 
     setCart(prev => {
-      const idx = prev.findIndex(c => c.instance_barcode === instance.instance_barcode);
-      if (idx >= 0) {
-        const up = [...prev];
-        up[idx] = { ...up[idx], quantity: (Number(up[idx].quantity) || 0) + addQty, discard_scrap: discardScrap };
-        return up;
-      }
+
       return [...prev, {
         ...item,
         id: generateId(),
@@ -689,14 +690,18 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               if (activeTab === 'receive') {
                 calcQuantity = Number(i.quantity) * Number(i.default_length) * Number(i.default_width);
               } else if (activeTab === 'transfer') {
-                calcQuantity = Number(i.pieceLength || i.default_length) * Number(i.default_width);
+                let pl = Number(i.pieceLength);
+                if (isNaN(pl)) pl = Number(i.default_length);
+                calcQuantity = pl * Number(i.default_width);
               }
             } else {
               // For METER/FT etc, receive/transfer quantity is just the length
               if (activeTab === 'receive') {
                 calcQuantity = Number(i.quantity) * Number(i.default_length);
               } else if (activeTab === 'transfer') {
-                calcQuantity = Number(i.pieceLength || i.default_length);
+                let pl = Number(i.pieceLength);
+                if (isNaN(pl)) pl = Number(i.default_length);
+                calcQuantity = pl;
               }
             }
           }
@@ -931,23 +936,23 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               <div className="p-6">
                 <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>How much of <strong style={{ color: 'var(--color-accent)' }}>{cutLengthModal.item?.name}</strong> are you cutting from piece <strong className="font-mono text-[var(--text-primary)]">#{cutLengthModal.instance?.instance_barcode.split('-')[1] || cutLengthModal.instance?.instance_barcode}</strong>?</p>
 
-                <p className="text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Current Piece: {cutLengthModal.instance?.current_length} {cutLengthModal.item?.unit}</p>
+                <p className="text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Current Piece: {cutLengthModal.instance?.current_length} {cutLengthModal.item?.unit === 'SQFT' ? 'ft' : cutLengthModal.item?.unit}</p>
 
                 <div className="relative mb-4">
-                  <input type="number" autoFocus step="any" min="0.1" value={cutLengthModal.cutQty} onChange={e => {
+                  <input type="number" autoFocus step="0.01" min="0.01" value={cutLengthModal.cutQty} onChange={e => {
                     const val = e.target.value;
-                    const numVal = Number(val);
+                    const numVal = Math.round((Number(val) || 0) * 100) / 100;
                     const max = Number(cutLengthModal.instance?.current_length);
                     const isSmallScrap = !isNaN(numVal) && !isNaN(max) && (max - numVal < 1) && (max - numVal > 0);
                     setCutLengthModal({ ...cutLengthModal, cutQty: val, discardScrap: isSmallScrap });
                   }} className="w-full h-12 px-4 text-2xl font-mono focus:outline-none" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} placeholder="0" />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold uppercase" style={{ color: 'var(--text-tertiary)' }}>{cutLengthModal.item?.unit}</span>
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold uppercase" style={{ color: 'var(--text-tertiary)' }}>{cutLengthModal.item?.unit === 'SQFT' ? 'ft' : cutLengthModal.item?.unit}</span>
                 </div>
 
                 {cutLengthModal.instance?.current_length !== '?' && Number(cutLengthModal.instance?.current_length) - Number(cutLengthModal.cutQty) < 1 && Number(cutLengthModal.instance?.current_length) - Number(cutLengthModal.cutQty) > 0 && (
                   <label className="flex items-center gap-3 p-3 border cursor-pointer mt-4" style={{ borderColor: 'var(--color-warning)', backgroundColor: 'var(--bg-tertiary)' }}>
                     <input type="checkbox" checked={cutLengthModal.discardScrap} onChange={e => setCutLengthModal({ ...cutLengthModal, discardScrap: e.target.checked })} className="w-5 h-5 cursor-pointer accent-[var(--color-warning)]" />
-                    <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Only {(Number(cutLengthModal.instance?.current_length) - Number(cutLengthModal.cutQty)).toFixed(2)} {cutLengthModal.item?.unit} left. Discard remaining scrap?</span>
+                    <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Only {(Number(cutLengthModal.instance?.current_length) - Number(cutLengthModal.cutQty)).toFixed(2)} {cutLengthModal.item?.unit === 'SQFT' ? 'ft' : cutLengthModal.item?.unit} left. Discard remaining scrap?</span>
                   </label>
                 )}
               </div>

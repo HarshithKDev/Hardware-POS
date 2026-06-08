@@ -178,7 +178,8 @@ export default function OwnerStats({ isActive }) {
         );
 
         itemsData.forEach(item => {
-          soldNames30Days.add(item.name);
+          const cleanName = item.name.split(' (Cut from ')[0];
+          soldNames30Days.add(cleanName);
           const qty = Number(item.quantity || 0);
           const cost = Number(item.cost_at_sale || 0);
           const price = Number(item.price_at_sale || 0);
@@ -186,23 +187,23 @@ export default function OwnerStats({ isActive }) {
           const lineRev = price * qty;
           const lineProfit = lineRev - lineCost;
 
-          if (productStats30Days[item.name]) {
-            productStats30Days[item.name].profit += lineProfit;
-            productStats30Days[item.name].qty += qty;
+          if (productStats30Days[cleanName]) {
+            productStats30Days[cleanName].profit += lineProfit;
+            productStats30Days[cleanName].qty += qty;
           } else {
-            productStats30Days[item.name] = { name: item.name, profit: lineProfit, qty, unit: item.unit };
+            productStats30Days[cleanName] = { name: cleanName, profit: lineProfit, qty, unit: item.unit };
           }
 
           if (todayBillIds.has(item.bill_id)) {
             tProfitCents += Math.round(lineProfit * 100);
             tCostCents += Math.round(lineCost * 100);
-            if (todaySalesMap[item.name]) {
-              todaySalesMap[item.name].qty += qty;
-              todaySalesMap[item.name].lineCost += lineCost;
-              todaySalesMap[item.name].lineRev += lineRev;
-              todaySalesMap[item.name].lineProfit += lineProfit;
+            if (todaySalesMap[cleanName]) {
+              todaySalesMap[cleanName].qty += qty;
+              todaySalesMap[cleanName].lineCost += lineCost;
+              todaySalesMap[cleanName].lineRev += lineRev;
+              todaySalesMap[cleanName].lineProfit += lineProfit;
             } else {
-              todaySalesMap[item.name] = { name: item.name, unit: item.unit, qty, lineCost, lineRev, lineProfit };
+              todaySalesMap[cleanName] = { name: cleanName, unit: item.unit, qty, lineCost, lineRev, lineProfit };
             }
           }
         });
