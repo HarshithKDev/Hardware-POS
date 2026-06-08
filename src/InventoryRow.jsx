@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import StockInstancesModal from './StockInstancesModal';
 
-export default function InventoryRow({ item, viewType, categories, subcategories, onSave, onRemove, onRestore, onManageInstances }) {
+export default function InventoryRow({ item, viewType, categories, subcategories, onSave, onRemove, onRestore }) {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(item);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const handleSave = () => {
     onSave({ oldItem: item, newItem: formData });
@@ -59,13 +61,24 @@ export default function InventoryRow({ item, viewType, categories, subcategories
             <button onClick={handleSave} className="h-8 text-white px-2 text-xs font-semibold rounded-none focus:outline-none" style={{ backgroundColor: 'var(--color-success)' }}>Save</button>
             <button onClick={handleCancel} className="h-8 px-2 text-xs font-semibold rounded-none focus:outline-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>Cancel</button>
           </div>
+          {formData.unit === 'SQFT' && (
+            <div className="flex gap-2 justify-center">
+              <input type="number" step="any" min="0" placeholder="Def. Length" value={formData.default_length ?? ''} onChange={e=>setFormData({...formData, default_length: e.target.value})} className="h-8 px-2 w-16 text-xs text-center rounded-none focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} title="Default Length" />
+              <input type="number" step="any" min="0" placeholder="Def. Height" value={formData.default_width ?? ''} onChange={e=>setFormData({...formData, default_width: e.target.value})} className="h-8 px-2 w-16 text-xs text-center rounded-none focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} title="Default Height" />
+            </div>
+          )}
         </td>
       </tr>
     );
   }
 
   return (
-    <tr className="transition-colors hover:bg-[var(--bg-hover)]" style={{ borderBottom: '1px solid var(--border-light)' }}>
+    <>
+      <tr 
+        className="transition-colors hover:bg-[var(--bg-hover)] cursor-pointer" 
+        style={{ borderBottom: '1px solid var(--border-light)' }}
+        onClick={() => item.is_cuttable && setIsExpanded(!isExpanded)}
+      >
       <td className="p-3 text-sm font-semibold tracking-wider font-mono" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--color-accent)' }}>{item.barcode}</td>
       <td className="p-3 text-sm font-medium" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
         <div className="flex items-center gap-2">
@@ -83,24 +96,32 @@ export default function InventoryRow({ item, viewType, categories, subcategories
       <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{Number(item.cost_price||0).toFixed(2)}</td>
       <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{Number(item.msp||0).toFixed(2)}</td>
       <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(item.price||0).toFixed(2)}</td>
-      <td className="p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{item.stock_warehouse}</td>
-      <td className="p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{item.stock_store}</td>
+      <td className="p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{item.stock_warehouse} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.unit || ''}</span></td>
+      <td className="p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{item.stock_store} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.unit || ''}</span></td>
       {viewType === 'warehouse' && (
         <td className="p-2 text-center h-full align-middle">
-          <div className="flex gap-1 justify-center items-center">
+          <div className="flex gap-1 justify-center items-center" onClick={e => e.stopPropagation()}>
             <button onClick={() => { setIsEditing(true); setFormData(item); }} className="h-8 px-2 text-xs font-semibold rounded-none focus:outline-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>Edit</button>
             {item.is_cuttable && (
-              <button onClick={() => onManageInstances(item)} className="h-8 px-2 text-xs font-semibold rounded-none focus:outline-none whitespace-nowrap" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--color-accent)' }}>Pieces</button>
+              <button onClick={() => setIsExpanded(!isExpanded)} className="h-8 px-2 text-xs font-semibold rounded-none focus:outline-none whitespace-nowrap" style={{ backgroundColor: isExpanded ? 'var(--bg-tertiary)' : 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--color-accent)' }}>{isExpanded ? 'Hide Pieces' : 'Pieces'}</button>
             )}
             <button onClick={() => onRemove(item.barcode)} className="h-8 px-2 text-xs font-semibold rounded-none focus:outline-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--color-error)', color: 'var(--color-error)' }}>Remove</button>
           </div>
         </td>
       )}
       {viewType === 'recycle' && (
-        <td className="p-2 flex gap-1 justify-center items-center h-full">
+        <td className="p-2 flex gap-1 justify-center items-center h-full" onClick={e => e.stopPropagation()}>
           <button onClick={() => onRestore(item.barcode)} className="h-8 px-4 text-xs font-bold uppercase tracking-wider rounded-sm focus:outline-none transition-colors hover:brightness-110 shadow-sm" style={{ backgroundColor: 'var(--color-success)', color: '#ffffff' }}>Restore</button>
         </td>
       )}
-    </tr>
+      </tr>
+      {isExpanded && item.is_cuttable && (
+        <tr>
+          <td colSpan="10" className="p-0 border-b" style={{ borderColor: 'var(--border-medium)' }}>
+            <StockInstancesModal isOpen={true} onClose={() => setIsExpanded(false)} item={item} />
+          </td>
+        </tr>
+      )}
+    </>
   );
 }

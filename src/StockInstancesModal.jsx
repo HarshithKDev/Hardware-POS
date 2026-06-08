@@ -7,8 +7,6 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
   const { showAlert, showConfirm } = useApp();
   const [instances, setInstances] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAdding, setIsAdding] = useState(false);
-  const [addForm, setAddForm] = useState({ count: 1, length: '' });
 
   useEffect(() => {
     if (isOpen && item) {
@@ -35,49 +33,7 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
     }
   };
 
-  const handleAddInstances = async (e) => {
-    e.preventDefault();
-    if (!addForm.length || addForm.count < 1) return;
-    
-    setIsAdding(true);
-    try {
-      // Find highest existing instance number for this item
-      let maxNum = 0;
-      instances.forEach(inst => {
-        const parts = inst.instance_barcode.split('-');
-        if (parts.length > 1) {
-          const num = parseInt(parts[parts.length - 1], 10);
-          if (!isNaN(num) && num > maxNum) {
-            maxNum = num;
-          }
-        }
-      });
 
-      const newInstances = Array.from({ length: addForm.count }).map((_, i) => {
-        const nextNum = maxNum + i + 1;
-        const paddedNum = nextNum.toString().padStart(3, '0');
-        return {
-          parent_barcode: item.barcode,
-          instance_barcode: `${item.barcode}-${paddedNum}`,
-          original_length: Number(addForm.length),
-          current_length: Number(addForm.length),
-          is_active: true
-        };
-      });
-
-      const { error } = await supabase.from('stock_instances').insert(newInstances);
-      if (error) throw error;
-      
-      showAlert(`Successfully generated ${addForm.count} new pieces!`, "Success");
-      setAddForm({ count: 1, length: '' });
-      fetchInstances();
-    } catch (err) {
-      console.error(err);
-      showAlert(err.message, "Error");
-    } finally {
-      setIsAdding(false);
-    }
-  };
 
   const handleToggleActive = async (instance) => {
     const action = instance.is_active ? "discard" : "restore";
@@ -95,55 +51,39 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
     });
   };
 
-
-
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-[110] px-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-      <div className="w-[95%] max-w-[700px] max-h-[90vh] flex flex-col shadow-xl animate-scale-in" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
-        <div className="flex justify-between items-center p-4" style={{ borderBottom: '1px solid var(--border-light)' }}>
-          <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Manage Pieces: {item?.name}</h2>
-          <button onClick={onClose} className="text-xl leading-none focus:outline-none hover:opacity-70" style={{ color: 'var(--text-secondary)' }}>✕</button>
-        </div>
+    <div className="p-4 flex flex-col shadow-inner animate-fade-in" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
+      <div className="flex justify-between items-center bg-[var(--bg-tertiary)] p-4 shadow-sm border" style={{ borderColor: 'var(--border-medium)' }}>
+        <h3 className="text-sm font-bold tracking-wider" style={{ color: 'var(--text-primary)' }}>MANAGE PIECES: {item.name.toUpperCase()}</h3>
+        <button onClick={onClose} className="px-3 py-1.5 leading-none text-lg text-[var(--text-secondary)] hover:text-[var(--color-error)] transition-colors focus:outline-none">
+          ✕
+        </button>
+      </div>
 
-        <div className="p-4 overflow-y-auto flex-1">
-          {/* Add New Pieces Form */}
-          <div className="p-4 mb-6" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
-            <h3 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>Generate New Pieces</h3>
-            <form onSubmit={handleAddInstances} className="flex flex-col md:flex-row gap-3 items-end">
-              <div className="flex-1 w-full">
-                <label className="block text-xs font-bold mb-1" style={{ color: 'var(--text-tertiary)' }}>Number of Pieces</label>
-                <input type="number" min="1" max="50" value={addForm.count} onChange={(e) => setAddForm({...addForm, count: Number(e.target.value)})} className="w-full h-9 px-3 text-sm focus:outline-none" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} required />
-              </div>
-              <div className="flex-1 w-full">
-                <label className="block text-xs font-bold mb-1" style={{ color: 'var(--text-tertiary)' }}>Length per Piece ({item?.unit})</label>
-                <input type="number" step="any" min="0.1" value={addForm.length} onChange={(e) => setAddForm({...addForm, length: e.target.value})} className="w-full h-9 px-3 text-sm focus:outline-none" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} required />
-              </div>
-              <button type="submit" disabled={isAdding} className="h-9 px-6 text-sm font-bold text-white focus:outline-none whitespace-nowrap w-full md:w-auto" style={{ backgroundColor: 'var(--color-accent)' }}>
-                {isAdding ? 'Adding...' : 'Generate Barcodes'}
-              </button>
-            </form>
-          </div>
-
-          {/* List of Pieces */}
-          <div className="flex justify-between items-end mb-2">
-            <h3 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Existing Pieces</h3>
-          </div>
+      <div className="p-6">
+        <div className="w-full flex flex-col">
+          <h4 className="text-xs font-bold uppercase tracking-wider mb-4" style={{ color: 'var(--text-secondary)' }}>EXISTING PIECES</h4>
           
           {isLoading ? (
-            <div className="flex justify-center p-8"><Spinner className="w-6 h-6 text-[var(--color-accent)]" /></div>
+            <div className="flex justify-center p-8"><Spinner className="w-5 h-5 text-[var(--color-accent)]" /></div>
           ) : instances.length === 0 ? (
-            <div className="text-center p-8 text-sm" style={{ color: 'var(--text-tertiary)' }}>No pieces recorded for this item yet.</div>
+            <div className="text-center p-8 text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>No pieces recorded yet.</div>
           ) : (
-            <div className="overflow-x-auto" style={{ border: '1px solid var(--border-medium)' }}>
-              <table className="w-full text-center whitespace-nowrap">
+            <div className="overflow-x-auto shadow-sm" style={{ border: '1px solid var(--border-medium)' }}>
+              <table className="w-full text-center whitespace-nowrap bg-[var(--bg-secondary)]">
                 <thead style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-light)' }}>
-                  <tr className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+                  <tr className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                     <th className="p-2 border-r border-[var(--border-light)]">Barcode</th>
-                    <th className="p-2 border-r border-[var(--border-light)]">Original</th>
-                    <th className="p-2 border-r border-[var(--border-light)]">Current</th>
+                    <th className="p-2 border-r border-[var(--border-light)]">{item.unit === 'SQFT' ? 'Orig Length' : 'Original'}</th>
+                    <th className="p-2 border-r border-[var(--border-light)]">{item.unit === 'SQFT' ? 'Curr Length' : 'Current'}</th>
+                    {item.unit === 'SQFT' && (
+                      <>
+                        <th className="p-2 border-r border-[var(--border-light)]">Height</th>
+                        <th className="p-2 border-r border-[var(--border-light)]">Area</th>
+                      </>
+                    )}
                     <th className="p-2 border-r border-[var(--border-light)]">Status</th>
+                    <th className="p-2 border-r border-[var(--border-light)]">Location</th>
                     <th className="p-2">Action</th>
                   </tr>
                 </thead>
@@ -151,17 +91,26 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
                   {instances.map(inst => (
                     <tr key={inst.id} style={{ borderBottom: '1px solid var(--border-light)', backgroundColor: inst.is_active ? 'transparent' : 'var(--bg-hover)' }}>
                       <td className="p-2 text-xs font-mono font-bold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{inst.instance_barcode}</td>
-                      <td className="p-2 text-sm" style={{ borderRight: '1px solid var(--border-light)' }}>{inst.original_length} {item.unit}</td>
-                      <td className="p-2 text-sm font-bold" style={{ borderRight: '1px solid var(--border-light)', color: inst.current_length > 0 ? 'var(--text-primary)' : 'var(--color-error)' }}>{inst.current_length} {item.unit}</td>
-                      <td className="p-2 text-xs" style={{ borderRight: '1px solid var(--border-light)' }}>
-                        <span className={`px-2 py-0.5 rounded-sm font-bold uppercase tracking-wider text-[9px] ${inst.is_active ? 'bg-[var(--color-success)] text-white' : 'bg-[var(--color-error)] text-white'}`}>
-                          {inst.is_active ? 'Active' : 'Discarded'}
+                      <td className="p-2 text-xs" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{inst.original_length} {item.unit === 'SQFT' ? 'ft' : item.unit}</td>
+                      <td className="p-2 text-xs font-bold" style={{ borderRight: '1px solid var(--border-light)', color: inst.current_length > 0 ? 'var(--text-primary)' : 'var(--color-error)' }}>{inst.current_length} {item.unit === 'SQFT' ? 'ft' : item.unit}</td>
+                      {item.unit === 'SQFT' && (
+                        <>
+                          <td className="p-2 text-xs" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{item.default_width || 0} ft</td>
+                          <td className="p-2 text-xs font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{(Number(inst.current_length) * Number(item.default_width || 0)).toFixed(2)} SQFT</td>
+                        </>
+                      )}
+                      <td className="p-2 text-[9px] font-bold uppercase" style={{ borderRight: '1px solid var(--border-light)' }}>
+                        <span className="px-2 py-0.5 rounded-sm" style={{ backgroundColor: inst.is_active ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: inst.is_active ? 'var(--color-success)' : 'var(--color-error)' }}>
+                          {inst.is_active ? 'Active' : 'Scrap'}
                         </span>
+                      </td>
+                      <td className="p-2 text-xs font-semibold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>
+                        {inst.location || 'Warehouse'}
                       </td>
                       <td className="p-2">
                         <button 
                           onClick={() => handleToggleActive(inst)} 
-                          className="text-xs font-semibold px-2 py-1 focus:outline-none"
+                          className="text-[10px] font-bold uppercase px-2 py-1 focus:outline-none hover:underline"
                           style={{ color: inst.is_active ? 'var(--color-error)' : 'var(--color-success)' }}
                         >
                           {inst.is_active ? 'Discard' : 'Restore'}

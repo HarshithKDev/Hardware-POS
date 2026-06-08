@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { generateId } from './utils';
 import { BARCODE_START_VALUE, BARCODE_RETRY_ATTEMPTS, UNIT_TYPES, STALE_TIME_5MIN } from './constants';
-import { Spinner } from './SharedUI';
+import { Spinner, CreatableDropdown } from './SharedUI';
 import { PrintPreviewModal } from './AppModals';
 import { saveInventoryBatch } from './services/db';
 
@@ -16,7 +16,8 @@ export default function OwnerCatalog() {
 
   const [form, setForm] = useState({
     name: '', category: '', sub_category: '', cost_price: '',
-    msp: '', price: '', unit: 'PCS', min_quantity: '', item_type: 'standard'
+    msp: '', price: '', unit: 'PCS', min_quantity: '', item_type: 'standard',
+    default_length: '', default_width: ''
   });
   const [nextBarcode, setNextBarcode] = useState('');
   const [printLabelCount, setPrintLabelCount] = useState(0);
@@ -137,10 +138,17 @@ export default function OwnerCatalog() {
           min_quantity: Number(itemData.min_quantity) || 0,
           is_loose_item: itemData.item_type === 'loose',
           is_cuttable: itemData.item_type === 'cuttable',
+          default_length: itemData.item_type === 'cuttable' ? (Number(itemData.default_length) || null) : null,
+          default_width: (itemData.item_type === 'cuttable' && itemData.unit === 'SQFT') ? (Number(itemData.default_width) || null) : null,
           is_active: true
         }]);
 
-        if (!error) return { ...itemData, barcode: currentBarcode };
+        if (!error) return { 
+          ...itemData, 
+          barcode: currentBarcode,
+          is_cuttable: itemData.item_type === 'cuttable',
+          is_loose_item: itemData.item_type === 'loose'
+        };
 
         if (error.code === '23505' && error.message.includes('barcode')) {
           console.warn(`Barcode ${currentBarcode} taken, retrying... (Attempt ${attempt + 1}/${BARCODE_RETRY_ATTEMPTS})`);
@@ -167,7 +175,7 @@ export default function OwnerCatalog() {
         setBarcodePreview({ isOpen: true, previewHtml, printHtml });
       }
 
-      setForm({ name: '', category: '', sub_category: '', cost_price: '', msp: '', price: '', unit: 'PCS', min_quantity: '', item_type: 'standard' });
+      setForm({ name: '', category: '', sub_category: '', cost_price: '', msp: '', price: '', unit: 'PCS', min_quantity: '', item_type: 'standard', default_length: '', default_width: '' });
       setPrintLabelCount(0);
       showAlert(`Added "${savedItem.name}" with Barcode ${savedItem.barcode}.`, "Success");
     },
@@ -176,7 +184,31 @@ export default function OwnerCatalog() {
     }
   });
 
-  const handleSubmit = (e) => {
+  // Hybrid Category Creation
+  const handleCreateCategory = async (newCategoryName) => {
+    try {
+      const { error } = await supabase.from('categories').insert([{ name: newCategoryName }]);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      setForm(f => ({ ...f, category: newCategoryName, sub_category: '' }));
+    } catch (err) {
+      showAlert(err.message, "Error");
+    }
+  };
+
+  const handleCreateSubcategory = async (newSubcategoryName) => {
+    if (!form.category) return;
+    try {
+      const { error } = await supabase.from('subcategories').insert([{ name: newSubcategoryName, category_name: form.category }]);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['subcategories'] });
+      setForm(f => ({ ...f, sub_category: newSubcategoryName }));
+    } catch (err) {
+      showAlert(err.message, "Error");
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) return showAlert("Item name is required.", "Validation Error");
     if (Number(form.msp) < Number(form.cost_price)) return showAlert("MSP cannot be lower than Cost Price.", "Validation Error");
@@ -373,24 +405,27 @@ export default function OwnerCatalog() {
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-cat">Category</label>
-            <div className="relative">
-              <select id="item-cat" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value, sub_category: '' })} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
-                <option value="">-- None --</option>
-                {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
-            </div>
+            <CreatableDropdown
+              value={form.category}
+              onChange={(val) => setForm({ ...form, category: val, sub_category: '' })}
+              options={categories.map(c => c.name)}
+              placeholder="Select or type to create..."
+              onCreate={handleCreateCategory}
+              required={true}
+            />
           </div>
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-subcat">Sub-category</label>
-            <div className="relative">
-              <select id="item-subcat" value={form.sub_category} onChange={(e) => setForm({ ...form, sub_category: e.target.value })} disabled={!form.category} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer disabled:cursor-not-allowed" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
-                <option value="">-- None --</option>
-                {subcategories.filter(sub => sub.category_name === form.category).map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
-            </div>
+            <CreatableDropdown
+              value={form.sub_category}
+              onChange={(val) => setForm({ ...form, sub_category: val })}
+              options={subcategories.filter(sub => sub.category_name === form.category).map(s => s.name)}
+              placeholder="Select or type to create..."
+              onCreate={handleCreateSubcategory}
+              disabled={!form.category}
+              required={true}
+            />
           </div>
 
           <div>
@@ -411,17 +446,36 @@ export default function OwnerCatalog() {
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-unit">Unit Type</label>
             <div className="relative">
-              <select id="item-unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
+              <select id="item-unit" required value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
                 {UNIT_TYPES.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
             </div>
           </div>
+          
+          {form.item_type === 'cuttable' && form.unit === 'SQFT' && (
+            <>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-def-length">Default Piece Length (Optional)</label>
+                <div className="relative">
+                  <input id="item-def-length" type="number" step="any" min="0" value={form.default_length} onChange={(e) => setForm({ ...form, default_length: e.target.value })} placeholder="e.g. 10" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                  <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>ft</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-def-width">Default Roll Height (ft)</label>
+                <div className="relative">
+                  <input id="item-def-width" type="number" step="any" min="0" required value={form.default_width} onChange={(e) => setForm({ ...form, default_width: e.target.value })} placeholder="e.g. 3" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                  <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>ft</span>
+                </div>
+              </div>
+            </>
+          )}
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-min-qty">Min Quantity</label>
             <div className="relative">
-              <input id="item-min-qty" type="number" step="1" min="0" value={form.min_quantity} onChange={(e) => setForm({ ...form, min_quantity: e.target.value })} placeholder="e.g. 10" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+              <input id="item-min-qty" type="number" required step="1" min="0" value={form.min_quantity} onChange={(e) => setForm({ ...form, min_quantity: e.target.value })} placeholder="e.g. 10" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
               <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{UNIT_TYPES.find(u => u.value === form.unit)?.label || form.unit}</span>
             </div>
           </div>
@@ -430,6 +484,7 @@ export default function OwnerCatalog() {
             <div className="relative">
               <select 
                 id="item-type" 
+                required
                 value={form.item_type} 
                 onChange={(e) => setForm({...form, item_type: e.target.value})} 
                 className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer" 
@@ -444,20 +499,26 @@ export default function OwnerCatalog() {
           </div>
         </div>
 
-        <div className="mt-4 pt-6 flex flex-col md:flex-row justify-between items-center gap-4" style={{ borderTop: '1px solid var(--border-light)' }}>
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <label htmlFor="print-qty" className="text-sm font-semibold whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>Print Labels:</label>
-            <input
-              id="print-qty"
-              type="number"
-              min="0"
-              max="50"
-              value={printLabelCount}
-              onChange={(e) => setPrintLabelCount(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value)))}
-              className="w-20 h-10 px-2 text-center text-sm font-bold focus:outline-none"
-              style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
-            />
-          </div>
+        <div className="flex justify-between items-center mt-2 pt-6" style={{ borderTop: '1px solid var(--border-light)' }}>
+          {form.item_type !== 'cuttable' ? (
+            <div className="flex items-center gap-4">
+              <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Print Labels:</label>
+              <input
+                id="print-qty"
+                type="number"
+                min="0"
+                max="50"
+                value={printLabelCount}
+                onChange={(e) => setPrintLabelCount(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value)))}
+                className="w-20 h-10 px-2 text-center text-sm font-bold focus:outline-none"
+                style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
+              />
+            </div>
+          ) : (
+            <div className="text-xs italic" style={{ color: 'var(--text-tertiary)' }}>
+              * Print labels for individual pieces from the Inventory tab.
+            </div>
+          )}
           <button
             type="submit"
             disabled={addItemMutation.isPending || !nextBarcode}

@@ -29,6 +29,27 @@ export default function OwnerAuditLogs() {
 
       if (billsError) throw billsError;
 
+      const formatChanges = (changesStr) => {
+        if (!changesStr) return '—';
+        if (typeof changesStr === 'string' && changesStr.trim().startsWith('{')) {
+          try {
+            const data = JSON.parse(changesStr);
+            let parts = [];
+            if (data.quantity !== undefined) parts.push(`Qty: ${data.quantity}`);
+            if (data.location) parts.push(`Loc: ${data.location}`);
+            if (data.instance) parts.push(`Piece: #${data.instance.split('-')[1] || data.instance}`);
+            if (data.price !== undefined) parts.push(`Price: ₹${data.price}`);
+            if (data.discountPct !== undefined && data.discountPct > 0) parts.push(`Disc: ${data.discountPct}%`);
+            
+            if (parts.length > 0) return parts.join(' | ');
+            return Object.entries(data).map(([k, v]) => `${k}: ${v}`).join(', ');
+          } catch (e) {
+            return changesStr;
+          }
+        }
+        return changesStr;
+      };
+
       // 3. Normalize and map to unified structure
       const normalizedAudit = (auditData || []).map(log => ({
         id: `audit-${log.id}`,
@@ -37,7 +58,7 @@ export default function OwnerAuditLogs() {
         action_type: log.action_type,
         barcode: log.barcode,
         item_name: log.item_name,
-        changes: log.changes,
+        changes: formatChanges(log.changes),
         performed_by: log.performed_by || 'System',
         source: 'audit'
       }));
