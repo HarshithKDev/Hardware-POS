@@ -47,16 +47,16 @@ export function MobileScannerModal({ onClose, setScannedProduct }) {
 
       if (data) {
         setScannedProduct(data);
-        scannerRef.current?.clear().catch(() => {});
+        scannerRef.current?.clear().catch(() => { });
         onClose();
       } else {
         console.warn('Product not found:', decodedText);
         isVerifying = false;
       }
-    }, () => {});
+    }, () => { });
 
     return () => {
-      scannerRef.current?.clear().catch(() => {});
+      scannerRef.current?.clear().catch(() => { });
     };
   }, [onClose, setScannedProduct]);
 
@@ -90,7 +90,7 @@ export function ProductInfoModal({ product, onClose }) {
           <button onClick={onClose} className="px-3 py-1.5 leading-none transition-none focus:outline-none rounded-none" style={{ color: 'var(--text-secondary)' }}>✕</button>
         </div>
         <div className="p-6">
-          <p className="text-xs font-semibold uppercase mb-1" style={{ color: 'var(--text-secondary)' }}>Nomenclature</p>
+          <p className="text-xs font-semibold uppercase mb-1" style={{ color: 'var(--text-secondary)' }}>Item Name</p>
           <p className="text-xl font-light mb-6" style={{ color: 'var(--text-primary)' }}>{product.name}</p>
           <div className="flex gap-4">
             <div className="flex-1 p-4 text-center rounded-none" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
@@ -132,7 +132,7 @@ export function PrintPreviewModal({ isOpen, onClose, title = "Print Preview", ty
           <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>{title}</span>
           <button onClick={onClose} className="px-3 py-1.5 leading-none transition-none focus:outline-none rounded-none" style={{ color: 'var(--text-secondary)' }}>✕</button>
         </div>
-        
+
         <div className="p-4 md:p-6 flex justify-center items-center overflow-auto" style={{ backgroundColor: 'var(--bg-primary)', minHeight: '300px', maxHeight: '60vh' }}>
           {type === 'receipt' ? (
             <div className="w-full max-w-[350px] min-h-[100mm] text-black">
@@ -141,18 +141,18 @@ export function PrintPreviewModal({ isOpen, onClose, title = "Print Preview", ty
           ) : (
             <>
               {/* Visible Preview Iframe */}
-              <iframe 
+              <iframe
                 ref={visibleIframeRef}
-                srcDoc={iframeHtml} 
+                srcDoc={iframeHtml}
                 className="bg-white shadow-sm"
                 style={{ width: '100%', minHeight: type === 'barcode' ? '200px' : '400px', border: 'none' }}
                 title="Barcode Print Preview"
               />
               {/* Hidden Print Iframe */}
               {printHtml && (
-                <iframe 
+                <iframe
                   ref={printIframeRef}
-                  srcDoc={printHtml} 
+                  srcDoc={printHtml}
                   style={{ display: 'none' }}
                   title="Hidden Barcode Print"
                 />

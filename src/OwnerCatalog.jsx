@@ -143,8 +143,8 @@ export default function OwnerCatalog() {
           is_active: true
         }]);
 
-        if (!error) return { 
-          ...itemData, 
+        if (!error) return {
+          ...itemData,
           barcode: currentBarcode,
           is_cuttable: itemData.item_type === 'cuttable',
           is_loose_item: itemData.item_type === 'loose'
@@ -399,7 +399,7 @@ export default function OwnerCatalog() {
       <form onSubmit={handleSubmit} className="p-4 md:p-8 shadow-sm flex flex-col gap-6" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="md:col-span-2">
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-name">Nomenclature</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-name">Item Name</label>
             <input id="item-name" type="text" autoFocus required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. 10mm Steel Rebar" className="w-full h-10 px-3 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
           </div>
 
@@ -452,7 +452,7 @@ export default function OwnerCatalog() {
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
             </div>
           </div>
-          
+
           {form.item_type === 'cuttable' && form.unit === 'SQFT' && (
             <>
               <div>
@@ -482,19 +482,19 @@ export default function OwnerCatalog() {
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-type">Item Type</label>
             <div className="relative">
-              <select 
-                id="item-type" 
+              <select
+                id="item-type"
                 required
-                value={form.item_type} 
-                onChange={(e) => setForm({...form, item_type: e.target.value})} 
-                className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer" 
+                value={form.item_type}
+                onChange={(e) => setForm({ ...form, item_type: e.target.value })}
+                className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer"
                 style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
               >
                 <option value="standard">Standard Item</option>
                 <option value="loose">Loose / Bulk Box (Prompt Qty)</option>
                 <option value="cuttable">Cuttable Stock (Pipes/Mesh)</option>
               </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg></div>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
             </div>
           </div>
         </div>
