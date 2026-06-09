@@ -179,6 +179,25 @@ export default function OwnerCatalog() {
       setForm({ name: '', category: '', sub_category: '', cost_price: '', msp: '', price: '', unit: 'PCS', min_quantity_warehouse: '', min_quantity_store: '', item_type: 'standard', default_length: '', default_width: '' });
       setPrintLabelCount(0);
       showAlert(`Added "${savedItem.name}" with Barcode ${savedItem.barcode}.`, "Success");
+
+      // Track in Audit Logs
+      try {
+        const currentUser = (await supabase.auth.getUser()).data.user?.email || 'Unknown';
+        await supabase.from('audit_logs').insert([{
+          action: 'CREATE',
+          barcode: savedItem.barcode,
+          item_name: savedItem.name,
+          user_email: currentUser,
+          changes: JSON.stringify([
+            `Created item: ${savedItem.name}`,
+            `Category: ${savedItem.category || 'N/A'}, Sub-category: ${savedItem.sub_category || 'N/A'}`,
+            `Cost: ₹${savedItem.cost_price}, MSP: ₹${savedItem.msp}, MRP: ₹${savedItem.price}`,
+            `Item Type: ${savedItem.is_cuttable ? 'Cuttable' : (savedItem.is_loose_item ? 'Loose' : 'Standard')}, Unit: ${savedItem.unit}`
+          ])
+        }]);
+      } catch (err) {
+        console.error("Failed to log item creation", err);
+      }
     },
     onError: (e) => {
       showAlert(e.message, "Failed to Add Item");
