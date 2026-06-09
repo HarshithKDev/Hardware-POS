@@ -16,7 +16,7 @@ export default function OwnerCatalog() {
 
   const [form, setForm] = useState({
     name: '', category: '', sub_category: '', cost_price: '',
-    msp: '', price: '', unit: 'PCS', min_quantity: '', item_type: 'standard',
+    msp: '', price: '', unit: 'PCS', min_quantity_warehouse: '', min_quantity_store: '', item_type: 'standard',
     default_length: '', default_width: ''
   });
   const [nextBarcode, setNextBarcode] = useState('');
@@ -135,7 +135,8 @@ export default function OwnerCatalog() {
           stock_warehouse: 0,
           stock_store: 0,
           unit: itemData.unit,
-          min_quantity: Number(itemData.min_quantity) || 0,
+          min_quantity_warehouse: Number(itemData.min_quantity_warehouse) || 0,
+          min_quantity_store: Number(itemData.min_quantity_store) || 0,
           is_loose_item: itemData.item_type === 'loose',
           is_cuttable: itemData.item_type === 'cuttable',
           default_length: itemData.item_type === 'cuttable' ? (Number(itemData.default_length) || null) : null,
@@ -175,7 +176,7 @@ export default function OwnerCatalog() {
         setBarcodePreview({ isOpen: true, previewHtml, printHtml });
       }
 
-      setForm({ name: '', category: '', sub_category: '', cost_price: '', msp: '', price: '', unit: 'PCS', min_quantity: '', item_type: 'standard', default_length: '', default_width: '' });
+      setForm({ name: '', category: '', sub_category: '', cost_price: '', msp: '', price: '', unit: 'PCS', min_quantity_warehouse: '', min_quantity_store: '', item_type: 'standard', default_length: '', default_width: '' });
       setPrintLabelCount(0);
       showAlert(`Added "${savedItem.name}" with Barcode ${savedItem.barcode}.`, "Success");
     },
@@ -229,7 +230,8 @@ export default function OwnerCatalog() {
         msp: '60',
         price: '75',
         unit: 'PCS',
-        min_quantity: '10'
+        min_quantity_warehouse: '10',
+        min_quantity_store: '5'
       }
     ];
 
@@ -275,7 +277,8 @@ export default function OwnerCatalog() {
         stock_warehouse: 0,
         stock_store: 0,
         unit: String(row.unit || row.Unit || 'PCS').trim(),
-        min_quantity: Number(row.min_quantity || row.Min_Quantity || row['Min Quantity'] || 0),
+        min_quantity_warehouse: Number(row.min_quantity_warehouse || row.Min_Quantity_Warehouse || row['Min Quantity (Warehouse)'] || row.min_quantity || 0),
+        min_quantity_store: Number(row.min_quantity_store || row.Min_Quantity_Store || row['Min Quantity (Store)'] || row.min_quantity || 0),
         is_active: true
       })).filter(r => r.barcode && r.name);
 
@@ -472,11 +475,20 @@ export default function OwnerCatalog() {
             </>
           )}
 
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-min-qty">Min Quantity</label>
-            <div className="relative">
-              <input id="item-min-qty" type="number" required step="1" min="0" value={form.min_quantity} onChange={(e) => setForm({ ...form, min_quantity: e.target.value })} placeholder="e.g. 10" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-              <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{UNIT_TYPES.find(u => u.value === form.unit)?.label || form.unit}</span>
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-min-qty-whse">Min Qty (Warehouse)</label>
+              <div className="relative">
+                <input id="item-min-qty-whse" type="number" required step="1" min="0" value={form.min_quantity_warehouse} onChange={(e) => setForm({ ...form, min_quantity_warehouse: e.target.value })} placeholder="e.g. 10" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{UNIT_TYPES.find(u => u.value === form.unit)?.label || form.unit}</span>
+              </div>
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-min-qty-store">Min Qty (Store)</label>
+              <div className="relative">
+                <input id="item-min-qty-store" type="number" required step="1" min="0" value={form.min_quantity_store} onChange={(e) => setForm({ ...form, min_quantity_store: e.target.value })} placeholder="e.g. 5" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{UNIT_TYPES.find(u => u.value === form.unit)?.label || form.unit}</span>
+              </div>
             </div>
           </div>
           <div>

@@ -131,8 +131,8 @@ export default function InventoryRow({ item, viewType, categories, subcategories
       </td>
       <td className="p-3 text-sm" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{item.category || '-'}</td>
       <td className="p-3 text-sm" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{item.sub_category || '-'}</td>
-      <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{Number(item.cost_price||0).toFixed(2)}</td>
-      <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{Number(item.msp||0).toFixed(2)}</td>
+      <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(item.cost_price||0).toFixed(2)}</td>
+      <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(item.msp||0).toFixed(2)}</td>
       <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(item.price||0).toFixed(2)}</td>
       <td className="p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
         {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : item.stock_warehouse} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
