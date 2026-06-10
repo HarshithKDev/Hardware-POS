@@ -43,12 +43,20 @@ export default function OwnerStaff() {
       }
 
       const { error: dbError } = await supabase.from('workers').insert([{
-        id: generateId(),
+        id: authData.user.id,
         name: name.trim(),
         password: isBillable ? 'SECURED_IN_AUTH:BILLABLE' : 'SECURED_IN_AUTH:NON_BILLABLE'
       }]);
 
       if (dbError) throw new Error(dbError.message);
+
+      await supabase.from('audit_logs').insert([{
+        action_type: 'CREATE',
+        barcode: 'STAFF',
+        item_name: name.trim(),
+        changes: `Created Staff Account: ${name.trim()} (${isBillable ? 'Billable' : 'Non-Billable'})`,
+        performed_by: 'Owner'
+      }]);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['staff'] });
@@ -61,9 +69,17 @@ export default function OwnerStaff() {
   });
 
   const removeStaffMutation = useMutation({
-    mutationFn: async (id) => {
+    mutationFn: async ({ id, name }) => {
       const { error } = await supabase.from('workers').delete().eq('id', id);
       if (error) throw error;
+
+      await supabase.from('audit_logs').insert([{
+        action_type: 'DELETE',
+        barcode: 'STAFF',
+        item_name: name,
+        changes: `Removed Staff Account: ${name}`,
+        performed_by: 'Owner'
+      }]);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['staff'] });
@@ -85,7 +101,7 @@ export default function OwnerStaff() {
   const handleRemove = (id, name) => {
     showConfirm(
       `Remove ${name} from staff list? \n\nNote: This will prevent them from opening the terminal, but their Supabase Auth account will still exist.`,
-      () => removeStaffMutation.mutate(id),
+      () => removeStaffMutation.mutate({ id, name }),
       "Confirm Removal"
     );
   };

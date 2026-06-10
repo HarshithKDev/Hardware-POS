@@ -540,7 +540,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         length: addQty, 
         width: Number(item.default_width) || '',
         pieceLength: addQty,
-        rolls: '1'
+        rolls: '1',
+        max_available_length: currentLength
       }];
     });
     setCutLengthModal({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false });
@@ -570,10 +571,18 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         if (i.id === id) {
           let newQty = val === '' ? '' : Math.max(0, Number(val));
           if (activeTab === 'checkout' && val !== '') {
-            const maxStock = Number(i.stock_store || 0);
-            if (newQty > maxStock) { limitMsg = `You only have ${maxStock} of ${i.name} in the store.`; newQty = maxStock; }
+            if (i.is_cuttable && i.instance_barcode && i.unit !== 'SQFT') {
+              const maxLength = Number(i.max_available_length || 0);
+              if (newQty > maxLength) {
+                limitMsg = `You only have ${maxLength} ${i.unit} left on this piece.`;
+                newQty = maxLength;
+              }
+            } else {
+              const maxStock = Number(i.stock_store || 0);
+              if (newQty > maxStock) { limitMsg = `You only have ${maxStock} of ${i.name} in the store.`; newQty = maxStock; }
+            }
           }
-          return { ...i, quantity: newQty };
+          return { ...i, quantity: newQty, pieceLength: (i.is_cuttable && i.unit !== 'SQFT') ? newQty : i.pieceLength };
         }
         return i;
       }).filter(i => i.quantity !== 0);
@@ -591,13 +600,24 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           if (activeTab === 'receive') {
             return updated;
           }
-          const l = Number(updated.length) || 0;
+          let l = Number(updated.length) || 0;
           const w = Number(updated.width) || 0;
           const r = updated.rolls === '' ? 1 : (Number(updated.rolls) || 1);
           let newQty = parseFloat((l * w * r).toFixed(2));
+          
           if (activeTab === 'checkout' && newQty > 0) {
-            const maxStock = Number(i.stock_store || 0);
-            if (newQty > maxStock) { limitMsg = `You only have ${maxStock} of ${i.name} in the store.`; newQty = maxStock; }
+            if (updated.is_cuttable && updated.instance_barcode) {
+              const maxLength = Number(updated.max_available_length || 0);
+              if (l > maxLength) {
+                limitMsg = `You only have ${maxLength} ft left on this piece.`;
+                updated.length = maxLength;
+                l = maxLength;
+                newQty = parseFloat((maxLength * w * r).toFixed(2));
+              }
+            } else {
+              const maxStock = Number(i.stock_store || 0);
+              if (newQty > maxStock) { limitMsg = `You only have ${maxStock} of ${i.name} in the store.`; newQty = maxStock; }
+            }
           }
           return { ...updated, quantity: newQty };
         }

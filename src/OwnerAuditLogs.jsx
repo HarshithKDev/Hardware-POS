@@ -119,6 +119,7 @@ export default function OwnerAuditLogs() {
 
   const getActionStyles = (action) => {
     switch (action) {
+      case 'CREATE': return { bg: 'rgba(14, 165, 233, 0.1)', text: '#0ea5e9' }; // Sky blue
       case 'STOCK IN': return { bg: 'rgba(34, 197, 94, 0.1)', text: 'var(--color-success, #16a34a)' };
       case 'TRANSFER': return { bg: 'rgba(59, 130, 246, 0.1)', text: '#3b82f6' };
       case 'SALE': return { bg: 'rgba(168, 85, 247, 0.1)', text: '#a855f7' };
@@ -129,7 +130,7 @@ export default function OwnerAuditLogs() {
     }
   };
 
-  const FILTERS = ['ALL', 'STOCK IN', 'TRANSFER', 'SALE', 'UPDATE', 'DELETE', 'RESTORE'];
+  const FILTERS = ['ALL', 'CREATE', 'STOCK IN', 'TRANSFER', 'SALE', 'UPDATE', 'DELETE', 'RESTORE'];
 
   return (
     <div className="flex flex-col h-full animate-fade-in max-w-7xl mx-auto w-full">
