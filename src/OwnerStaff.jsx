@@ -34,11 +34,11 @@ export default function OwnerStaff() {
 
       if (authError) {
         if (authError.message.toLowerCase().includes('already registered')) {
-          console.warn('Auth account already exists, attempting to recover DB entry...');
+          throw new Error("This staff member already exists in the Auth system but failed to save to the database previously. Please delete them from the Supabase Authentication Dashboard first, and then try creating them again.");
         } else {
           throw new Error(authError.message);
         }
-      } else if (!authData.user) {
+      } else if (!authData?.user) {
         throw new Error("Failed to create worker account.");
       }
 

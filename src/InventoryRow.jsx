@@ -119,7 +119,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
       >
       <td className="p-3 text-sm font-semibold tracking-wider font-mono" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--color-accent)' }}>{item.barcode}</td>
       <td className="p-3 text-sm font-medium" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center gap-2">
           {item.name}
           {item.is_loose_item && (
             <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded-sm whitespace-nowrap" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)', border: '1px solid var(--border-medium)' }}>Loose</span>

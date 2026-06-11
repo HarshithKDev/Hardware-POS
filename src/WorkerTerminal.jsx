@@ -264,6 +264,11 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const [cutLengthModal, setCutLengthModal] = useState({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false });
   const [receiveLengthModal, setReceiveLengthModal] = useState({ isOpen: false, item: null, length: '' });
 
+  // Pending Carts (Mobile Scanner)
+  const [pendingCarts, setPendingCarts] = useState([]);
+  const [activeCartTab, setActiveCartTab] = useState('local');
+  const [cartSessions, setCartSessions] = useState({ local: cart });
+
   const barcodeBuffer = useRef('');
   const lastKeyTime = useRef(Date.now());
   const cartRef = useRef(cart);
@@ -271,9 +276,42 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const activeTabRef = useRef(activeTab);
   const showAlertRef = useRef(showAlert);
 
-  useEffect(() => { cartRef.current = cart; localStorage.setItem(`pos_cart_${activeTab}`, JSON.stringify(cart)); }, [cart, activeTab]);
+  useEffect(() => { 
+    cartRef.current = cart; 
+    if (activeCartTab === 'local') {
+      localStorage.setItem(`pos_cart_${activeTab}`, JSON.stringify(cart)); 
+    }
+  }, [cart, activeTab, activeCartTab]);
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
   useEffect(() => { showAlertRef.current = showAlert; }, [showAlert]);
+
+  useEffect(() => {
+    if (activeTab === 'checkout') {
+      const fetchPending = async () => {
+        const { data } = await supabase.from('pending_carts').select('*').eq('status', 'pending').order('created_at', { ascending: true });
+        if (data) setPendingCarts(data);
+      };
+      fetchPending();
+      
+      const channel = supabase.channel('pending_carts_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'pending_carts' }, () => {
+          fetchPending();
+        })
+        .subscribe();
+      return () => { supabase.removeChannel(channel); };
+    }
+  }, [activeTab]);
+
+  const switchCartTab = (tabId) => {
+    setCartSessions(prev => ({ ...prev, [activeCartTab]: cart }));
+    setActiveCartTab(tabId);
+    if (tabId === 'local') {
+      setCart(cartSessions['local'] || []);
+    } else {
+      const pc = pendingCarts.find(c => c.id === tabId);
+      setCart(cartSessions[tabId] || (pc ? pc.items : []));
+    }
+  };
 
   useEffect(() => {
     if (manualBarcode.trim().length < 2) {
@@ -797,7 +835,18 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         date: new Date(),
         type: activeTab,
       });
-      setCart([]);
+
+      if (activeCartTab !== 'local') {
+        // Delete the remote cart
+        supabase.from('pending_carts').delete().eq('id', activeCartTab).then();
+        // Clear local session for this tab and switch to local
+        setCartSessions(prev => ({ ...prev, [activeCartTab]: [] }));
+        setActiveCartTab('local');
+        setCart(cartSessions['local'] || []);
+      } else {
+        setCart([]);
+      }
+      
       setCheckoutModal({ isOpen: false, cashGiven: '' });
 
       if (activeTab === 'checkout') {
@@ -986,6 +1035,36 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
       <div className="flex flex-col flex-1 min-h-[500px] shadow-sm print:hidden" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
         {/* Header Block */}
+        {activeTab === 'checkout' && pendingCarts.length > 0 && (
+          <div className="flex gap-1 p-2 bg-[var(--bg-tertiary)] border-b border-[var(--border-medium)] overflow-x-auto whitespace-nowrap scrollbar-hide">
+            <button 
+              onClick={() => switchCartTab('local')}
+              className="px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors"
+              style={{
+                backgroundColor: activeCartTab === 'local' ? 'var(--color-accent)' : 'var(--bg-primary)',
+                color: activeCartTab === 'local' ? '#fff' : 'var(--text-secondary)',
+                border: `1px solid ${activeCartTab === 'local' ? 'var(--color-accent)' : 'var(--border-medium)'}`
+              }}
+            >
+              Local Cart
+            </button>
+            {pendingCarts.map(pc => (
+              <button 
+                key={pc.id}
+                onClick={() => switchCartTab(pc.id)}
+                className="px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors flex gap-2 items-center"
+                style={{
+                  backgroundColor: activeCartTab === pc.id ? 'var(--color-accent)' : 'var(--bg-primary)',
+                  color: activeCartTab === pc.id ? '#fff' : 'var(--text-secondary)',
+                  border: `1px solid ${activeCartTab === pc.id ? 'var(--color-accent)' : 'var(--border-medium)'}`
+                }}
+              >
+                {pc.worker_name}'s Cart
+                <span className="bg-white/20 px-1.5 rounded-full text-[10px]">{pc.items?.length || 0}</span>
+              </button>
+            ))}
+          </div>
+        )}
         <div className={`p-4 flex flex-col md:flex-row justify-between gap-4 ${activeTab === 'receive' ? 'pos-receive-bg' : activeTab === 'transfer' ? 'pos-transfer-bg' : ''}`} style={{ borderBottom: '1px solid var(--border-medium)', ...(activeTab !== 'receive' && activeTab !== 'transfer' ? { backgroundColor: 'var(--bg-tertiary)' } : {}) }}>
           <div className="flex flex-col">
             <h2 className="text-2xl font-light" style={{ color: 'var(--text-primary)' }}>

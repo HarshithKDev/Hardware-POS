@@ -5,6 +5,7 @@ import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
 import WorkerDashboardView from './WorkerDashboardView';
 import WorkerTerminal from './WorkerTerminal';
+import WorkerScanner from './WorkerScanner';
 
 export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = false }) {
   const { tab } = useParams();
@@ -36,6 +37,8 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
   ];
   if (isBillable) {
     tabs.push({ key: 'checkout', label: 'Terminal' });
+  } else {
+    tabs.push({ key: 'scanner', label: 'Scanner' });
   }
 
   return (
@@ -82,6 +85,8 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
 
         {activeTab === 'dashboard' ? (
           <WorkerDashboardView />
+        ) : activeTab === 'scanner' ? (
+          <WorkerScanner cashierName={cashierName} />
         ) : activeTab === 'checkout' && !isBillable ? (
           <div className="flex flex-col items-center justify-center h-full flex-1">
             <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
