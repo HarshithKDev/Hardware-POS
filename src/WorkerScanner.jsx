@@ -66,6 +66,21 @@ export default function WorkerScanner({ cashierName }) {
       let item = await getInventoryItemByBarcode(searchBarcode);
       
       if (!item) {
+        // Fallback for UPC/EAN format differences (e.g. scanner adds a leading zero, or DB is missing it)
+        try {
+          const { initDB } = await import('./services/db');
+          const db = await initDB();
+          const allItems = await db.getAll('inventory');
+          
+          // Match by ignoring all leading zeros
+          const cleanSearch = searchBarcode.replace(/^0+/, '');
+          item = allItems.find(i => i.barcode.replace(/^0+/, '') === cleanSearch);
+        } catch (dbErr) {
+          console.error("Fallback search failed:", dbErr);
+        }
+      }
+
+      if (!item) {
         showAlert(`Item not found for barcode: ${barcode}`, "Error");
         return;
       }
