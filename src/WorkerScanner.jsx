@@ -213,6 +213,52 @@ export default function WorkerScanner({ cashierName }) {
         )}
       </div>
 
+      {/* Camera Area */}
+      {isScanning && (
+        <div className="p-4 w-full flex justify-center bg-[var(--bg-primary)] flex-shrink-0" style={{ borderBottom: '1px solid var(--border-medium)' }}>
+          <div className="w-full max-w-md rounded-xl overflow-hidden border-4 flex flex-col justify-center" style={{ minHeight: '200px', maxHeight: '300px', borderColor: 'var(--color-success)', backgroundColor: 'var(--bg-secondary)' }}>
+            <style>{`
+              #reader { width: 100% !important; border: none !important; color: white !important; text-align: center !important; }
+              #reader video { max-height: 300px !important; object-fit: cover !important; }
+              
+              /* Aggressively hide "Scan an Image File" */
+              #reader a, #reader [id*="swaplink"], #reader [id*="file_scan"] { 
+                display: none !important; 
+                opacity: 0 !important; 
+                visibility: hidden !important; 
+                height: 0 !important; 
+                width: 0 !important; 
+                position: absolute !important; 
+                pointer-events: none !important; 
+              }
+              
+              #reader span { color: var(--text-secondary) !important; font-size: 14px !important; }
+              
+              /* Style permission button to match dark theme natively */
+              #reader button { 
+                background-color: var(--bg-tertiary) !important; 
+                color: var(--text-primary) !important; 
+                padding: 12px 24px !important; 
+                border-radius: 8px !important; 
+                font-weight: 800 !important; 
+                font-size: 14px !important; 
+                text-transform: uppercase !important;
+                border: 2px solid var(--border-medium) !important;
+                margin-top: 15px !important;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+                cursor: pointer !important;
+              }
+              
+              #reader select { display: none !important; } /* Hides camera selector dropdown if it appears */
+              
+              /* Hide the info icon in the top right */
+              #reader img { display: none !important; }
+            `}</style>
+            <div id="reader" className="w-full"></div>
+          </div>
+        </div>
+      )}
+
       {/* Cart List */}
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
         {cart.length === 0 ? (
@@ -257,34 +303,6 @@ export default function WorkerScanner({ cashierName }) {
           ))
         )}
       </div>
-
-      {/* Camera Area */}
-      {isScanning && (
-        <div className="p-4 w-full flex justify-center bg-[var(--bg-primary)] flex-shrink-0" style={{ borderTop: '1px solid var(--border-medium)' }}>
-          <div className="w-full max-w-md rounded-xl overflow-hidden border-4 flex flex-col justify-center" style={{ minHeight: '200px', maxHeight: '300px', borderColor: 'var(--color-success)', backgroundColor: 'var(--bg-secondary)' }}>
-            <style>{`
-              #reader { width: 100% !important; border: none !important; color: white !important; text-align: center !important; }
-              #reader video { max-height: 300px !important; object-fit: cover !important; }
-              #reader a { display: none !important; } /* Hides "Scan an Image File" completely */
-              #reader span { color: var(--text-secondary) !important; font-size: 14px !important; }
-              #reader button { 
-                background-color: var(--color-accent) !important; 
-                color: white !important; 
-                padding: 12px 24px !important; 
-                border-radius: 6px !important; 
-                font-weight: 800 !important; 
-                font-size: 14px !important; 
-                text-transform: uppercase !important;
-                border: none !important;
-                margin-top: 15px !important;
-                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
-              }
-              #reader select { display: none !important; } /* Hides camera selector dropdown if it appears */
-            `}</style>
-            <div id="reader" className="w-full"></div>
-          </div>
-        </div>
-      )}
 
       {/* Footer / Camera Button */}
       <div className="p-4 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1)] flex-shrink-0" style={{ backgroundColor: 'var(--bg-secondary)', borderTop: '2px solid var(--border-medium)' }}>
