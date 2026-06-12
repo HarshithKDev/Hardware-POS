@@ -187,17 +187,16 @@ export default function WorkerScanner({ cashierName }) {
     <div className="flex flex-col h-full bg-[var(--bg-primary)] overflow-hidden">
       {/* Header */}
       <div className="p-4 flex-shrink-0" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-bold uppercase tracking-wider" style={{ color: 'var(--color-accent)' }}>Mobile Scanner</h2>
+        <div className="flex flex-col gap-4">
           <button 
             onClick={() => {
               unlockAudio();
               setIsScanning(!isScanning);
             }}
-            className="px-4 py-2 font-bold uppercase text-xs text-white shadow-sm rounded-sm"
-            style={{ backgroundColor: isScanning ? 'var(--color-error)' : 'var(--color-accent)' }}
+            className="w-full py-5 font-bold uppercase text-lg text-white shadow-md rounded-md transition-all active:scale-95"
+            style={{ backgroundColor: isScanning ? 'var(--color-error)' : 'var(--color-success)' }}
           >
-            {isScanning ? 'Close Scanner' : 'Open Camera'}
+            {isScanning ? '🛑 STOP CAMERA' : '📷 START SCANNING'}
           </button>
         </div>
       </div>
@@ -205,12 +204,12 @@ export default function WorkerScanner({ cashierName }) {
       {/* Camera Area */}
       {isScanning && (
         <div className="p-4 w-full flex justify-center bg-[var(--bg-primary)] flex-shrink-0">
-          <div className="w-full max-w-md rounded-lg overflow-hidden border-2" style={{ maxHeight: '250px', borderColor: 'var(--border-medium)', backgroundColor: '#000' }}>
+          <div className="w-full max-w-md rounded-xl overflow-hidden border-4" style={{ maxHeight: '300px', borderColor: 'var(--color-success)', backgroundColor: '#000' }}>
             <style>{`
               #reader { width: 100% !important; border: none !important; }
-              #reader video { max-height: 250px !important; object-fit: cover !important; }
-              #reader__dashboard_section_csr span { color: white !important; }
-              #reader__dashboard_section_swaplink { color: var(--color-accent) !important; }
+              #reader video { max-height: 300px !important; object-fit: cover !important; }
+              #reader__dashboard_section_csr span { color: white !important; display: none !important; }
+              #reader__dashboard_section_swaplink { display: none !important; }
             `}</style>
             <div id="reader" className="w-full bg-black"></div>
           </div>
@@ -218,37 +217,43 @@ export default function WorkerScanner({ cashierName }) {
       )}
 
       {/* Cart List */}
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
         {cart.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6">
-            <svg className="w-16 h-16 mb-4 opacity-20" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm2 2V5h1v1H5zM3 13a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zm2 2v-1h1v1H5zM13 3a1 1 0 00-1 1v3a1 1 0 001 1h3a1 1 0 001-1V4a1 1 0 00-1-1h-3zm1 2v1h1V5h-1z" clipRule="evenodd" /></svg>
-            <p className="text-sm font-bold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>No items scanned</p>
-            <p className="text-xs mt-2" style={{ color: 'var(--text-secondary)' }}>Tap "Open Camera" to start scanning barcodes.</p>
+            <span className="text-6xl mb-6 opacity-50">🛒</span>
+            <p className="text-xl font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>List is Empty</p>
+            <p className="text-base mt-2 font-medium" style={{ color: 'var(--text-tertiary)' }}>Tap the green button above to start.</p>
           </div>
         ) : (
           cart.map((item) => (
-            <div key={item.id} className="p-4 flex flex-col shadow-sm rounded-sm" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex flex-col">
-                  <span className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
-                  <span className="font-mono text-xs mt-1" style={{ color: 'var(--color-accent)' }}>#{item.instance_barcode || item.barcode}</span>
+            <div key={item.id} className="p-5 flex flex-col shadow-md rounded-lg" style={{ backgroundColor: 'var(--bg-secondary)', border: '2px solid var(--border-medium)' }}>
+              <div className="flex justify-between items-start mb-4 gap-4">
+                <div className="flex flex-col flex-1">
+                  <span className="font-bold text-xl leading-tight" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
+                  {item.instance_barcode && <span className="font-mono text-sm mt-1" style={{ color: 'var(--color-accent)' }}>Piece #{item.instance_barcode.split('-')[1]}</span>}
                 </div>
-                <button onClick={() => updateQuantity(item.id, 0)} className="text-xl px-2 leading-none" style={{ color: 'var(--color-error)' }}>×</button>
+                <button 
+                  onClick={() => updateQuantity(item.id, 0)} 
+                  className="w-12 h-12 flex items-center justify-center rounded-md font-bold text-2xl flex-shrink-0" 
+                  style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
+                >
+                  🗑️
+                </button>
               </div>
               
-              <div className="flex justify-between items-center mt-2 pt-3" style={{ borderTop: '1px solid var(--border-light)' }}>
-                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Quantity</span>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => updateQuantity(item.id, Number(item.quantity) - 1)} className="w-8 h-8 flex items-center justify-center bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-medium)] focus:outline-none focus:border-[var(--color-accent)] font-bold text-lg leading-none">-</button>
+              <div className="flex justify-between items-center mt-2 pt-4" style={{ borderTop: '2px dashed var(--border-light)' }}>
+                <span className="text-base font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Quantity</span>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => updateQuantity(item.id, Number(item.quantity) - 1)} className="w-14 h-14 flex items-center justify-center rounded-md bg-[var(--bg-tertiary)] active:bg-[var(--bg-hover)] text-[var(--text-primary)] border-2 border-[var(--border-medium)] font-bold text-3xl leading-none">-</button>
                   <input
                     type="number"
                     min="0"
                     step="any"
                     value={item.quantity}
                     onChange={(e) => updateQuantity(item.id, e.target.value)}
-                    className="w-16 h-8 text-center text-sm font-bold bg-[var(--bg-input)] text-[var(--text-input)] border border-[var(--border-medium)] focus:outline-none focus:border-[var(--color-accent)] appearance-none m-0"
+                    className="w-20 h-14 text-center text-2xl font-bold rounded-md bg-[var(--bg-input)] text-[var(--text-input)] border-2 border-[var(--border-medium)] focus:outline-none focus:border-[var(--color-accent)] appearance-none m-0"
                   />
-                  <button onClick={() => updateQuantity(item.id, Number(item.quantity) + 1)} className="w-8 h-8 flex items-center justify-center bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-medium)] focus:outline-none focus:border-[var(--color-accent)] font-bold text-lg leading-none">+</button>
+                  <button onClick={() => updateQuantity(item.id, Number(item.quantity) + 1)} className="w-14 h-14 flex items-center justify-center rounded-md bg-[var(--bg-tertiary)] active:bg-[var(--bg-hover)] text-[var(--text-primary)] border-2 border-[var(--border-medium)] font-bold text-3xl leading-none">+</button>
                 </div>
               </div>
             </div>
@@ -258,14 +263,14 @@ export default function WorkerScanner({ cashierName }) {
 
       {/* Footer / Send Button */}
       {cart.length > 0 && (
-        <div className="p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] flex-shrink-0" style={{ backgroundColor: 'var(--bg-secondary)', borderTop: '1px solid var(--color-accent)' }}>
+        <div className="p-4 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1)] flex-shrink-0" style={{ backgroundColor: 'var(--bg-secondary)', borderTop: '2px solid var(--color-accent)' }}>
           <button
             onClick={handleSend}
             disabled={isSending}
-            className="w-full py-4 text-white font-bold uppercase tracking-widest text-sm shadow-md transition-all hover:brightness-110 disabled:opacity-50 rounded-sm"
+            className="w-full py-6 text-white font-black uppercase tracking-widest text-xl shadow-lg rounded-lg transition-all active:scale-95 disabled:opacity-50"
             style={{ backgroundColor: 'var(--color-accent)' }}
           >
-            {isSending ? 'Sending...' : `Send ${cart.length} Items to Counter`}
+            {isSending ? 'SENDING...' : `✅ SEND ${cart.length} ITEMS`}
           </button>
         </div>
       )}
