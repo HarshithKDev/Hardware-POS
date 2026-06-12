@@ -11,6 +11,23 @@ export default function WorkerScanner({ cashierName }) {
   const [isScanning, setIsScanning] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const scannerRef = useRef(null);
+  const audioCtxRef = useRef(null);
+
+  const unlockAudio = () => {
+    try {
+      if (!audioCtxRef.current) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+          audioCtxRef.current = new AudioContext();
+        }
+      }
+      if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume();
+      }
+    } catch (e) {
+      console.log('Audio unlock failed', e);
+    }
+  };
 
   useEffect(() => {
     if (isScanning) {
@@ -40,12 +57,11 @@ export default function WorkerScanner({ cashierName }) {
 
       scanner.render(
         async (decodedText) => {
-          // Prevent multiple rapid scans of the same barcode
-          if (scanner.getState() === 2) { // 2 is SCANNING
+          if (scanner.getState() === 2) {
             scanner.pause(true); 
             await handleScan(decodedText);
             setTimeout(() => {
-              if (scannerRef.current && scannerRef.current.getState() === 3) { // 3 is PAUSED
+              if (scannerRef.current && scannerRef.current.getState() === 3) {
                 scannerRef.current.resume();
               }
             }, 1000);
@@ -66,14 +82,17 @@ export default function WorkerScanner({ cashierName }) {
 
   const playBeep = () => {
     try {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (!audioCtxRef.current) return;
+      const audioCtx = audioCtxRef.current;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      
       const oscillator = audioCtx.createOscillator();
       const gainNode = audioCtx.createGain();
       oscillator.connect(gainNode);
       gainNode.connect(audioCtx.destination);
       oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // High pitch A5
-      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); // Very quiet
+      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
       gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.1);
       oscillator.start(audioCtx.currentTime);
       oscillator.stop(audioCtx.currentTime + 0.1);
@@ -90,13 +109,11 @@ export default function WorkerScanner({ cashierName }) {
       let item = await getInventoryItemByBarcode(searchBarcode);
       
       if (!item) {
-        // Fallback for UPC/EAN format differences (e.g. scanner adds a leading zero, or DB is missing it)
         try {
           const { initDB } = await import('./services/db');
           const db = await initDB();
           const allItems = await db.getAll('inventory');
           
-          // Match by ignoring all leading zeros
           const cleanSearch = searchBarcode.replace(/^0+/, '');
           item = allItems.find(i => i.barcode.replace(/^0+/, '') === cleanSearch);
         } catch (dbErr) {
@@ -110,7 +127,6 @@ export default function WorkerScanner({ cashierName }) {
       }
 
       setCart(prev => {
-        // If it's a cuttable item, we must track instance barcode
         const instanceBarcode = isInstance ? barcode : null;
         
         const existingIdx = prev.findIndex(i => 
@@ -170,12 +186,15 @@ export default function WorkerScanner({ cashierName }) {
   return (
     <div className="flex flex-col h-full bg-[var(--bg-primary)] overflow-hidden">
       {/* Header */}
-      <div className="p-4" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
-        <div className="flex justify-between items-center mb-4">
+      <div className="p-4 flex-shrink-0" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
+        <div className="flex justify-between items-center">
           <h2 className="text-xl font-bold uppercase tracking-wider" style={{ color: 'var(--color-accent)' }}>Mobile Scanner</h2>
           <button 
-            onClick={() => setIsScanning(!isScanning)}
-            className="px-4 py-2 font-bold uppercase text-xs text-white shadow-sm"
+            onClick={() => {
+              unlockAudio();
+              setIsScanning(!isScanning);
+            }}
+            className="px-4 py-2 font-bold uppercase text-xs text-white shadow-sm rounded-sm"
             style={{ backgroundColor: isScanning ? 'var(--color-error)' : 'var(--color-accent)' }}
           >
             {isScanning ? 'Close Scanner' : 'Open Camera'}
@@ -185,14 +204,16 @@ export default function WorkerScanner({ cashierName }) {
 
       {/* Camera Area */}
       {isScanning && (
-        <div className="w-full bg-black flex justify-center overflow-hidden" style={{ maxHeight: '250px' }}>
-          <style>{`
-            #reader { width: 100% !important; border: none !important; }
-            #reader video { max-height: 250px !important; object-fit: cover !important; }
-            #reader__dashboard_section_csr span { color: white !important; }
-            #reader__dashboard_section_swaplink { color: var(--color-accent) !important; }
-          `}</style>
-          <div id="reader" className="w-full max-w-md bg-black"></div>
+        <div className="p-4 w-full flex justify-center bg-[var(--bg-primary)] flex-shrink-0">
+          <div className="w-full max-w-md rounded-lg overflow-hidden border-2" style={{ maxHeight: '250px', borderColor: 'var(--border-medium)', backgroundColor: '#000' }}>
+            <style>{`
+              #reader { width: 100% !important; border: none !important; }
+              #reader video { max-height: 250px !important; object-fit: cover !important; }
+              #reader__dashboard_section_csr span { color: white !important; }
+              #reader__dashboard_section_swaplink { color: var(--color-accent) !important; }
+            `}</style>
+            <div id="reader" className="w-full bg-black"></div>
+          </div>
         </div>
       )}
 
@@ -205,7 +226,7 @@ export default function WorkerScanner({ cashierName }) {
             <p className="text-xs mt-2" style={{ color: 'var(--text-secondary)' }}>Tap "Open Camera" to start scanning barcodes.</p>
           </div>
         ) : (
-          cart.map((item, index) => (
+          cart.map((item) => (
             <div key={item.id} className="p-4 flex flex-col shadow-sm rounded-sm" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
               <div className="flex justify-between items-start mb-3">
                 <div className="flex flex-col">
@@ -237,11 +258,11 @@ export default function WorkerScanner({ cashierName }) {
 
       {/* Footer / Send Button */}
       {cart.length > 0 && (
-        <div className="p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]" style={{ backgroundColor: 'var(--bg-secondary)', borderTop: '1px solid var(--color-accent)' }}>
+        <div className="p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] flex-shrink-0" style={{ backgroundColor: 'var(--bg-secondary)', borderTop: '1px solid var(--color-accent)' }}>
           <button
             onClick={handleSend}
             disabled={isSending}
-            className="w-full py-4 text-white font-bold uppercase tracking-widest text-sm shadow-md transition-all hover:brightness-110 disabled:opacity-50"
+            className="w-full py-4 text-white font-bold uppercase tracking-widest text-sm shadow-md transition-all hover:brightness-110 disabled:opacity-50 rounded-sm"
             style={{ backgroundColor: 'var(--color-accent)' }}
           >
             {isSending ? 'Sending...' : `Send ${cart.length} Items to Counter`}
