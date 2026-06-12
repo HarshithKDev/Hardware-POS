@@ -64,6 +64,24 @@ export default function WorkerScanner({ cashierName }) {
     }
   }, [isScanning]);
 
+  const playBeep = () => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // High pitch A5
+      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime); // Very quiet
+      gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.1);
+      oscillator.start(audioCtx.currentTime);
+      oscillator.stop(audioCtx.currentTime + 0.1);
+    } catch (e) {
+      console.log('Audio not supported or blocked', e);
+    }
+  };
+
   const handleScan = async (barcode) => {
     try {
       const isInstance = barcode.includes('-');
@@ -100,10 +118,12 @@ export default function WorkerScanner({ cashierName }) {
         );
 
         if (existingIdx >= 0) {
+          playBeep();
           const newCart = [...prev];
           newCart[existingIdx] = { ...newCart[existingIdx], quantity: newCart[existingIdx].quantity + 1 };
           return newCart;
         } else {
+          playBeep();
           return [{ 
             ...item, 
             id: generateId(), 
@@ -165,8 +185,14 @@ export default function WorkerScanner({ cashierName }) {
 
       {/* Camera Area */}
       {isScanning && (
-        <div className="w-full bg-black p-2 flex justify-center">
-          <div id="reader" className="w-full max-w-sm rounded overflow-hidden shadow-lg bg-white"></div>
+        <div className="w-full bg-black flex justify-center overflow-hidden" style={{ maxHeight: '250px' }}>
+          <style>{`
+            #reader { width: 100% !important; border: none !important; }
+            #reader video { max-height: 250px !important; object-fit: cover !important; }
+            #reader__dashboard_section_csr span { color: white !important; }
+            #reader__dashboard_section_swaplink { color: var(--color-accent) !important; }
+          `}</style>
+          <div id="reader" className="w-full max-w-md bg-black"></div>
         </div>
       )}
 
