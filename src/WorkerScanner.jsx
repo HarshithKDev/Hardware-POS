@@ -193,10 +193,20 @@ export default function WorkerScanner({ cashierName }) {
               unlockAudio();
               setIsScanning(!isScanning);
             }}
-            className="w-full py-5 font-bold uppercase text-lg text-white shadow-md rounded-md transition-all active:scale-95"
+            className="w-full py-5 font-bold uppercase text-lg text-white shadow-md rounded-md transition-all active:scale-95 flex items-center justify-center gap-2"
             style={{ backgroundColor: isScanning ? 'var(--color-error)' : 'var(--color-success)' }}
           >
-            {isScanning ? '🛑 STOP CAMERA' : '📷 START SCANNING'}
+            {isScanning ? (
+              <>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                STOP CAMERA
+              </>
+            ) : (
+              <>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                START SCANNING
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -220,7 +230,7 @@ export default function WorkerScanner({ cashierName }) {
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
         {cart.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6">
-            <span className="text-6xl mb-6 opacity-50">🛒</span>
+            <svg className="w-20 h-20 mb-6 opacity-30" fill="currentColor" viewBox="0 0 20 20" style={{ color: 'var(--text-secondary)' }}><path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" /></svg>
             <p className="text-xl font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>List is Empty</p>
             <p className="text-base mt-2 font-medium" style={{ color: 'var(--text-tertiary)' }}>Tap the green button above to start.</p>
           </div>
@@ -237,7 +247,7 @@ export default function WorkerScanner({ cashierName }) {
                   className="w-12 h-12 flex items-center justify-center rounded-md font-bold text-2xl flex-shrink-0" 
                   style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
                 >
-                  🗑️
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 </button>
               </div>
               
@@ -267,10 +277,15 @@ export default function WorkerScanner({ cashierName }) {
           <button
             onClick={handleSend}
             disabled={isSending}
-            className="w-full py-6 text-white font-black uppercase tracking-widest text-xl shadow-lg rounded-lg transition-all active:scale-95 disabled:opacity-50"
+            className="w-full py-6 text-white font-black uppercase tracking-widest text-xl shadow-lg rounded-lg transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
             style={{ backgroundColor: 'var(--color-accent)' }}
           >
-            {isSending ? 'SENDING...' : `✅ SEND ${cart.length} ITEMS`}
+            {isSending ? 'SENDING...' : (
+              <>
+                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                SEND {cart.length} ITEMS
+              </>
+            )}
           </button>
         </div>
       )}
