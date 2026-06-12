@@ -19,12 +19,13 @@ export default function WorkerScanner({ cashierName }) {
         { 
           fps: 10, 
           qrbox: { width: 300, height: 150 },
-          aspectRatio: 1.0,
           videoConstraints: {
             facingMode: "environment",
-            width: { min: 1280, ideal: 1920, max: 3840 },
-            height: { min: 720, ideal: 1080, max: 2160 },
-            advanced: [{ zoom: 2.0 }]
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          },
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true
           }
         }, 
         false

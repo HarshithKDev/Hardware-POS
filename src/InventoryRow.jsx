@@ -135,10 +135,10 @@ export default function InventoryRow({ item, viewType, categories, subcategories
       <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(item.msp||0).toFixed(2)}</td>
       <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(item.price||0).toFixed(2)}</td>
       <td className="p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
-        {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : item.stock_warehouse} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
+        {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : (item.stock_warehouse || 0)} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
       </td>
       <td className="p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
-        {item.is_cuttable ? (pieceCounts ? pieceCounts.store : '...') : item.stock_store} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
+        {item.is_cuttable ? (pieceCounts ? pieceCounts.store : '...') : (item.stock_store || 0)} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
       </td>
       {viewType === 'warehouse' && (
         <td className="p-2 text-center h-full align-middle">
