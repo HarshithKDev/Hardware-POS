@@ -109,6 +109,7 @@ export default function WorkerScanner({ cashierName }) {
       let item = await getInventoryItemByBarcode(searchBarcode);
       
       if (!item) {
+        // Fallback for UPC/EAN format differences
         try {
           const { initDB } = await import('./services/db');
           const db = await initDB();
@@ -126,6 +127,31 @@ export default function WorkerScanner({ cashierName }) {
         return;
       }
 
+      // Check Stock Limits
+      let maxStock = 0;
+      if (item.is_cuttable) {
+        if (!isInstance) {
+          showAlert(`Please scan the specific piece sticker for ${item.name}, not the generic barcode.`, "Error");
+          return;
+        }
+        try {
+          const { data, error } = await supabase.from('stock_instances').select('current_length').eq('instance_barcode', barcode).single();
+          if (error || !data) throw new Error("Piece not found");
+          maxStock = Number(data.current_length);
+        } catch (err) {
+          console.error(err);
+          showAlert(`Could not verify stock for piece #${barcode.split('-')[1]}`, "Error");
+          return;
+        }
+      } else {
+        maxStock = Number(item.stock_store || 0);
+      }
+
+      if (maxStock <= 0) {
+        showAlert(`${item.name} is currently out of stock!`, "Out of Stock");
+        return;
+      }
+
       setCart(prev => {
         const instanceBarcode = isInstance ? barcode : null;
         
@@ -134,9 +160,14 @@ export default function WorkerScanner({ cashierName }) {
         );
 
         if (existingIdx >= 0) {
+          const currentQty = Number(prev[existingIdx].quantity) || 0;
+          if (currentQty + 1 > maxStock) {
+            showAlert(`You only have ${maxStock} in stock for ${item.name}!`, "Stock Limit");
+            return prev;
+          }
           playBeep();
           const newCart = [...prev];
-          newCart[existingIdx] = { ...newCart[existingIdx], quantity: newCart[existingIdx].quantity + 1 };
+          newCart[existingIdx] = { ...newCart[existingIdx], quantity: currentQty + 1 };
           return newCart;
         } else {
           playBeep();
@@ -144,6 +175,7 @@ export default function WorkerScanner({ cashierName }) {
             ...item, 
             id: generateId(), 
             quantity: 1,
+            maxStock: maxStock,
             instance_barcode: instanceBarcode,
             name: isInstance ? `${item.name} (Piece #${barcode.split('-')[1]})` : item.name
           }, ...prev];
@@ -156,8 +188,15 @@ export default function WorkerScanner({ cashierName }) {
   };
 
   const updateQuantity = (id, val) => {
+    let newQty = val === '' ? '' : Math.max(0, Number(val));
+    const itemToUpdate = cart.find(i => i.id === id);
+    
+    if (itemToUpdate && newQty !== '' && newQty > (itemToUpdate.maxStock || 0)) {
+      showAlert(`You only have ${itemToUpdate.maxStock} in stock for ${itemToUpdate.name}!`, "Stock Limit");
+      newQty = itemToUpdate.maxStock;
+    }
+
     setCart(prev => {
-      const newQty = val === '' ? '' : Math.max(0, Number(val));
       return prev.map(i => i.id === id ? { ...i, quantity: newQty } : i).filter(i => i.quantity !== 0);
     });
   };
