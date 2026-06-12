@@ -11,12 +11,14 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import { useApp } from './AppContext';
 import { startBackgroundSync, stopBackgroundSync } from './services/sync';
 
+import { useQuery } from '@tanstack/react-query';
+
 function App() {
   const {
     shopSettings, setShopSettings,
     userRole, setUserRole,
     cashierName, setCashierName,
-    isDarkMode, toggleDarkMode,
+    isDarkMode, toggleDarkMode, setDarkMode,
     alertConfig, closeAlert,
     confirmConfig, handleConfirm, closeConfirm,
   } = useApp();
@@ -30,6 +32,18 @@ function App() {
 
   const navigate = useNavigate();
   const location = useLocation();
+
+  const { data: workerData } = useQuery({
+    queryKey: ['workerPermissions', cashierName],
+    queryFn: async () => {
+      if (!cashierName || cashierName === 'owner') return null;
+      const { data } = await supabase.from('workers').select('password').eq('name', cashierName).single();
+      return data;
+    },
+    enabled: !!cashierName && cashierName !== 'owner',
+  });
+
+  const isBillable = cashierName === 'owner' || (workerData && !workerData.password?.includes('NON_BILLABLE'));
 
   useEffect(() => { fetchInitialData(); }, []);
 
@@ -220,21 +234,23 @@ function App() {
                 <span className="hidden md:inline">OFFLINE MODE</span>
               </div>
             )}
-            <button
-              onClick={() => setIsMobileScannerOpen(true)}
-              className="md:hidden px-3 py-2 text-xs font-bold uppercase focus:outline-none whitespace-nowrap shrink-0 flex items-center justify-center"
-              style={{
-                backgroundColor: 'var(--bg-secondary)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border-medium)',
-              }}
-              aria-label="Open barcode scanner"
-            >
-              <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" />
-              </svg>
-            </button>
+            {isBillable && (
+              <button
+                onClick={() => setIsMobileScannerOpen(true)}
+                className="md:hidden px-3 py-2 text-xs font-bold uppercase focus:outline-none whitespace-nowrap shrink-0 flex items-center justify-center"
+                style={{
+                  backgroundColor: 'var(--bg-secondary)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-medium)',
+                }}
+                aria-label="Open barcode scanner"
+              >
+                <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" />
+                </svg>
+              </button>
+            )}
 
             {userRole === 'owner' ? (
               <>
@@ -288,27 +304,29 @@ function App() {
             <div className="h-8 w-px mx-1" style={{ backgroundColor: 'var(--border-medium)' }} />
 
             {/* Dark Mode Toggle */}
-            <button
-              onClick={toggleDarkMode}
-              className="px-3 py-2 transition-colors flex items-center justify-center focus:outline-none focus:ring-1 shrink-0"
-              style={{
-                backgroundColor: 'var(--bg-secondary)',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border-medium)',
-              }}
-              title="Toggle Dark Mode"
-              aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {isDarkMode ? (
-                <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-[18px] h-[18px]">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-                </svg>
-              ) : (
-                <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-[18px] h-[18px]">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-                </svg>
-              )}
-            </button>
+            {isBillable && (
+              <button
+                onClick={toggleDarkMode}
+                className="px-3 py-2 transition-colors flex items-center justify-center focus:outline-none focus:ring-1 shrink-0"
+                style={{
+                  backgroundColor: 'var(--bg-secondary)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-medium)',
+                }}
+                title="Toggle Dark Mode"
+                aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {isDarkMode ? (
+                  <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-[18px] h-[18px]">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+                  </svg>
+                ) : (
+                  <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-[18px] h-[18px]">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                  </svg>
+                )}
+              </button>
+            )}
 
             <button
               onClick={() => setShowLogoutConfirm(true)}
