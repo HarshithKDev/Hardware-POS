@@ -221,18 +221,23 @@ export default function WorkerScanner({ cashierName }) {
               #reader { width: 100% !important; border: none !important; color: white !important; text-align: center !important; }
               #reader video { max-height: 300px !important; object-fit: cover !important; }
               
-              /* Aggressively hide "Scan an Image File" */
+              /* Aggressively hide "Scan an Image File" and "Select Camera" text/dropdowns */
               #reader a, #reader [id*="swaplink"], #reader [id*="file_scan"] { 
                 display: none !important; 
-                opacity: 0 !important; 
-                visibility: hidden !important; 
-                height: 0 !important; 
-                width: 0 !important; 
-                position: absolute !important; 
-                pointer-events: none !important; 
               }
               
-              #reader span { color: var(--text-secondary) !important; font-size: 14px !important; }
+              /* This completely hides the "Select Camera" text and any other helper text */
+              #reader span { 
+                display: none !important; 
+              }
+              
+              /* This completely hides the dropdown */
+              #reader select { 
+                display: none !important; 
+                visibility: hidden !important;
+                opacity: 0 !important;
+                height: 0 !important;
+              }
               
               /* Style permission button to match dark theme natively */
               #reader button { 
@@ -248,8 +253,6 @@ export default function WorkerScanner({ cashierName }) {
                 box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
                 cursor: pointer !important;
               }
-              
-              #reader select { display: none !important; } /* Hides camera selector dropdown if it appears */
               
               /* Hide the info icon in the top right */
               #reader img { display: none !important; }
