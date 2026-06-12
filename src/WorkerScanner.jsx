@@ -214,14 +214,27 @@ export default function WorkerScanner({ cashierName }) {
       {/* Camera Area */}
       {isScanning && (
         <div className="p-4 w-full flex justify-center bg-[var(--bg-primary)] flex-shrink-0">
-          <div className="w-full max-w-md rounded-xl overflow-hidden border-4" style={{ maxHeight: '300px', borderColor: 'var(--color-success)', backgroundColor: '#000' }}>
+          <div className="w-full max-w-md rounded-xl overflow-hidden border-4 flex flex-col justify-center" style={{ minHeight: '200px', maxHeight: '300px', borderColor: 'var(--color-success)', backgroundColor: 'var(--bg-secondary)' }}>
             <style>{`
-              #reader { width: 100% !important; border: none !important; }
+              #reader { width: 100% !important; border: none !important; color: white !important; text-align: center !important; }
               #reader video { max-height: 300px !important; object-fit: cover !important; }
-              #reader__dashboard_section_csr span { color: white !important; display: none !important; }
-              #reader__dashboard_section_swaplink { display: none !important; }
+              #reader a { display: none !important; } /* Hides "Scan an Image File" completely */
+              #reader span { color: var(--text-secondary) !important; font-size: 14px !important; }
+              #reader button { 
+                background-color: var(--color-accent) !important; 
+                color: white !important; 
+                padding: 12px 24px !important; 
+                border-radius: 6px !important; 
+                font-weight: 800 !important; 
+                font-size: 14px !important; 
+                text-transform: uppercase !important;
+                border: none !important;
+                margin-top: 15px !important;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+              }
+              #reader select { display: none !important; } /* Hides camera selector dropdown if it appears */
             `}</style>
-            <div id="reader" className="w-full bg-black"></div>
+            <div id="reader" className="w-full"></div>
           </div>
         </div>
       )}
