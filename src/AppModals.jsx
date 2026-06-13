@@ -22,7 +22,7 @@ export function LogoutModal({ onConfirm, onCancel }) {
   );
 }
 
-export function MobileScannerModal({ onClose, setScannedProduct }) {
+export function MobileScannerModal({ onClose, setScannedProduct, onScan }) {
   const scannerRef = useRef(null);
 
   useEffect(() => {
@@ -37,6 +37,13 @@ export function MobileScannerModal({ onClose, setScannedProduct }) {
     scannerRef.current.render(async (decodedText) => {
       if (isVerifying) return;
       isVerifying = true;
+
+      if (onScan) {
+        onScan(decodedText);
+        scannerRef.current?.clear().catch(() => { });
+        onClose();
+        return;
+      }
 
       const { data } = await supabase
         .from('inventory')
@@ -58,7 +65,7 @@ export function MobileScannerModal({ onClose, setScannedProduct }) {
     return () => {
       scannerRef.current?.clear().catch(() => { });
     };
-  }, [onClose, setScannedProduct]);
+  }, [onClose, setScannedProduct, onScan]);
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[500] px-4 print:hidden animate-fade-in">

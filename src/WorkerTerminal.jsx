@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient';
 import { Spinner } from './SharedUI';
 import ReceiptTemplate from './ReceiptTemplate';
 import { PrintPreviewModal } from './AppModals';
+import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { useQueryClient } from '@tanstack/react-query';
 import { getInventoryItemByBarcode, queueOfflineTransaction, getInventoryByQuery, saveInventoryBatch } from './services/db';
 import { syncInventoryToLocal } from './services/sync';
@@ -13,6 +14,147 @@ import { SCAN_TIMEOUT_MS } from './constants';
 // ---------------------------------------------------------------
 // Extracted sub-components (Phase 5 decomposition)
 // ---------------------------------------------------------------
+
+function InlineContinuousScanner({ onScan }) {
+  const scannerRef = useRef(null);
+  const audioCtxRef = useRef(null);
+
+  const playBeep = () => {
+    try {
+      if (!audioCtxRef.current) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) audioCtxRef.current = new AudioContext();
+      }
+      const audioCtx = audioCtxRef.current;
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      if (audioCtx) {
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.1);
+        oscillator.start(audioCtx.currentTime);
+        oscillator.stop(audioCtx.currentTime + 0.1);
+      }
+    } catch (e) {
+      console.log('Audio not supported', e);
+    }
+  };
+
+  useEffect(() => {
+    const scanner = new Html5QrcodeScanner(
+      "receive-reader", 
+      { 
+        fps: 10, 
+        qrbox: { width: 300, height: 150 },
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.UPC_A
+        ],
+        videoConstraints: {
+          facingMode: "environment",
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true
+        }
+      }, 
+      false
+    );
+    
+    scannerRef.current = scanner;
+
+    scanner.render(
+      async (decodedText) => {
+        if (scanner.getState() === 2) {
+          scanner.pause(true); 
+          playBeep();
+          await onScan(decodedText);
+          setTimeout(() => {
+            if (scannerRef.current && scannerRef.current.getState() === 3) {
+              scannerRef.current.resume();
+            }
+          }, 1000);
+        }
+      },
+      () => {}
+    );
+
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.clear().catch(console.error);
+      }
+    };
+  }, [onScan]);
+
+  return (
+    <>
+      <style>{`
+        #receive-reader { 
+          width: 100% !important; 
+          border: none !important; 
+          text-align: center !important; 
+          background: transparent url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="%23333333" stroke-width="4"/><circle cx="25" cy="25" r="20" fill="none" stroke="%233b82f6" stroke-width="4" stroke-dasharray="31.4 100"><animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/></circle></svg>') no-repeat center center !important;
+          background-size: 50px 50px !important;
+        }
+
+        #receive-reader div {
+          color: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+          outline: none !important;
+        }
+        
+        #receive-reader video { 
+          max-height: 300px !important; 
+          object-fit: cover !important; 
+          background-color: var(--bg-secondary) !important;
+          position: relative;
+          z-index: 10;
+        }
+        
+        #receive-reader a, #receive-reader [id*="swaplink"], #receive-reader [id*="file_scan"] { 
+          display: none !important; 
+        }
+        
+        #receive-reader span { 
+          display: none !important; 
+        }
+        
+        #receive-reader select { 
+          display: none !important; 
+          visibility: hidden !important;
+          opacity: 0 !important;
+          height: 0 !important;
+        }
+        
+        #receive-reader button { 
+          background-color: var(--bg-tertiary) !important; 
+          color: var(--text-primary) !important;
+          padding: 8px 16px !important; 
+          border-radius: 0 !important; 
+          font-weight: bold !important; 
+          font-size: 12px !important; 
+          text-transform: uppercase !important;
+          border: 2px solid var(--border-medium) !important;
+          margin-top: 15px !important;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+          cursor: pointer !important;
+          position: relative;
+          z-index: 20;
+        }
+        
+        #receive-reader img { display: none !important; }
+      `}</style>
+      <div id="receive-reader" className="w-full h-full flex flex-col justify-center"></div>
+    </>
+  );
+}
 
 /** Desktop cart table */
 function CartTable({ cart, activeTab, onUpdateQuantity, onUpdateDimensions, onCustomPriceChange, onCustomPriceBlur, onRemoveItem }) {
@@ -251,6 +393,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     try { const saved = localStorage.getItem(`pos_cart_${activeTab}`); return saved ? JSON.parse(saved) : []; } catch { return []; }
   });
   const [manualBarcode, setManualBarcode] = useState('');
+  const [isMobileScannerOpen, setIsMobileScannerOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [lastReceipt, setLastReceipt] = useState(null);
   const [checkoutModal, setCheckoutModal] = useState({ isOpen: false, cashGiven: '' });
@@ -868,6 +1011,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const differenceCents = Math.abs(cashGivenCents - cartTotalCents);
   const isShortfall = cashGivenCents > 0 && cashGivenCents < cartTotalCents;
 
+  const isMobileScannerTab = window.innerWidth < 768 && (activeTab === 'receive' || activeTab === 'transfer');
+
   return (
     <>
       {/* Checkout Modal */}
@@ -1033,9 +1178,65 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         </div>
       )}
 
-      <div className="flex flex-col flex-1 min-h-[500px] shadow-sm print:hidden" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
-        {/* Header Block */}
-        {activeTab === 'checkout' && pendingCarts.length > 0 && (
+      {isMobileScannerTab ? (
+        <div className="flex flex-col flex-1 bg-[var(--bg-primary)] overflow-hidden" style={{ minHeight: 'calc(100vh - 160px)' }}>
+          {cart.length > 0 && (
+            <div className="p-4 flex-shrink-0 flex gap-2" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
+              <button onClick={() => showConfirm("Clear?", () => setCart([]), 'Clear')} className="w-1/3 py-4 text-white font-black uppercase tracking-widest text-lg shadow-lg rounded-lg transition-all active:scale-95" style={{ backgroundColor: 'var(--color-error)' }}>CLEAR</button>
+              <button onClick={handleCompleteTransaction} className="w-2/3 py-4 text-white font-black uppercase tracking-widest text-lg shadow-lg rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2" style={{ backgroundColor: 'var(--color-accent)' }}>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                COMPLETE {cart.length}
+              </button>
+            </div>
+          )}
+          {isMobileScannerOpen && (
+            <div className="p-4 w-full flex justify-center bg-[var(--bg-primary)] flex-shrink-0" style={{ borderBottom: '1px solid var(--border-medium)' }}>
+              <div className="w-full max-w-md rounded-xl overflow-hidden border-4 flex flex-col justify-center relative" style={{ minHeight: '200px', maxHeight: '300px', borderColor: 'var(--color-success)', backgroundColor: 'var(--bg-secondary)' }}>
+                <InlineContinuousScanner onScan={async (barcode) => { await processScan(barcode); }} />
+              </div>
+            </div>
+          )}
+          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+            {cart.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center p-6">
+                <svg className="w-20 h-20 mb-6 opacity-30" fill="currentColor" viewBox="0 0 20 20" style={{ color: 'var(--text-secondary)' }}><path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" /></svg>
+                <p className="text-xl font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>List is Empty</p>
+                <p className="text-base mt-2 font-medium" style={{ color: 'var(--text-tertiary)' }}>Tap the green button below to start.</p>
+              </div>
+            ) : (
+              <CartMobileView
+                cart={cart}
+                activeTab={activeTab}
+                onUpdateQuantity={updateQuantity}
+                onUpdateDimensions={updateDimensions}
+                onRemoveItem={handleRemoveItem}
+              />
+            )}
+          </div>
+          <div className="p-4 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1)] flex-shrink-0" style={{ backgroundColor: 'var(--bg-secondary)', borderTop: '2px solid var(--border-medium)' }}>
+            <button 
+              onClick={() => setIsMobileScannerOpen(!isMobileScannerOpen)}
+              className="w-full py-5 font-bold uppercase text-lg text-white shadow-md rounded-md transition-all active:scale-95 flex items-center justify-center gap-2"
+              style={{ backgroundColor: isMobileScannerOpen ? 'var(--color-error)' : 'var(--color-success)' }}
+            >
+              {isMobileScannerOpen ? (
+                <>
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  STOP CAMERA
+                </>
+              ) : (
+                <>
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                  START SCANNING
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col flex-1 min-h-[500px] shadow-sm print:hidden" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+          {/* Header Block */}
+          {activeTab === 'checkout' && pendingCarts.length > 0 && (
           <div className="flex gap-1 p-2 bg-[var(--bg-tertiary)] border-b border-[var(--border-medium)] overflow-x-auto whitespace-nowrap scrollbar-hide">
             <button 
               onClick={() => switchCartTab('local')}
@@ -1065,40 +1266,43 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             ))}
           </div>
         )}
-        <div className={`p-4 flex flex-col md:flex-row justify-between gap-4 ${activeTab === 'receive' ? 'pos-receive-bg' : activeTab === 'transfer' ? 'pos-transfer-bg' : ''}`} style={{ borderBottom: '1px solid var(--border-medium)', ...(activeTab !== 'receive' && activeTab !== 'transfer' ? { backgroundColor: 'var(--bg-tertiary)' } : {}) }}>
-          <div className="flex flex-col">
+        <div className={`p-4 flex flex-col md:flex-row justify-between gap-4 ${(activeTab === 'receive' || activeTab === 'transfer') ? 'hidden md:flex' : ''} ${activeTab === 'receive' ? 'pos-receive-bg' : activeTab === 'transfer' ? 'pos-transfer-bg' : ''}`} style={{ borderBottom: '1px solid var(--border-medium)', ...(activeTab !== 'receive' && activeTab !== 'transfer' ? { backgroundColor: 'var(--bg-tertiary)' } : {}) }}>
+          <div className="flex flex-col w-full md:w-auto flex-1 md:flex-none">
             <h2 className="text-2xl font-light" style={{ color: 'var(--text-primary)' }}>
               {activeTab === 'receive' ? 'Receive New Stock' : activeTab === 'transfer' ? 'Move Stock to Store' : 'Checkout Counter'}
             </h2>
-            <form onSubmit={(e) => { e.preventDefault(); processScan(manualBarcode); setManualBarcode(''); setShowSuggestions(false); }} className="mt-3 flex items-center relative">
-              <label htmlFor="manual-barcode" className="sr-only">Barcode</label>
-              <input id="manual-barcode" type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} onFocus={() => manualBarcode.trim().length >= 2 && setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder="Search barcode or name..." className="h-9 px-3 text-sm focus:outline-none w-full md:w-64" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} autoComplete="off" />
-              <button type="submit" className="h-9 px-4 text-sm font-semibold focus:outline-none" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '2px solid var(--border-input)', borderLeft: 'none' }}>Add</button>
-              {showSuggestions && suggestions.length > 0 && (
-                <ul className="absolute top-[100%] left-0 w-full md:w-64 bg-[var(--bg-secondary)] border border-[var(--border-medium)] z-50 max-h-60 overflow-y-auto shadow-lg mt-1 rounded-sm">
-                  {suggestions.map((item) => (
-                    <li
-                      key={item.barcode}
-                      className="px-3 py-2 cursor-pointer hover:bg-[var(--bg-hover)] text-sm flex justify-between border-b border-[var(--border-light)] last:border-0"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        const typed = manualBarcode.trim();
-                        let targetBarcode = item.barcode;
-                        if (typed.startsWith(item.barcode + '-')) {
-                          targetBarcode = typed;
-                        }
-                        setManualBarcode('');
-                        setShowSuggestions(false);
-                        processScan(targetBarcode);
-                      }}
-                    >
-                      <span className="truncate pr-2 font-medium" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
-                      <span className="text-[10px] font-mono whitespace-nowrap self-center px-1.5 py-0.5 rounded-sm" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)' }}>#{item.barcode}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </form>
+            
+            {activeTab !== 'receive' && activeTab !== 'transfer' && (
+              <form onSubmit={(e) => { e.preventDefault(); processScan(manualBarcode); setManualBarcode(''); setShowSuggestions(false); }} className="mt-3 flex items-center relative w-full">
+                <label htmlFor="manual-barcode" className="sr-only">Barcode</label>
+                <input id="manual-barcode" type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} onFocus={() => manualBarcode.trim().length >= 2 && setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder="Search barcode or name..." className="h-10 md:h-9 px-3 text-sm focus:outline-none flex-1 md:flex-none md:w-64" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} autoComplete="off" />
+                <button type="submit" className="h-10 md:h-9 px-4 text-sm font-semibold focus:outline-none" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '2px solid var(--border-input)', borderLeft: 'none' }}>Add</button>
+                {showSuggestions && suggestions.length > 0 && (
+                  <ul className="absolute top-[100%] left-0 w-full md:w-64 bg-[var(--bg-secondary)] border border-[var(--border-medium)] z-50 max-h-60 overflow-y-auto shadow-lg mt-1 rounded-sm">
+                    {suggestions.map((item) => (
+                      <li
+                        key={item.barcode}
+                        className="px-3 py-2 cursor-pointer hover:bg-[var(--bg-hover)] text-sm flex justify-between border-b border-[var(--border-light)] last:border-0"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          const typed = manualBarcode.trim();
+                          let targetBarcode = item.barcode;
+                          if (typed.startsWith(item.barcode + '-')) {
+                            targetBarcode = typed;
+                          }
+                          setManualBarcode('');
+                          setShowSuggestions(false);
+                          processScan(targetBarcode);
+                        }}
+                      >
+                        <span className="truncate pr-2 font-medium" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
+                        <span className="text-[10px] font-mono whitespace-nowrap self-center px-1.5 py-0.5 rounded-sm" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)' }}>#{item.barcode}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </form>
+            )}
           </div>
           <div className="text-left md:text-right flex flex-col justify-end pt-2 md:pt-0" style={{ borderTop: window.innerWidth < 768 ? `1px solid var(--border-light)` : 'none' }}>
             <span className="text-xs uppercase font-semibold tracking-wider block mb-1" style={{ color: 'var(--text-tertiary)' }}>{activeTab === 'checkout' ? 'Total Price' : 'Total Units'}</span>
@@ -1117,11 +1321,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             onUpdateDimensions={updateDimensions}
             onCustomPriceChange={handleCustomPriceChange}
             onCustomPriceBlur={applyCustomPriceBlur}
-            onRemoveItem={handleRemoveItem}
           />
         </div>
 
-        {/* Mobile View */}
+        {/* Mobile View for Checkout */}
         <div className="md:hidden flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
           <CartMobileView
             cart={cart}
@@ -1132,26 +1335,28 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           />
         </div>
 
-        <div className="p-4 flex flex-col md:flex-row justify-between gap-3" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-          <button
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => showConfirm("Are you sure you want to clear the items?", () => setCart([]), activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items')}
-            className="w-full md:w-auto h-10 px-8 text-sm font-semibold uppercase tracking-wider focus:outline-none"
-            style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
-          >
-            {activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items'}
-          </button>
-          <button
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => activeTab === 'checkout' ? setCheckoutModal({ isOpen: true, cashGiven: '' }) : handleCompleteTransaction()}
-            className="w-full md:w-auto h-10 px-10 text-white text-sm font-semibold uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-offset-1 flex justify-center items-center"
-            style={{ backgroundColor: 'var(--color-accent)', border: '1px solid transparent' }}
-          >
-            {isCheckingOut ? 'Saving...' : 'Complete'}
-          </button>
-        </div>
+        {cart.length > 0 && (
+          <div className="p-4 flex flex-col md:flex-row justify-between gap-3" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+            <button
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => showConfirm("Are you sure you want to clear the items?", () => setCart([]), activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items')}
+              className="w-full md:w-auto h-10 px-8 text-sm font-semibold uppercase tracking-wider focus:outline-none"
+              style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
+            >
+              {activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items'}
+            </button>
+            <button
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => activeTab === 'checkout' ? setCheckoutModal({ isOpen: true, cashGiven: '' }) : handleCompleteTransaction()}
+              className="w-full md:w-auto h-10 px-10 text-white text-sm font-semibold uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-offset-1 flex justify-center items-center"
+              style={{ backgroundColor: 'var(--color-accent)', border: '1px solid transparent' }}
+            >
+              {isCheckingOut ? 'Saving...' : 'Complete'}
+            </button>
+          </div>
+        )}
       </div>
-
+      )}
       {/* Hidden Receipt Template for actual browser printing */}
       <ReceiptTemplate lastReceipt={lastReceipt} shopSettings={shopSettings} formatDateTime={formatDateTime} />
 

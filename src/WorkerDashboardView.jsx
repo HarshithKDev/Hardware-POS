@@ -160,8 +160,8 @@ export default function WorkerDashboardView() {
                 <th className="p-1.5 md:p-3 w-[15%] md:w-auto align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>BC</th>
                 <th className="p-1.5 md:p-3 w-[40%] md:w-auto align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>Name</th>
                 <th className="p-1.5 md:p-3 w-[15%] md:w-auto align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>MRP</th>
-                <th className="p-1.5 md:p-3 w-[15%] md:w-auto align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>STR</th>
-                <th className="p-1.5 md:p-3 w-[15%] md:w-auto align-middle">WHS</th>
+                <th className="p-1.5 md:p-3 w-[15%] md:w-auto align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>WHS</th>
+                <th className="p-1.5 md:p-3 w-[15%] md:w-auto align-middle">STR</th>
               </tr>
             </thead>
             <tbody style={{ borderBottom: '1px solid var(--border-medium)' }}>
@@ -174,8 +174,8 @@ export default function WorkerDashboardView() {
                   <td className="p-1.5 md:p-3 font-semibold tracking-wider font-mono truncate align-middle" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{item.barcode}</td>
                   <td className="p-1.5 md:p-3 font-medium leading-tight break-words align-middle" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
                   <td className="p-1.5 md:p-3 align-middle" style={{ borderRight: '1px solid var(--border-light)' }}>₹{Number(item.price).toFixed(2)}</td>
-                  <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: item.stock_store < STORE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.stock_store}</td>
-                  <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: item.stock_warehouse < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)' }}>{item.stock_warehouse}</td>
+                  <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: item.stock_warehouse < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.stock_warehouse}</td>
+                  <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: item.stock_store < STORE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)' }}>{item.stock_store}</td>
                 </tr>
               ))}
               {isFetchingNextPage && (
