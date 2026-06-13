@@ -232,8 +232,8 @@ export default function WorkerScanner({ cashierName }) {
   return (
     <div className="flex flex-col h-full bg-[var(--bg-primary)] overflow-hidden">
       {/* Header / Send Button */}
-      <div className="p-4 flex-shrink-0" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
-        {cart.length > 0 ? (
+      {cart.length > 0 && (
+        <div className="p-4 flex-shrink-0" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
           <button
             onClick={handleSend}
             disabled={isSending}
@@ -247,10 +247,8 @@ export default function WorkerScanner({ cashierName }) {
               </>
             )}
           </button>
-        ) : (
-          <h2 className="text-xl font-bold uppercase tracking-wider text-center py-4" style={{ color: 'var(--color-accent)' }}>Mobile Scanner</h2>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Camera Area */}
       {isScanning && (

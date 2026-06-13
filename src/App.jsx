@@ -252,7 +252,7 @@ function App() {
               </button>
             )}
 
-            {userRole === 'owner' ? (
+            {userRole === 'owner' && (
               <>
                 <button
                   onClick={() => navigate('/owner/dashboard')}
@@ -283,25 +283,9 @@ function App() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
                   </svg>
                 </button>
+                <div className="h-8 w-px mx-1" style={{ backgroundColor: 'var(--border-medium)' }} />
               </>
-            ) : (
-              <button
-                onClick={() => navigate('/terminal/dashboard')}
-                className="px-3 md:px-6 py-2 md:py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none transition-colors whitespace-nowrap shrink-0 flex items-center justify-center gap-2"
-                style={{
-                  backgroundColor: location.pathname.startsWith('/terminal') ? 'var(--color-accent)' : 'var(--bg-secondary)',
-                  color: location.pathname.startsWith('/terminal') ? '#ffffff' : 'var(--text-primary)',
-                  border: `1px solid ${location.pathname.startsWith('/terminal') ? 'var(--color-accent)' : 'var(--border-medium)'}`,
-                }}
-              >
-                <span className="hidden md:inline">Terminal</span>
-                <svg className="w-[18px] h-[18px] md:hidden" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" />
-                </svg>
-              </button>
             )}
-
-            <div className="h-8 w-px mx-1" style={{ backgroundColor: 'var(--border-medium)' }} />
 
             {/* Dark Mode Toggle */}
             {isBillable && (
