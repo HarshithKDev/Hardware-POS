@@ -72,7 +72,7 @@ function InlineContinuousScanner({ onScan }) {
     scanner.render(
       async (decodedText) => {
         if (scanner.getState() === 2) {
-          scanner.pause(true); 
+          scanner.pause(false); 
           playBeep();
           await onScan(decodedText);
           setTimeout(() => {

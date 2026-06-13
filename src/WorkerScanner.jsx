@@ -58,7 +58,7 @@ export default function WorkerScanner({ cashierName }) {
       scanner.render(
         async (decodedText) => {
           if (scanner.getState() === 2) {
-            scanner.pause(true); 
+            scanner.pause(false); 
             await handleScan(decodedText);
             setTimeout(() => {
               if (scannerRef.current && scannerRef.current.getState() === 3) {
