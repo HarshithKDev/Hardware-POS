@@ -282,10 +282,10 @@ export default function WorkerScanner({ cashierName }) {
               #reader button { 
                 background-color: var(--bg-tertiary) !important; 
                 color: var(--text-primary) !important; 
-                padding: 12px 24px !important; 
-                border-radius: 8px !important; 
-                font-weight: 800 !important; 
-                font-size: 14px !important; 
+                padding: 8px 16px !important; 
+                border-radius: 0 !important; 
+                font-weight: bold !important; 
+                font-size: 12px !important; 
                 text-transform: uppercase !important;
                 border: 2px solid var(--border-medium) !important;
                 margin-top: 15px !important;
