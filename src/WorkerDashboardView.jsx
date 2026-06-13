@@ -81,10 +81,10 @@ export default function WorkerDashboardView() {
   const safeInvPage = Math.min(invPage, maxPages - 1);
 
   return (
-    <div className="flex flex-col h-full rounded-none p-4 md:p-6 animate-fade-in flex-1" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
-      <h2 className="text-2xl font-light mb-6" style={{ color: 'var(--text-primary)' }}>Staff Dashboard</h2>
+    <div className="flex flex-col h-full rounded-none p-3 md:p-6 animate-fade-in flex-1" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
+      <h2 className="text-xl md:text-2xl font-light mb-3 md:mb-6 hidden md:block" style={{ color: 'var(--text-primary)' }}>Staff Dashboard</h2>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-3 md:mb-6">
         <button onClick={() => setLowStockModal({ isOpen: true, type: 'store' })} className="p-5 border-l-4 rounded-none shadow-sm text-left transition-colors hover:bg-[var(--bg-hover)] cursor-pointer focus:outline-none" style={{ backgroundColor: 'var(--bg-quaternary)', border: '1px solid var(--border-medium)', borderLeftColor: storeAlerts > 0 ? 'var(--color-error)' : 'var(--color-accent)' }}>
           <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Low Store Stock Alerts</p>
           <p className="text-3xl font-light" style={{ color: storeAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{storeAlerts} Items</p>
@@ -95,7 +95,7 @@ export default function WorkerDashboardView() {
         </button>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 mb-4">
+      <div className="flex flex-col md:flex-row gap-3 md:gap-4 mb-3 md:mb-4">
         <input 
           type="text" 
           placeholder="Search Barcode or Name..." 
@@ -124,7 +124,7 @@ export default function WorkerDashboardView() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-[300px] rounded-none shadow-sm flex flex-col" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}>
+      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 md:min-h-[300px] rounded-none shadow-sm flex flex-col" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}>
         
         {/* Desktop Table View */}
         <div className="hidden md:block w-full h-full">
@@ -193,10 +193,10 @@ export default function WorkerDashboardView() {
         </div>
       </div>
 
-      <div className="flex justify-between items-center mt-4 p-3 rounded-none shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
-        <button onClick={()=>setInvPage(p=>Math.max(0,p-1))} disabled={invPage===0 || isLoading} className="px-6 py-1.5 text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>Previous</button>
-        <span className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Page {safeInvPage + 1} of {maxPages}</span>
-        <button onClick={()=>setInvPage(p=>p+1)} disabled={(safeInvPage+1)*INV_PER_PAGE>=totalInvItems || isLoading} className="px-6 py-1.5 text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>Next</button>
+      <div className="flex justify-between items-center mt-3 md:mt-4 p-2 md:p-3 rounded-none shadow-sm flex-shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
+        <button onClick={()=>setInvPage(p=>Math.max(0,p-1))} disabled={invPage===0 || isLoading} className="px-4 md:px-6 py-1.5 text-xs md:text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>Previous</button>
+        <span className="text-xs md:text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Page {safeInvPage + 1} of {maxPages}</span>
+        <button onClick={()=>setInvPage(p=>p+1)} disabled={(safeInvPage+1)*INV_PER_PAGE>=totalInvItems || isLoading} className="px-4 md:px-6 py-1.5 text-xs md:text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>Next</button>
       </div>
 
       {/* Low Stock Modal */}
