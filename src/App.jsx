@@ -204,7 +204,7 @@ function App() {
 
       {/* NAVBAR */}
       <nav
-        className="w-full shadow-sm h-[60px] flex-shrink-0 relative z-[9999]"
+        className="w-full shadow-sm h-[48px] md:h-[60px] flex-shrink-0 relative z-[9999]"
         style={{
           backgroundColor: 'var(--bg-secondary)',
           borderBottom: '1px solid var(--border-medium)',
