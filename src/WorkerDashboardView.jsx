@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { supabase } from './supabaseClient';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { Spinner, PageLoader } from './SharedUI';
 import { escapeIlike, debounce } from './utils';
 import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD, INV_PER_PAGE, STALE_TIME_5MIN } from './constants';
@@ -9,20 +9,13 @@ export default function WorkerDashboardView() {
   const [inventorySearch, setInventorySearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortOption, setSortOption] = useState('barcode-asc');
-  const [invPage, setInvPage] = useState(0);
   const [lowStockModal, setLowStockModal] = useState({ isOpen: false, type: null });
 
-  // Debounced search (fixes #17)
+  // Debounced search
   const debouncedSetSearch = useMemo(
     () => debounce((val) => setDebouncedSearch(val), 300),
     []
   );
-
-  const handleSearchChange = useCallback((e) => {
-    setInventorySearch(e.target.value);
-    setInvPage(0);
-    debouncedSetSearch(e.target.value);
-  }, [debouncedSetSearch]);
 
   const { data: lowStockCounts } = useQuery({
     queryKey: ['lowStockCounts'],
@@ -48,10 +41,16 @@ export default function WorkerDashboardView() {
     staleTime: STALE_TIME_5MIN,
   });
 
-  const { data: inventoryData, isLoading } = useQuery({
-    queryKey: ['workerInventory', invPage, debouncedSearch, sortOption],
-    queryFn: async () => {
-      const from = invPage * INV_PER_PAGE;
+  const { 
+    data: inventoryData, 
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery({
+    queryKey: ['workerInventory', debouncedSearch, sortOption],
+    queryFn: async ({ pageParam = 0 }) => {
+      const from = pageParam * INV_PER_PAGE;
       let query = supabase.from('inventory').select('*', { count: 'exact' }).eq('is_active', true);
       
       // Sanitized search (fixes #1)
@@ -60,25 +59,28 @@ export default function WorkerDashboardView() {
         query = query.or(`name.ilike.%${safe}%,barcode.ilike.%${safe}%`);
       }
       
-      if (sortOption === 'low-store') query = query.lt('stock_store', STORE_LOW_STOCK_THRESHOLD).order('stock_store', { ascending: true });
-      else if (sortOption === 'low-warehouse') query = query.lt('stock_warehouse', WAREHOUSE_LOW_STOCK_THRESHOLD).order('stock_warehouse', { ascending: true });
-      else if (sortOption === 'name-asc') query = query.order('name', { ascending: true });
+      if (sortOption === 'name-asc') query = query.order('name', { ascending: true });
       else if (sortOption === 'barcode-asc') query = query.order('barcode', { ascending: true });
 
       const { data, count, error } = await query.range(from, from + INV_PER_PAGE - 1);
       if (error) throw error;
-      return { items: data || [], total: count || 0 };
+      const hasMore = from + INV_PER_PAGE < (count || 0);
+      return { items: data || [], nextPage: hasMore ? pageParam + 1 : undefined };
     },
+    getNextPageParam: (lastPage) => lastPage.nextPage,
     staleTime: STALE_TIME_5MIN,
   });
 
-  const paginatedInventory = inventoryData?.items || [];
-  const totalInvItems = inventoryData?.total || 0;
+  const paginatedInventory = inventoryData?.pages.flatMap(page => page.items) || [];
   const storeAlerts = lowStockCounts?.store || 0;
   const whseAlerts = lowStockCounts?.warehouse || 0;
 
-  const maxPages = Math.max(1, Math.ceil(totalInvItems / INV_PER_PAGE));
-  const safeInvPage = Math.min(invPage, maxPages - 1);
+  const handleScroll = useCallback((e) => {
+    const bottom = e.target.scrollHeight - e.target.scrollTop - e.target.clientHeight < 100;
+    if (bottom && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   return (
     <div className="flex flex-col h-full rounded-none p-3 md:p-6 animate-fade-in flex-1" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
@@ -109,7 +111,7 @@ export default function WorkerDashboardView() {
         />
         <select 
           value={sortOption}
-          onChange={(e) => { setSortOption(e.target.value); setInvPage(0); }}
+          onChange={(e) => setSortOption(e.target.value)}
           className="w-[135px] md:w-auto md:min-w-[200px] flex-shrink-0 px-2 md:px-4 py-1.5 md:py-2 border rounded-none text-xs md:text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
           style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)' }}
         >
@@ -118,7 +120,11 @@ export default function WorkerDashboardView() {
         </select>
       </div>
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 md:min-h-[300px] rounded-none shadow-sm flex flex-col" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}>
+      <div 
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 md:min-h-[300px] rounded-none shadow-sm flex flex-col" 
+        style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}
+      >
         
         <div className="w-full h-full">
           <table className="w-full text-center table-fixed text-[10px] md:text-sm border-collapse" style={{ color: 'var(--text-primary)' }}>
@@ -145,15 +151,16 @@ export default function WorkerDashboardView() {
                   <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: item.stock_warehouse < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)' }}>{item.stock_warehouse}</td>
                 </tr>
               ))}
+              {isFetchingNextPage && (
+                <tr>
+                  <td colSpan="5" className="py-4 text-center text-sm font-semibold align-middle" style={{ color: 'var(--text-tertiary)' }}>
+                    Loading more...
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
-      </div>
-
-      <div className="flex justify-between items-center mt-3 md:mt-4 p-2 md:p-3 rounded-none shadow-sm flex-shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
-        <button onClick={()=>setInvPage(p=>Math.max(0,p-1))} disabled={invPage===0 || isLoading} className="px-4 md:px-6 py-1.5 text-xs md:text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>Previous</button>
-        <span className="text-xs md:text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Page {safeInvPage + 1} of {maxPages}</span>
-        <button onClick={()=>setInvPage(p=>p+1)} disabled={(safeInvPage+1)*INV_PER_PAGE>=totalInvItems || isLoading} className="px-4 md:px-6 py-1.5 text-xs md:text-sm font-semibold disabled:opacity-50 rounded-none focus:outline-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>Next</button>
       </div>
 
       {/* Low Stock Modal */}

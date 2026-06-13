@@ -204,7 +204,7 @@ function App() {
 
       {/* NAVBAR */}
       <nav
-        className="w-full shadow-sm h-[48px] md:h-[60px] flex-shrink-0 relative z-[9999]"
+        className="w-full shadow-sm h-[40px] md:h-[60px] flex-shrink-0 relative z-[9999]"
         style={{
           backgroundColor: 'var(--bg-secondary)',
           borderBottom: '1px solid var(--border-medium)',
@@ -314,10 +314,10 @@ function App() {
 
             <button
               onClick={() => setShowLogoutConfirm(true)}
-              className="px-3 md:px-6 py-2 md:py-2.5 text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none whitespace-nowrap shrink-0 flex items-center justify-center gap-2 border bg-[var(--color-error)] text-white border-[var(--color-error)] hover:bg-[#c90f1f] hover:border-[#c90f1f]"
+              className="h-8 md:h-9 px-4 md:px-6 text-white text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none whitespace-nowrap shrink-0 flex items-center justify-center gap-2 border bg-[var(--color-error)] border-[var(--color-error)] hover:bg-[#c90f1f] hover:border-[#c90f1f]"
             >
               <span className="hidden md:inline">Sign Out</span>
-              <svg className="w-[18px] h-[18px] md:hidden" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <svg className="w-[16px] h-[16px] md:hidden" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
               </svg>
             </button>
