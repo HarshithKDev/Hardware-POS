@@ -9,6 +9,7 @@ export default function WorkerDashboardView() {
   const [inventorySearch, setInventorySearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortOption, setSortOption] = useState('barcode-asc');
+  const [isSortOpen, setIsSortOpen] = useState(false);
   const [lowStockModal, setLowStockModal] = useState({ isOpen: false, type: null });
 
   // Debounced search
@@ -109,15 +110,41 @@ export default function WorkerDashboardView() {
           className="flex-1 min-w-0 px-3 md:px-4 py-1.5 md:py-2 border rounded-none text-xs md:text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
           style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)' }}
         />
-        <select 
-          value={sortOption}
-          onChange={(e) => setSortOption(e.target.value)}
-          className="w-[135px] md:w-auto md:min-w-[200px] flex-shrink-0 px-2 md:px-4 py-1.5 md:py-2 border rounded-none text-xs md:text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-          style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)' }}
-        >
-          <option value="barcode-asc">Barcode (Low to High)</option>
-          <option value="name-asc">Item Name (A-Z)</option>
-        </select>
+        <div className="relative w-[150px] md:w-auto md:min-w-[200px] flex-shrink-0">
+          <button 
+            type="button"
+            onClick={() => setIsSortOpen(!isSortOpen)}
+            className="w-full flex justify-between items-center px-2 md:px-4 py-1.5 md:py-2 border rounded-none text-xs md:text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+            style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)' }}
+          >
+            <span className="truncate">{sortOption === 'barcode-asc' ? 'Barcode (Low to High)' : 'Item Name (A-Z)'}</span>
+            <svg className="w-3 h-3 md:w-4 md:h-4 ml-1 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          
+          {isSortOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setIsSortOpen(false)}></div>
+              <div className="absolute top-full right-0 w-full mt-1 border rounded-none shadow-xl z-50 animate-fade-in flex flex-col" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)' }}>
+                <button 
+                  className="w-full text-left px-3 md:px-4 py-2.5 md:py-2 text-xs md:text-sm transition-colors hover:bg-[var(--bg-hover)] focus:outline-none"
+                  style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border-light)' }}
+                  onClick={() => { setSortOption('barcode-asc'); setIsSortOpen(false); }}
+                >
+                  Barcode (Low to High)
+                </button>
+                <button 
+                  className="w-full text-left px-3 md:px-4 py-2.5 md:py-2 text-xs md:text-sm transition-colors hover:bg-[var(--bg-hover)] focus:outline-none"
+                  style={{ color: 'var(--text-primary)' }}
+                  onClick={() => { setSortOption('name-asc'); setIsSortOpen(false); }}
+                >
+                  Item Name (A-Z)
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <div 
