@@ -84,112 +84,69 @@ export default function WorkerDashboardView() {
     <div className="flex flex-col h-full rounded-none p-3 md:p-6 animate-fade-in flex-1" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
       <h2 className="text-xl md:text-2xl font-light mb-3 md:mb-6 hidden md:block" style={{ color: 'var(--text-primary)' }}>Staff Dashboard</h2>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-3 md:mb-6">
-        <button onClick={() => setLowStockModal({ isOpen: true, type: 'store' })} className="p-5 border-l-4 rounded-none shadow-sm text-left transition-colors hover:bg-[var(--bg-hover)] cursor-pointer focus:outline-none" style={{ backgroundColor: 'var(--bg-quaternary)', border: '1px solid var(--border-medium)', borderLeftColor: storeAlerts > 0 ? 'var(--color-error)' : 'var(--color-accent)' }}>
-          <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Low Store Stock Alerts</p>
-          <p className="text-3xl font-light" style={{ color: storeAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{storeAlerts} Items</p>
+      <div className="grid grid-cols-2 gap-3 md:gap-4 mb-3 md:mb-6">
+        <button onClick={() => setLowStockModal({ isOpen: true, type: 'store' })} className="p-3 md:p-5 border-l-4 rounded-none shadow-sm text-left transition-colors hover:bg-[var(--bg-hover)] cursor-pointer focus:outline-none flex flex-col justify-center" style={{ backgroundColor: 'var(--bg-quaternary)', border: '1px solid var(--border-medium)', borderLeftColor: storeAlerts > 0 ? 'var(--color-error)' : 'var(--color-accent)' }}>
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider mb-1 md:mb-2" style={{ color: 'var(--text-secondary)' }}>Low Store Stock</p>
+          <p className="text-xl md:text-3xl font-light" style={{ color: storeAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{storeAlerts} Items</p>
         </button>
-        <button onClick={() => setLowStockModal({ isOpen: true, type: 'warehouse' })} className="p-5 border-l-4 rounded-none shadow-sm text-left transition-colors hover:bg-[var(--bg-hover)] cursor-pointer focus:outline-none" style={{ backgroundColor: 'var(--bg-quaternary)', border: '1px solid var(--border-medium)', borderLeftColor: whseAlerts > 0 ? 'var(--color-error)' : 'var(--color-accent)' }}>
-          <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Low Warehouse Stock Alerts</p>
-          <p className="text-3xl font-light" style={{ color: whseAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{whseAlerts} Items</p>
+        <button onClick={() => setLowStockModal({ isOpen: true, type: 'warehouse' })} className="p-3 md:p-5 border-l-4 rounded-none shadow-sm text-left transition-colors hover:bg-[var(--bg-hover)] cursor-pointer focus:outline-none flex flex-col justify-center" style={{ backgroundColor: 'var(--bg-quaternary)', border: '1px solid var(--border-medium)', borderLeftColor: whseAlerts > 0 ? 'var(--color-error)' : 'var(--color-accent)' }}>
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider mb-1 md:mb-2" style={{ color: 'var(--text-secondary)' }}>Low Whse Stock</p>
+          <p className="text-xl md:text-3xl font-light" style={{ color: whseAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{whseAlerts} Items</p>
         </button>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-3 md:gap-4 mb-3 md:mb-4">
+      <div className="flex flex-row gap-2 md:gap-4 mb-3 md:mb-4">
         <input 
           type="text" 
           placeholder="Search Barcode or Name..." 
-          value={inventorySearch} 
-          onChange={handleSearchChange} 
-          className="px-3 py-1.5 text-sm w-full md:w-[400px] rounded-none focus:outline-none" 
-          style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} 
-          aria-label="Search inventory"
+          value={inventorySearch}
+          onChange={(e) => {
+            setInventorySearch(e.target.value);
+            debouncedSetSearch(e.target.value);
+          }}
+          className="flex-1 min-w-0 px-3 md:px-4 py-1.5 md:py-2 border rounded-none text-xs md:text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+          style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)' }}
         />
-        <div className="relative w-full md:w-auto">
-          <select 
-            value={sortOption} 
-            onChange={(e) => {setSortOption(e.target.value); setInvPage(0);}} 
-            className="w-full h-full pl-3 pr-8 py-1.5 text-sm rounded-none focus:outline-none cursor-pointer appearance-none" 
-            style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
-            aria-label="Sort inventory"
-          >
-              <option value="barcode-asc">Barcode (Low to High)</option>
-              <option value="name-asc">Item Name (A-Z)</option>
-              <option value="low-store">Low Store Stock (&lt; {STORE_LOW_STOCK_THRESHOLD})</option>
-              <option value="low-warehouse">Low Whse Stock (&lt; {WAREHOUSE_LOW_STOCK_THRESHOLD})</option>
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}>
-            <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-          </div>
-        </div>
+        <select 
+          value={sortOption}
+          onChange={(e) => { setSortOption(e.target.value); setInvPage(0); }}
+          className="w-[135px] md:w-auto md:min-w-[200px] flex-shrink-0 px-2 md:px-4 py-1.5 md:py-2 border rounded-none text-xs md:text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+          style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)' }}
+        >
+          <option value="barcode-asc">Barcode (Low to High)</option>
+          <option value="name-asc">Item Name (A-Z)</option>
+        </select>
       </div>
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 md:min-h-[300px] rounded-none shadow-sm flex flex-col" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}>
         
-        {/* Desktop Table View */}
-        <div className="hidden md:block w-full h-full">
-          <table className={`w-full text-center whitespace-nowrap border-collapse min-w-full ${(isLoading || paginatedInventory.length === 0) ? 'h-full' : ''}`}>
-            <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
-              <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                <th className="p-3 w-32" style={{ borderRight: '1px solid var(--border-light)' }}>Barcode</th>
-                <th className="p-3" style={{ borderRight: '1px solid var(--border-light)' }}>Product Name</th>
-                <th className="p-3 text-center w-32" style={{ borderRight: '1px solid var(--border-light)' }}>MRP</th>
-                <th className="p-3 text-center w-32" style={{ borderRight: '1px solid var(--border-light)' }}>Store Qty</th>
-                <th className="p-3 text-center w-32">Whse Qty</th>
+        <div className="w-full h-full">
+          <table className="w-full text-center table-fixed text-[10px] md:text-sm border-collapse" style={{ color: 'var(--text-primary)' }}>
+            <thead style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
+              <tr className="text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>
+                <th className="p-1.5 md:p-3 w-[15%] md:w-auto align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>BC</th>
+                <th className="p-1.5 md:p-3 w-[40%] md:w-auto align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>Name</th>
+                <th className="p-1.5 md:p-3 w-[15%] md:w-auto align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>MRP</th>
+                <th className="p-1.5 md:p-3 w-[15%] md:w-auto align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>STR</th>
+                <th className="p-1.5 md:p-3 w-[15%] md:w-auto align-middle">WHS</th>
               </tr>
             </thead>
             <tbody style={{ borderBottom: '1px solid var(--border-medium)' }}>
               {isLoading ? (
-                 <tr><td colSpan="5" className="h-full text-center"><PageLoader text="Loading items..." /></td></tr>
+                 <tr><td colSpan="5" className="h-full text-center py-6 align-middle"><PageLoader text="Loading items..." /></td></tr>
               ) : paginatedInventory.length === 0 ? (
-                <tr><td colSpan="5" className="h-full align-middle text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No items found.</td></tr>
+                <tr><td colSpan="5" className="h-full text-center py-6 text-sm font-semibold align-middle" style={{ color: 'var(--text-tertiary)' }}>No items found.</td></tr>
               ) : paginatedInventory.map(item => (
-                <tr key={item.id} className="transition-colors hover:bg-[var(--bg-hover)]" style={{ borderBottom: '1px solid var(--border-light)' }}>
-                  <td className="p-3 text-sm font-semibold tracking-wider font-mono" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{item.barcode}</td>
-                  <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
-                  <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)' }}>₹{Number(item.price).toFixed(2)}</td>
-                  <td className="p-3 text-sm text-center font-bold" style={{ color: item.stock_store < STORE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.stock_store}</td>
-                  <td className="p-3 text-sm text-center font-bold" style={{ color: item.stock_warehouse < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)' }}>{item.stock_warehouse}</td>
+                <tr key={item.id} className="transition-colors hover:bg-[var(--bg-hover)] text-center" style={{ borderBottom: '1px solid var(--border-light)' }}>
+                  <td className="p-1.5 md:p-3 font-semibold tracking-wider font-mono truncate align-middle" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{item.barcode}</td>
+                  <td className="p-1.5 md:p-3 font-medium leading-tight break-words align-middle" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
+                  <td className="p-1.5 md:p-3 align-middle" style={{ borderRight: '1px solid var(--border-light)' }}>₹{Number(item.price).toFixed(2)}</td>
+                  <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: item.stock_store < STORE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.stock_store}</td>
+                  <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: item.stock_warehouse < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)' }}>{item.stock_warehouse}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-
-        {/* Mobile Card View */}
-        <div className="md:hidden flex flex-col h-full w-full">
-          {isLoading ? (
-            <div className="flex-1 flex justify-center items-center p-6"><PageLoader text="Loading items..." /></div>
-          ) : paginatedInventory.length === 0 ? (
-            <div className="flex-1 flex justify-center items-center p-6"><span className="text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No items found.</span></div>
-          ) : (
-            paginatedInventory.map(item => (
-              <div key={item.id} className="p-4 flex flex-col gap-3" style={{ borderBottom: '1px solid var(--border-light)', backgroundColor: 'var(--bg-secondary)' }}>
-                <div className="flex justify-between items-start gap-2">
-                  <span className="font-bold text-xl leading-tight" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
-                  <span className="font-mono text-[10px] uppercase font-bold tracking-wider px-2 py-1 flex-shrink-0 mt-1.5" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)', border: '1px solid var(--border-medium)' }}>
-                    #{item.barcode}
-                  </span>
-                </div>
-                <div className="flex justify-between items-end">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-tertiary)' }}>MRP</span>
-                    <span className="font-bold text-lg leading-none" style={{ color: 'var(--text-primary)' }}>₹{Number(item.price).toFixed(2)}</span>
-                  </div>
-                  <div className="flex gap-4 text-xs font-bold uppercase tracking-wider">
-                    <div className="flex flex-col items-center">
-                      <span style={{ color: 'var(--text-tertiary)' }}>Store</span>
-                      <span className="text-sm" style={{ color: item.stock_store < STORE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)' }}>{item.stock_store}</span>
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <span style={{ color: 'var(--text-tertiary)' }}>Whse</span>
-                      <span className="text-sm" style={{ color: item.stock_warehouse < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)' }}>{item.stock_warehouse}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
         </div>
       </div>
 
