@@ -255,10 +255,24 @@ export default function WorkerScanner({ cashierName }) {
       {/* Camera Area */}
       {isScanning && (
         <div className="p-4 w-full flex justify-center bg-[var(--bg-primary)] flex-shrink-0" style={{ borderBottom: '1px solid var(--border-medium)' }}>
-          <div className="w-full max-w-md rounded-xl overflow-hidden border-4 flex flex-col justify-center" style={{ minHeight: '200px', maxHeight: '300px', borderColor: 'var(--color-success)', backgroundColor: 'var(--bg-secondary)' }}>
+          <div className="w-full max-w-md rounded-xl overflow-hidden border-4 flex flex-col justify-center relative" style={{ minHeight: '200px', maxHeight: '300px', borderColor: 'var(--color-success)', backgroundColor: 'var(--bg-secondary)' }}>
             <style>{`
-              #reader { width: 100% !important; border: none !important; color: white !important; text-align: center !important; }
-              #reader video { max-height: 300px !important; object-fit: cover !important; }
+              #reader { 
+                width: 100% !important; 
+                border: none !important; 
+                text-align: center !important; 
+                color: transparent !important; /* Hides system default loading text */
+                background: transparent url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="%23333333" stroke-width="4"/><circle cx="25" cy="25" r="20" fill="none" stroke="%233b82f6" stroke-width="4" stroke-dasharray="31.4 100"><animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/></circle></svg>') no-repeat center center !important;
+                background-size: 50px 50px !important;
+              }
+              
+              #reader video { 
+                max-height: 300px !important; 
+                object-fit: cover !important; 
+                background-color: var(--bg-secondary) !important; /* Covers the background spinner once loaded */
+                position: relative;
+                z-index: 10;
+              }
               
               /* Aggressively hide "Scan an Image File" and "Select Camera" text/dropdowns */
               #reader a, #reader [id*="swaplink"], #reader [id*="file_scan"] { 
@@ -281,7 +295,7 @@ export default function WorkerScanner({ cashierName }) {
               /* Style permission button to match dark theme natively */
               #reader button { 
                 background-color: var(--bg-tertiary) !important; 
-                color: var(--text-primary) !important; 
+                color: var(--text-primary) !important; /* Override the transparent color from parent */
                 padding: 8px 16px !important; 
                 border-radius: 0 !important; 
                 font-weight: bold !important; 
@@ -291,12 +305,14 @@ export default function WorkerScanner({ cashierName }) {
                 margin-top: 15px !important;
                 box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
                 cursor: pointer !important;
+                position: relative;
+                z-index: 20; /* Keep above spinner */
               }
               
               /* Hide the info icon in the top right */
               #reader img { display: none !important; }
             `}</style>
-            <div id="reader" className="w-full"></div>
+            <div id="reader" className="w-full h-full flex flex-col justify-center"></div>
           </div>
         </div>
       )}
