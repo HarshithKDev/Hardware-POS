@@ -166,8 +166,8 @@ export default function WorkerDashboardView() {
             paginatedInventory.map(item => (
               <div key={item.id} className="p-4 flex flex-col gap-3" style={{ borderBottom: '1px solid var(--border-light)', backgroundColor: 'var(--bg-secondary)' }}>
                 <div className="flex justify-between items-start gap-2">
-                  <span className="font-bold text-sm leading-tight" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
-                  <span className="font-mono text-[10px] uppercase font-bold tracking-wider px-2 py-1 flex-shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)', border: '1px solid var(--border-medium)' }}>
+                  <span className="font-bold text-xl leading-tight" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
+                  <span className="font-mono text-[10px] uppercase font-bold tracking-wider px-2 py-1 flex-shrink-0 mt-1.5" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)', border: '1px solid var(--border-medium)' }}>
                     #{item.barcode}
                   </span>
                 </div>
