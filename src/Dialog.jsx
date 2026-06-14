@@ -107,7 +107,7 @@ function DialogOverlay({ isOpen, onClose, children, labelId }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelId}
-        className="w-[95%] max-w-[400px] flex flex-col shadow-lg animate-scale-in"
+        className="w-[85%] max-w-[400px] flex flex-col shadow-lg animate-scale-in"
         style={{
           backgroundColor: 'var(--bg-secondary)',
           borderWidth: '1px',
