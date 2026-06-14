@@ -306,6 +306,42 @@ function CartMobileView({ cart, activeTab, onUpdateQuantity, onUpdateDimensions,
     );
   }
 
+  if (activeTab === 'receive' || activeTab === 'transfer') {
+    return cart.map((item) => (
+      <div key={item.id} className="p-5 flex flex-col shadow-md rounded-lg animate-fade-in" style={{ backgroundColor: 'var(--bg-secondary)', border: '2px solid var(--border-medium)' }}>
+        <div className="flex justify-between items-start mb-4 gap-4">
+          <div className="flex flex-col flex-1">
+            <span className="font-bold text-xl leading-tight" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
+            {item.instance_barcode && <span className="font-mono text-sm mt-1" style={{ color: 'var(--color-accent)' }}>Piece #{item.instance_barcode.split('-')[1]}</span>}
+          </div>
+          <button 
+            onClick={() => onRemoveItem(item.id)} 
+            className="w-12 h-12 flex items-center justify-center rounded-md font-bold text-2xl flex-shrink-0 transition-all active:scale-95" 
+            style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+          </button>
+        </div>
+        
+        <div className="flex justify-between items-center mt-2 pt-4" style={{ borderTop: '2px dashed var(--border-light)' }}>
+          <span className="text-base font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Quantity</span>
+          <div className="flex items-center gap-2">
+            <button onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, Number(item.quantity) - 1)} className="w-14 h-14 flex items-center justify-center rounded-md bg-[var(--bg-tertiary)] active:bg-[var(--bg-hover)] text-[var(--text-primary)] border-2 border-[var(--border-medium)] font-bold text-3xl leading-none transition-all active:scale-95">-</button>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              value={item.quantity}
+              onChange={(e) => onUpdateQuantity(item.id, e.target.value)}
+              className="w-20 h-14 text-center text-2xl font-bold rounded-md bg-[var(--bg-input)] text-[var(--text-input)] border-2 border-[var(--border-medium)] focus:outline-none focus:border-[var(--color-accent)] appearance-none m-0"
+            />
+            <button onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, Number(item.quantity) + 1)} className="w-14 h-14 flex items-center justify-center rounded-md bg-[var(--bg-tertiary)] active:bg-[var(--bg-hover)] text-[var(--text-primary)] border-2 border-[var(--border-medium)] font-bold text-3xl leading-none transition-all active:scale-95">+</button>
+          </div>
+        </div>
+      </div>
+    ));
+  }
+
   return cart.map((item) => {
     const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
     const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
