@@ -44,6 +44,11 @@ function InlineContinuousScanner({ onScan }) {
     }
   };
 
+  const onScanRef = useRef(onScan);
+  useEffect(() => {
+    onScanRef.current = onScan;
+  }, [onScan]);
+
   useEffect(() => {
     const scanner = new Html5QrcodeScanner(
       "receive-reader", 
@@ -75,7 +80,7 @@ function InlineContinuousScanner({ onScan }) {
         if (scanner.getState() === 2 && !isProcessing) {
           isProcessing = true;
           playBeep();
-          await onScan(decodedText);
+          await onScanRef.current(decodedText);
           setTimeout(() => {
             isProcessing = false;
           }, 1000);
@@ -89,7 +94,7 @@ function InlineContinuousScanner({ onScan }) {
         scannerRef.current.clear().catch(console.error);
       }
     };
-  }, [onScan]);
+  }, []);
 
   return (
     <>
