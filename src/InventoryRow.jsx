@@ -27,7 +27,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
       return { warehouse: whse, store: store };
     },
     enabled: !!item.is_cuttable,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30 * 1000, // 30 seconds — cuttable piece counts must stay fresh
   });
 
   const handleSave = () => {

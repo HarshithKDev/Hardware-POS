@@ -1000,11 +1000,14 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         }
       }
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      // Also invalidate piece_counts for cuttable items so WHSE/STORE QTY refreshes
+      queryClient.invalidateQueries({ queryKey: ['piece_counts'] });
 
       if (navigator.onLine) {
         // Trigger background sync to ensure true consistency with server
         syncInventoryToLocal().then(() => {
           queryClient.invalidateQueries({ queryKey: ['inventory'] });
+          queryClient.invalidateQueries({ queryKey: ['piece_counts'] });
         });
       }
 
