@@ -443,7 +443,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const [looseItemModal, setLooseItemModal] = useState({ isOpen: false, item: null, qty: '' });
 
   // Cuttable item states
-  const [selectPieceModal, setSelectPieceModal] = useState({ isOpen: false, item: null, instances: [], isLoading: false });
+  const [selectPieceModal, setSelectPieceModal] = useState({ isOpen: false, item: null, instances: [], isLoading: false, action: 'checkout' });
   const [cutLengthModal, setCutLengthModal] = useState({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false });
   const [receiveLengthModal, setReceiveLengthModal] = useState({ isOpen: false, item: null, length: '' });
 
@@ -610,7 +610,19 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           setManualBarcode('');
           return;
         } else {
-          showAlertRef.current(`To transfer this roll, you must scan the unique sticker you printed for it. If you don't have a scanner, type the exact sticker number (e.g., ${item.barcode}-1001) into the search bar and press Enter.`, "Scan Unique Sticker");
+          // They searched the generic parent name in transfer mode
+          setSelectPieceModal({ isOpen: true, item, instances: [], isLoading: true, action: 'transfer' });
+          if (navigator.onLine) {
+            supabase.rpc('get_stock_instances', { p_barcode: String(item.barcode) })
+              .then(({ data }) => {
+                const activeWarehousePieces = (data || []).filter(p => p.is_active && p.location === 'Warehouse');
+                setSelectPieceModal(prev => ({ ...prev, instances: activeWarehousePieces, isLoading: false }));
+              })
+              .catch(() => setSelectPieceModal(prev => ({ ...prev, isLoading: false })));
+          } else {
+            setSelectPieceModal(prev => ({ ...prev, isLoading: false }));
+            showAlertRef.current("Cannot view active pieces while offline.", "Offline");
+          }
           return;
         }
       }
@@ -633,10 +645,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           });
         } else {
           // They searched the generic parent name
-          setSelectPieceModal({ isOpen: true, item, instances: [], isLoading: true });
+          setSelectPieceModal({ isOpen: true, item, instances: [], isLoading: true, action: 'checkout' });
           if (navigator.onLine) {
-            supabase.from('stock_instances').select('*').eq('parent_barcode', item.barcode).eq('is_active', true).eq('location', 'Store')
-              .then(({ data }) => setSelectPieceModal(prev => ({ ...prev, instances: data || [], isLoading: false })))
+            supabase.rpc('get_stock_instances', { p_barcode: String(item.barcode) })
+              .then(({ data }) => {
+                const activeStorePieces = (data || []).filter(p => p.is_active && p.location === 'Store');
+                setSelectPieceModal(prev => ({ ...prev, instances: activeStorePieces, isLoading: false }));
+              })
               .catch(() => setSelectPieceModal(prev => ({ ...prev, isLoading: false })));
           } else {
             setSelectPieceModal(prev => ({ ...prev, isLoading: false }));
@@ -1128,10 +1143,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           <div className="w-[85%] max-w-[400px] flex flex-col shadow-2xl animate-scale-in" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
             <div className="flex justify-between items-center pr-1 pl-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
               <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Select Piece</span>
-              <button type="button" onClick={() => setSelectPieceModal({ isOpen: false, item: null, instances: [], isLoading: false })} className="px-3 py-1.5 leading-none focus:outline-none text-lg">✕</button>
+              <button type="button" onClick={() => setSelectPieceModal({ isOpen: false, item: null, instances: [], isLoading: false, action: 'checkout' })} className="px-3 py-1.5 leading-none focus:outline-none text-lg">✕</button>
             </div>
             <div className="p-6 flex flex-col">
-              <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>Which piece of <strong style={{ color: 'var(--color-accent)' }}>{selectPieceModal.item?.name}</strong> are you cutting from?</p>
+              <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>Which piece of <strong style={{ color: 'var(--color-accent)' }}>{selectPieceModal.item?.name}</strong> are you {selectPieceModal.action === 'transfer' ? 'transferring' : 'cutting from'}?</p>
 
               {selectPieceModal.isLoading ? (
                 <div className="flex justify-center p-6"><Spinner className="w-6 h-6 text-[var(--color-accent)]" /></div>
@@ -1143,8 +1158,24 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                     <button
                       key={inst.id}
                       onClick={() => {
-                        setSelectPieceModal({ isOpen: false, item: null, instances: [], isLoading: false });
-                        setCutLengthModal({ isOpen: true, item: selectPieceModal.item, instance: inst, cutQty: '', discardScrap: false });
+                        const actionType = selectPieceModal.action;
+                        setSelectPieceModal({ isOpen: false, item: null, instances: [], isLoading: false, action: 'checkout' });
+                        
+                        if (actionType === 'transfer') {
+                          // Transfer mode: add directly to cart
+                          setCart(prev => {
+                            const idx = prev.findIndex(c => c.instance_barcode === inst.instance_barcode);
+                            if (idx >= 0) {
+                              showAlertRef.current(`Piece #${inst.instance_barcode} is already in the cart!`, "Already Added");
+                              return prev;
+                            }
+                            return [...prev, { ...selectPieceModal.item, id: generateId(), instance_barcode: inst.instance_barcode, quantity: 1, unit: selectPieceModal.item.unit, length: '', width: '', default_length: selectPieceModal.item.default_length, default_width: selectPieceModal.item.default_width, pieceLength: inst.current_length }];
+                          });
+                          setManualBarcode('');
+                        } else {
+                          // Checkout mode: proceed to cutting
+                          setCutLengthModal({ isOpen: true, item: selectPieceModal.item, instance: inst, cutQty: '', discardScrap: false });
+                        }
                       }}
                       className="p-3 text-left border border-[var(--border-medium)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] transition-colors flex justify-between items-center focus:outline-none focus:border-[var(--color-accent)]"
                     >

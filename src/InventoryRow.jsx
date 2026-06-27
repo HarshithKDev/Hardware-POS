@@ -12,19 +12,19 @@ export default function InventoryRow({ item, viewType, categories, subcategories
     queryKey: ['piece_counts', item.barcode],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('stock_instances')
-        .select('location')
-        .eq('parent_barcode', item.barcode)
-        .eq('is_active', true);
-      if (error) throw error;
+        .rpc('get_piece_counts', { p_barcode: String(item.barcode) });
+        
+      if (error) {
+        console.error("Piece counts error for", item.barcode, error);
+        throw error;
+      }
       
-      let whse = 0;
-      let store = 0;
-      data.forEach(d => {
-        if (d.location === 'Store') store++;
-        else whse++;
-      });
-      return { warehouse: whse, store: store };
+      console.log("Piece counts fetched for", item.barcode, ":", data);
+      
+      return { 
+        warehouse: data?.warehouse || 0, 
+        store: data?.store || 0 
+      };
     },
     enabled: !!item.is_cuttable,
     staleTime: 30 * 1000, // 30 seconds — cuttable piece counts must stay fresh

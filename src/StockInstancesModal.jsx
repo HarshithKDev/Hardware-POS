@@ -18,10 +18,7 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
-        .from('stock_instances')
-        .select('*')
-        .eq('parent_barcode', item.barcode)
-        .order('created_at', { ascending: false });
+        .rpc('get_stock_instances', { p_barcode: String(item.barcode) });
       
       if (error) throw error;
       setInstances(data || []);
@@ -33,16 +30,15 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
     }
   };
 
-
-
   const handleToggleActive = async (instance) => {
     const action = instance.is_active ? "discard" : "restore";
     showConfirm(`Are you sure you want to ${action} this piece?`, async () => {
       try {
         const { error } = await supabase
-          .from('stock_instances')
-          .update({ is_active: !instance.is_active })
-          .eq('id', instance.id);
+          .rpc('toggle_stock_instance', { 
+            p_id: instance.id, 
+            p_is_active: !instance.is_active 
+          });
         if (error) throw error;
         fetchInstances();
       } catch (err) {
