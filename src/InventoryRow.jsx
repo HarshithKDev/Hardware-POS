@@ -3,9 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import StockInstancesModal from './StockInstancesModal';
 
-export default function InventoryRow({ item, viewType, categories, subcategories, onSave, onRemove, onRestore }) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState(item);
+export default function InventoryRow({ item, viewType, categories, subcategories, isGlobalEditMode, editData, onEditChange, isSelected, onSelect, onRestore, isSelectionMode }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const { data: pieceCounts } = useQuery({
@@ -30,51 +28,56 @@ export default function InventoryRow({ item, viewType, categories, subcategories
     staleTime: 30 * 1000, // 30 seconds — cuttable piece counts must stay fresh
   });
 
-  const handleSave = () => {
-    onSave({ oldItem: item, newItem: formData });
-    setIsEditing(false);
-  };
+  const availableSubcategories = subcategories?.filter(sub => sub.category_name === (editData?.category || item.category)) || [];
 
-  const handleCancel = () => {
-    setFormData(item); 
-    setIsEditing(false);
-  };
-
-  // Filter available subcategories for the edit dropdown based on the currently selected category
-  const availableSubcategories = subcategories?.filter(sub => sub.category_name === formData.category) || [];
-
-  if (isEditing && viewType === 'warehouse') {
+  if (isGlobalEditMode && isSelected && viewType === 'warehouse') {
+    const data = editData || item;
     return (
       <tr className="transition-none" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+        {isSelectionMode && (
+          <td className="p-3 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+            <input type="checkbox" checked={isSelected} onChange={() => onSelect(item.barcode)} className="w-4 h-4 rounded text-accent focus:ring-accent" />
+          </td>
+        )}
         <td className="p-3 text-sm font-semibold tracking-wider" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--color-accent)' }}>{item.barcode}</td>
         <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}>
-          <input type="text" value={formData.name || ''} onChange={e=>setFormData({...formData, name: e.target.value})} className="h-8 px-2 w-full text-sm focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+          <input type="text" value={data.name || ''} onChange={e=>onEditChange(item.barcode, 'name', e.target.value)} className="h-8 px-2 w-full text-sm focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
         </td>
         
         <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}>
-          <select value={formData.category || ''} onChange={e=>setFormData({...formData, category: e.target.value, sub_category: ''})} className="h-8 px-1 w-full text-xs focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
-            <option value="">None</option>
-            {categories?.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-          </select>
+          <div className="relative w-full">
+            <select value={data.category || ''} onChange={e=>{onEditChange(item.barcode, 'category', e.target.value); onEditChange(item.barcode, 'sub_category', '');}} className="h-auto py-1.5 pl-2 pr-8 w-full text-xs focus:outline-none appearance-none truncate cursor-pointer rounded-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
+              <option value="">None</option>
+              {categories?.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2" style={{ color: 'var(--text-secondary)' }}>
+              <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
+            </div>
+          </div>
         </td>
 
         <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}>
-          <select value={formData.sub_category || ''} onChange={e=>setFormData({...formData, sub_category: e.target.value})} disabled={!formData.category} className="h-8 px-1 w-full text-xs focus:outline-none disabled:opacity-50" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
-            <option value="">None</option>
-            {availableSubcategories.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
-          </select>
+          <div className="relative w-full">
+            <select value={data.sub_category || ''} onChange={e=>onEditChange(item.barcode, 'sub_category', e.target.value)} disabled={!data.category} className="h-auto py-1.5 pl-2 pr-8 w-full text-xs focus:outline-none appearance-none truncate cursor-pointer rounded-sm disabled:opacity-50" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
+              <option value="">None</option>
+              {availableSubcategories.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2" style={{ color: 'var(--text-secondary)' }}>
+              <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
+            </div>
+          </div>
         </td>
 
-        <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}><input type="number" step="1" min="0" value={formData.cost_price ?? ''} onChange={e=>setFormData({...formData, cost_price: e.target.value})} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} /></td>
-        <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}><input type="number" step="1" min="0" value={formData.msp ?? ''} onChange={e=>setFormData({...formData, msp: e.target.value})} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} /></td>
-        <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}><input type="number" step="1" min="0" value={formData.price ?? ''} onChange={e=>setFormData({...formData, price: e.target.value})} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} /></td>
+        <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}><input type="number" step="1" min="0" value={data.cost_price ?? ''} onChange={e=>onEditChange(item.barcode, 'cost_price', e.target.value)} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} /></td>
+        <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}><input type="number" step="1" min="0" value={data.msp ?? ''} onChange={e=>onEditChange(item.barcode, 'msp', e.target.value)} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} /></td>
+        <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}><input type="number" step="1" min="0" value={data.price ?? ''} onChange={e=>onEditChange(item.barcode, 'price', e.target.value)} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} /></td>
         <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}>
           {item.is_cuttable ? (
             <div className="h-8 px-2 w-full text-sm flex justify-center items-center" title="Cannot edit warehouse aggregate directly" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-tertiary)', cursor: 'not-allowed' }}>
               {pieceCounts ? pieceCounts.warehouse : '...'} <span className="ml-1 text-[10px]">PCS</span>
             </div>
           ) : (
-            <input type="number" step="any" min="0" value={formData.stock_warehouse ?? ''} onChange={e=>setFormData({...formData, stock_warehouse: e.target.value})} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+            <input type="number" step="any" min="0" value={data.stock_warehouse ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_warehouse', e.target.value)} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
           )}
         </td>
         <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}>
@@ -83,28 +86,8 @@ export default function InventoryRow({ item, viewType, categories, subcategories
               {pieceCounts ? pieceCounts.store : '...'} <span className="ml-1 text-[10px]">PCS</span>
             </div>
           ) : (
-            <input type="number" step="any" min="0" value={formData.stock_store ?? ''} onChange={e=>setFormData({...formData, stock_store: e.target.value})} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+            <input type="number" step="any" min="0" value={data.stock_store ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_store', e.target.value)} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
           )}
-        </td>
-        <td className="p-2 flex flex-col gap-2 justify-center items-center">
-          {formData.unit === 'SQFT' && (
-            <div className="flex gap-2 justify-center w-full mt-2">
-              <div className="relative group w-20">
-                <div className="absolute -top-2 left-1/2 -translate-x-1/2 px-1 text-[8px] font-bold uppercase tracking-wider bg-[var(--bg-secondary)] text-[var(--text-tertiary)] z-10">Length</div>
-                <input type="number" step="any" min="0" value={formData.default_length ?? ''} onChange={e=>setFormData({...formData, default_length: e.target.value})} className="h-8 pl-2 pr-6 w-full text-xs text-center rounded-sm focus:outline-none disabled:opacity-50" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} title={Number(item.stock_warehouse) > 0 || Number(item.stock_store) > 0 ? "Cannot edit dimensions while active stock exists" : "Default Length"} disabled={Number(item.stock_warehouse) > 0 || Number(item.stock_store) > 0} />
-                <div className="absolute right-1 top-2 text-[8px] font-bold text-[var(--text-secondary)] pointer-events-none">FT</div>
-              </div>
-              <div className="relative group w-20">
-                <div className="absolute -top-2 left-1/2 -translate-x-1/2 px-1 text-[8px] font-bold uppercase tracking-wider bg-[var(--bg-secondary)] text-[var(--text-tertiary)] z-10">Height</div>
-                <input type="number" step="any" min="0" value={formData.default_width ?? ''} onChange={e=>setFormData({...formData, default_width: e.target.value})} className="h-8 pl-2 pr-6 w-full text-xs text-center rounded-sm focus:outline-none disabled:opacity-50" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} title={Number(item.stock_warehouse) > 0 || Number(item.stock_store) > 0 ? "Cannot edit dimensions while active stock exists" : "Default Height"} disabled={Number(item.stock_warehouse) > 0 || Number(item.stock_store) > 0} />
-                <div className="absolute right-1 top-2 text-[8px] font-bold text-[var(--text-secondary)] pointer-events-none">FT</div>
-              </div>
-            </div>
-          )}
-          <div className="flex gap-1">
-            <button onClick={handleSave} className="h-8 text-white px-2 text-xs font-semibold focus:outline-none" style={{ backgroundColor: 'var(--color-success)' }}>Save</button>
-            <button onClick={handleCancel} className="h-8 px-2 text-xs font-semibold focus:outline-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>Cancel</button>
-          </div>
         </td>
       </tr>
     );
@@ -113,53 +96,86 @@ export default function InventoryRow({ item, viewType, categories, subcategories
   return (
     <>
       <tr 
-        className="transition-colors hover:bg-[var(--bg-hover)] cursor-pointer" 
-        style={{ borderBottom: '1px solid var(--border-light)' }}
-        onClick={() => item.is_cuttable && setIsExpanded(!isExpanded)}
+        className={`hover-row ${isSelectionMode ? 'cursor-pointer' : ''} ${isSelected ? 'selected' : ''} block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none border md:border-b md:border-t-0 md:border-l-0 md:border-r-0 border-[var(--border-medium)] md:border-[var(--border-light)] mb-3 md:mb-0 relative`}
+        style={{ borderBottomWidth: '1px', borderBottomStyle: 'solid' }}
+        onClick={() => {
+          if (isSelectionMode) onSelect(item.barcode);
+        }}
       >
-      <td className="p-3 text-sm font-semibold tracking-wider font-mono" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--color-accent)' }}>{item.barcode}</td>
-      <td className="p-3 text-sm font-medium" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
+        {/* MOBILE CARD LAYOUT */}
+        <td className="md:hidden block p-4 text-left w-full border-none">
+           <div className="flex justify-between items-start mb-2">
+             <div className="flex-1 pr-2">
+               <div className="text-[10px] font-bold tracking-widest text-[var(--color-accent)] mb-1">{item.barcode}</div>
+               <div className="text-base font-bold text-[var(--text-primary)] leading-tight">{item.name}</div>
+               <div className="text-[11px] text-[var(--text-secondary)] mt-1">{item.category} {item.sub_category ? `› ${item.sub_category}` : ''}</div>
+             </div>
+             <div className="flex flex-col items-end gap-2 flex-shrink-0">
+               {isSelectionMode && (
+                 <input type="checkbox" checked={isSelected} onChange={() => onSelect(item.barcode)} onClick={e => e.stopPropagation()} className="w-6 h-6 rounded text-accent focus:ring-accent" />
+               )}
+               {item.is_loose_item && (
+                 <span className="px-2 py-1 text-[10px] font-bold uppercase rounded-md" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)', border: '1px solid var(--border-medium)' }}>Loose</span>
+               )}
+               {item.is_cuttable && (
+                 <span onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }} className="px-2 py-1 text-[10px] font-bold uppercase rounded-md cursor-pointer active:opacity-80" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)', border: '1px solid var(--border-medium)' }}>{isExpanded ? 'Hide Pieces' : 'Cuttable'}</span>
+               )}
+             </div>
+           </div>
+           
+           <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-[var(--border-medium)]">
+             <div>
+               <div className="text-[10px] uppercase text-[var(--text-secondary)] font-semibold mb-0.5">Whse Qty</div>
+               <div className="text-sm font-bold text-[var(--text-primary)]">
+                 {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : (item.stock_warehouse || 0)} <span className="text-[10px] font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
+               </div>
+             </div>
+             <div>
+               <div className="text-[10px] uppercase text-[var(--text-secondary)] font-semibold mb-0.5">Store Qty</div>
+               <div className="text-sm font-bold text-[var(--text-primary)]">
+                 {item.is_cuttable ? (pieceCounts ? pieceCounts.store : '...') : (item.stock_store || 0)} <span className="text-[10px] font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
+               </div>
+             </div>
+             <div className="text-right">
+               <div className="text-[10px] uppercase text-[var(--text-secondary)] font-semibold mb-0.5">Price</div>
+               <div className="text-sm font-bold text-[var(--text-primary)]">₹{Number(item.price||0).toFixed(2)}</div>
+             </div>
+           </div>
+        </td>
+
+        {/* DESKTOP TABLE LAYOUT */}
+        {isSelectionMode && (
+          <td className="hidden md:table-cell p-3 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+            <input type="checkbox" checked={isSelected} onChange={() => onSelect(item.barcode)} onClick={e => e.stopPropagation()} className="w-4 h-4 rounded text-accent focus:ring-accent" />
+          </td>
+        )}
+        <td className="hidden md:table-cell p-3 text-sm font-semibold tracking-wider font-mono" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--color-accent)' }}>{item.barcode}</td>
+      <td className="hidden md:table-cell p-3 text-sm font-medium" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
         <div className="flex items-center justify-center gap-2">
           {item.name}
           {item.is_loose_item && (
             <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded-sm whitespace-nowrap" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)', border: '1px solid var(--border-medium)' }}>Loose</span>
           )}
           {item.is_cuttable && (
-            <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded-sm whitespace-nowrap" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)', border: '1px solid var(--border-medium)' }}>Cuttable</span>
+            <span onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }} className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded-sm whitespace-nowrap cursor-pointer hover:opacity-80" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)', border: '1px solid var(--border-medium)' }} title="View Pieces">{isExpanded ? 'Hide Pieces' : 'Cuttable (Pieces)'}</span>
           )}
         </div>
       </td>
-      <td className="p-3 text-sm" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{item.category || '-'}</td>
-      <td className="p-3 text-sm" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{item.sub_category || '-'}</td>
-      <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(item.cost_price||0).toFixed(2)}</td>
-      <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(item.msp||0).toFixed(2)}</td>
-      <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(item.price||0).toFixed(2)}</td>
-      <td className="p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
+      <td className="hidden md:table-cell p-3 text-sm" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{item.category || '-'}</td>
+      <td className="hidden md:table-cell p-3 text-sm" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{item.sub_category || '-'}</td>
+      <td className="hidden md:table-cell p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(item.cost_price||0).toFixed(2)}</td>
+      <td className="hidden md:table-cell p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(item.msp||0).toFixed(2)}</td>
+      <td className="hidden md:table-cell p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(item.price||0).toFixed(2)}</td>
+      <td className="hidden md:table-cell p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
         {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : (item.stock_warehouse || 0)} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
       </td>
-      <td className="p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
+      <td className="hidden md:table-cell p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
         {item.is_cuttable ? (pieceCounts ? pieceCounts.store : '...') : (item.stock_store || 0)} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
       </td>
-      {viewType === 'warehouse' && (
-        <td className="p-2 text-center h-full align-middle">
-          <div className="flex gap-1 justify-center items-center" onClick={e => e.stopPropagation()}>
-            <button onClick={() => { setIsEditing(true); setFormData(item); }} className="h-8 px-2 text-xs font-semibold focus:outline-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>Edit</button>
-            {item.is_cuttable && (
-              <button onClick={() => setIsExpanded(!isExpanded)} className="h-8 px-2 text-xs font-semibold focus:outline-none whitespace-nowrap" style={{ backgroundColor: isExpanded ? 'var(--bg-tertiary)' : 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--color-accent)' }}>{isExpanded ? 'Hide Pieces' : 'Pieces'}</button>
-            )}
-            <button onClick={() => onRemove(item.barcode)} className="h-8 px-2 text-xs font-semibold focus:outline-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--color-error)', color: 'var(--color-error)' }}>Remove</button>
-          </div>
-        </td>
-      )}
-      {viewType === 'recycle' && (
-        <td className="p-2 flex gap-1 justify-center items-center h-full" onClick={e => e.stopPropagation()}>
-          <button onClick={() => onRestore(item.barcode)} className="h-8 px-4 text-xs font-bold uppercase tracking-wider rounded-sm focus:outline-none transition-colors hover:brightness-110 shadow-sm" style={{ backgroundColor: 'var(--color-success)', color: '#ffffff' }}>Restore</button>
-        </td>
-      )}
       </tr>
       {isExpanded && item.is_cuttable && (
         <tr>
-          <td colSpan="10" className="p-0 border-b" style={{ borderColor: 'var(--border-medium)' }}>
+          <td colSpan="11" className="p-0 border-b" style={{ borderColor: 'var(--border-medium)' }}>
             <StockInstancesModal isOpen={true} onClose={() => setIsExpanded(false)} item={item} />
           </td>
         </tr>

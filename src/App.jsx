@@ -223,7 +223,6 @@ function App() {
         <div className="w-full flex items-center justify-between h-full">
           <div
             className="h-full flex items-center justify-center flex-shrink-0 px-4 md:px-0 w-auto md:w-[16.5rem]"
-            style={{ borderRight: '1px solid var(--border-medium)' }}
           >
             <span
               className="text-sm font-bold uppercase tracking-wider truncate text-center w-full"

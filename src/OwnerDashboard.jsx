@@ -56,8 +56,8 @@ export default function OwnerDashboard() {
           borderBottom: '1px solid var(--border-light)',
         }}
       >
-        <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Menu
+        <span className="text-base font-bold tracking-wide uppercase" style={{ color: 'var(--text-primary)' }}>
+          {NAV_ITEMS.find(item => item.key === activeTab)?.label || 'Hardware POS'}
         </span>
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -73,9 +73,27 @@ export default function OwnerDashboard() {
         </button>
       </div>
 
+      {/* Overlay for mobile drawer */}
+      {isSidebarOpen && (
+        <div 
+          className="md:hidden fixed inset-0 z-40 transition-opacity" 
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }} 
+          onClick={() => setIsSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* Navigation Sidebar */}
       <aside
-        className={`${isSidebarOpen ? 'block' : 'hidden'} md:block w-full md:w-56 flex-shrink-0 border-r border-transparent md:border-[var(--border-light)] py-4`}
+        className={`
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
+          md:translate-x-0 
+          fixed md:relative top-0 left-0 h-full z-50
+          w-64 md:w-56 flex-shrink-0 py-4 
+          m-0 md:m-4 md:mr-2 rounded-r-2xl md:rounded-xl 
+          border-r md:border border-[var(--border-medium)] md:border-[var(--border-light)] 
+          shadow-2xl md:shadow-sm transition-transform duration-300 ease-in-out
+        `}
         style={{
           backgroundColor: 'var(--bg-secondary)',
         }}
@@ -102,8 +120,8 @@ export default function OwnerDashboard() {
 
       {/* MAIN CONTENT */}
       <main
-        className="flex-1 p-4 md:p-8 overflow-y-auto relative"
-        style={{ backgroundColor: 'var(--bg-primary)' }}
+        className="flex-1 p-2 md:p-6 md:pb-2 overflow-y-auto relative m-0 md:m-4 md:ml-2 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm"
+        style={{ backgroundColor: 'var(--bg-secondary)' }}
         role="main"
         aria-label="Dashboard content"
       >
