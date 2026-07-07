@@ -13,6 +13,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const [shopName, setShopName] = useState('');
   const [ownerName, setOwnerName] = useState('');
@@ -113,7 +114,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
       }
 
       // Pass only the role — supabase-js manages the session token internally
-      onLoginSuccess(role === 'owner' ? 'owner' : targetId);
+      onLoginSuccess(role === 'owner' ? 'owner' : targetId, rememberMe);
     } catch (_err) {
       setError('A system error occurred. Please try again.');
     } finally {
@@ -255,6 +256,21 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
                   {showLoginPassword ? <EyeSlashIcon /> : <EyeIcon />}
                 </button>
               </div>
+              {role === 'owner' && (
+                <div className="flex items-center gap-2 mt-2">
+                  <input
+                    type="checkbox"
+                    id="rememberMe"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-300 focus:ring-[var(--color-accent)]"
+                    style={{ accentColor: 'var(--color-accent)' }}
+                  />
+                  <label htmlFor="rememberMe" className="text-sm font-medium select-none cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
+                    Remember me
+                  </label>
+                </div>
+              )}
               {error && <p className="text-sm font-semibold" style={{ color: 'var(--color-error)' }}>{error}</p>}
               <button
                 type="submit"

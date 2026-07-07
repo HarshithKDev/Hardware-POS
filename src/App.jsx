@@ -109,7 +109,7 @@ function App() {
 
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const savedRole = sessionStorage.getItem('posUserRole');
+        const savedRole = sessionStorage.getItem('posUserRole') || localStorage.getItem('posUserRole');
         if (savedRole) {
           setUserRole(savedRole);
           const displayName = savedRole === 'owner'
@@ -119,6 +119,7 @@ function App() {
         }
       } else {
         sessionStorage.removeItem('posUserRole');
+        localStorage.removeItem('posUserRole');
       }
     } catch (error) {
       console.error('System Load Error:', error.message);
@@ -127,9 +128,15 @@ function App() {
     }
   };
 
-  const handleLoginSuccess = (role) => {
+  const handleLoginSuccess = (role, rememberMe = false) => {
     setUserRole(role);
-    sessionStorage.setItem('posUserRole', role);
+    if (rememberMe) {
+      localStorage.setItem('posUserRole', role);
+      sessionStorage.removeItem('posUserRole');
+    } else {
+      sessionStorage.setItem('posUserRole', role);
+      localStorage.removeItem('posUserRole');
+    }
     const displayName = role === 'owner'
       ? (shopSettings?.owner_name || 'Administrator')
       : role;
@@ -143,6 +150,7 @@ function App() {
     setUserRole(null);
     setCashierName('');
     sessionStorage.removeItem('posUserRole');
+    localStorage.removeItem('posUserRole');
     setShowLogoutConfirm(false);
     navigate('/');
   };
