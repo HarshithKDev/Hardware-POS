@@ -14,8 +14,8 @@ export default defineConfig({
         name: 'Hardware POS System',
         short_name: 'HardwarePOS',
         description: 'Offline-capable Point of Sale System',
-        theme_color: '#ffffff',
-        background_color: '#ffffff',
+        theme_color: '#121212',
+        background_color: '#121212',
         display: 'standalone',
         icons: [
           {
