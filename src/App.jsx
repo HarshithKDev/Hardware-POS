@@ -220,7 +220,7 @@ function App() {
         role="navigation"
         aria-label="Main navigation"
       >
-        <div className="w-full max-w-[1920px] mx-auto flex items-center justify-between h-full">
+        <div className="w-full flex items-center justify-between h-full">
           <div
             className="h-full flex items-center justify-center flex-shrink-0 px-4 md:px-0 w-auto md:w-[16.5rem]"
             style={{ borderRight: '1px solid var(--border-medium)' }}
@@ -335,7 +335,7 @@ function App() {
 
       {/* MAIN CONTENT */}
       <main
-        className="flex-1 w-full max-w-[1920px] mx-auto p-4 md:p-6 overflow-y-auto relative z-10"
+        className="flex-1 w-full p-4 md:p-6 overflow-y-auto relative z-10"
         role="main"
         aria-label="Application content"
       >

@@ -141,7 +141,7 @@ export default function OwnerLedger({ isActive }) {
               <select
                 value={dateFilter}
                 onChange={(e) => { setDateFilter(e.target.value); setSalesPage(0); setExpandedBillId(null); }}
-                className="h-9 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer shadow-sm"
+                className="h-9 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer shadow-sm"
                 style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
                 aria-label="Date filter"
               >
@@ -156,13 +156,13 @@ export default function OwnerLedger({ isActive }) {
               </div>
             </div>
             {dateFilter === 'CUSTOM' && (
-              <input type="date" value={customDate} onChange={(e) => { setCustomDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-9 px-2 text-sm focus:outline-none shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+              <input type="date" value={customDate} onChange={(e) => { setCustomDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
             )}
             {dateFilter === 'RANGE' && (
               <div className="flex items-center gap-2 shrink-0">
-                <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-9 px-2 text-sm focus:outline-none shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                 <span className="font-bold text-xs uppercase" style={{ color: 'var(--text-tertiary)' }}>to</span>
-                <input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-9 px-2 text-sm focus:outline-none shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
               </div>
             )}
             
@@ -268,8 +268,8 @@ export default function OwnerLedger({ isActive }) {
         </div>
 
         <div className="flex justify-between items-center p-3 mt-4 shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
-          <button onClick={() => setSalesPage(p => Math.max(0, p - 1))} disabled={salesPage === 0} className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>Newer</button>
-          <button onClick={() => setSalesPage(p => p + 1)} disabled={!hasMoreBills} className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>Older</button>
+          <button onClick={() => setSalesPage(p => Math.max(0, p - 1))} disabled={salesPage === 0} className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>Newer</button>
+          <button onClick={() => setSalesPage(p => p + 1)} disabled={!hasMoreBills} className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>Older</button>
         </div>
       </div>
     </div>

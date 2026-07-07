@@ -1,30 +1,73 @@
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Camera, LogOut } from 'lucide-react';
 
 export default function AppNavbar({ displayUserName, userRole, setIsMobileScannerOpen, setShowLogoutConfirm }) {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const NavButton = ({ path, label, onClick }) => {
+    const isActive = onClick ? false : location.pathname.startsWith(path);
+    return (
+      <button
+        onClick={onClick || (() => navigate(path))}
+        className="h-9 px-4 text-sm font-medium transition-colors"
+        style={{
+          backgroundColor: isActive ? 'var(--bg-tertiary)' : 'transparent',
+          color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+        }}
+      >
+        {label}
+      </button>
+    );
+  };
+
   return (
-    <nav className="w-full bg-white border-b-2 border-gray-300 shadow-sm h-[60px] flex items-center justify-between px-4 flex-shrink-0 relative z-[9999]">
-      <div className="h-full flex items-center border-r border-gray-300 pr-4 w-[200px] flex-shrink-0">
-        <span className="text-sm font-bold text-black uppercase tracking-wider truncate w-full block">
+    <nav
+      className="w-full flex items-center justify-between px-4 md:px-6 flex-shrink-0 relative z-50"
+      style={{
+        height: '64px',
+        backgroundColor: 'var(--bg-primary)',
+        borderBottom: '1px solid var(--border-light)',
+      }}
+    >
+      <div className="h-full flex items-center gap-3 pr-4 flex-shrink-0">
+        {/* Minimal Avatar */}
+        <div
+          className="w-8 h-8 rounded-md flex items-center justify-center text-sm font-semibold"
+          style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-accent-fg)' }}
+        >
+          {displayUserName?.charAt(0)?.toUpperCase() || 'H'}
+        </div>
+        <span className="text-sm font-medium tracking-wide truncate hidden md:block" style={{ color: 'var(--text-primary)' }}>
           {displayUserName}
         </span>
       </div>
-      <div className="flex-1 flex items-center justify-end gap-3 h-full pl-4 overflow-x-auto">
-        <button onClick={() => setIsMobileScannerOpen(true)} className="md:hidden h-9 px-4 bg-white border border-gray-400 hover:bg-[#e6e6e6] active:bg-[#cccccc] text-xs font-bold uppercase text-black rounded-none">
-          Scan
+      <div className="flex-1 flex items-center justify-end gap-2 h-full overflow-x-auto hide-scrollbar">
+        <button
+          onClick={() => setIsMobileScannerOpen(true)}
+          className="md:hidden h-9 px-3 text-sm font-medium flex items-center gap-2"
+          style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
+        >
+          <Camera size={16} /> Scan
         </button>
         {userRole === 'owner' ? (
           <>
-            <button onClick={() => navigate('/owner/dashboard')} className={`h-9 px-6 text-xs font-bold uppercase tracking-wider rounded-none transition-none border ${location.pathname.startsWith('/owner') ? 'bg-[#0078D7] text-white border-[#0078D7]' : 'bg-white border-gray-400 hover:bg-[#e6e6e6] active:bg-[#cccccc] text-black'}`}>Management</button>
-            <button onClick={() => navigate('/printer')} className={`h-9 px-6 text-xs font-bold uppercase tracking-wider rounded-none transition-none border ${location.pathname.startsWith('/printer') ? 'bg-[#0078D7] text-white border-[#0078D7]' : 'bg-white border-gray-400 hover:bg-[#e6e6e6] active:bg-[#cccccc] text-black'}`}>Barcodes</button>
+            <NavButton path="/owner" label="Management" />
+            <NavButton path="/printer" label="Barcodes" />
           </>
         ) : (
-          <button onClick={() => navigate('/terminal/dashboard')} className={`h-9 px-6 text-xs font-bold uppercase tracking-wider rounded-none transition-none border ${location.pathname.startsWith('/terminal') ? 'bg-[#0078D7] text-white border-[#0078D7]' : 'bg-white border-gray-400 hover:bg-[#e6e6e6] active:bg-[#cccccc] text-black'}`}>Terminal</button>
+          <NavButton path="/terminal" label="Terminal" />
         )}
-        <div className="h-8 w-px bg-gray-300 mx-1"></div>
-        <button onClick={() => setShowLogoutConfirm(true)} className="h-9 px-6 bg-[#e81123] hover:bg-[#c90f1f] text-white text-xs font-bold uppercase tracking-wider border border-[#e81123] hover:border-[#c90f1f] transition-colors rounded-none">Sign Out</button>
+        <div className="h-5 w-px mx-2" style={{ backgroundColor: 'var(--border-medium)' }}></div>
+        <button
+          onClick={() => setShowLogoutConfirm(true)}
+          className="h-9 px-3 text-sm font-medium flex items-center gap-2 transition-colors hover:opacity-80"
+          style={{ backgroundColor: 'transparent', color: 'var(--text-secondary)' }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-error)')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
+        >
+          <LogOut size={16} /> <span className="hidden md:inline">Sign Out</span>
+        </button>
       </div>
     </nav>
   );

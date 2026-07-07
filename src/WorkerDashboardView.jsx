@@ -84,17 +84,19 @@ export default function WorkerDashboardView() {
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   return (
-    <div className="flex flex-col h-full rounded-none p-3 md:p-6 animate-fade-in flex-1" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
+    <div className="flex flex-col h-full p-3 md:p-6 animate-fade-in flex-1 rounded-xl border border-[var(--border-light)] shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
       <h2 className="text-xl md:text-2xl font-light mb-3 md:mb-6 hidden md:block" style={{ color: 'var(--text-primary)' }}>Staff Dashboard</h2>
       
       <div className="grid grid-cols-2 gap-3 md:gap-4 mb-3 md:mb-6">
-        <button onClick={() => setLowStockModal({ isOpen: true, type: 'store' })} className="p-3 md:p-5 border-l-4 rounded-none shadow-sm text-left transition-colors hover:bg-[var(--bg-hover)] cursor-pointer focus:outline-none flex flex-col justify-center" style={{ backgroundColor: 'var(--bg-quaternary)', border: '1px solid var(--border-medium)', borderLeftColor: storeAlerts > 0 ? 'var(--color-error)' : 'var(--color-accent)' }}>
-          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider mb-1 md:mb-2" style={{ color: 'var(--text-secondary)' }}>Low Store Stock</p>
-          <p className="text-xl md:text-3xl font-light" style={{ color: storeAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{storeAlerts} Items</p>
+        <button onClick={() => setLowStockModal({ isOpen: true, type: 'store' })} className="p-4 md:p-6 rounded-lg border border-[var(--border-light)] text-left cursor-pointer flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full" style={{ backgroundColor: storeAlerts > 0 ? 'var(--color-error)' : 'var(--color-accent)' }} />
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider mb-1 md:mb-2 ml-3" style={{ color: 'var(--text-secondary)' }}>Low Store Stock</p>
+          <p className="text-xl md:text-3xl font-semibold ml-3" style={{ color: storeAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{storeAlerts} Items</p>
         </button>
-        <button onClick={() => setLowStockModal({ isOpen: true, type: 'warehouse' })} className="p-3 md:p-5 border-l-4 rounded-none shadow-sm text-left transition-colors hover:bg-[var(--bg-hover)] cursor-pointer focus:outline-none flex flex-col justify-center" style={{ backgroundColor: 'var(--bg-quaternary)', border: '1px solid var(--border-medium)', borderLeftColor: whseAlerts > 0 ? 'var(--color-error)' : 'var(--color-accent)' }}>
-          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider mb-1 md:mb-2" style={{ color: 'var(--text-secondary)' }}>Low Whse Stock</p>
-          <p className="text-xl md:text-3xl font-light" style={{ color: whseAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{whseAlerts} Items</p>
+        <button onClick={() => setLowStockModal({ isOpen: true, type: 'warehouse' })} className="p-4 md:p-6 rounded-lg border border-[var(--border-light)] text-left cursor-pointer flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full" style={{ backgroundColor: whseAlerts > 0 ? 'var(--color-error)' : 'var(--color-accent)' }} />
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider mb-1 md:mb-2 ml-3" style={{ color: 'var(--text-secondary)' }}>Low Whse Stock</p>
+          <p className="text-xl md:text-3xl font-semibold ml-3" style={{ color: whseAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{whseAlerts} Items</p>
         </button>
       </div>
 
@@ -107,14 +109,14 @@ export default function WorkerDashboardView() {
             setInventorySearch(e.target.value);
             debouncedSetSearch(e.target.value);
           }}
-          className="flex-1 min-w-0 px-3 md:px-4 py-1.5 md:py-2 border rounded-none text-xs md:text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="flex-1 min-w-0 px-3 md:px-4 py-1.5 md:py-2 border text-xs md:text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
           style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)' }}
         />
         <div className="relative w-[150px] md:w-auto md:min-w-[200px] flex-shrink-0">
           <button 
             type="button"
             onClick={() => setIsSortOpen(!isSortOpen)}
-            className="w-full flex justify-between items-center px-2 md:px-4 py-1.5 md:py-2 border rounded-none text-xs md:text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full flex justify-between items-center px-2 md:px-4 py-1.5 md:py-2 border text-xs md:text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
             style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)' }}
           >
             <span className="truncate">{sortOption === 'barcode-asc' ? 'Barcode (Low to High)' : 'Item Name (A-Z)'}</span>
@@ -126,7 +128,7 @@ export default function WorkerDashboardView() {
           {isSortOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setIsSortOpen(false)}></div>
-              <div className="absolute top-full right-0 w-full mt-1 border rounded-none shadow-xl z-50 animate-fade-in flex flex-col" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)' }}>
+              <div className="absolute top-full right-0 w-full mt-2 rounded-lg border border-[var(--border-light)] shadow-md overflow-hidden z-50 animate-fade-in flex flex-col" style={{ backgroundColor: 'var(--bg-secondary)' }}>
                 <button 
                   className="w-full text-left px-3 md:px-4 py-2.5 md:py-2 text-xs md:text-sm transition-colors hover:bg-[var(--bg-hover)] focus:outline-none"
                   style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border-light)' }}
@@ -149,8 +151,8 @@ export default function WorkerDashboardView() {
 
       <div 
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 md:min-h-[300px] rounded-none shadow-sm flex flex-col" 
-        style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}
+        className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 md:min-h-[300px] flex flex-col rounded-lg border border-[var(--border-light)]" 
+        style={{ backgroundColor: 'var(--bg-secondary)' }}
       >
         
         <div className="w-full h-full">
@@ -190,15 +192,14 @@ export default function WorkerDashboardView() {
         </div>
       </div>
 
-      {/* Low Stock Modal */}
       {lowStockModal.isOpen && (
         <div className="fixed inset-0 flex items-center justify-center z-[150] px-4 animate-fade-in" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <div className="w-[85%] max-w-[360px] flex flex-col shadow-2xl animate-scale-in max-h-[85vh]" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+          <div className="w-[85%] max-w-[360px] flex flex-col rounded-xl overflow-hidden animate-scale-in max-h-[85vh] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-light)' }}>
             <div className="flex justify-between items-center pr-1 pl-4 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--border-light)' }}>
-              <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
+              <span className="text-sm font-bold tracking-wide" style={{ color: 'var(--text-primary)' }}>
                 {lowStockModal.type === 'store' ? 'Low Store Stock Items' : 'Low Warehouse Stock Items'}
               </span>
-              <button type="button" onClick={() => setLowStockModal({ isOpen: false, type: null })} className="px-3 py-1.5 leading-none focus:outline-none text-lg">✕</button>
+              <button type="button" onClick={() => setLowStockModal({ isOpen: false, type: null })} className="px-3 py-1.5 leading-none focus:outline-none text-lg" style={{ color: 'var(--text-secondary)' }}>✕</button>
             </div>
             
             <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">

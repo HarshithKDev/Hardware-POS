@@ -160,7 +160,7 @@ export default function BarcodePrinter() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh]">
       
-      <div className="w-full max-w-4xl rounded-none shadow-none print:hidden animate-fade-in" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+      <div className="w-full max-w-4xl rounded-xl print:hidden animate-fade-in overflow-hidden border border-[var(--border-light)] shadow-lg" style={{ backgroundColor: 'var(--bg-secondary)' }}>
         <div className="p-4" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
           <h1 className="text-xl font-light">Print Barcode Labels</h1>
           <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>Build a queue of products to print multiple labels at once.</p>
@@ -178,7 +178,7 @@ export default function BarcodePrinter() {
                   value={searchTerm} 
                   onChange={(e) => setSearchTerm(e.target.value)} 
                   placeholder="e.g., Brass Handle or 1001..." 
-                  className="w-full px-3 py-2 focus:outline-none text-sm rounded-none"
+                  className="w-full px-3 py-2 focus:outline-none text-sm rounded-md"
                   style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
                 />
                 
@@ -202,7 +202,7 @@ export default function BarcodePrinter() {
               </div>
 
               {printQueue.length > 0 && (
-                <div className="rounded-none overflow-x-auto" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+                <div className="rounded-lg border border-[var(--border-light)] shadow-sm overflow-x-auto" style={{ backgroundColor: 'var(--bg-secondary)' }}>
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="text-xs uppercase" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
@@ -225,7 +225,7 @@ export default function BarcodePrinter() {
                                   type="number" min="1" max="100" 
                                   value={item.printQty} 
                                   onChange={(e) => updateQuantity(item.barcode, e.target.value)}
-                                  className="w-16 px-2 py-1 text-sm focus:outline-none rounded-none"
+                                  className="w-16 px-2 py-1 text-sm focus:outline-none rounded-md"
                                   style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
                                 />
                               </div>
@@ -234,7 +234,7 @@ export default function BarcodePrinter() {
                                 type="number" min="1" max="100" 
                                 value={item.printQty} 
                                 onChange={(e) => updateQuantity(item.barcode, e.target.value)}
-                                className="w-20 px-2 py-1 text-sm focus:outline-none rounded-none"
+                                className="w-20 px-2 py-1 text-sm focus:outline-none rounded-md"
                                 style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
                               />
                             )}
@@ -253,14 +253,14 @@ export default function BarcodePrinter() {
                 <div className="flex gap-4">
                   <button 
                     onClick={() => setPrintQueue([])}
-                    className="px-4 py-2 text-sm transition-colors rounded-none focus:outline-none"
+                    className="px-4 py-2 text-sm transition-colors focus:outline-none rounded-md hover:bg-[var(--bg-hover)]"
                     style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
                   >
                     Clear All
                   </button>
                   <button 
                     onClick={() => window.print()}
-                    className="flex-1 py-2 text-white text-sm transition-colors rounded-none border-transparent focus:outline-none"
+                    className="flex-1 py-2 text-white text-sm transition-colors border-transparent focus:outline-none rounded-md hover:opacity-90"
                     style={{ backgroundColor: 'var(--color-accent)' }}
                   >
                     Print All {totalLabels} Label{totalLabels !== 1 ? 's' : ''}
@@ -269,7 +269,7 @@ export default function BarcodePrinter() {
               )}
             </div>
 
-            <div className="p-6 flex flex-col items-center justify-center min-h-75" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}>
+            <div className="p-6 flex flex-col items-center justify-center min-h-75 rounded-lg border border-[var(--border-light)] shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)' }}>
               <p className="text-xs uppercase mb-4" style={{ color: 'var(--text-secondary)' }}>Label Format Preview</p>
               {printQueue.length > 0 ? (
                 <div className="text-center p-3 shadow-sm inline-block w-[50mm]" style={{ backgroundColor: '#ffffff', border: '1px solid #dddddd' }}>

@@ -95,7 +95,7 @@ function DialogOverlay({ isOpen, onClose, children, labelId }) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-[100] px-4 print:hidden animate-fade-in"
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
+      style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
       onClick={(e) => {
         // Close on backdrop click
         if (e.target === e.currentTarget) onClose();
@@ -107,12 +107,9 @@ function DialogOverlay({ isOpen, onClose, children, labelId }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelId}
-        className="w-[85%] max-w-[400px] flex flex-col shadow-lg animate-scale-in"
+        className="w-[85%] max-w-[400px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl"
         style={{
           backgroundColor: 'var(--bg-secondary)',
-          borderWidth: '1px',
-          borderStyle: 'solid',
-          borderColor: 'var(--border-medium)',
         }}
       >
         {children}
@@ -131,62 +128,29 @@ export function AlertDialog({ isOpen, title, message, onClose, buttonLabel = 'OK
   return (
     <DialogOverlay isOpen={isOpen} onClose={onClose} labelId={labelId}>
       {/* Title bar */}
-      <div
-        className="flex justify-between items-center pr-1 pl-4 py-1"
-        style={{
-          borderBottomWidth: '1px',
-          borderBottomStyle: 'solid',
-          borderBottomColor: 'var(--border-light)',
-        }}
-      >
+      <div className="flex justify-between items-center px-6 pt-6 pb-2">
         <span
           id={labelId}
-          className="text-xs font-semibold uppercase tracking-wider"
+          className="text-base font-semibold"
           style={{ color: 'var(--text-primary)' }}
         >
           {title}
         </span>
-        <button
-          onClick={onClose}
-          className="px-3 py-1.5 leading-none transition-colors focus:outline-none focus:ring-1"
-          style={{ color: 'var(--text-secondary)' }}
-          onMouseEnter={(e) => {
-            e.target.style.backgroundColor = 'var(--color-error)';
-            e.target.style.color = '#ffffff';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.backgroundColor = 'transparent';
-            e.target.style.color = 'var(--text-secondary)';
-          }}
-          aria-label="Close dialog"
-        >
-          ✕
-        </button>
       </div>
 
       {/* Body */}
-      <div className="p-6" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-        <p id={descId} className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+      <div className="px-6 py-4">
+        <p id={descId} className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
           {message}
         </p>
       </div>
 
       {/* Footer */}
-      <div
-        className="p-4 flex justify-end"
-        style={{
-          backgroundColor: 'var(--bg-tertiary)',
-          borderTopWidth: '1px',
-          borderTopStyle: 'solid',
-          borderTopColor: 'var(--border-light)',
-        }}
-      >
+      <div className="px-6 pb-6 pt-2 flex justify-end">
         <button
           onClick={onClose}
-          className="px-6 py-1.5 text-white text-sm border border-transparent focus:outline-none focus:ring-1 focus:ring-black"
-          style={{ backgroundColor: 'var(--color-accent)' }}
-          onMouseEnter={(e) => (e.target.style.backgroundColor = 'var(--color-accent-hover)')}
-          onMouseLeave={(e) => (e.target.style.backgroundColor = 'var(--color-accent)')}
+          className="h-10 px-6 text-sm font-medium rounded-md"
+          style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-accent-fg)' }}
         >
           {buttonLabel}
         </button>
@@ -212,80 +176,42 @@ export function ConfirmDialog({
 
   return (
     <DialogOverlay isOpen={isOpen} onClose={onCancel} labelId={labelId}>
-      {/* Title bar */}
-      <div
-        className="flex justify-between items-center pr-1 pl-4 py-1"
-        style={{
-          borderBottomWidth: '1px',
-          borderBottomStyle: 'solid',
-          borderBottomColor: 'var(--border-light)',
-        }}
-      >
+      {/* Title */}
+      <div className="flex justify-between items-center px-6 pt-6 pb-2">
         <span
           id={labelId}
-          className="text-xs font-semibold uppercase tracking-wider"
+          className="text-base font-semibold"
           style={{ color: 'var(--text-primary)' }}
         >
           {title}
         </span>
-        <button
-          onClick={onCancel}
-          className="px-3 py-1.5 leading-none transition-colors focus:outline-none focus:ring-1"
-          style={{ color: 'var(--text-secondary)' }}
-          onMouseEnter={(e) => {
-            e.target.style.backgroundColor = 'var(--color-error)';
-            e.target.style.color = '#ffffff';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.backgroundColor = 'transparent';
-            e.target.style.color = 'var(--text-secondary)';
-          }}
-          aria-label="Close dialog"
-        >
-          ✕
-        </button>
       </div>
 
       {/* Body */}
-      <div className="p-6" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-        <p id={descId} className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+      <div className="px-6 py-4">
+        <p id={descId} className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
           {message}
         </p>
       </div>
 
       {/* Footer */}
-      <div
-        className="p-4 flex justify-end gap-2"
-        style={{
-          backgroundColor: 'var(--bg-tertiary)',
-          borderTopWidth: '1px',
-          borderTopStyle: 'solid',
-          borderTopColor: 'var(--border-light)',
-        }}
-      >
-        <button
-          onClick={onConfirm}
-          className="px-6 py-1.5 text-white text-sm border border-transparent focus:outline-none focus:ring-1 focus:ring-black"
-          style={{ backgroundColor: 'var(--color-accent)' }}
-          onMouseEnter={(e) => (e.target.style.backgroundColor = 'var(--color-accent-hover)')}
-          onMouseLeave={(e) => (e.target.style.backgroundColor = 'var(--color-accent)')}
-        >
-          {confirmLabel}
-        </button>
+      <div className="px-6 pb-6 pt-2 flex justify-end gap-2">
         <button
           onClick={onCancel}
-          className="px-6 py-1.5 text-sm focus:outline-none focus:ring-1"
+          className="h-10 px-6 text-sm font-medium rounded-md border border-[var(--border-light)] hover:bg-[var(--bg-hover)] transition-colors"
           style={{
-            backgroundColor: 'var(--bg-tertiary)',
+            backgroundColor: 'transparent',
             color: 'var(--text-primary)',
-            borderWidth: '1px',
-            borderStyle: 'solid',
-            borderColor: 'var(--border-medium)',
           }}
-          onMouseEnter={(e) => (e.target.style.backgroundColor = 'var(--bg-hover)')}
-          onMouseLeave={(e) => (e.target.style.backgroundColor = 'var(--bg-tertiary)')}
         >
           {cancelLabel}
+        </button>
+        <button
+          onClick={onConfirm}
+          className="h-10 px-6 text-sm font-medium rounded-md transition-opacity hover:opacity-90"
+          style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-accent-fg)' }}
+        >
+          {confirmLabel}
         </button>
       </div>
     </DialogOverlay>

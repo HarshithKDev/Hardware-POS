@@ -84,15 +84,15 @@ export function CreatableDropdown({ value, onChange, options, placeholder, onCre
         disabled={disabled}
         required={required}
         placeholder={placeholder}
-        className="w-full h-10 px-3 text-sm focus:outline-none disabled:opacity-50"
-        style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
+        className="w-full h-10 px-3 text-sm focus:outline-none disabled:opacity-50 rounded-md"
+        style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
       />
       <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}>
          <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg>
       </div>
 
       {isOpen && !disabled && (
-        <div className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto shadow-lg" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+        <div className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto rounded-md border border-[var(--border-light)] shadow-lg" style={{ backgroundColor: 'var(--bg-secondary)' }}>
           {filteredOptions.map(opt => (
             <div
               key={opt}

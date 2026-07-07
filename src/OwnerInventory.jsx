@@ -200,8 +200,8 @@ export default function OwnerInventory({ viewType }) {
           placeholder="Search Barcode or Name..."
           value={inventorySearch}
           onChange={handleSearchChange}
-          className="h-9 px-3 text-sm w-full md:flex-1 focus:outline-none"
-          style={{ border: '2px solid var(--border-input)' }}
+          className="h-10 px-3 text-sm w-full md:flex-1 focus:outline-none rounded-md"
+          style={{ border: '1px solid var(--border-input)' }}
           aria-label="Search inventory"
         />
 
@@ -210,8 +210,8 @@ export default function OwnerInventory({ viewType }) {
           <select
             value={selectedCategory}
             onChange={(e) => { setSelectedCategory(e.target.value); setSelectedSubcategory(''); setInvPage(0); }}
-            className="h-9 w-full pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer font-medium"
-            style={{ border: '2px solid var(--border-input)', color: 'var(--text-secondary)' }}
+            className="h-10 w-full pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer font-medium rounded-md"
+            style={{ border: '1px solid var(--border-input)', color: 'var(--text-secondary)' }}
             aria-label="Filter by category"
           >
             <option value="">All Categories</option>
@@ -228,8 +228,8 @@ export default function OwnerInventory({ viewType }) {
             value={selectedSubcategory}
             onChange={(e) => { setSelectedSubcategory(e.target.value); setInvPage(0); }}
             disabled={!selectedCategory}
-            className="h-9 w-full pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer font-medium disabled:cursor-not-allowed"
-            style={{ border: '2px solid var(--border-input)', color: 'var(--text-secondary)' }}
+            className="h-10 w-full pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer font-medium disabled:cursor-not-allowed rounded-md"
+            style={{ border: '1px solid var(--border-input)', color: 'var(--text-secondary)' }}
             aria-label="Filter by sub-category"
           >
             <option value="">All Sub-categories</option>
@@ -247,8 +247,8 @@ export default function OwnerInventory({ viewType }) {
           <select
             value={sortOption}
             onChange={(e) => { setSortOption(e.target.value); setInvPage(0); }}
-            className="h-9 w-full pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer font-medium"
-            style={{ border: '2px solid var(--border-input)', color: 'var(--text-secondary)' }}
+            className="h-10 w-full pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer font-medium rounded-md"
+            style={{ border: '1px solid var(--border-input)', color: 'var(--text-secondary)' }}
             aria-label="Sort inventory"
           >
             <option value="barcode-asc">Barcode (Low to High)</option>
@@ -307,11 +307,11 @@ export default function OwnerInventory({ viewType }) {
         </table>
       </div>
 
-      <div className="flex justify-between items-center mt-4 p-3 shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
+      <div className="flex justify-between items-center mt-4 p-3 shadow-sm rounded-lg" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
         <button
           onClick={() => setInvPage(p => Math.max(0, p - 1))}
           disabled={invPage === 0 || isLoading}
-          className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none"
+          className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md"
           style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}
         >
           Previous
@@ -322,7 +322,7 @@ export default function OwnerInventory({ viewType }) {
         <button
           onClick={() => setInvPage(p => p + 1)}
           disabled={(safeInvPage + 1) * INV_PER_PAGE >= totalInvItems || isLoading}
-          className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none"
+          className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md"
           style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}
         >
           Next

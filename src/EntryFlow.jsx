@@ -124,7 +124,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
   if (isSetupNeeded) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4" style={{ backgroundColor: 'var(--bg-primary)' }}>
-        <div className="w-full max-w-md p-6 md:p-8 shadow-sm rounded-none" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+        <div className="w-full max-w-md p-8 md:p-10 rounded-xl border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
           <h2 className="text-2xl font-light mb-2" style={{ color: 'var(--text-primary)' }}>Register Your Shop</h2>
           <p className="mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>Create your master account to get started.</p>
           <form onSubmit={handleSetup} className="space-y-4">
@@ -133,7 +133,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
               value={shopName}
               onChange={(e) => setShopName(e.target.value)}
               placeholder="Shop Name (e.g. Metro Hardware)"
-              className="w-full h-12 px-3 focus:outline-none text-lg rounded-none"
+              className="w-full h-12 px-3 focus:outline-none text-lg"
               style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
             />
             <input
@@ -141,7 +141,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
               value={ownerName}
               onChange={(e) => setOwnerName(e.target.value)}
               placeholder="Owner Name"
-              className="w-full h-12 px-3 focus:outline-none text-lg rounded-none"
+              className="w-full h-12 px-3 focus:outline-none text-lg"
               style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
             />
             <div className="relative">
@@ -150,7 +150,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
                 value={setupPassword}
                 onChange={(e) => setSetupPassword(e.target.value)}
                 placeholder="Set Admin Password (Min 6 chars)"
-                className="w-full h-12 px-3 pr-10 focus:outline-none text-lg rounded-none"
+                className="w-full h-12 px-3 pr-10 focus:outline-none text-lg"
                 style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
               />
               <button
@@ -167,10 +167,10 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
             <button
               type="submit"
               disabled={isSettingUp}
-              className="w-full h-12 text-white text-lg font-medium transition-colors rounded-none border border-transparent disabled:opacity-50 flex justify-center items-center"
-              style={{ backgroundColor: 'var(--color-accent)' }}
+              className="w-full h-11 text-sm font-medium disabled:opacity-50 flex justify-center items-center rounded-md"
+              style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-accent-fg)' }}
             >
-              {isSettingUp ? <Spinner className="w-6 h-6 text-white" /> : 'Register'}
+              {isSettingUp ? <Spinner className="w-5 h-5 text-white" /> : 'Register'}
             </button>
           </form>
         </div>
@@ -180,7 +180,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4" style={{ backgroundColor: 'var(--bg-primary)' }}>
-      <div className="w-full max-w-md p-6 md:p-8 shadow-sm rounded-none overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+      <div className="w-full max-w-md p-8 md:p-10 rounded-xl overflow-hidden border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
 
         <div className="text-center mb-8 pb-4" style={{ borderBottom: '1px solid var(--border-medium)' }}>
           <h1 className="text-xl font-bold uppercase tracking-widest leading-snug w-[85%] max-w-[320px] mx-auto" style={{ color: 'var(--text-primary)' }}>
@@ -191,18 +191,18 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
 
         {step === 1 && (
           <div className="mb-2 min-h-[150px] flex flex-col justify-center">
-            <div className="space-y-4">
+            <div className="space-y-3">
               <button
                 onClick={() => handleRoleSelect('worker')}
-                className="w-full py-4 text-lg transition-colors rounded-none text-center font-medium"
-                style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+                className="w-full py-3 text-sm text-center font-medium rounded-md border border-[var(--border-light)] transition-colors hover:bg-[var(--bg-hover)]"
+                style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
               >
                 Staff Login
               </button>
               <button
                 onClick={() => handleRoleSelect('owner')}
-                className="w-full py-4 text-white text-lg transition-colors rounded-none text-center font-medium"
-                style={{ backgroundColor: 'var(--color-accent)', border: '1px solid transparent' }}
+                className="w-full py-3 text-sm text-center font-medium rounded-md transition-colors"
+                style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-accent-fg)' }}
               >
                 Owner Login
               </button>
@@ -230,7 +230,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
                   value={operatorId}
                   onChange={(e) => setOperatorId(e.target.value)}
                   placeholder="Staff Name"
-                  className="w-full h-12 px-3 focus:outline-none text-lg rounded-none"
+                  className="w-full h-12 px-3 focus:outline-none text-lg"
                   style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
                   autoFocus
                 />
@@ -241,7 +241,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={role === 'owner' ? 'Owner Password' : 'Login PIN'}
-                  className="w-full h-12 px-3 pr-10 focus:outline-none text-lg rounded-none"
+                  className="w-full h-12 px-3 pr-10 focus:outline-none text-lg"
                   style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
                   autoFocus={role === 'owner'}
                 />
@@ -259,10 +259,10 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
               <button
                 type="submit"
                 disabled={isAuthenticating}
-                className="w-full h-12 mt-2 text-white text-lg font-medium transition-colors rounded-none border border-transparent disabled:opacity-50 flex justify-center items-center"
-                style={{ backgroundColor: 'var(--color-accent)' }}
+                className="w-full h-11 mt-4 text-sm font-medium disabled:opacity-50 flex justify-center items-center rounded-md transition-all"
+                style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-accent-fg)' }}
               >
-                {isAuthenticating ? <Spinner className="w-6 h-6 text-white" /> : 'Login'}
+                {isAuthenticating ? <Spinner className="w-5 h-5 text-white" /> : 'Login'}
               </button>
             </form>
           </div>

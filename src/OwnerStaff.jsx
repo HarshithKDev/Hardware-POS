@@ -107,10 +107,10 @@ export default function OwnerStaff() {
   };
 
   return (
-    <div className="flex flex-col h-full gap-6 max-w-5xl mx-auto animate-fade-in w-full">
+    <div className="flex flex-col h-full gap-6 animate-fade-in w-full">
       <h1 className="text-2xl font-light" style={{ color: 'var(--text-primary)' }}>Manage Staff</h1>
 
-      <div className="p-6 shadow-sm flex-shrink-0" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+      <div className="p-6 rounded-lg flex-shrink-0 border border-[var(--border-light)]" style={{ backgroundColor: 'var(--bg-secondary)' }}>
         <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-secondary)' }}>Add New Cashier</h2>
         <form onSubmit={handleAddStaff} className="flex flex-col md:flex-row gap-4 items-start md:items-end">
           <div className="w-full md:flex-1">
@@ -121,8 +121,8 @@ export default function OwnerStaff() {
               value={newStaffName}
               onChange={(e) => setNewStaffName(e.target.value)}
               placeholder="e.g. John Doe"
-              className="w-full h-10 px-3 text-sm focus:outline-none"
-              style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
+              className="w-full h-10 px-3 text-sm focus:outline-none rounded-md"
+              style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
             />
           </div>
           <div className="w-full md:flex-1">
@@ -133,8 +133,8 @@ export default function OwnerStaff() {
               value={newStaffPassword}
               onChange={(e) => setNewStaffPassword(e.target.value)}
               placeholder="Min. 6 characters"
-              className="w-full h-10 px-3 text-sm focus:outline-none"
-              style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
+              className="w-full h-10 px-3 text-sm focus:outline-none rounded-md"
+              style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
             />
           </div>
           <div className="w-full md:flex-1">
@@ -144,8 +144,8 @@ export default function OwnerStaff() {
                 id="staff-type"
                 value={newStaffIsBillable}
                 onChange={(e) => setNewStaffIsBillable(e.target.value === 'true')}
-                className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer"
-                style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
+                className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer rounded-md"
+                style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
               >
                 <option value="true">Billable</option>
                 <option value="false">Non-Billable</option>
@@ -159,7 +159,7 @@ export default function OwnerStaff() {
             <button
               type="submit"
               disabled={addStaffMutation.isPending}
-              className="w-full md:w-auto h-10 px-8 text-white text-sm font-semibold uppercase tracking-wider disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-1 flex justify-center items-center min-w-[150px]"
+              className="w-full md:w-auto h-10 px-8 text-white text-sm font-semibold uppercase tracking-wider disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-1 flex justify-center items-center min-w-[150px] rounded-md transition-opacity hover:opacity-90"
               style={{ backgroundColor: 'var(--color-accent)' }}
             >
               {addStaffMutation.isPending ? <Spinner className="w-5 h-5 text-white" /> : 'Create Account'}
@@ -168,7 +168,7 @@ export default function OwnerStaff() {
         </form>
       </div>
 
-      <div className="flex-1 overflow-auto shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+      <div className="flex-1 overflow-auto rounded-lg border border-[var(--border-light)] shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)' }}>
         <table className={`w-full text-left border-collapse ${(isLoading || staffList.length === 0) ? 'h-full' : ''}`}>
           <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
@@ -200,7 +200,7 @@ export default function OwnerStaff() {
                   <button
                     onClick={() => handleRemove(staff.id, staff.name)}
                     disabled={removeStaffMutation.isPending}
-                    className="h-8 px-4 text-xs font-semibold uppercase tracking-wider focus:outline-none transition-colors disabled:opacity-50"
+                    className="h-8 px-4 text-xs font-semibold uppercase tracking-wider focus:outline-none transition-colors disabled:opacity-50 rounded-md"
                     style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
                     onMouseEnter={(e) => {
                       if (!removeStaffMutation.isPending) {

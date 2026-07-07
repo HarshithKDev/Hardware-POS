@@ -232,14 +232,14 @@ function CartTable({ cart, activeTab, onUpdateQuantity, onUpdateDimensions, onCu
                     ) : (
                       <>
                         <div className="relative inline-flex items-center">
-                          <input type="number" step="any" placeholder="L" value={activeTab === 'receive' ? (item.default_length || '') : (item.length !== undefined ? item.length : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_length', e.target.value) : onUpdateDimensions(item.id, 'length', e.target.value)} className="w-20 h-10 pl-2 pr-10 text-sm font-semibold text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title="Length" aria-label="Length" />
+                          <input type="number" step="any" placeholder="L" value={activeTab === 'receive' ? (item.default_length || '') : (item.length !== undefined ? item.length : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_length', e.target.value) : onUpdateDimensions(item.id, 'length', e.target.value)} className="w-20 h-10 pl-2 pr-10 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title="Length" aria-label="Length" />
                           <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>{item.unit === 'SQFT' ? 'ft' : item.unit}</span>
                         </div>
                         {item.unit === 'SQFT' && (
                           <>
                             <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
                             <div className="relative inline-flex items-center">
-                              <input type="number" step="any" placeholder="H" value={activeTab === 'receive' ? (item.default_width || '') : (item.width !== undefined ? item.width : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_width', e.target.value) : onUpdateDimensions(item.id, 'width', e.target.value)} className="w-20 h-10 pl-2 pr-10 text-sm font-semibold text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title="Height" aria-label="Height" />
+                              <input type="number" step="any" placeholder="H" value={activeTab === 'receive' ? (item.default_width || '') : (item.width !== undefined ? item.width : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_width', e.target.value) : onUpdateDimensions(item.id, 'width', e.target.value)} className="w-20 h-10 pl-2 pr-10 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title="Height" aria-label="Height" />
                               <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>ft</span>
                             </div>
                           </>
@@ -248,7 +248,7 @@ function CartTable({ cart, activeTab, onUpdateQuantity, onUpdateDimensions, onCu
                         {item.instance_barcode && activeTab === 'receive' ? (
                           <div className="w-14 h-10 px-2 text-sm font-bold flex items-center justify-center bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-medium)] rounded" title="Quantity is locked to 1 for specific piece">1</div>
                         ) : (
-                          <input type="number" step="any" min="1" placeholder="Qty" value={activeTab === 'receive' ? item.quantity : (item.rolls !== undefined ? item.rolls : '1')} onChange={(e) => activeTab === 'receive' ? onUpdateQuantity(item.id, e.target.value) : onUpdateDimensions(item.id, 'rolls', e.target.value)} className="w-14 h-10 px-2 text-sm font-semibold text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title={activeTab === 'receive' ? 'Pcs / Rolls' : 'Qty'} aria-label="Quantity" />
+                          <input type="number" step="any" min="1" placeholder="Qty" value={activeTab === 'receive' ? item.quantity : (item.rolls !== undefined ? item.rolls : '1')} onChange={(e) => activeTab === 'receive' ? onUpdateQuantity(item.id, e.target.value) : onUpdateDimensions(item.id, 'rolls', e.target.value)} className="w-14 h-10 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title={activeTab === 'receive' ? 'Pcs / Rolls' : 'Qty'} aria-label="Quantity" />
                         )}
                       </>
                     )}
@@ -266,9 +266,9 @@ function CartTable({ cart, activeTab, onUpdateQuantity, onUpdateDimensions, onCu
                         <div className="w-30 h-8 px-4 flex items-center justify-center text-sm font-semibold text-center bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">{safeQty} </div>
                       ) : (
                         <>
-                          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-8 h-8 font-bold focus:outline-none" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }} aria-label={`Decrease ${item.name} quantity`}>-</button>
-                          <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-14 h-8 px-1 text-sm font-semibold text-center focus:outline-none" aria-label={`${item.name} quantity`} />
-                          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-8 h-8 font-bold focus:outline-none" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', borderLeft: '1px solid var(--border-medium)' }} aria-label={`Increase ${item.name} quantity`}>+</button>
+                          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-8 h-8 font-bold focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }} aria-label={`Decrease ${item.name} quantity`}>-</button>
+                          <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-14 h-8 px-1 text-sm font-semibold text-center focus:outline-none rounded-md" aria-label={`${item.name} quantity`} />
+                          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-8 h-8 font-bold focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', borderLeft: '1px solid var(--border-medium)' }} aria-label={`Increase ${item.name} quantity`}>+</button>
                         </>
                       )}
                       <div className="h-8 px-2 flex items-center justify-center text-[10px] font-bold uppercase tracking-wider" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', borderLeft: '1px solid var(--border-medium)' }}>{(item.unit === 'SQFT' || item.is_cuttable) && activeTab !== 'checkout' ? 'PIECES' : item.unit}</div>
@@ -278,7 +278,7 @@ function CartTable({ cart, activeTab, onUpdateQuantity, onUpdateDimensions, onCu
               </td>
               {activeTab === 'checkout' && (<>
                 <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }}>
-                  <input type="number" step="0.01" value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChange(item.id, e.target.value)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} price`} />
+                  <input type="number" step="0.01" value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChange(item.id, e.target.value)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} price`} />
                 </td>
                 <td className="p-2" style={{ borderRight: '1px solid var(--border-light)', backgroundColor: 'var(--bg-quaternary)' }}>
                   <input type="number" value={item.discountPct ? Number(item.discountPct).toFixed(1) : '0.0'} disabled className="w-full h-8 px-2 text-sm font-semibold text-center bg-transparent outline-none cursor-not-allowed" style={{ color: 'var(--text-tertiary)', border: 'none' }} aria-label={`${item.name} discount`} />
@@ -286,7 +286,7 @@ function CartTable({ cart, activeTab, onUpdateQuantity, onUpdateDimensions, onCu
                 <td className="p-3 text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{(sellPrice * safeQty).toFixed(2)}</td>
               </>)}
               <td className="p-2 text-center align-middle">
-                <button type="button" onClick={() => onRemoveItem(item.id)} className="w-8 h-8 rounded flex items-center justify-center transition-colors focus:outline-none" style={{ color: 'var(--color-danger)', backgroundColor: 'transparent' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'} aria-label={`Remove ${item.name}`}>
+                <button type="button" onClick={() => onRemoveItem(item.id)} className="w-8 h-8 rounded flex items-center justify-center transition-colors focus:outline-none rounded-md" style={{ color: 'var(--color-danger)', backgroundColor: 'transparent' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'} aria-label={`Remove ${item.name}`}>
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
                 </button>
               </td>
@@ -351,7 +351,7 @@ function CartMobileView({ cart, activeTab, onUpdateQuantity, onUpdateDimensions,
           <div className="pr-2 flex-1">
             <div className="flex justify-between items-start w-full">
               <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name}</p>
-              <button type="button" onClick={() => onRemoveItem(item.id)} className="p-1 rounded transition-colors focus:outline-none" style={{ color: 'var(--color-danger)', backgroundColor: 'transparent' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'} aria-label={`Remove ${item.name}`}>
+              <button type="button" onClick={() => onRemoveItem(item.id)} className="p-1 rounded transition-colors focus:outline-none rounded-md" style={{ color: 'var(--color-danger)', backgroundColor: 'transparent' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'} aria-label={`Remove ${item.name}`}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
               </button>
             </div>
@@ -382,16 +382,16 @@ function CartMobileView({ cart, activeTab, onUpdateQuantity, onUpdateDimensions,
                 ) : (
                   <>
                     <div className="relative inline-flex items-center">
-                      <input type="number" step="any" placeholder="L" value={item.length !== undefined ? item.length : ''} onChange={(e) => onUpdateDimensions(item.id, 'length', e.target.value)} className="w-20 h-10 pl-2 pr-8 text-sm font-semibold text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} aria-label="Length" />
+                      <input type="number" step="any" placeholder="L" value={item.length !== undefined ? item.length : ''} onChange={(e) => onUpdateDimensions(item.id, 'length', e.target.value)} className="w-20 h-10 pl-2 pr-8 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} aria-label="Length" />
                       <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>ft</span>
                     </div>
                     <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
                     <div className="relative inline-flex items-center">
-                      <input type="number" step="any" placeholder="H" value={item.width !== undefined ? item.width : ''} onChange={(e) => onUpdateDimensions(item.id, 'width', e.target.value)} className="w-20 h-10 pl-2 pr-8 text-sm font-semibold text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} aria-label="Height" />
+                      <input type="number" step="any" placeholder="H" value={item.width !== undefined ? item.width : ''} onChange={(e) => onUpdateDimensions(item.id, 'width', e.target.value)} className="w-20 h-10 pl-2 pr-8 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} aria-label="Height" />
                       <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>ft</span>
                     </div>
                     <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
-                    <input type="number" step="any" min="1" placeholder="Qty" value={item.rolls !== undefined ? item.rolls : '1'} onChange={(e) => onUpdateDimensions(item.id, 'rolls', e.target.value)} className="w-14 h-10 px-2 text-sm font-semibold text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} aria-label="Rolls" />
+                    <input type="number" step="any" min="1" placeholder="Qty" value={item.rolls !== undefined ? item.rolls : '1'} onChange={(e) => onUpdateDimensions(item.id, 'rolls', e.target.value)} className="w-14 h-10 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} aria-label="Rolls" />
                   </>
                 )}
               </div>
@@ -407,9 +407,9 @@ function CartMobileView({ cart, activeTab, onUpdateQuantity, onUpdateDimensions,
                   <div className="w-30 h-8 px-4 flex items-center justify-center text-sm font-semibold text-center bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">1</div>
                 ) : (
                   <>
-                    <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-10 h-8 font-bold text-lg focus:outline-none" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }} aria-label={`Decrease ${item.name} quantity`}>-</button>
-                    <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-12 h-8 px-1 text-sm font-semibold text-center focus:outline-none" aria-label={`${item.name} quantity`} />
-                    <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-10 h-8 font-bold text-lg focus:outline-none" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', borderLeft: '1px solid var(--border-medium)' }} aria-label={`Increase ${item.name} quantity`}>+</button>
+                    <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-10 h-8 font-bold text-lg focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }} aria-label={`Decrease ${item.name} quantity`}>-</button>
+                    <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-12 h-8 px-1 text-sm font-semibold text-center focus:outline-none rounded-md" aria-label={`${item.name} quantity`} />
+                    <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-10 h-8 font-bold text-lg focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', borderLeft: '1px solid var(--border-medium)' }} aria-label={`Increase ${item.name} quantity`}>+</button>
                   </>
                 )}
                 <div className="h-8 px-3 flex items-center justify-center text-[10px] font-bold uppercase tracking-wider" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', borderLeft: '1px solid var(--border-medium)' }}>{item.unit === 'SQFT' && activeTab !== 'checkout' ? 'ROLLS' : item.unit}</div>
@@ -882,6 +882,21 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const calculateTotal = () => cart.reduce((tot, i) => tot + Math.round((i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0)) * 100) * (i.quantity === '' ? 0 : Number(i.quantity)), 0) / 100;
   const calculateTotalUnits = () => cart.reduce((tot, i) => tot + (i.quantity === '' ? 0 : Number(i.quantity)), 0);
 
+  const handleCancelSale = () => {
+    if (activeCartTab !== 'local') {
+      supabase.from('pending_carts').delete().eq('id', activeCartTab).then();
+      setCartSessions(prev => {
+        const next = { ...prev };
+        delete next[activeCartTab];
+        return next;
+      });
+      setActiveCartTab('local');
+      setCart(cartSessions['local'] || []);
+    } else {
+      setCart([]);
+    }
+  };
+
   const handleCompleteTransaction = async () => {
     const finalCart = cart.filter(i => Number(i.quantity) > 0);
     if (finalCart.length === 0) return;
@@ -1085,7 +1100,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           <div className="w-[85%] max-w-[450px] flex flex-col animate-scale-in" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
             <div className="flex justify-between items-center pr-1 pl-4 py-1" style={{ borderBottom: '1px solid var(--border-light)' }}>
               <span id="checkout-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Checkout Payment</span>
-              <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} className="px-3 py-1.5 leading-none focus:outline-none" aria-label="Close checkout">✕</button>
+              <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} className="px-3 py-1.5 leading-none focus:outline-none rounded-md" aria-label="Close checkout">✕</button>
             </div>
             <div className="p-6">
               <div className="flex justify-between items-end mb-6 pb-4" style={{ borderBottom: '1px solid var(--border-light)' }}>
@@ -1094,7 +1109,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               </div>
               <div className="mb-6">
                 <label htmlFor="cash-given" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Cash Given (₹)</label>
-                <input id="cash-given" type="number" step="any" autoFocus value={checkoutModal.cashGiven} onChange={(e) => setCheckoutModal({ ...checkoutModal, cashGiven: e.target.value })} placeholder="0.00" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <input id="cash-given" type="number" step="any" autoFocus value={checkoutModal.cashGiven} onChange={(e) => setCheckoutModal({ ...checkoutModal, cashGiven: e.target.value })} placeholder="0.00" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
               </div>
               {cashGivenCents > 0 && (
                 <div className={`p-4 ${!isShortfall ? 'pos-success-box' : 'pos-error-box'}`} aria-live="polite">
@@ -1106,10 +1121,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               )}
             </div>
             <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-              <button onClick={handleCompleteTransaction} disabled={isCheckingOut || isShortfall} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none disabled:opacity-50 flex justify-center items-center min-w-[120px]" style={{ backgroundColor: 'var(--color-accent)' }}>
+              <button onClick={handleCompleteTransaction} disabled={isCheckingOut || isShortfall} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 flex justify-center items-center min-w-[120px]" style={{ backgroundColor: 'var(--color-accent)' }}>
                 {isCheckingOut ? <Spinner className="w-4 h-4 text-white" /> : 'Complete Sale'}
               </button>
-              <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} disabled={isCheckingOut} className="h-9 px-8 text-sm font-semibold disabled:opacity-50 focus:outline-none" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}>Cancel</button>
+              <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} disabled={isCheckingOut} className="h-9 px-8 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -1121,16 +1136,16 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           <div className="w-[85%] max-w-[400px] flex flex-col shadow-2xl animate-scale-in" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
             <div className="flex justify-between items-center pr-1 pl-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
               <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Loose Item Quantity</span>
-              <button type="button" onClick={() => setLooseItemModal({ isOpen: false, item: null, qty: '' })} className="px-3 py-1.5 leading-none focus:outline-none text-lg">✕</button>
+              <button type="button" onClick={() => setLooseItemModal({ isOpen: false, item: null, qty: '' })} className="px-3 py-1.5 leading-none focus:outline-none rounded-md text-lg">✕</button>
             </div>
             <form onSubmit={handleLooseItemSubmit}>
               <div className="p-6">
                 <p className="text-sm mb-4 font-semibold">{looseItemModal.item?.name}</p>
                 <label htmlFor="loose-qty" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Enter Quantity</label>
-                <input id="loose-qty" type="number" step="any" min="0.1" autoFocus value={looseItemModal.qty} onChange={(e) => setLooseItemModal({ ...looseItemModal, qty: e.target.value })} placeholder="0" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <input id="loose-qty" type="number" step="any" min="0.1" autoFocus value={looseItemModal.qty} onChange={(e) => setLooseItemModal({ ...looseItemModal, qty: e.target.value })} placeholder="0" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
               </div>
               <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-                <button type="submit" disabled={!looseItemModal.qty} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none disabled:opacity-50" style={{ backgroundColor: 'var(--color-accent)' }}>Add to Cart</button>
+                <button type="submit" disabled={!looseItemModal.qty} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50" style={{ backgroundColor: 'var(--color-accent)' }}>Add to Cart</button>
               </div>
             </form>
           </div>
@@ -1143,7 +1158,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           <div className="w-[85%] max-w-[400px] flex flex-col shadow-2xl animate-scale-in" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
             <div className="flex justify-between items-center pr-1 pl-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
               <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Select Piece</span>
-              <button type="button" onClick={() => setSelectPieceModal({ isOpen: false, item: null, instances: [], isLoading: false, action: 'checkout' })} className="px-3 py-1.5 leading-none focus:outline-none text-lg">✕</button>
+              <button type="button" onClick={() => setSelectPieceModal({ isOpen: false, item: null, instances: [], isLoading: false, action: 'checkout' })} className="px-3 py-1.5 leading-none focus:outline-none rounded-md text-lg">✕</button>
             </div>
             <div className="p-6 flex flex-col">
               <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>Which piece of <strong style={{ color: 'var(--color-accent)' }}>{selectPieceModal.item?.name}</strong> are you {selectPieceModal.action === 'transfer' ? 'transferring' : 'cutting from'}?</p>
@@ -1177,7 +1192,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                           setCutLengthModal({ isOpen: true, item: selectPieceModal.item, instance: inst, cutQty: '', discardScrap: false });
                         }
                       }}
-                      className="p-3 text-left border border-[var(--border-medium)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] transition-colors flex justify-between items-center focus:outline-none focus:border-[var(--color-accent)]"
+                      className="p-3 text-left border border-[var(--border-medium)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] transition-colors flex justify-between items-center focus:outline-none rounded-md focus:border-[var(--color-accent)]"
                     >
                       <span className="font-mono text-xs font-bold" style={{ color: 'var(--color-accent)' }}>#{inst.instance_barcode}</span>
                       <span className="text-sm font-bold text-[var(--text-primary)]">{inst.current_length} {selectPieceModal.item?.unit} left</span>
@@ -1196,15 +1211,15 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           <div className="w-full max-w-sm flex flex-col shadow-2xl" style={{ backgroundColor: 'var(--bg-primary)', borderTop: '4px solid var(--color-accent)' }}>
             <div className="flex justify-between items-center p-4" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
               <h3 className="font-bold tracking-wider text-sm" style={{ color: 'var(--text-primary)' }}>ENTER PIECE LENGTH</h3>
-              <button type="button" onClick={() => setReceiveLengthModal({ isOpen: false, item: null, length: '' })} className="px-3 py-1.5 leading-none focus:outline-none text-lg">✕</button>
+              <button type="button" onClick={() => setReceiveLengthModal({ isOpen: false, item: null, length: '' })} className="px-3 py-1.5 leading-none focus:outline-none rounded-md text-lg">✕</button>
             </div>
             <form onSubmit={handleReceiveLengthSubmit} className="p-6">
               <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>What is the standard length of each <strong>{receiveLengthModal.item?.name}</strong> piece?</p>
               <div className="mb-6">
-                <input type="number" autoFocus step="any" min="0.1" value={receiveLengthModal.length} onChange={e => setReceiveLengthModal({ ...receiveLengthModal, length: e.target.value })} placeholder={`Length (${receiveLengthModal.item?.unit})`} className="w-full h-12 px-4 text-xl font-mono focus:outline-none" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <input type="number" autoFocus step="any" min="0.1" value={receiveLengthModal.length} onChange={e => setReceiveLengthModal({ ...receiveLengthModal, length: e.target.value })} placeholder={`Length (${receiveLengthModal.item?.unit})`} className="w-full h-12 px-4 text-xl font-mono focus:outline-none rounded-md" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
               </div>
               <div className="flex justify-end gap-3">
-                <button type="submit" disabled={!receiveLengthModal.length} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none disabled:opacity-50 transition-colors hover:brightness-110" style={{ backgroundColor: 'var(--color-accent)' }}>Add to Cart</button>
+                <button type="submit" disabled={!receiveLengthModal.length} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 transition-colors hover:brightness-110" style={{ backgroundColor: 'var(--color-accent)' }}>Add to Cart</button>
               </div>
             </form>
           </div>
@@ -1217,7 +1232,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           <div className="w-[85%] max-w-[400px] flex flex-col shadow-2xl animate-scale-in" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
             <div className="flex justify-between items-center pr-1 pl-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
               <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Cut Length</span>
-              <button type="button" onClick={() => setCutLengthModal({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false })} className="px-3 py-1.5 leading-none focus:outline-none text-lg">✕</button>
+              <button type="button" onClick={() => setCutLengthModal({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false })} className="px-3 py-1.5 leading-none focus:outline-none rounded-md text-lg">✕</button>
             </div>
 
             <form onSubmit={handleCutLengthSubmit}>
@@ -1233,7 +1248,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                     const max = Number(cutLengthModal.instance?.current_length);
                     const isSmallScrap = !isNaN(numVal) && !isNaN(max) && (max - numVal < 1) && (max - numVal > 0);
                     setCutLengthModal({ ...cutLengthModal, cutQty: val, discardScrap: isSmallScrap });
-                  }} className="w-full h-12 px-4 text-2xl font-mono focus:outline-none" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} placeholder="0" />
+                  }} className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} placeholder="0" />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold uppercase" style={{ color: 'var(--text-tertiary)' }}>{cutLengthModal.item?.unit === 'SQFT' ? 'ft' : cutLengthModal.item?.unit}</span>
                 </div>
 
@@ -1245,7 +1260,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                 )}
               </div>
               <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-                <button type="submit" disabled={!cutLengthModal.cutQty} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none disabled:opacity-50" style={{ backgroundColor: 'var(--color-accent)' }}>Add Cut</button>
+                <button type="submit" disabled={!cutLengthModal.cutQty} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50" style={{ backgroundColor: 'var(--color-accent)' }}>Add Cut</button>
               </div>
             </form>
           </div>
@@ -1256,7 +1271,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         <div className="flex flex-col flex-1 bg-[var(--bg-primary)] overflow-hidden" style={{ minHeight: 'calc(100vh - 160px)' }}>
           {cart.length > 0 && (
             <div className="p-4 flex-shrink-0 flex gap-2" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
-              <button onClick={() => showConfirm("Clear?", () => setCart([]), 'Clear')} className="w-1/3 py-4 text-white font-black uppercase tracking-widest text-lg shadow-lg rounded-lg transition-all active:scale-95" style={{ backgroundColor: 'var(--color-error)' }}>CLEAR</button>
+              <button onClick={() => showConfirm("Clear?", handleCancelSale, 'Clear')} className="w-1/3 py-4 text-white font-black uppercase tracking-widest text-lg shadow-lg rounded-lg transition-all active:scale-95" style={{ backgroundColor: 'var(--color-error)' }}>CLEAR</button>
               <button onClick={handleCompleteTransaction} className="w-2/3 py-4 text-white font-black uppercase tracking-widest text-lg shadow-lg rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2" style={{ backgroundColor: 'var(--color-accent)' }}>
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                 COMPLETE {cart.length}
@@ -1348,8 +1363,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             
             <form onSubmit={(e) => { e.preventDefault(); processScan(manualBarcode); setManualBarcode(''); setShowSuggestions(false); }} className="mt-3 flex items-center relative w-full">
                 <label htmlFor="manual-barcode" className="sr-only">Barcode</label>
-                <input id="manual-barcode" type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} onFocus={() => manualBarcode.trim().length >= 2 && setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder="Search barcode or name..." className="h-10 md:h-9 px-3 text-sm focus:outline-none flex-1 md:flex-none md:w-64" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} autoComplete="off" />
-                <button type="submit" className="h-10 md:h-9 px-4 text-sm font-semibold focus:outline-none" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '2px solid var(--border-input)', borderLeft: 'none' }}>Add</button>
+                <input id="manual-barcode" type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} onFocus={() => manualBarcode.trim().length >= 2 && setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder="Search barcode or name..." className="h-10 md:h-9 px-3 text-sm focus:outline-none rounded-md flex-1 md:flex-none md:w-64" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} autoComplete="off" />
+                <button type="submit" className="h-10 md:h-9 px-4 text-sm font-semibold focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-input)', borderLeft: 'none' }}>Add</button>
                 {showSuggestions && suggestions.length > 0 && (
                   <ul className="absolute top-[100%] left-0 w-full md:w-64 bg-[var(--bg-secondary)] border border-[var(--border-medium)] z-50 max-h-60 overflow-y-auto shadow-lg mt-1 rounded-sm">
                     {suggestions.map((item) => (
@@ -1393,6 +1408,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             onUpdateDimensions={updateDimensions}
             onCustomPriceChange={handleCustomPriceChange}
             onCustomPriceBlur={applyCustomPriceBlur}
+            onRemoveItem={handleRemoveItem}
           />
         </div>
 
@@ -1410,17 +1426,15 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         {cart.length > 0 && (
           <div className="p-4 flex flex-col md:flex-row justify-between gap-3" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
             <button
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => showConfirm("Are you sure you want to clear the items?", () => setCart([]), activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items')}
-              className="w-full md:w-auto h-10 px-8 text-sm font-semibold uppercase tracking-wider focus:outline-none"
+              onClick={() => showConfirm("Are you sure you want to clear the items?", handleCancelSale, activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items')}
+              className="w-full md:w-auto h-10 px-8 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md"
               style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
             >
               {activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items'}
             </button>
             <button
-              onMouseDown={(e) => e.preventDefault()}
               onClick={() => activeTab === 'checkout' ? setCheckoutModal({ isOpen: true, cashGiven: '' }) : handleCompleteTransaction()}
-              className="w-full md:w-auto h-10 px-10 text-white text-sm font-semibold uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-offset-1 flex justify-center items-center"
+              className="w-full md:w-auto h-10 px-10 text-white text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md focus:ring-2 focus:ring-offset-1 flex justify-center items-center"
               style={{ backgroundColor: 'var(--color-accent)', border: '1px solid transparent' }}
             >
               {isCheckingOut ? 'Saving...' : 'Complete'}

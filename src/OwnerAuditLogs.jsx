@@ -8,6 +8,9 @@ export default function OwnerAuditLogs() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('ALL');
+  const [selectedUser, setSelectedUser] = useState('ALL');
+  const [sortOrder, setSortOrder] = useState('newest');
+  const [showAdvanced, setShowAdvanced] = useState(false);
   
   const [limit, setLimit] = useState(300);
   const [startDate, setStartDate] = useState('');
@@ -94,28 +97,36 @@ export default function OwnerAuditLogs() {
     refetchInterval: 30000, // refresh every 30s
   });
 
-  const filteredLogs = unifiedLogs?.filter(log => {
-    // 1. Apply Action Filter
-    if (activeFilter !== 'ALL' && log.action_type !== activeFilter) return false;
-    
-    // 2. Apply Text Search
-    if (!debouncedSearch) return true;
-    
-    const term = debouncedSearch.toLowerCase();
-    const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    
-    // Smart matching: If the search term ends with a number, prevent it from matching 
-    // if the very next character is ALSO a number. (e.g. '1' won't match '10')
-    const regexStr = /[0-9]$/.test(term) ? escapedTerm + "(?![0-9])" : escapedTerm;
-    const searchRegex = new RegExp(regexStr, 'i');
+  const uniqueUsers = useMemo(() => {
+    if (!unifiedLogs) return [];
+    return [...new Set(unifiedLogs.map(log => log.performed_by))].sort();
+  }, [unifiedLogs]);
 
-    return (
-      (log.barcode && searchRegex.test(log.barcode)) ||
-      (log.item_name && searchRegex.test(log.item_name)) ||
-      (log.action_type && searchRegex.test(log.action_type)) ||
-      (log.performed_by && searchRegex.test(log.performed_by))
-    );
-  }) || [];
+  const filteredLogs = useMemo(() => {
+    let result = unifiedLogs?.filter(log => {
+      if (activeFilter !== 'ALL' && log.action_type !== activeFilter) return false;
+      if (selectedUser !== 'ALL' && log.performed_by !== selectedUser) return false;
+      
+      if (!debouncedSearch) return true;
+      
+      const term = debouncedSearch.toLowerCase();
+      const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regexStr = /[0-9]$/.test(term) ? escapedTerm + "(?![0-9])" : escapedTerm;
+      const searchRegex = new RegExp(regexStr, 'i');
+
+      return (
+        (log.barcode && searchRegex.test(log.barcode)) ||
+        (log.item_name && searchRegex.test(log.item_name)) ||
+        (log.action_type && searchRegex.test(log.action_type)) ||
+        (log.performed_by && searchRegex.test(log.performed_by))
+      );
+    }) || [];
+
+    if (sortOrder === 'oldest') {
+      result = [...result].reverse();
+    }
+    return result;
+  }, [unifiedLogs, activeFilter, selectedUser, debouncedSearch, sortOrder]);
 
   const getActionStyles = (action) => {
     switch (action) {
@@ -133,52 +144,27 @@ export default function OwnerAuditLogs() {
   const FILTERS = ['ALL', 'CREATE', 'STOCK IN', 'TRANSFER', 'SALE', 'UPDATE', 'DELETE', 'RESTORE'];
 
   return (
-    <div className="flex flex-col h-full animate-fade-in max-w-7xl mx-auto w-full">
+    <div className="flex flex-col h-full animate-fade-in w-full">
       <div className="flex flex-col gap-4 mb-6">
         <h1 className="text-2xl font-light" style={{ color: 'var(--text-primary)' }}>Unified Audit Logs</h1>
         
         <div className="flex flex-col md:flex-row gap-3 w-full items-start md:items-center">
-          {/* Date Filters */}
-          <div className="flex gap-2 shrink-0">
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="h-9 px-3 text-xs font-semibold uppercase tracking-wider focus:outline-none shadow-sm"
-              style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-medium)', color: 'var(--text-input)' }}
-              title="Start Date"
-            />
-            <span className="flex items-center text-xs font-bold" style={{ color: 'var(--text-tertiary)' }}>TO</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="h-9 px-3 text-xs font-semibold uppercase tracking-wider focus:outline-none shadow-sm"
-              style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-medium)', color: 'var(--text-input)' }}
-              title="End Date"
-            />
-          </div>
 
-          {/* Quick Filters */}
-          <div className="relative shrink-0">
-            <select
-              value={activeFilter}
-              onChange={(e) => setActiveFilter(e.target.value)}
-              className="appearance-none h-9 pl-3 pr-8 text-xs font-bold uppercase tracking-wider focus:outline-none shadow-sm cursor-pointer"
-              style={{
-                backgroundColor: 'var(--bg-input)',
-                border: '1px solid var(--border-medium)',
-                color: 'var(--text-primary)'
-              }}
-            >
-              {FILTERS.map(f => (
-                <option key={f} value={f}>{f}</option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2" style={{ color: 'var(--text-tertiary)' }}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-            </div>
-          </div>
+          {/* Advanced Filter Toggle */}
+          <button
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="h-10 px-4 text-xs font-bold uppercase tracking-wider focus:outline-none shadow-sm rounded-md flex items-center gap-2 transition-colors shrink-0"
+            style={{
+              backgroundColor: showAdvanced ? 'var(--color-accent)' : 'var(--bg-input)',
+              border: showAdvanced ? '1px solid var(--color-accent)' : '1px solid var(--border-medium)',
+              color: showAdvanced ? '#fff' : 'var(--text-primary)'
+            }}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+            </svg>
+            Filters
+          </button>
 
           {/* Quick Search */}
           <div className="relative w-full md:w-64 shrink-0">
@@ -187,21 +173,71 @@ export default function OwnerAuditLogs() {
               placeholder="Search barcode, item, or user..."
               value={searchTerm}
               onChange={handleSearchChange}
-              className="w-full h-9 pl-9 pr-4 text-sm focus:outline-none shadow-sm"
+              className="w-full h-10 pl-10 pr-4 text-sm focus:outline-none shadow-sm rounded-md"
               style={{
                 backgroundColor: 'var(--bg-input)',
                 border: '1px solid var(--border-medium)',
-                color: 'var(--text-input)'
+                color: 'var(--text-input)',
+                paddingLeft: '2.5rem'
               }}
             />
-            <svg className="w-4 h-4 absolute left-3 top-2.5" style={{ color: 'var(--text-tertiary)' }} fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+            <svg className="w-4 h-4 absolute left-3 top-3 pointer-events-none" style={{ color: 'var(--text-tertiary)' }} fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
             </svg>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}>
+      {showAdvanced && (
+        <div className="w-full p-4 md:p-6 rounded-xl shadow-sm flex flex-col gap-6 animate-scale-in mb-6" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+          <div className="flex flex-col md:flex-row gap-6">
+            <div className="flex-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Start Date</label>
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full h-10 px-3 text-sm focus:outline-none shadow-sm rounded-md cursor-pointer" style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-input)', color: 'var(--text-input)' }} />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>End Date</label>
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full h-10 px-3 text-sm focus:outline-none shadow-sm rounded-md cursor-pointer" style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-input)', color: 'var(--text-input)' }} />
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-6">
+            <div className="flex-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Action Type</label>
+              <div className="relative">
+                <select value={activeFilter} onChange={e => setActiveFilter(e.target.value)} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
+                  {FILTERS.map(f => <option key={f} value={f}>{f === 'ALL' ? 'All Actions' : f}</option>)}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
+              </div>
+            </div>
+            
+            <div className="flex-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Performed By</label>
+              <div className="relative">
+                <select value={selectedUser} onChange={e => setSelectedUser(e.target.value)} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
+                  <option value="ALL">All Users</option>
+                  {uniqueUsers.map(u => <option key={u} value={u} className="capitalize">{u}</option>)}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
+              </div>
+            </div>
+
+            <div className="flex-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Sort Order</label>
+              <div className="relative">
+                <select value={sortOrder} onChange={e => setSortOrder(e.target.value)} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex-1 overflow-auto shadow-sm rounded-lg" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}>
         <table className="w-full text-left whitespace-nowrap border-collapse min-w-[900px]">
           <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>

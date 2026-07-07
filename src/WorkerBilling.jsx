@@ -53,7 +53,7 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
         }
       `}</style>
 
-      <div className="flex flex-col h-full w-full font-sans">
+      <div className="flex flex-col h-full w-full">
         {!hideNav && (
           <div
             className="flex gap-1 mb-6 pb-0 overflow-x-auto whitespace-nowrap overflow-y-hidden print:hidden"

@@ -1,118 +1,115 @@
-/* Google Fonts — loaded once here, not injected per-component in JSX */
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @import "tailwindcss";
 @tailwind utilities;
 
 /* ---------------------------------------------------------------
-   CSS CUSTOM PROPERTIES (Design Tokens)
-   
-   Replaces the old approach of 38 !important overrides targeting
-   Tailwind-generated class selectors. CSS variables are:
-   - Not fragile (survive Tailwind upgrades)
-   - Cascading (no !important wars)
-   - Semantic (describe purpose, not appearance)
+   LINEAR / MODERN SAAS AESTHETIC — DESIGN TOKENS
+   Minimalist, sharp, high-contrast dark mode
    --------------------------------------------------------------- */
 :root {
-  color-scheme: light;
-
-  /* Backgrounds */
-  --bg-primary: #e6e6e6;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #f3f3f3;
-  --bg-quaternary: #f9f9f9;
-  --bg-hover: #e6e6e6;
-  --bg-input: #ffffff;
-  --bg-input-disabled: #e6e6e6;
-
-  /* Text */
-  --text-primary: #000000;
-  --text-secondary: #6b7280;
-  --text-tertiary: #9ca3af;
-  --text-input: #000000;
-  --text-input-disabled: #9ca3af;
-
-  /* Borders */
-  --border-light: #e5e7eb;
-  --border-medium: #9ca3af;
-  --border-heavy: #6b7280;
-  --border-input: #d1d5db;
-  --border-input-focus: #0078D7;
-
-  /* Accent Colors */
-  --color-accent: #0078D7;
-  --color-accent-hover: #005a9e;
-  --color-accent-bg: #cce8ff;
-  --color-success: #107c10;
-  --color-success-bg: #e6f4ea;
-  --color-error: #e81123;
-  --color-error-bg: #fde7e9;
-  --color-warning: #d2691e;
-
-  /* POS-specific */
-  --pos-receive-bg: #f4fbf5;
-  --pos-transfer-bg: #fffaf0;
-
-  /* Scrollbar */
-  --scrollbar-track: #f3f3f3;
-  --scrollbar-thumb: #cdcdcd;
-  --scrollbar-thumb-hover: #a6a6a6;
-  --scrollbar-border: #e6e6e6;
-
-  /* Font */
-  --font-family: 'Roboto', sans-serif;
-}
-
-.dark {
   color-scheme: dark;
 
-  /* Backgrounds */
-  --bg-primary: #121212;
-  --bg-secondary: #1e1e1e;
-  --bg-tertiary: #2d2d2d;
-  --bg-quaternary: #2d2d2d;
-  --bg-hover: #383838;
-  --bg-input: #1e1e1e;
-  --bg-input-disabled: #2d2d2d;
+  /* Base Palette */
+  --linear-bg: #0A0A0A;
+  --linear-surface: #121212;
+  --linear-surface-hover: #1A1A1A;
+  --linear-surface-elevated: #171717;
+  
+  --linear-border: #262626;
+  --linear-border-hover: #404040;
+  
+  --linear-text: #FAFAFA;
+  --linear-text-muted: #A1A1AA;
+  --linear-text-dim: #52525B;
 
-  /* Text */
-  --text-primary: #ffffff;
-  --text-secondary: #d1d5db;
-  --text-tertiary: #9ca3af;
-  --text-input: #ffffff;
-  --text-input-disabled: #9ca3af;
+  --linear-accent: #3B82F6; /* Blue 500 */
+  --linear-accent-hover: #2563EB; /* Blue 600 */
+  --linear-accent-transparent: rgba(59, 130, 246, 0.1);
+  --linear-accent-text: #DBEAFE; /* Blue 100 */
+  
+  --linear-error: #EF4444;
+  --linear-error-bg: rgba(239, 68, 68, 0.1);
+  --linear-success: #22C55E;
+  --linear-success-bg: rgba(34, 197, 94, 0.1);
+  
+  /* Semantic Mappings */
+  --bg-primary: var(--linear-bg);
+  --bg-secondary: var(--linear-surface);
+  --bg-tertiary: var(--linear-surface-elevated);
+  --bg-quaternary: var(--linear-surface-elevated);
+  --bg-hover: var(--linear-surface-hover);
+  --bg-input: var(--linear-bg);
+  --bg-input-disabled: var(--linear-surface);
 
-  /* Borders */
-  --border-light: #4b5563;
-  --border-medium: #4b5563;
-  --border-heavy: #6b7280;
-  --border-input: #4b5563;
-  --border-input-focus: #0078D7;
+  --text-primary: var(--linear-text);
+  --text-secondary: var(--linear-text-muted);
+  --text-tertiary: var(--linear-text-dim);
+  --text-input: var(--linear-text);
+  --text-input-disabled: var(--linear-text-muted);
 
-  /* Accent Colors — same in dark, or slightly adjusted */
-  --color-accent: #0078D7;
-  --color-accent-hover: #005a9e;
-  --color-accent-bg: #004a80;
-  --color-success: #107c10;
-  --color-success-bg: #102a1a;
-  --color-error: #e81123;
-  --color-error-bg: #2a1012;
-  --color-warning: #d2691e;
+  --border-light: var(--linear-border);
+  --border-medium: var(--linear-border);
+  --border-heavy: var(--linear-border-hover);
+  --border-input: var(--linear-border);
+  --border-input-focus: var(--linear-accent);
 
-  /* POS-specific */
-  --pos-receive-bg: #102a1a;
-  --pos-transfer-bg: #2a2010;
+  --color-accent: var(--linear-accent);
+  --color-accent-hover: var(--linear-accent-hover);
+  --color-accent-bg: var(--linear-accent-transparent);
+  --color-accent-fg: var(--linear-text);
+  --color-success: var(--linear-success);
+  --color-success-bg: var(--linear-success-bg);
+  --color-error: var(--linear-error);
+  --color-error-bg: var(--linear-error-bg);
+  --color-warning: #EAB308;
 
-  /* Scrollbar */
-  --scrollbar-track: #1e1e1e;
-  --scrollbar-thumb: #4b5563;
-  --scrollbar-thumb-hover: #6b7280;
-  --scrollbar-border: #2d2d2d;
+  --pos-receive-bg: rgba(34, 197, 94, 0.05);
+  --pos-transfer-bg: rgba(234, 179, 8, 0.05);
+
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: var(--linear-border);
+  --scrollbar-thumb-hover: var(--linear-border-hover);
+  --scrollbar-border: transparent;
+
+  --font-family: 'Inter', sans-serif;
+
+  /* Aliases to prevent immediate breakage of MD3 classes during migration */
+  --md3-primary: var(--linear-accent);
+  --md3-on-primary: var(--linear-text);
+  --md3-primary-container: var(--linear-accent-transparent);
+  --md3-on-primary-container: var(--linear-accent);
+  
+  --md3-secondary-container: var(--linear-surface-elevated);
+  --md3-on-secondary-container: var(--linear-text);
+  
+  --md3-error-container: var(--linear-error-bg);
+  --md3-on-error-container: var(--linear-error);
+  
+  --md3-surface-container-lowest: var(--linear-bg);
+  --md3-surface-container-low: var(--linear-surface);
+  --md3-surface-container: var(--linear-surface);
+  --md3-surface-container-high: var(--linear-surface-elevated);
+  --md3-surface-container-highest: var(--linear-surface-elevated);
+  
+  --md3-outline: var(--linear-border);
+  --md3-outline-variant: var(--linear-border);
+
+  /* Linear Subtle Inner Glow / Elevation */
+  --linear-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  --linear-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  --linear-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+
+  /* Alias MD3 elevations to Linear shadows */
+  --md3-elevation-1: var(--linear-shadow-sm);
+  --md3-elevation-2: var(--linear-shadow-md);
+  --md3-elevation-3: var(--linear-shadow-lg);
+  --md3-elevation-4: var(--linear-shadow-lg);
+  --md3-elevation-5: var(--linear-shadow-lg);
 }
 
 /* ---------------------------------------------------------------
    ROOT RESET
-   Override Vite's default template styles that set max-width/center
    --------------------------------------------------------------- */
 #root {
   padding: 0;
@@ -127,7 +124,6 @@
   font-family: var(--font-family);
 }
 
-/* Enforce base font size to prevent browsers with larger defaults from zooming the UI */
 html {
   font-size: 16px;
   -webkit-text-size-adjust: 100%;
@@ -137,13 +133,12 @@ html {
 
 /* ---------------------------------------------------------------
    GLOBAL ELEMENT DEFAULTS
-   Applied via CSS variables — no !important needed
    --------------------------------------------------------------- */
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-  scrollbar-width: auto;
+  scrollbar-width: thin;
 }
 
 input,
@@ -151,14 +146,26 @@ select,
 textarea {
   background-color: var(--bg-input);
   color: var(--text-input);
-  border-color: var(--border-input);
+  border: 1px solid var(--border-input);
+  border-radius: 6px; /* Linear uses subtle rounding */
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
 }
 
 input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  border-color: var(--border-input-focus);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent), inset 0 1px 2px rgba(0,0,0,0.2);
+}
+
+input:hover:not(:disabled, :focus),
+select:hover:not(:disabled, :focus) {
+  border-color: var(--border-heavy);
 }
 
 input:disabled,
@@ -166,9 +173,10 @@ select:disabled,
 textarea:disabled {
   background-color: var(--bg-input-disabled);
   color: var(--text-input-disabled);
+  opacity: 0.7;
 }
 
-/* Cross-Browser Input Normalization */
+/* Number input spinner removal */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
@@ -188,21 +196,20 @@ input[type="search"]::-webkit-search-results-decoration {
 }
 
 /* ---------------------------------------------------------------
-   WINDOWS THEME CUSTOM SCROLLBAR
+   SCROLLBAR — Minimal
    --------------------------------------------------------------- */
 ::-webkit-scrollbar {
-  width: 14px;
-  height: 14px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--scrollbar-track);
-  border-left: 1px solid var(--scrollbar-border);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
-  border: 3px solid var(--scrollbar-track);
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -210,11 +217,11 @@ input[type="search"]::-webkit-search-results-decoration {
 }
 
 ::-webkit-scrollbar-corner {
-  background: var(--scrollbar-track);
+  background: transparent;
 }
 
 /* ---------------------------------------------------------------
-   POS COMPONENT BACKGROUNDS (via CSS variables)
+   POS COMPONENT BACKGROUNDS
    --------------------------------------------------------------- */
 .pos-receive-bg {
   background-color: var(--pos-receive-bg);
@@ -226,223 +233,115 @@ input[type="search"]::-webkit-search-results-decoration {
 
 .pos-success-box {
   background-color: var(--color-success-bg);
-  border: 1px solid var(--color-success);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  border-radius: 8px;
 }
 
 .pos-error-box {
   background-color: var(--color-error-bg);
-  border: 1px solid var(--color-error);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
 }
 
 /* ---------------------------------------------------------------
    ANIMATION UTILITIES
    --------------------------------------------------------------- */
 @keyframes fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-
 .animate-fade-in {
-  animation: fade-in 0.2s ease-out;
+  animation: fade-in 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @keyframes scale-in {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
 }
-
 .animate-scale-in {
   animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* ---------------------------------------------------------------
-   GLOBAL INTERACTIONS (Premium Hover States)
+   BUTTON — Minimal, slightly rounded, sharp interactions
    --------------------------------------------------------------- */
-
-/* Premium interactive feel for all buttons */
 button {
-  transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1),
-    filter 0.15s ease-out,
-    background-color 0.15s ease-out,
-    color 0.15s ease-out,
-    border-color 0.15s ease-out,
-    box-shadow 0.15s ease-out;
-  will-change: transform, filter;
+  border-radius: 6px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-/* Subtle brighten on hover for dark backgrounds, darken for light ones */
 button:hover:not(:disabled) {
-  filter: brightness(0.95);
+  opacity: 0.9;
 }
 
-.dark button:hover:not(:disabled) {
-  filter: brightness(1.15);
-}
-
-/* Satisfying 'press' effect on click */
 button:active:not(:disabled) {
-  transform: scale(0.97) translateY(1px);
+  transform: scale(0.98);
 }
 
-/* Premium input focus and hover states */
-input,
-select {
-  transition: border-color 0.2s ease-out, box-shadow 0.2s ease-out;
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-input:hover:not(:disabled, :focus),
-select:hover:not(:disabled, :focus) {
-  border-color: var(--border-heavy) !important;
-}
-
-input:focus,
-select:focus {
-  border-color: var(--color-accent) !important;
-  box-shadow: 0 0 0 1px var(--color-accent) inset !important;
-}
-
-/* Subtle table row highlighting */
+/* ---------------------------------------------------------------
+   TABLE — Clean, border-based rows
+   --------------------------------------------------------------- */
 tbody tr {
-  transition: background-color 0.15s ease;
+  transition: background-color 0.1s ease;
+  border-bottom: 1px solid var(--border-light);
 }
 
 tbody tr:hover {
   background-color: var(--bg-hover);
 }
 
-/* Premium Wave Loader */
+/* ---------------------------------------------------------------
+   PREMIUM WAVE LOADER (Linearized)
+   --------------------------------------------------------------- */
 .premium-wave-loader {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   height: 48px;
 }
 
 .premium-wave-loader span {
   display: inline-block;
-  width: 6px;
-  height: 24px;
+  width: 4px;
+  height: 16px;
   background-color: var(--color-accent);
-  border-radius: 4px;
+  border-radius: 2px;
   animation: premium-wave 1s ease-in-out infinite;
 }
 
-.premium-wave-loader span:nth-child(1) {
-  animation-delay: 0.0s;
-  opacity: 0.6;
-}
-
-.premium-wave-loader span:nth-child(2) {
-  animation-delay: 0.1s;
-  opacity: 0.8;
-}
-
-.premium-wave-loader span:nth-child(3) {
-  animation-delay: 0.2s;
-  opacity: 1;
-}
-
-.premium-wave-loader span:nth-child(4) {
-  animation-delay: 0.3s;
-  opacity: 0.8;
-}
-
-.premium-wave-loader span:nth-child(5) {
-  animation-delay: 0.4s;
-  opacity: 0.6;
-}
+.premium-wave-loader span:nth-child(1) { animation-delay: 0.0s; opacity: 0.5; }
+.premium-wave-loader span:nth-child(2) { animation-delay: 0.1s; opacity: 0.7; }
+.premium-wave-loader span:nth-child(3) { animation-delay: 0.2s; opacity: 1; }
+.premium-wave-loader span:nth-child(4) { animation-delay: 0.3s; opacity: 0.7; }
+.premium-wave-loader span:nth-child(5) { animation-delay: 0.4s; opacity: 0.5; }
 
 @keyframes premium-wave {
-
-  0%,
-  100% {
-    transform: scaleY(0.4);
-  }
-
-  50% {
-    transform: scaleY(1.2);
-  }
+  0%, 100% { transform: scaleY(0.5); }
+  50% { transform: scaleY(1.2); }
 }
 
 /* ---------------------------------------------------------------
    PRINT STYLES
    --------------------------------------------------------------- */
 @media print {
-  @page {
-    margin: 0;
-  }
-
-  body {
-    margin: 0;
-    padding: 0;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  body * {
-    visibility: hidden;
-  }
-
-  #printable-receipt,
-  #printable-receipt *,
-  #printable-barcodes,
-  #printable-barcodes * {
-    visibility: visible;
-  }
-
-  #printable-receipt,
-  #printable-barcodes {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-  }
-
-  .print\:hidden {
-    display: none !important;
-  }
-
-  .thermal-receipt {
-    width: 80mm;
-    max-width: 80mm;
-    margin: 0 auto;
-    padding: 2mm;
-    page-break-after: always;
-  }
-
-  .thermal-barcode {
-    width: 50mm;
-    height: 25mm;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-  }
+  @page { margin: 0; }
+  body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body * { visibility: hidden; }
+  #printable-receipt, #printable-receipt *, #printable-barcodes, #printable-barcodes * { visibility: visible; }
+  #printable-receipt, #printable-barcodes { position: absolute; left: 0; top: 0; width: 100%; }
+  .print\:hidden { display: none !important; }
+  .thermal-receipt { width: 80mm; max-width: 80mm; margin: 0 auto; padding: 2mm; page-break-after: always; }
+  .thermal-barcode { width: 50mm; height: 25mm; margin: 0; padding: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 }
 
-.hide-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-
-.hide-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

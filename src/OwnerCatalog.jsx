@@ -376,7 +376,7 @@ export default function OwnerCatalog() {
   };
 
   return (
-    <div className="flex flex-col h-full gap-6 animate-fade-in max-w-4xl mx-auto">
+    <div className="flex flex-col h-full gap-6 animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-light mb-2" style={{ color: 'var(--text-primary)' }}>Register New Item</h1>
@@ -418,14 +418,14 @@ export default function OwnerCatalog() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-4 md:p-8 shadow-sm flex flex-col gap-6" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="md:col-span-2">
+      <form onSubmit={handleSubmit} className="p-4 md:p-8 rounded-xl shadow-sm flex flex-col gap-6" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="md:col-span-2 lg:col-span-4">
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-name">Item Name</label>
-            <input id="item-name" type="text" autoFocus required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. 10mm Steel Rebar" className="w-full h-10 px-3 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+            <input id="item-name" type="text" autoFocus required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. 10mm Steel Rebar" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
           </div>
 
-          <div>
+          <div className="lg:col-span-2">
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-cat">Category</label>
             <CreatableDropdown
               value={form.category}
@@ -437,7 +437,7 @@ export default function OwnerCatalog() {
             />
           </div>
 
-          <div>
+          <div className="lg:col-span-2">
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-subcat">Sub-category</label>
             <CreatableDropdown
               value={form.sub_category}
@@ -452,23 +452,23 @@ export default function OwnerCatalog() {
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-cost">Cost Price (₹)</label>
-            <input id="item-cost" type="number" step="any" min="0" required value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+            <input id="item-cost" type="number" step="any" min="0" required value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-msp">Minimum Selling Price (₹)</label>
-            <input id="item-msp" type="number" step="any" min="0" required value={form.msp} onChange={(e) => setForm({ ...form, msp: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-msp">Min Selling Price (₹)</label>
+            <input id="item-msp" type="number" step="any" min="0" required value={form.msp} onChange={(e) => setForm({ ...form, msp: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-mrp">Maximum Retail Price (₹)</label>
-            <input id="item-mrp" type="number" step="any" min="0" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-mrp">Max Retail Price (₹)</label>
+            <input id="item-mrp" type="number" step="any" min="0" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
           </div>
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-unit">Unit Type</label>
             <div className="relative">
-              <select id="item-unit" required value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
+              <select id="item-unit" required value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
                 {UNIT_TYPES.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
@@ -477,40 +477,41 @@ export default function OwnerCatalog() {
 
           {form.item_type === 'cuttable' && form.unit === 'SQFT' && (
             <>
-              <div>
+              <div className="lg:col-span-2">
                 <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-def-length">Default Piece Length (Optional)</label>
                 <div className="relative">
-                  <input id="item-def-length" type="number" step="any" min="0" value={form.default_length} onChange={(e) => setForm({ ...form, default_length: e.target.value })} placeholder="e.g. 10" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                  <input id="item-def-length" type="number" step="any" min="0" value={form.default_length} onChange={(e) => setForm({ ...form, default_length: e.target.value })} placeholder="e.g. 10" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                   <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>ft</span>
                 </div>
               </div>
-              <div>
+              <div className="lg:col-span-2">
                 <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-def-width">Default Roll Height (ft)</label>
                 <div className="relative">
-                  <input id="item-def-width" type="number" step="any" min="0" required value={form.default_width} onChange={(e) => setForm({ ...form, default_width: e.target.value })} placeholder="e.g. 3" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                  <input id="item-def-width" type="number" step="any" min="0" required value={form.default_width} onChange={(e) => setForm({ ...form, default_width: e.target.value })} placeholder="e.g. 3" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                   <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>ft</span>
                 </div>
               </div>
             </>
           )}
 
-          <div className="flex gap-4">
+          <div className="flex gap-4 lg:col-span-2">
             <div className="flex-1">
               <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-min-qty-whse">Min Qty (Warehouse)</label>
               <div className="relative">
-                <input id="item-min-qty-whse" type="number" required step="1" min="0" value={form.min_quantity_warehouse} onChange={(e) => setForm({ ...form, min_quantity_warehouse: e.target.value })} placeholder="e.g. 10" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <input id="item-min-qty-whse" type="number" required step="1" min="0" value={form.min_quantity_warehouse} onChange={(e) => setForm({ ...form, min_quantity_warehouse: e.target.value })} placeholder="e.g. 10" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                 <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{UNIT_TYPES.find(u => u.value === form.unit)?.label || form.unit}</span>
               </div>
             </div>
             <div className="flex-1">
               <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-min-qty-store">Min Qty (Store)</label>
               <div className="relative">
-                <input id="item-min-qty-store" type="number" required step="1" min="0" value={form.min_quantity_store} onChange={(e) => setForm({ ...form, min_quantity_store: e.target.value })} placeholder="e.g. 5" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none" style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <input id="item-min-qty-store" type="number" required step="1" min="0" value={form.min_quantity_store} onChange={(e) => setForm({ ...form, min_quantity_store: e.target.value })} placeholder="e.g. 5" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                 <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{UNIT_TYPES.find(u => u.value === form.unit)?.label || form.unit}</span>
               </div>
             </div>
           </div>
-          <div>
+          
+          <div className="lg:col-span-2">
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-type">Item Type</label>
             <div className="relative">
               <select
@@ -518,8 +519,8 @@ export default function OwnerCatalog() {
                 required
                 value={form.item_type}
                 onChange={(e) => setForm({ ...form, item_type: e.target.value })}
-                className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer"
-                style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
+                className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer"
+                style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
               >
                 <option value="standard">Standard Item</option>
                 <option value="loose">Loose / Bulk Box (Prompt Qty)</option>
@@ -541,8 +542,8 @@ export default function OwnerCatalog() {
                 max="50"
                 value={printLabelCount}
                 onChange={(e) => setPrintLabelCount(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value)))}
-                className="w-20 h-10 px-2 text-center text-sm font-bold focus:outline-none"
-                style={{ border: '2px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
+                className="w-20 h-10 px-2 text-center text-sm font-bold focus:outline-none rounded-md"
+                style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
               />
             </div>
           ) : (
@@ -553,7 +554,7 @@ export default function OwnerCatalog() {
           <button
             type="submit"
             disabled={addItemMutation.isPending || !nextBarcode}
-            className="w-full md:w-auto h-10 px-10 text-white text-sm font-semibold uppercase tracking-wider disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-1 flex justify-center items-center min-w-[200px]"
+            className="w-full md:w-auto h-10 px-10 text-white text-sm font-semibold uppercase tracking-wider disabled:opacity-50 focus:outline-none rounded-md focus:ring-2 focus:ring-offset-1 flex justify-center items-center min-w-[200px]"
             style={{ backgroundColor: 'var(--color-accent)' }}
           >
             {addItemMutation.isPending ? <Spinner className="w-5 h-5 text-white" /> : 'Save Item'}

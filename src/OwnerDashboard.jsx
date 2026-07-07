@@ -9,6 +9,28 @@ import OwnerStaff from './OwnerStaff';
 import WorkerBilling from './WorkerBilling';
 import OwnerCategories from './OwnerCategories';
 import OwnerAuditLogs from './OwnerAuditLogs';
+import { 
+  LayoutDashboard, 
+  Plus, 
+  Tags, 
+  Warehouse, 
+  ShoppingCart, 
+  History, 
+  Users, 
+  Search, 
+  Menu 
+} from 'lucide-react';
+
+const NAV_ITEMS = [
+  { key: 'dashboard', label: 'Overview', icon: LayoutDashboard },
+  { key: 'register', label: 'Add Items', icon: Plus },
+  { key: 'categories', label: 'Categories', icon: Tags },
+  { key: 'warehouse', label: 'Main Storage', icon: Warehouse },
+  { key: 'checkout', label: 'Checkout', icon: ShoppingCart },
+  { key: 'sales', label: 'Sales History', icon: History },
+  { key: 'staff', label: 'Manage Staff', icon: Users },
+  { key: 'audit', label: 'Audit Logs', icon: Search },
+];
 
 export default function OwnerDashboard() {
   const { tab } = useParams();
@@ -16,9 +38,7 @@ export default function OwnerDashboard() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { shopSettings, cashierName } = useApp();
 
-  // Separate URL param keys so warehouse and store subtabs don't collide
   const warehouseSubTab = searchParams.get('wsub') || 'inventory';
 
   const changeTab = (newTab) => {
@@ -27,83 +47,63 @@ export default function OwnerDashboard() {
   };
 
   return (
-    <div
-      className="flex flex-col md:flex-row h-full shadow-none"
-      style={{
-        backgroundColor: 'var(--bg-secondary)',
-        border: '1px solid var(--border-medium)',
-      }}
-    >
+    <div className="flex flex-col md:flex-row h-full overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}>
       {/* MOBILE MENU TOGGLE */}
       <div
         className="md:hidden flex justify-between items-center p-4"
         style={{
-          backgroundColor: 'var(--bg-tertiary)',
-          borderBottom: '1px solid var(--border-medium)',
+          backgroundColor: 'var(--bg-secondary)',
+          borderBottom: '1px solid var(--border-light)',
         }}
       >
-        <span className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+        <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
           Menu
         </span>
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="px-4 py-1.5 text-sm focus:outline-none"
+          className="p-2 rounded-md"
           style={{
-            backgroundColor: 'var(--bg-secondary)',
-            border: '1px solid var(--border-medium)',
+            backgroundColor: 'var(--bg-tertiary)',
+            color: 'var(--text-primary)',
           }}
           aria-label="Toggle sidebar menu"
           aria-expanded={isSidebarOpen}
         >
-          ☰
+          <Menu size={20} />
         </button>
       </div>
 
-      {/* SIDEBAR */}
+      {/* Navigation Sidebar */}
       <aside
-        className={`${isSidebarOpen ? 'block' : 'hidden'} md:block w-full md:w-[15rem] flex-shrink-0 pt-4`}
+        className={`${isSidebarOpen ? 'block' : 'hidden'} md:block w-full md:w-56 flex-shrink-0 border-r border-transparent md:border-[var(--border-light)] py-4`}
         style={{
-          backgroundColor: 'var(--bg-tertiary)',
-          borderRight: '1px solid var(--border-medium)',
+          backgroundColor: 'var(--bg-secondary)',
         }}
         role="navigation"
         aria-label="Dashboard navigation"
       >
-        <div className="flex flex-col gap-1">
-          {[
-            { key: 'dashboard', label: 'Overview' },
-            { key: 'register', label: 'Add Items' },
-            { key: 'categories', label: 'Categories' },
-            { key: 'warehouse', label: 'Main Storage' },
-            { key: 'checkout', label: 'Checkout Counter' },
-            { key: 'sales', label: 'Sales History' },
-            { key: 'staff', label: 'Manage Staff' },
-            { key: 'audit', label: 'Audit Logs' },
-          ].map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => changeTab(key)}
-              className="text-left px-6 py-2.5 text-sm focus:outline-none transition-colors hover:bg-[var(--bg-hover)]"
-              style={{
-                backgroundColor: activeTab === key ? 'var(--color-accent)' : undefined,
-                color: activeTab === key ? '#ffffff' : 'var(--text-secondary)',
-                fontWeight: activeTab === key ? '600' : '400',
-                borderLeft: activeTab === key
-                  ? '4px solid var(--color-accent-hover)'
-                  : '4px solid transparent',
-              }}
-              aria-current={activeTab === key ? 'page' : undefined}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="flex flex-col gap-1 px-3">
+          {NAV_ITEMS.map(({ key, label, icon: Icon }) => {
+            const isActive = activeTab === key;
+            return (
+              <button
+                key={key}
+                onClick={() => changeTab(key)}
+                className={`text-left px-3 py-2 text-sm flex items-center gap-3 transition-colors border-l-2 ${isActive ? 'border-[var(--color-accent)] bg-[var(--bg-tertiary)] text-[var(--color-accent)] font-medium' : 'border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'}`}
+                aria-current={isActive ? 'page' : undefined}
+              >
+                <Icon size={18} className={isActive ? 'text-[var(--color-accent)]' : 'text-[var(--text-tertiary)]'} />
+                {label}
+              </button>
+            );
+          })}
         </div>
       </aside>
 
       {/* MAIN CONTENT */}
       <main
         className="flex-1 p-4 md:p-8 overflow-y-auto relative"
-        style={{ backgroundColor: 'var(--bg-secondary)' }}
+        style={{ backgroundColor: 'var(--bg-primary)' }}
         role="main"
         aria-label="Dashboard content"
       >
@@ -115,12 +115,11 @@ export default function OwnerDashboard() {
 
         {activeTab === 'warehouse' && (
           <div className="flex flex-col h-full animate-fade-in">
-            <h1 className="text-2xl font-light mb-6" style={{ color: 'var(--text-primary)' }}>
+            <h1 className="text-2xl font-medium mb-6" style={{ color: 'var(--text-primary)' }}>
               Main Storage Actions
             </h1>
             <div
-              className="flex gap-1 mb-6 pb-0"
-              style={{ borderBottom: '1px solid var(--border-light)' }}
+              className="flex gap-1 mb-6 pb-0 overflow-x-auto border-b border-[var(--border-light)]"
               role="tablist"
               aria-label="Warehouse tabs"
             >
@@ -133,30 +132,30 @@ export default function OwnerDashboard() {
                 <button
                   key={key}
                   onClick={() => setSearchParams({ wsub: key })}
-                  className="px-6 py-2 text-sm uppercase tracking-wider focus:outline-none"
+                  className="px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors relative"
                   style={{
-                    backgroundColor: warehouseSubTab === key ? 'var(--color-accent)' : 'var(--bg-secondary)',
-                    color: warehouseSubTab === key ? '#ffffff' : 'var(--text-secondary)',
-                    fontWeight: warehouseSubTab === key ? '600' : '500',
-                    borderBottom: warehouseSubTab === key
-                      ? '2px solid var(--color-accent-hover)'
-                      : '2px solid transparent',
+                    color: warehouseSubTab === key ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    backgroundColor: 'transparent',
+                    borderRadius: 0
                   }}
                   role="tab"
                   aria-selected={warehouseSubTab === key}
                 >
                   {label}
+                  {warehouseSubTab === key && (
+                    <div className="absolute bottom-0 left-0 w-full h-[2px]" style={{ backgroundColor: 'var(--color-accent)' }} />
+                  )}
                 </button>
               ))}
             </div>
             {warehouseSubTab === 'inventory' && <OwnerInventory viewType="warehouse" />}
             {warehouseSubTab === 'receive' && (
-              <div style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }} className="flex-1 mb-4">
+              <div className="flex-1 mb-4 rounded-lg overflow-hidden border border-[var(--border-light)] bg-[var(--bg-secondary)]">
                 <WorkerBilling defaultTab="receive" hideNav={true} />
               </div>
             )}
             {warehouseSubTab === 'transfer' && (
-              <div style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }} className="flex-1 mb-4">
+              <div className="flex-1 mb-4 rounded-lg overflow-hidden border border-[var(--border-light)] bg-[var(--bg-secondary)]">
                 <WorkerBilling defaultTab="transfer" hideNav={true} />
               </div>
             )}
@@ -166,10 +165,7 @@ export default function OwnerDashboard() {
 
         {activeTab === 'checkout' && (
           <div className="flex flex-col h-full animate-fade-in">
-            <h1 className="text-2xl font-light mb-6" style={{ color: 'var(--text-primary)' }}>
-              Checkout Counter
-            </h1>
-            <div style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }} className="flex-1 mb-4">
+            <div className="flex-1 mb-4 rounded-lg overflow-hidden border border-[var(--border-light)] bg-[var(--bg-secondary)]">
               <WorkerBilling defaultTab="checkout" hideNav={true} />
             </div>
           </div>

@@ -22,11 +22,9 @@ function StatCard({ title, value, accentColor, borderColor, onClick, clickLabel,
   return (
     <Tag
       onClick={onClick}
-      className={`p-5 shadow-sm text-left w-full ${onClick ? 'cursor-pointer group' : ''}`}
+      className={`p-5 rounded-lg border border-[var(--border-light)] text-left w-full ${onClick ? 'cursor-pointer group' : ''}`}
       style={{
-        border: '1px solid var(--border-medium)',
-        backgroundColor: onClick ? 'var(--bg-secondary)' : 'var(--bg-quaternary)',
-        borderLeft: `4px solid ${borderColor || accentColor || 'var(--border-medium)'}`,
+        backgroundColor: 'var(--bg-secondary)',
       }}
       aria-label={onClick ? clickLabel : undefined}
     >
@@ -40,7 +38,7 @@ function StatCard({ title, value, accentColor, borderColor, onClick, clickLabel,
           </span>
         )}
       </div>
-      <p className="text-3xl font-light" style={{ color: accentColor || 'var(--text-primary)' }}>
+      <p className="text-3xl font-semibold" style={{ color: accentColor || 'var(--text-primary)' }}>
         {value}
       </p>
       {children}
@@ -51,7 +49,7 @@ function StatCard({ title, value, accentColor, borderColor, onClick, clickLabel,
 /** 7-day sales trend bar chart */
 function WeeklyTrendChart({ trend }) {
   return (
-    <div className="p-5 shadow-sm flex flex-col justify-between lg:col-span-2" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}>
+    <div className="p-5 rounded-lg border border-[var(--border-light)] flex flex-col justify-between lg:col-span-2" style={{ backgroundColor: 'var(--bg-secondary)' }}>
       <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>7-Day Sales Trend</p>
       <div className="flex items-end h-32 gap-3 mt-4 w-full px-2" role="img" aria-label="7-day sales trend chart">
         {trend.map(day => (
@@ -81,7 +79,7 @@ function WeeklyTrendChart({ trend }) {
 /** Top products list */
 function TopProductsList({ products }) {
   return (
-    <div className="p-5 shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}>
+    <div className="p-5 rounded-lg border border-[var(--border-light)]" style={{ backgroundColor: 'var(--bg-secondary)' }}>
       <p className="text-xs font-semibold uppercase tracking-wider mb-4 pb-2" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-light)' }}>
         Top 5 Profit Makers (30 Days)
       </p>
@@ -387,7 +385,7 @@ export default function OwnerStats({ isActive }) {
           aria-modal="true"
           aria-labelledby="stats-modal-title"
         >
-          <div className="w-full max-w-4xl flex flex-col max-h-[85vh]" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+          <div className="w-full max-w-4xl flex flex-col max-h-[85vh] rounded-xl overflow-hidden shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
             <div className="flex justify-between items-center pr-1 pl-4 py-2 shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-light)' }}>
               <span id="stats-modal-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
                 {activeModal === 'profit' && "Today's Profit & Sales Breakdown"}
@@ -491,7 +489,7 @@ export default function OwnerStats({ isActive }) {
             </div>
 
             <div className="p-3 flex justify-end shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-              <button onClick={() => setActiveModal(null)} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none" style={{ backgroundColor: 'var(--color-accent)' }}>Close Window</button>
+              <button onClick={() => setActiveModal(null)} className="h-9 px-8 text-white rounded-md text-sm font-semibold focus:outline-none transition-opacity hover:opacity-90" style={{ backgroundColor: 'var(--color-accent)' }}>Close Window</button>
             </div>
           </div>
         </div>
