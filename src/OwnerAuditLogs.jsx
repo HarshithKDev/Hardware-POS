@@ -193,11 +193,11 @@ export default function OwnerAuditLogs() {
           <div className="flex flex-col md:flex-row gap-6">
             <div className="flex-1">
               <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Start Date</label>
-              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full h-10 px-3 text-sm focus:outline-none shadow-sm rounded-md cursor-pointer" style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-input)', color: 'var(--text-input)' }} />
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full h-11 md:h-10 px-3 text-sm focus:outline-none shadow-sm rounded-md cursor-pointer" style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-input)', color: 'var(--text-input)' }} />
             </div>
             <div className="flex-1">
               <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>End Date</label>
-              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full h-10 px-3 text-sm focus:outline-none shadow-sm rounded-md cursor-pointer" style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-input)', color: 'var(--text-input)' }} />
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full h-11 md:h-10 px-3 text-sm focus:outline-none shadow-sm rounded-md cursor-pointer" style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-input)', color: 'var(--text-input)' }} />
             </div>
           </div>
 
@@ -205,7 +205,7 @@ export default function OwnerAuditLogs() {
             <div className="flex-1">
               <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Action Type</label>
               <div className="relative">
-                <select value={activeFilter} onChange={e => setActiveFilter(e.target.value)} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
+                <select value={activeFilter} onChange={e => setActiveFilter(e.target.value)} className="w-full h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
                   {FILTERS.map(f => <option key={f} value={f}>{f === 'ALL' ? 'All Actions' : f}</option>)}
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
@@ -215,7 +215,7 @@ export default function OwnerAuditLogs() {
             <div className="flex-1">
               <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Performed By</label>
               <div className="relative">
-                <select value={selectedUser} onChange={e => setSelectedUser(e.target.value)} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
+                <select value={selectedUser} onChange={e => setSelectedUser(e.target.value)} className="w-full h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
                   <option value="ALL">All Users</option>
                   {uniqueUsers.map(u => <option key={u} value={u} className="capitalize">{u}</option>)}
                 </select>
@@ -226,7 +226,7 @@ export default function OwnerAuditLogs() {
             <div className="flex-1">
               <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Sort Order</label>
               <div className="relative">
-                <select value={sortOrder} onChange={e => setSortOrder(e.target.value)} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
+                <select value={sortOrder} onChange={e => setSortOrder(e.target.value)} className="w-full h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
                   <option value="newest">Newest First</option>
                   <option value="oldest">Oldest First</option>
                 </select>
@@ -237,9 +237,9 @@ export default function OwnerAuditLogs() {
         </div>
       )}
 
-      <div className="flex-1 overflow-auto shadow-sm rounded-lg" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}>
-        <table className="w-full text-left whitespace-nowrap border-collapse min-w-[900px]">
-          <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
+      <div className="flex-1 overflow-auto overflow-x-hidden md:overflow-x-auto shadow-sm md:rounded-lg" style={{ backgroundColor: 'transparent' }}>
+        <table className="w-full text-left md:whitespace-nowrap border-collapse block md:table min-w-0 md:min-w-[900px]">
+          <thead className="hidden md:table-header-group sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
               <th className="p-3 w-40 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Date & Time</th>
               <th className="p-3 w-24 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Action</th>
@@ -249,23 +249,48 @@ export default function OwnerAuditLogs() {
               <th className="p-3 w-24 text-center">User</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="block md:table-row-group p-2 md:p-0">
             {isLoading && limit === 300 ? (
-              <tr><td colSpan="6" className="h-[50vh] align-middle text-center"><PageLoader text="Loading logs..." /></td></tr>
+              <tr className="block md:table-row"><td colSpan="6" className="block md:table-cell h-[50vh] align-middle text-center p-4"><PageLoader text="Loading logs..." /></td></tr>
             ) : error ? (
-              <tr><td colSpan="6" className="p-8 text-center text-sm font-semibold text-[var(--color-error)]">Failed to load logs: {error.message}</td></tr>
+              <tr className="block md:table-row"><td colSpan="6" className="block md:table-cell p-8 text-center text-sm font-semibold text-[var(--color-error)]">Failed to load logs: {error.message}</td></tr>
             ) : filteredLogs.length === 0 ? (
-              <tr><td colSpan="6" className="h-[50vh] align-middle text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No matching audit logs found.</td></tr>
+              <tr className="block md:table-row"><td colSpan="6" className="block md:table-cell h-[50vh] align-middle text-center text-sm font-semibold p-4" style={{ color: 'var(--text-tertiary)' }}>No matching audit logs found.</td></tr>
             ) : (
               <>
                 {filteredLogs.map(log => {
                   const styles = getActionStyles(log.action_type);
                   return (
-                    <tr key={log.id} className="transition-colors hover:bg-[var(--bg-hover)] group" style={{ borderBottom: '1px solid var(--border-light)' }}>
-                      <td className="p-3 text-xs font-medium text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>
+                    <tr key={log.id} className="transition-colors hover:bg-[var(--bg-hover)] group block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none mb-3 md:mb-0 border border-[var(--border-medium)] md:border-b md:border-t-0 md:border-l-0 md:border-r-0 md:border-[var(--border-light)] relative">
+                      <td className="md:hidden block p-4 border-none w-full">
+                        <div className="flex justify-between items-start mb-2 gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[10px] font-bold tracking-widest text-[var(--color-accent)] mb-1">
+                              {log.barcode === 'CATEGORY' || log.barcode === 'SUB-CATEGORY' || log.barcode === '---' ? <span style={{ color: 'var(--text-tertiary)' }}>—</span> : log.barcode}
+                            </div>
+                            <div className="text-sm font-bold text-[var(--text-primary)] leading-tight whitespace-normal break-words">{log.item_name}</div>
+                            <div className="text-[10px] text-[var(--text-secondary)] mt-1">{log.date}</div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                            <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-sm text-right" style={{ backgroundColor: styles.bg, color: styles.text }}>
+                              {log.action_type}
+                            </span>
+                            <div className="text-[10px] uppercase text-[var(--text-tertiary)] font-bold mt-1">
+                              By {log.performed_by}
+                            </div>
+                          </div>
+                        </div>
+                        {log.changes && log.changes !== '—' && (
+                          <div className="mt-3 pt-3 border-t border-[var(--border-medium)] text-xs text-[var(--text-primary)] leading-relaxed whitespace-normal break-words">
+                            {log.changes}
+                          </div>
+                        )}
+                      </td>
+                      
+                      <td className="hidden md:table-cell p-3 text-xs font-medium text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>
                         {log.date}
                       </td>
-                      <td className="p-3 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+                      <td className="hidden md:table-cell p-3 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
                         <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-sm" style={{ 
                           backgroundColor: styles.bg,
                           color: styles.text
@@ -273,18 +298,18 @@ export default function OwnerAuditLogs() {
                           {log.action_type}
                         </span>
                       </td>
-                      <td className="p-3 text-sm font-mono font-semibold text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--color-accent)' }}>
+                      <td className="hidden md:table-cell p-3 text-sm font-mono font-semibold text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--color-accent)' }}>
                         {log.barcode === 'CATEGORY' || log.barcode === 'SUB-CATEGORY' || log.barcode === '---' ? <span style={{ color: 'var(--text-tertiary)' }}>—</span> : log.barcode}
                       </td>
-                      <td className="p-3 text-sm font-medium text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
+                      <td className="hidden md:table-cell p-3 text-sm font-medium text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
                         <div className="max-w-[220px] overflow-hidden text-ellipsis mx-auto">{log.item_name}</div>
                       </td>
-                      <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
+                      <td className="hidden md:table-cell p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
                         <div className="w-full whitespace-normal overflow-hidden break-words mx-auto leading-relaxed">
                           {log.changes}
                         </div>
                       </td>
-                      <td className="p-3 text-xs text-center font-bold capitalize" style={{ color: 'var(--text-tertiary)' }}>
+                      <td className="hidden md:table-cell p-3 text-xs text-center font-bold capitalize" style={{ color: 'var(--text-tertiary)' }}>
                         {log.performed_by}
                       </td>
                     </tr>
@@ -292,12 +317,12 @@ export default function OwnerAuditLogs() {
                 })}
                 {/* Load More Row */}
                 {unifiedLogs && unifiedLogs.length >= limit && (
-                  <tr>
-                    <td colSpan="6" className="p-4 text-center" style={{ backgroundColor: 'var(--bg-quaternary)' }}>
+                  <tr className="block md:table-row">
+                    <td colSpan="6" className="block md:table-cell p-4 text-center rounded-b-lg md:rounded-none" style={{ backgroundColor: 'var(--bg-quaternary)' }}>
                       <button 
                         onClick={() => setLimit(l => l + 300)} 
                         disabled={isLoading}
-                        className="px-6 py-2 text-xs font-bold uppercase tracking-wider rounded-sm shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
+                        className="w-full md:w-auto h-11 md:h-8 px-6 text-sm md:text-xs font-bold uppercase tracking-wider rounded-md md:rounded-sm shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
                         style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
                       >
                         {isLoading ? 'Loading...' : 'Load More Logs'}

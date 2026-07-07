@@ -10,6 +10,7 @@ import { AlertDialog, ConfirmDialog } from './Dialog';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from './AppContext';
 import { startBackgroundSync, stopBackgroundSync } from './services/sync';
+import { WifiOff, ScanBarcode, LayoutDashboard, Printer, Moon, Sun, LogOut } from 'lucide-react';
 
 import { useQuery } from '@tanstack/react-query';
 
@@ -212,7 +213,7 @@ function App() {
 
       {/* NAVBAR */}
       <nav
-        className="w-full shadow-sm h-[40px] md:h-[60px] flex-shrink-0 relative z-[9999]"
+        className="w-full shadow-sm h-[56px] md:h-[60px] flex-shrink-0 relative z-[9999]"
         style={{
           backgroundColor: 'var(--bg-secondary)',
           borderBottom: '1px solid var(--border-medium)',
@@ -235,16 +236,14 @@ function App() {
           <div className="flex-1 flex items-center justify-end gap-2 md:gap-3 h-full pl-2 pr-4 md:pl-4 overflow-x-auto hide-scrollbar" style={{ scrollbarWidth: 'none' }}>
             {!isOnline && (
               <div className="flex items-center gap-1 text-xs font-bold px-2 py-1 bg-[var(--color-error)] text-white mr-auto animate-pulse whitespace-nowrap shrink-0">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18M9.9 9.9l4.242 4.242M6.364 13.435A9 9 0 0113.435 6.364m-4.242 4.243a3 3 0 004.242 4.242" />
-                </svg>
+                <WifiOff size={16} />
                 <span className="hidden md:inline">OFFLINE MODE</span>
               </div>
             )}
             {isBillable && (
               <button
                 onClick={() => setIsMobileScannerOpen(true)}
-                className="md:hidden px-3 py-2 text-xs font-bold uppercase focus:outline-none whitespace-nowrap shrink-0 flex items-center justify-center"
+                className="md:hidden h-11 w-11 rounded-md focus:outline-none shrink-0 flex items-center justify-center"
                 style={{
                   backgroundColor: 'var(--bg-secondary)',
                   color: 'var(--text-primary)',
@@ -252,10 +251,7 @@ function App() {
                 }}
                 aria-label="Open barcode scanner"
               >
-                <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" />
-                </svg>
+                <ScanBarcode size={18} />
               </button>
             )}
 
@@ -263,7 +259,7 @@ function App() {
               <>
                 <button
                   onClick={() => navigate('/owner/dashboard')}
-                  className="px-3 md:px-6 py-2 md:py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none transition-colors whitespace-nowrap shrink-0 flex items-center justify-center gap-2"
+                  className="h-11 w-11 md:h-auto md:w-auto rounded-md md:px-6 md:py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none transition-colors shrink-0 flex items-center justify-center gap-2"
                   style={{
                     backgroundColor: location.pathname.startsWith('/owner') ? 'var(--color-accent)' : 'var(--bg-secondary)',
                     color: location.pathname.startsWith('/owner') ? '#ffffff' : 'var(--text-primary)',
@@ -271,13 +267,11 @@ function App() {
                   }}
                 >
                   <span className="hidden md:inline">Management</span>
-                  <svg className="w-[18px] h-[18px] md:hidden" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 16.875h3.375m0 0h3.375m-3.375 0V13.5m0 3.375v3.375M6 10.5h2.25a2.25 2.25 0 002.25-2.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v2.25A2.25 2.25 0 006 10.5zm0 9.75h2.25A2.25 2.25 0 0010.5 18v-2.25a2.25 2.25 0 00-2.25-2.25H6a2.25 2.25 0 00-2.25 2.25V18A2.25 2.25 0 006 20.25zm9.75-9.75H18a2.25 2.25 0 002.25-2.25V6A2.25 2.25 0 0018 3.75h-2.25A2.25 2.25 0 0013.5 6v2.25a2.25 2.25 0 002.25 2.25z" />
-                  </svg>
+                  <LayoutDashboard size={18} className="md:hidden" />
                 </button>
                 <button
                   onClick={() => navigate('/printer')}
-                  className="px-3 md:px-6 py-2 md:py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none transition-colors whitespace-nowrap shrink-0 flex items-center justify-center gap-2"
+                  className="h-11 w-11 md:h-auto md:w-auto rounded-md md:px-6 md:py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none transition-colors shrink-0 flex items-center justify-center gap-2"
                   style={{
                     backgroundColor: location.pathname.startsWith('/printer') ? 'var(--color-accent)' : 'var(--bg-secondary)',
                     color: location.pathname.startsWith('/printer') ? '#ffffff' : 'var(--text-primary)',
@@ -285,10 +279,7 @@ function App() {
                   }}
                 >
                   <span className="hidden md:inline">Barcodes</span>
-                  <svg className="w-[18px] h-[18px] md:hidden" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
-                  </svg>
+                  <Printer size={18} className="md:hidden" />
                 </button>
                 <div className="h-8 w-px mx-1" style={{ backgroundColor: 'var(--border-medium)' }} />
               </>
@@ -298,7 +289,7 @@ function App() {
             {isBillable && (
               <button
                 onClick={toggleDarkMode}
-                className="px-3 py-2 transition-colors flex items-center justify-center focus:outline-none focus:ring-1 shrink-0"
+                className="h-11 w-11 md:h-auto md:w-auto rounded-md md:px-3 md:py-2 transition-colors flex items-center justify-center focus:outline-none focus:ring-1 shrink-0"
                 style={{
                   backgroundColor: 'var(--bg-secondary)',
                   color: 'var(--text-primary)',
@@ -308,25 +299,19 @@ function App() {
                 aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
               >
                 {isDarkMode ? (
-                  <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-[18px] h-[18px]">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-                  </svg>
+                  <Sun size={18} />
                 ) : (
-                  <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-[18px] h-[18px]">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-                  </svg>
+                  <Moon size={18} />
                 )}
               </button>
             )}
 
             <button
               onClick={() => setShowLogoutConfirm(true)}
-              className="h-8 md:h-9 px-4 md:px-6 text-white text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none whitespace-nowrap shrink-0 flex items-center justify-center gap-2 border bg-[var(--color-error)] border-[var(--color-error)] hover:bg-[#c90f1f] hover:border-[#c90f1f]"
+              className="h-11 w-11 md:h-9 md:w-auto rounded-md md:px-6 text-white text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none shrink-0 flex items-center justify-center gap-2 border bg-[var(--color-error)] border-[var(--color-error)] hover:bg-[#c90f1f] hover:border-[#c90f1f]"
             >
               <span className="hidden md:inline">Sign Out</span>
-              <svg className="w-[16px] h-[16px] md:hidden" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
-              </svg>
+              <LogOut size={16} className="md:hidden" />
             </button>
           </div>
         </div>

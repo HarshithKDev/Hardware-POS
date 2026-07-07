@@ -38,7 +38,7 @@ function StatCard({ title, value, accentColor, borderColor, onClick, clickLabel,
           </span>
         )}
       </div>
-      <p className="text-3xl font-semibold" style={{ color: accentColor || 'var(--text-primary)' }}>
+      <p className="text-2xl md:text-3xl font-semibold truncate" style={{ color: accentColor || 'var(--text-primary)' }} title={value}>
         {value}
       </p>
       {children}
@@ -336,7 +336,7 @@ export default function OwnerStats({ isActive }) {
       )}
 
       {/* ROW 1: TODAY'S VITALS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <StatCard title="Today Revenue" value={`₹${todaysTrueRevenue.toFixed(2)}`} borderColor="var(--color-success)" />
         <StatCard
           title="Today Profit"
@@ -370,10 +370,12 @@ export default function OwnerStats({ isActive }) {
       </div>
 
       {/* ROW 3: CAPITAL */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <StatCard title="Total Asset Value" value={`₹${totalInventoryValue.toFixed(2)}`} borderColor="var(--text-tertiary)" />
         <StatCard title="Warehouse Capital" value={`₹${warehouseCapital.toFixed(2)}`} borderColor="var(--color-accent)" />
-        <StatCard title="Store Capital" value={`₹${storeCapital.toFixed(2)}`} borderColor="var(--color-accent)" />
+        <div className="col-span-2 md:col-span-1">
+          <StatCard title="Store Capital" value={`₹${storeCapital.toFixed(2)}`} borderColor="var(--color-accent)" />
+        </div>
       </div>
 
       {/* MODALS */}

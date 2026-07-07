@@ -141,7 +141,7 @@ export default function OwnerLedger({ isActive }) {
               <select
                 value={dateFilter}
                 onChange={(e) => { setDateFilter(e.target.value); setSalesPage(0); setExpandedBillId(null); }}
-                className="h-9 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer shadow-sm"
+                className="h-11 md:h-9 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer shadow-sm"
                 style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
                 aria-label="Date filter"
               >
@@ -156,19 +156,19 @@ export default function OwnerLedger({ isActive }) {
               </div>
             </div>
             {dateFilter === 'CUSTOM' && (
-              <input type="date" value={customDate} onChange={(e) => { setCustomDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+              <input type="date" value={customDate} onChange={(e) => { setCustomDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-11 md:h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
             )}
             {dateFilter === 'RANGE' && (
               <div className="flex items-center gap-2 shrink-0">
-                <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-11 md:h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                 <span className="font-bold text-xs uppercase" style={{ color: 'var(--text-tertiary)' }}>to</span>
-                <input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-11 md:h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
               </div>
             )}
             
             <button
               onClick={handleExportCSV}
-              className="h-9 px-4 ml-auto xl:ml-2 text-xs font-semibold uppercase tracking-wider flex items-center gap-1 shadow-sm transition-colors shrink-0"
+              className="h-11 md:h-9 px-4 ml-auto xl:ml-2 text-xs font-semibold uppercase tracking-wider flex items-center gap-1 shadow-sm transition-colors shrink-0 rounded-md"
               style={{ backgroundColor: 'var(--color-success)', color: '#ffffff' }}
               title="Download Excel"
             >
@@ -180,9 +180,9 @@ export default function OwnerLedger({ isActive }) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto shadow-sm min-h-[400px]" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}>
-          <table className={`w-full text-left border-collapse min-w-[700px] ${(isLoadingBills && bills.length === 0 || bills.length === 0) ? 'h-full' : ''}`}>
-            <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
+        <div className="flex-1 overflow-auto overflow-x-hidden md:overflow-x-auto shadow-sm min-h-[400px] md:rounded-lg" style={{ backgroundColor: 'transparent' }}>
+          <table className={`w-full text-left border-collapse block md:table min-w-0 md:min-w-[700px] ${(isLoadingBills && bills.length === 0 || bills.length === 0) ? 'h-full' : ''}`}>
+            <thead className="hidden md:table-header-group sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
               <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                 <th className="p-3 w-48 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Date & Time</th>
                 <th className="p-3 w-32 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Cashier</th>
@@ -190,11 +190,11 @@ export default function OwnerLedger({ isActive }) {
                 <th className="p-3 text-center w-16">Details</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="block md:table-row-group p-2 md:p-0">
               {isLoadingBills && bills.length === 0 ? (
-                <tr><td colSpan="4" className="h-full text-center"><PageLoader text="Loading sales..." /></td></tr>
+                <tr className="block md:table-row"><td colSpan="4" className="block md:table-cell h-full text-center p-4"><PageLoader text="Loading sales..." /></td></tr>
               ) : bills.length === 0 ? (
-                <tr><td colSpan="4" className="h-full align-middle text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No sales records found.</td></tr>
+                <tr className="block md:table-row"><td colSpan="4" className="block md:table-cell h-full align-middle text-center text-sm font-semibold p-4" style={{ color: 'var(--text-tertiary)' }}>No sales records found.</td></tr>
               ) : bills.map(bill => {
                 const isExpanded = expandedBillId === bill.id;
                 const items = billItemsCache[bill.id] || [];
@@ -202,30 +202,44 @@ export default function OwnerLedger({ isActive }) {
                   <Fragment key={bill.id}>
                     <tr
                       onClick={() => toggleRow(bill)}
-                      className="cursor-pointer group"
+                      className="cursor-pointer group block md:table-row rounded-lg md:rounded-none mb-3 md:mb-0 border border-[var(--border-medium)] md:border-b md:border-t-0 md:border-l-0 md:border-r-0 md:border-[var(--border-light)]"
                       style={{
                         backgroundColor: isExpanded ? 'var(--color-accent-bg)' : 'var(--bg-secondary)',
-                        borderBottom: '1px solid var(--border-light)',
                       }}
                     >
-                      <td className="p-3 text-sm text-center" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>
+                      <td className="md:hidden block p-4 border-none">
+                        <div className="flex justify-between items-center mb-2">
+                          <div className="text-[11px] font-bold text-[var(--text-secondary)]">{formatDateTime(bill.created_at).full}</div>
+                          <div className="text-base font-bold text-[var(--color-accent)]">₹{Number(bill.total_amount).toFixed(2)}</div>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <div className="text-sm font-medium capitalize" style={{ color: 'var(--text-primary)' }}>Cashier: {bill.cashier_name}</div>
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={`w-5 h-5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`} style={{ color: isExpanded ? 'var(--color-accent)' : 'var(--text-secondary)' }}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                          </svg>
+                        </div>
+                      </td>
+
+                      <td className="hidden md:table-cell p-3 text-sm text-center" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>
                         {formatDateTime(bill.created_at).full}
                       </td>
-                      <td className="p-3 text-sm text-center capitalize" style={{ color: 'var(--text-secondary)', borderRight: '1px solid var(--border-light)' }}>
+                      <td className="hidden md:table-cell p-3 text-sm text-center capitalize" style={{ color: 'var(--text-secondary)', borderRight: '1px solid var(--border-light)' }}>
                         {bill.cashier_name}
                       </td>
-                      <td className="p-3 text-center text-sm font-bold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>
+                      <td className="hidden md:table-cell p-3 text-center text-sm font-bold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>
                         ₹{Number(bill.total_amount).toFixed(2)}
                       </td>
-                      <td className="p-3 text-center flex justify-center items-center h-full">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={`w-5 h-5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`} style={{ color: isExpanded ? 'var(--color-accent)' : 'var(--text-secondary)' }}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                        </svg>
+                      <td className="hidden md:table-cell p-3 text-center h-full">
+                        <div className="flex justify-center items-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={`w-5 h-5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`} style={{ color: isExpanded ? 'var(--color-accent)' : 'var(--text-secondary)' }}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                          </svg>
+                        </div>
                       </td>
                     </tr>
                     {isExpanded && (
-                      <tr style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-                        <td colSpan="4" className="p-0" style={{ borderBottom: '2px solid var(--color-accent)' }}>
+                      <tr className="block md:table-row" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                        <td colSpan="4" className="block md:table-cell p-0" style={{ borderBottom: '2px solid var(--color-accent)' }}>
                           {isLoadingItems ? (
                             <div className="p-6 flex justify-center"><Spinner className="w-6 h-6" style={{ color: 'var(--color-accent)' }} /></div>
                           ) : (
@@ -233,9 +247,9 @@ export default function OwnerLedger({ isActive }) {
                               <p className="text-xs font-bold uppercase tracking-widest mb-3 pb-2" style={{ color: 'var(--text-tertiary)', borderBottom: '1px solid var(--border-light)' }}>
                                 Bill #{bill.id.split('-')[0]} Items
                               </p>
-                              <div className="overflow-x-auto w-full">
-                                <table className="w-full text-left border-collapse shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-light)' }}>
-                                  <thead style={{ backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-light)' }}>
+                              <div className="overflow-x-auto overflow-y-hidden w-full">
+                                <table className="w-full text-left border-collapse shadow-sm block md:table" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-light)' }}>
+                                  <thead className="hidden md:table-header-group" style={{ backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-light)' }}>
                                     <tr className="text-xs font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>
                                       <th className="px-4 py-2 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Item Name</th>
                                       <th className="px-4 py-2 text-center w-32" style={{ borderRight: '1px solid var(--border-light)' }}>Qty</th>
@@ -243,13 +257,22 @@ export default function OwnerLedger({ isActive }) {
                                       <th className="px-4 py-2 text-center w-32">Total</th>
                                     </tr>
                                   </thead>
-                                  <tbody>
+                                  <tbody className="block md:table-row-group">
                                     {items.map(item => (
-                                      <tr key={item.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
-                                        <td className="px-4 py-2 text-sm font-medium text-center" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
-                                        <td className="px-4 py-2 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)' }}>{item.quantity} {item.unit}</td>
-                                        <td className="px-4 py-2 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)' }}>₹{Number(item.price_at_sale).toFixed(2)}</td>
-                                        <td className="px-4 py-2 text-sm text-center font-bold" style={{ color: 'var(--text-primary)' }}>₹{(item.price_at_sale * item.quantity).toFixed(2)}</td>
+                                      <tr key={item.id} className="block md:table-row" style={{ borderBottom: '1px solid var(--border-light)' }}>
+                                        <td className="md:hidden block p-3 border-none">
+                                          <div className="flex justify-between items-center mb-1">
+                                            <div className="text-sm font-semibold text-[var(--text-primary)]">{item.name}</div>
+                                            <div className="text-sm font-bold text-[var(--text-primary)]">₹{(item.price_at_sale * item.quantity).toFixed(2)}</div>
+                                          </div>
+                                          <div className="text-xs text-[var(--text-secondary)]">
+                                            {item.quantity} {item.unit} × ₹{Number(item.price_at_sale).toFixed(2)}
+                                          </div>
+                                        </td>
+                                        <td className="hidden md:table-cell px-4 py-2 text-sm font-medium text-center" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
+                                        <td className="hidden md:table-cell px-4 py-2 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)' }}>{item.quantity} {item.unit}</td>
+                                        <td className="hidden md:table-cell px-4 py-2 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)' }}>₹{Number(item.price_at_sale).toFixed(2)}</td>
+                                        <td className="hidden md:table-cell px-4 py-2 text-sm text-center font-bold" style={{ color: 'var(--text-primary)' }}>₹{(item.price_at_sale * item.quantity).toFixed(2)}</td>
                                       </tr>
                                     ))}
                                   </tbody>
