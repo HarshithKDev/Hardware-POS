@@ -82,6 +82,14 @@ function App() {
     return () => stopBackgroundSync();
   }, [userRole]);
 
+  useEffect(() => {
+    if (shopSettings?.shop_name) {
+      document.title = shopSettings.shop_name;
+    } else {
+      document.title = 'Hardware POS System';
+    }
+  }, [shopSettings?.shop_name]);
+
   const fetchInitialData = async () => {
     try {
       setIsInitialLoad(true);
