@@ -159,7 +159,7 @@ export default function OwnerCategories() {
       <h1 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>Manage Categories & Sub-categories</h1>
       
       <div className="flex flex-col md:flex-row gap-6">
-        <div className="p-6 flex-1 shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+        <div className="p-6 flex-1 shadow-sm rounded-lg border border-[var(--border-light)]" style={{ backgroundColor: 'var(--bg-secondary)' }}>
           <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-secondary)' }}>Add Category</h2>
           <form onSubmit={handleAddCategory} className="flex gap-2">
             <label htmlFor="new-cat" className="sr-only">Category Name</label>
@@ -168,7 +168,7 @@ export default function OwnerCategories() {
           </form>
         </div>
 
-        <div className="p-6 flex-1 shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+        <div className="p-6 flex-1 shadow-sm rounded-lg border border-[var(--border-light)]" style={{ backgroundColor: 'var(--bg-secondary)' }}>
           <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-secondary)' }}>Add Sub-category</h2>
           <form onSubmit={handleAddSubcategory} className="flex flex-col gap-2">
             <label htmlFor="parent-cat" className="sr-only">Parent Category</label>
@@ -188,7 +188,7 @@ export default function OwnerCategories() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+      <div className="flex-1 overflow-y-auto overflow-hidden shadow-sm rounded-lg border border-[var(--border-light)]" style={{ backgroundColor: 'var(--bg-secondary)' }}>
       <div className="overflow-x-auto w-full">
         <table className={`w-full text-left border-collapse ${categories.length === 0 ? 'h-full' : ''}`}>
           <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>

@@ -130,10 +130,10 @@ export default function OwnerLedger({ isActive }) {
   };
 
   return (
-    <div className="h-full flex flex-col pb-4 md:pb-6 relative w-full">
+    <div className="h-full flex flex-col relative w-full">
       <h1 className="text-2xl font-medium mb-6" style={{ color: 'var(--text-primary)' }}>Sales History</h1>
 
-      <div className="flex flex-col flex-1 pb-4">
+      <div className="flex flex-col flex-1 min-h-0">
         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-4 mb-6 pb-4" style={{ borderBottom: '1px solid var(--border-light)' }}>
           <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto">
             <span className="text-xs font-semibold uppercase whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>Date Filter:</span>
@@ -290,9 +290,9 @@ export default function OwnerLedger({ isActive }) {
           </table>
         </div>
 
-        <div className="flex justify-between items-center p-3 mt-4 shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
-          <button onClick={() => setSalesPage(p => Math.max(0, p - 1))} disabled={salesPage === 0} className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>Newer</button>
-          <button onClick={() => setSalesPage(p => p + 1)} disabled={!hasMoreBills} className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>Older</button>
+        <div className="flex justify-between items-center p-3 mt-auto shadow-sm rounded-lg" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
+          <button onClick={() => setSalesPage(p => Math.max(0, p - 1))} disabled={salesPage === 0} className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)]" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>Previous</button>
+          <button onClick={() => setSalesPage(p => p + 1)} disabled={!hasMoreBills} className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)]" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>Next</button>
         </div>
       </div>
     </div>

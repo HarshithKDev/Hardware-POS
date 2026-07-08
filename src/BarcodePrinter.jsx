@@ -193,7 +193,7 @@ export default function BarcodePrinter() {
                         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-accent)'; e.currentTarget.style.color = '#fff'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-primary)'; }}
                       >
-                        <p className="font-medium text-sm">{item.name} {item.is_cuttable && <span className="ml-2 text-[10px] px-1 py-0.5 rounded bg-[var(--color-accent)] text-white">CUTTABLE</span>}</p>
+                        <p className="font-medium text-sm flex items-center gap-2">{item.name} {item.is_cuttable && <span className="text-[9px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap shadow-sm" style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>CUTTABLE</span>}</p>
                         <p className="text-xs opacity-80">#{item.barcode} • ₹{Number(item.price).toFixed(2)}</p>
                       </div>
                     ))}
