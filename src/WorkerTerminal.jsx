@@ -1357,7 +1357,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         )}
         <div className={`p-4 flex flex-col md:flex-row justify-between gap-4 ${(activeTab === 'receive' || activeTab === 'transfer') ? 'hidden md:flex' : ''} ${activeTab === 'receive' ? 'pos-receive-bg' : activeTab === 'transfer' ? 'pos-transfer-bg' : ''}`} style={{ borderBottom: '1px solid var(--border-medium)', ...(activeTab !== 'receive' && activeTab !== 'transfer' ? { backgroundColor: 'var(--bg-tertiary)' } : {}) }}>
           <div className="flex flex-col w-full md:w-auto flex-1 md:flex-none">
-            <h2 className="text-2xl font-light" style={{ color: 'var(--text-primary)' }}>
+            <h2 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>
               {activeTab === 'receive' ? 'Receive New Stock' : activeTab === 'transfer' ? 'Move Stock to Store' : 'Checkout Counter'}
             </h2>
             

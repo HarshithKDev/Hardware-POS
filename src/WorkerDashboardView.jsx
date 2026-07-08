@@ -85,7 +85,7 @@ export default function WorkerDashboardView() {
 
   return (
     <div className="flex flex-col h-full p-3 md:p-6 animate-fade-in flex-1 rounded-xl border border-[var(--border-light)] shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
-      <h2 className="text-xl md:text-2xl font-light mb-3 md:mb-6 hidden md:block" style={{ color: 'var(--text-primary)' }}>Staff Dashboard</h2>
+      <h2 className="text-xl md:text-2xl font-medium mb-3 md:mb-6 hidden md:block" style={{ color: 'var(--text-primary)' }}>Staff Dashboard</h2>
       
       <div className="grid grid-cols-2 gap-3 md:gap-4 mb-3 md:mb-6">
         <button onClick={() => setLowStockModal({ isOpen: true, type: 'store' })} className="p-4 md:p-6 rounded-lg border border-[var(--border-light)] text-left cursor-pointer flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>

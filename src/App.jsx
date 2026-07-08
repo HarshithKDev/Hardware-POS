@@ -270,7 +270,7 @@ function App() {
                   className="h-11 w-11 md:h-auto md:w-auto rounded-md md:px-6 md:py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none transition-colors shrink-0 flex items-center justify-center gap-2"
                   style={{
                     backgroundColor: location.pathname.startsWith('/owner') ? 'var(--color-accent)' : 'var(--bg-secondary)',
-                    color: location.pathname.startsWith('/owner') ? '#ffffff' : 'var(--text-primary)',
+                    color: location.pathname.startsWith('/owner') ? 'var(--color-accent-fg)' : 'var(--text-primary)',
                     border: `1px solid ${location.pathname.startsWith('/owner') ? 'var(--color-accent)' : 'var(--border-medium)'}`,
                   }}
                 >
@@ -282,7 +282,7 @@ function App() {
                   className="h-11 w-11 md:h-auto md:w-auto rounded-md md:px-6 md:py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none transition-colors shrink-0 flex items-center justify-center gap-2"
                   style={{
                     backgroundColor: location.pathname.startsWith('/printer') ? 'var(--color-accent)' : 'var(--bg-secondary)',
-                    color: location.pathname.startsWith('/printer') ? '#ffffff' : 'var(--text-primary)',
+                    color: location.pathname.startsWith('/printer') ? 'var(--color-accent-fg)' : 'var(--text-primary)',
                     border: `1px solid ${location.pathname.startsWith('/printer') ? 'var(--color-accent)' : 'var(--border-medium)'}`,
                   }}
                 >

@@ -379,7 +379,7 @@ export default function OwnerCatalog() {
     <div className="flex flex-col h-full gap-6 animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-light mb-2" style={{ color: 'var(--text-primary)' }}>Register New Item</h1>
+          <h1 className="text-2xl font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Register New Item</h1>
           <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
             Assigned Barcode: <span className="font-mono font-bold text-lg" style={{ color: 'var(--color-accent)' }}>{nextBarcode || '...'}</span>
           </p>
@@ -401,7 +401,7 @@ export default function OwnerCatalog() {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="h-9 px-4 text-xs font-semibold uppercase tracking-wider flex items-center gap-1 transition-colors"
-            style={{ backgroundColor: 'var(--color-accent)', color: '#ffffff', border: '1px solid var(--color-accent)' }}
+            style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-accent-fg)', border: '1px solid var(--color-accent)' }}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />

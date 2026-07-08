@@ -158,16 +158,16 @@ export default function BarcodePrinter() {
   const totalLabels = printQueue.reduce((sum, item) => sum + (Number(item.printQty) || 0), 0);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[80vh]">
+    <div className="flex flex-col h-full animate-fade-in pb-4">
       
-      <div className="w-full max-w-4xl rounded-xl print:hidden animate-fade-in overflow-hidden border border-[var(--border-light)] shadow-lg" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-        <div className="p-4" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
-          <h1 className="text-xl font-light">Print Barcode Labels</h1>
+      <div className="flex flex-col flex-1 w-full rounded-xl print:hidden overflow-hidden border border-[var(--border-light)] shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+        <div className="p-4 shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
+          <h1 className="text-2xl font-medium">Print Barcode Labels</h1>
           <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>Build a queue of products to print multiple labels at once.</p>
         </div>
 
-        <div className="p-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="flex-1 p-4 md:p-8 overflow-y-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 h-full">
             
             <div className="space-y-6">
               

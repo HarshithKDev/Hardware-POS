@@ -126,7 +126,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4" style={{ backgroundColor: 'var(--bg-primary)' }}>
         <div className="w-full max-w-md p-8 md:p-10 rounded-xl border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-          <h2 className="text-2xl font-light mb-2" style={{ color: 'var(--text-primary)' }}>Register Your Shop</h2>
+          <h2 className="text-2xl font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Register Your Shop</h2>
           <p className="mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>Create your master account to get started.</p>
           <form onSubmit={handleSetup} className="space-y-4">
             <input
@@ -220,7 +220,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
             >
               ← Back
             </button>
-            <h2 className="text-2xl font-light mb-2" style={{ color: 'var(--text-primary)' }}>Welcome Back</h2>
+            <h2 className="text-2xl font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Welcome Back</h2>
             <p className="mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
               {role === 'owner' ? 'Enter Owner Password' : 'Enter Staff Details'}
             </p>

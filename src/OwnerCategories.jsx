@@ -156,7 +156,7 @@ export default function OwnerCategories() {
 
   return (
     <div className="flex flex-col h-full gap-6 animate-fade-in w-full">
-      <h1 className="text-2xl font-light" style={{ color: 'var(--text-primary)' }}>Manage Categories & Sub-categories</h1>
+      <h1 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>Manage Categories & Sub-categories</h1>
       
       <div className="flex flex-col md:flex-row gap-6">
         <div className="p-6 flex-1 shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>

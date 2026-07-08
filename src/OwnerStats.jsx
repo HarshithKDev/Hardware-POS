@@ -318,7 +318,7 @@ export default function OwnerStats({ isActive }) {
 
   return (
     <div className="h-full relative pb-10">
-      <h1 className="text-2xl font-light mb-6" style={{ color: 'var(--text-primary)' }}>Business Overview</h1>
+      <h1 className="text-2xl font-medium mb-6" style={{ color: 'var(--text-primary)' }}>Business Overview</h1>
 
       {failedSyncs && failedSyncs.length > 0 && (
         <div className="mb-6 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm" style={{ backgroundColor: 'rgba(239, 68, 68, 0.05)', border: '1px solid var(--color-error)' }}>

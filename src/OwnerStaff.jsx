@@ -108,7 +108,7 @@ export default function OwnerStaff() {
 
   return (
     <div className="flex flex-col h-full gap-6 animate-fade-in w-full">
-      <h1 className="text-2xl font-light" style={{ color: 'var(--text-primary)' }}>Manage Staff</h1>
+      <h1 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>Manage Staff</h1>
 
       <div className="p-6 rounded-lg flex-shrink-0 border border-[var(--border-light)]" style={{ backgroundColor: 'var(--bg-secondary)' }}>
         <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-secondary)' }}>Add New Cashier</h2>

@@ -146,7 +146,7 @@ export default function OwnerAuditLogs() {
   return (
     <div className="flex flex-col h-full animate-fade-in w-full">
       <div className="flex flex-col gap-4 mb-6">
-        <h1 className="text-2xl font-light" style={{ color: 'var(--text-primary)' }}>Unified Audit Logs</h1>
+        <h1 className="text-2xl font-medium whitespace-nowrap shrink-0" style={{ color: 'var(--text-primary)' }}>Unified Audit Logs</h1>
         
         <div className="flex flex-col md:flex-row gap-3 w-full items-start md:items-center">
 
@@ -323,7 +323,7 @@ export default function OwnerAuditLogs() {
                         onClick={() => setLimit(l => l + 300)} 
                         disabled={isLoading}
                         className="w-full md:w-auto h-11 md:h-8 px-6 text-sm md:text-xs font-bold uppercase tracking-wider rounded-md md:rounded-sm shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
-                        style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
+                        style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-accent-fg)' }}
                       >
                         {isLoading ? 'Loading...' : 'Load More Logs'}
                       </button>

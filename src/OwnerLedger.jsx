@@ -130,8 +130,8 @@ export default function OwnerLedger({ isActive }) {
   };
 
   return (
-    <div className="flex flex-col h-full animate-fade-in">
-      <h1 className="text-2xl font-light mb-6" style={{ color: 'var(--text-primary)' }}>Sales History</h1>
+    <div className="h-full flex flex-col pb-4 md:pb-6 relative w-full">
+      <h1 className="text-2xl font-medium mb-6" style={{ color: 'var(--text-primary)' }}>Sales History</h1>
 
       <div className="flex flex-col flex-1 pb-4">
         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-4 mb-6 pb-4" style={{ borderBottom: '1px solid var(--border-light)' }}>
@@ -169,7 +169,7 @@ export default function OwnerLedger({ isActive }) {
             <button
               onClick={handleExportCSV}
               className="h-11 md:h-9 px-4 ml-auto xl:ml-2 text-xs font-semibold uppercase tracking-wider flex items-center gap-1 shadow-sm transition-colors shrink-0 rounded-md"
-              style={{ backgroundColor: 'var(--color-success)', color: '#ffffff' }}
+              style={{ backgroundColor: 'var(--color-success)', color: 'var(--text-primary)' }}
               title="Download Excel"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
