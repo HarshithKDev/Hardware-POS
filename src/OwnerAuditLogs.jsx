@@ -4,7 +4,52 @@ import { supabase } from './supabaseClient';
 import { Spinner, PageLoader } from './SharedUI';
 import { debounce } from './utils';
 
-export default function OwnerAuditLogs() {
+const formatChanges = (changes) => {
+  if (!changes || changes === '—') return <span style={{ color: 'var(--text-tertiary)' }}>—</span>;
+  
+  const renderPill = (text, i) => {
+    if (text.includes(': ')) {
+      const [key, ...rest] = text.split(': ');
+      return (
+        <span key={i} className="inline-flex items-center px-2 py-1 rounded text-[11px] whitespace-nowrap" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
+          <span className="font-bold mr-1 uppercase text-[9px] tracking-wider" style={{ color: 'var(--text-secondary)' }}>{key}:</span>
+          <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{rest.join(': ')}</span>
+        </span>
+      );
+    }
+    return (
+      <span key={i} className="inline-flex items-center px-2 py-1 rounded text-[11px] font-medium whitespace-nowrap" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
+        {text}
+      </span>
+    );
+  };
+
+  if (changes.includes(' | ')) {
+    return (
+      <div className="flex flex-wrap items-center justify-start md:justify-center gap-1.5 md:gap-2">
+        {changes.split(' | ').map((part, i) => renderPill(part, i))}
+      </div>
+    );
+  }
+
+  if (changes.includes('(') && changes.includes(')')) {
+    const mainText = changes.split('(')[0].trim();
+    const innerText = changes.split('(')[1].split(')')[0].trim(); 
+    
+    return (
+      <div className="flex flex-wrap items-center justify-start md:justify-center gap-1.5 md:gap-2">
+        {renderPill(mainText, 'main')}
+        {innerText.split(', ').map((part, i) => renderPill(part, `inner_${i}`))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center justify-start md:justify-center gap-1.5 md:gap-2">
+      {renderPill(changes, 'single')}
+    </div>
+  );
+};export default function OwnerAuditLogs() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('ALL');
@@ -281,8 +326,8 @@ export default function OwnerAuditLogs() {
                           </div>
                         </div>
                         {log.changes && log.changes !== '—' && (
-                          <div className="mt-3 pt-3 border-t border-[var(--border-medium)] text-xs text-[var(--text-primary)] leading-relaxed whitespace-normal break-words">
-                            {log.changes}
+                          <div className="mt-3 pt-3 border-t border-[var(--border-medium)] w-full">
+                            {formatChanges(log.changes)}
                           </div>
                         )}
                       </td>
@@ -305,8 +350,8 @@ export default function OwnerAuditLogs() {
                         <div className="max-w-[220px] overflow-hidden text-ellipsis mx-auto">{log.item_name}</div>
                       </td>
                       <td className="hidden md:table-cell p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
-                        <div className="w-full whitespace-normal overflow-hidden break-words mx-auto leading-relaxed">
-                          {log.changes}
+                        <div className="w-full mx-auto">
+                          {formatChanges(log.changes)}
                         </div>
                       </td>
                       <td className="hidden md:table-cell p-3 text-xs text-center font-bold capitalize" style={{ color: 'var(--text-tertiary)' }}>

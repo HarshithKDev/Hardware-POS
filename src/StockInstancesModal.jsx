@@ -77,26 +77,26 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
 
   return (
     <div className={`w-full overflow-hidden transition-all duration-300 ease-in-out origin-top ${isMounting ? 'max-h-0 opacity-0 scale-y-95' : 'max-h-[1000px] opacity-100 scale-y-100'}`}>
-      <div className="p-4 flex flex-col shadow-inner" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-        <div className="flex justify-between items-center bg-[var(--bg-tertiary)] p-4 shadow-sm border" style={{ borderColor: 'var(--border-medium)' }}>
-          <h3 className="text-sm font-bold tracking-wider" style={{ color: 'var(--text-primary)' }}>MANAGE PIECES: {item.name.toUpperCase()}</h3>
-          <button onClick={onClose} className="px-3 py-1.5 leading-none text-lg text-[var(--text-secondary)] hover:text-[var(--color-error)] transition-colors focus:outline-none">
+      <div className="p-6 flex flex-col shadow-inner" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-sm font-bold tracking-wider" style={{ color: 'var(--text-primary)' }}>
+            MANAGE PIECES: <span style={{ color: 'var(--color-accent)' }}>{item.name.toUpperCase()}</span>
+          </h3>
+          <button onClick={onClose} className="p-2 leading-none text-lg text-[var(--text-secondary)] hover:text-[var(--color-error)] transition-colors rounded-md focus:outline-none hover:bg-[var(--bg-secondary)]">
             ✕
           </button>
         </div>
 
-        <div className="p-6">
         <div className="w-full flex flex-col">
-          <h4 className="text-xs font-bold uppercase tracking-wider mb-4" style={{ color: 'var(--text-secondary)' }}>EXISTING PIECES</h4>
           
           {isLoading ? (
             <div className="flex justify-center p-8"><Spinner className="w-5 h-5 text-[var(--color-accent)]" /></div>
           ) : instances.length === 0 ? (
             <div className="text-center p-8 text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>No pieces recorded yet.</div>
           ) : (
-            <div className="overflow-x-auto shadow-sm" style={{ border: '1px solid var(--border-medium)' }}>
-              <table className="w-full text-center whitespace-nowrap bg-[var(--bg-secondary)]">
-                <thead style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-light)' }}>
+            <div className="overflow-x-auto shadow-sm rounded-lg" style={{ border: '1px solid var(--border-light)' }}>
+              <table className="w-full text-center whitespace-nowrap" style={{ backgroundColor: 'var(--bg-primary)' }}>
+                <thead style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-light)' }}>
                   <tr className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                     <th className="p-2 border-r border-[var(--border-light)]">{item.unit === 'SQFT' ? 'Orig Length' : 'Original'}</th>
                     <th className="p-2 border-r border-[var(--border-light)]">{item.unit === 'SQFT' ? 'Curr Length' : 'Current'}</th>
@@ -106,7 +106,6 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
                         <th className="p-2 border-r border-[var(--border-light)]">Area/Piece</th>
                       </>
                     )}
-                    <th className="p-2 border-r border-[var(--border-light)]">Status</th>
                     <th className="p-2 border-r border-[var(--border-light)]">Location</th>
                     <th className="p-2 border-r border-[var(--border-light)]">Quantity</th>
                     <th className="p-2 border-r border-[var(--border-light)]">Total {item.unit === 'SQFT' ? 'Area' : 'Length'}</th>
@@ -130,11 +129,6 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
                           <td className="p-2 text-xs font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{(Number(group.current_length) * Number(item.default_width || 0)).toFixed(2)} SQFT</td>
                         </>
                       )}
-                      <td className="p-2 text-[9px] font-bold uppercase" style={{ borderRight: '1px solid var(--border-light)' }}>
-                        <span className="px-2 py-0.5 rounded-sm" style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', color: 'var(--color-success)' }}>
-                          Active
-                        </span>
-                      </td>
                       <td className="p-2 text-xs font-semibold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>
                         {group.location || 'Warehouse'}
                       </td>
@@ -193,7 +187,6 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }
