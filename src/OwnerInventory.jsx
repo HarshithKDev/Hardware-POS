@@ -18,6 +18,7 @@ export default function OwnerInventory({ viewType }) {
   const [invPage, setInvPage] = useState(0);
   
   const [selectedBarcodes, setSelectedBarcodes] = useState([]);
+  const [expandedBarcode, setExpandedBarcode] = useState(null);
   const [isGlobalEditMode, setIsGlobalEditMode] = useState(false);
   const [bulkEditData, setBulkEditData] = useState({});
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -481,6 +482,8 @@ export default function OwnerInventory({ viewType }) {
                   onEditChange={handleBulkEditChange}
                   onRestore={handleRestore}
                   isSelectionMode={isSelectionMode}
+                  expandedBarcode={expandedBarcode}
+                  onToggleExpand={(barcode) => setExpandedBarcode(prev => prev === barcode ? null : barcode)}
                 />
               ))
             )}

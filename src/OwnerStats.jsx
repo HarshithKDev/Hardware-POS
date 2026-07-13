@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { useQuery } from '@tanstack/react-query';
 import { useApp } from './AppContext';
@@ -15,6 +15,56 @@ import {
 // ---------------------------------------------------------------
 // Extracted sub-components (Phase 5 decomposition)
 // ---------------------------------------------------------------
+
+/** Animates a number counting up from 0 */
+function AnimatedNumber({ valueStr, duration = 1000 }) {
+  const [displayValue, setDisplayValue] = useState('');
+  
+  useEffect(() => {
+    let prefix = '';
+    let numStr = String(valueStr);
+    
+    if (numStr.startsWith('₹')) {
+      prefix = '₹';
+      numStr = numStr.substring(1);
+    }
+    
+    const target = parseFloat(numStr);
+    if (isNaN(target)) {
+      setDisplayValue(valueStr);
+      return;
+    }
+    
+    const hasDecimals = numStr.includes('.');
+    const decimals = hasDecimals ? numStr.split('.')[1].length : 0;
+    
+    let startTimestamp = null;
+    let animationFrameId;
+
+    const step = (timestamp) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+      
+      // easeOutExpo for smooth deceleration
+      const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      const currentVal = target * easeProgress;
+      
+      setDisplayValue(`${prefix}${currentVal.toFixed(decimals)}`);
+      
+      if (progress < 1) {
+        animationFrameId = window.requestAnimationFrame(step);
+      } else {
+        setDisplayValue(valueStr);
+      }
+    };
+    
+    animationFrameId = window.requestAnimationFrame(step);
+
+    return () => window.cancelAnimationFrame(animationFrameId);
+  }, [valueStr, duration]);
+
+  return <>{displayValue || valueStr}</>;
+}
 
 /** Reusable stat card */
 function StatCard({ title, value, accentColor, borderColor, onClick, clickLabel, children }) {
@@ -39,36 +89,141 @@ function StatCard({ title, value, accentColor, borderColor, onClick, clickLabel,
         )}
       </div>
       <p className="text-2xl md:text-3xl font-semibold truncate" style={{ color: accentColor || 'var(--text-primary)' }} title={value}>
-        {value}
+        <AnimatedNumber valueStr={value} duration={1200} />
       </p>
       {children}
     </Tag>
   );
 }
 
-/** 7-day sales trend bar chart */
-function WeeklyTrendChart({ trend }) {
+/** Sales trend bar chart with timeframe selector */
+function SalesTrendChart() {
+  const [timeframe, setTimeframe] = useState('7_days');
+  const [isAnimated, setIsAnimated] = useState(false);
+
+  const { data: trend, isLoading } = useQuery({
+    queryKey: ['sales-trend', timeframe],
+    queryFn: async () => {
+      const now = new Date();
+      let startDate;
+      let trendData = {};
+
+      if (timeframe === '7_days') {
+        const dayOfWeek = now.getDay(); // 0 is Sunday, 1 is Monday
+        const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        const monday = new Date(now);
+        monday.setDate(monday.getDate() - diffToMonday);
+        startDate = `${monday.toLocaleDateString('en-CA')}T00:00:00`;
+        
+        for (let i = 0; i < 7; i++) {
+          const dt = new Date(monday);
+          dt.setDate(dt.getDate() + i);
+          const key = dt.toLocaleDateString('en-CA');
+          trendData[key] = { label: dt.toLocaleDateString('en-US', { weekday: 'short' }), rev: 0 };
+        }
+      } else if (timeframe === '1_month') {
+        const d = new Date(now);
+        d.setDate(d.getDate() - 29);
+        startDate = `${d.toLocaleDateString('en-CA')}T00:00:00`;
+
+        for (let i = 29; i >= 0; i--) {
+          const dt = new Date(now);
+          dt.setDate(dt.getDate() - i);
+          const key = dt.toLocaleDateString('en-CA');
+          trendData[key] = { label: dt.getDate().toString(), rev: 0 };
+        }
+      } else if (timeframe === '6_months') {
+        const d = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+        startDate = `${d.toLocaleDateString('en-CA')}T00:00:00`;
+
+        for (let i = 5; i >= 0; i--) {
+          const dt = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
+          trendData[key] = { label: dt.toLocaleDateString('en-US', { month: 'short' }), rev: 0 };
+        }
+      }
+
+      const { data: billsData } = await supabase
+        .from('bills')
+        .select('total_amount, created_at')
+        .gte('created_at', startDate)
+        .eq('location', 'Store');
+
+      let maxRev = 0;
+      
+      if (billsData) {
+        billsData.forEach(bill => {
+          const dateStr = bill.created_at.split('T')[0];
+          let key = timeframe === '6_months' ? dateStr.substring(0, 7) : dateStr;
+
+          if (trendData[key]) {
+            trendData[key].rev += Number(bill.total_amount || 0);
+            if (trendData[key].rev > maxRev) maxRev = trendData[key].rev;
+          }
+        });
+      }
+
+      return Object.values(trendData).map(item => ({
+        ...item,
+        heightPct: maxRev === 0 ? 0 : (item.rev / maxRev) * 100
+      }));
+    },
+    staleTime: STALE_TIME_5MIN
+  });
+
+  useEffect(() => {
+    if (trend && trend.length > 0) {
+      setIsAnimated(false);
+      const timer = setTimeout(() => setIsAnimated(true), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [trend]);
+
   return (
     <div className="p-5 rounded-lg border border-[var(--border-light)] flex flex-col justify-between lg:col-span-2" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-      <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>7-Day Sales Trend</p>
-      <div className="flex items-end h-32 gap-3 mt-4 w-full px-2" role="img" aria-label="7-day sales trend chart">
-        {trend.map(day => (
-          <div key={day.label} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group cursor-crosshair">
+      <div className="flex justify-between items-center mb-4">
+        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Sales Trend</p>
+        <div className="relative inline-flex items-center rounded-md transition-colors hover:bg-[var(--bg-tertiary)]" style={{ border: '1px solid var(--border-medium)' }}>
+          <select 
+            value={timeframe} 
+            onChange={(e) => setTimeframe(e.target.value)}
+            className="text-[10px] font-bold uppercase focus:outline-none bg-transparent cursor-pointer appearance-none pl-4 pr-10 py-2 w-32"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            <option value="7_days">7 Days</option>
+            <option value="1_month">1 Month</option>
+            <option value="6_months">6 Months</option>
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4" style={{ color: 'var(--text-secondary)' }}>
+             <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-end h-32 gap-1 md:gap-3 w-full px-2" role="img" aria-label="sales trend chart">
+        {isLoading ? (
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="premium-wave-loader scale-75">
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+        ) : (trend || []).map((point, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group cursor-crosshair relative">
             <div
-              className="w-full relative rounded-t-sm transition-colors"
+              className={`w-full relative rounded-t-sm transition-all duration-700 opacity-80 group-hover:opacity-100 ${!isAnimated ? 'ease-in' : 'ease-out'}`}
               style={{
-                height: `${day.heightPct}%`,
-                minHeight: day.rev > 0 ? '4px' : '0px',
-                backgroundColor: 'var(--color-accent-bg)',
+                height: isAnimated ? `${point.heightPct}%` : '0%',
+                minHeight: (isAnimated && point.rev > 0) ? '4px' : '0px',
+                backgroundColor: 'var(--color-accent)',
               }}
-              onMouseEnter={(e) => (e.target.style.backgroundColor = 'var(--color-accent)')}
-              onMouseLeave={(e) => (e.target.style.backgroundColor = 'var(--color-accent-bg)')}
             >
-              <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>
-                ₹{day.rev.toFixed(0)}
+              <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm flex items-center gap-1" style={{ color: 'var(--text-primary)', backgroundColor: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-light)' }}>
+                ₹{point.rev.toFixed(0)} <span className="font-medium text-[9px]" style={{ color: 'var(--text-tertiary)' }}>({point.label})</span>
               </span>
             </div>
-            <span className="text-[10px] font-bold uppercase" style={{ color: 'var(--text-tertiary)' }}>{day.label}</span>
+            <span className="text-[8px] font-bold uppercase truncate w-full text-center" style={{ color: 'var(--text-tertiary)' }}>
+              {point.label}
+            </span>
           </div>
         ))}
       </div>
@@ -92,7 +247,9 @@ function TopProductsList({ products }) {
               <span className="text-xs font-bold w-3" style={{ color: 'var(--text-tertiary)' }}>{idx + 1}.</span>
               <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{p.name}</span>
             </div>
-            <span className="text-sm font-bold shrink-0" style={{ color: 'var(--color-success)' }}>₹{p.profit.toFixed(0)}</span>
+            <span className="text-sm font-bold shrink-0" style={{ color: 'var(--color-success)' }}>
+              <AnimatedNumber valueStr={`₹${p.profit.toFixed(0)}`} duration={1200} />
+            </span>
           </li>
         ))}
       </ul>
@@ -124,35 +281,12 @@ export default function OwnerStats({ isActive }) {
 
     let soldNames30Days = new Set();
     let productStats30Days = {};
-    let tempTrend = {};
-    let maxRev = 0;
-
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const dateKey = d.toLocaleDateString('en-CA');
-      tempTrend[dateKey] = { label: d.toLocaleDateString('en-US', { weekday: 'short' }), rev: 0 };
-    }
 
     let todaysTrueRevenue = 0, todaysGrossProfit = 0, todaysTotalCost = 0;
     let todaysSalesDetails = [];
     let topProducts = [];
 
     if (billsData && billsData.length > 0) {
-      const sevenDaysAgo = new Date(now);
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-      const sevenDayStart = `${sevenDaysAgo.toLocaleDateString('en-CA')}T00:00:00`;
-
-      billsData.forEach(bill => {
-        if (bill.created_at >= sevenDayStart) {
-          const billDate = bill.created_at.split('T')[0];
-          if (tempTrend[billDate]) {
-            tempTrend[billDate].rev += Number(bill.total_amount || 0);
-            if (tempTrend[billDate].rev > maxRev) maxRev = tempTrend[billDate].rev;
-          }
-        }
-      });
-
       const billIds = billsData.map(b => b.id);
       const chunkSize = 100;
       const chunks = [];
@@ -218,11 +352,6 @@ export default function OwnerStats({ isActive }) {
       }
     }
 
-    const weeklyTrend = Object.values(tempTrend).map(day => ({
-      ...day,
-      heightPct: maxRev === 0 ? 0 : (day.rev / maxRev) * 100,
-    }));
-
     // --- Inventory ---
     const { count: totalCount } = await supabase
       .from('inventory')
@@ -276,7 +405,6 @@ export default function OwnerStats({ isActive }) {
       totalInventoryValue,
       warehouseCapital,
       storeCapital,
-      weeklyTrend,
       topProducts,
       failedSyncs: await getFailedTransactions(),
     };
@@ -291,7 +419,7 @@ export default function OwnerStats({ isActive }) {
   });
 
   // Modal state (local — only used here)
-  const [activeModal, setActiveModal] = React.useState(null);
+  const [activeModal, setActiveModal] = useState(null);
 
   if (isLoading || !data) {
     return (
@@ -313,7 +441,7 @@ export default function OwnerStats({ isActive }) {
     todaysTrueRevenue, todaysGrossProfit, todaysTotalCost, todaysSalesDetails,
     lowStoreItems, deadStockItems, deadStockValue,
     totalInventoryValue, warehouseCapital, storeCapital,
-    weeklyTrend, topProducts, failedSyncs
+    topProducts, failedSyncs
   } = data;
 
   return (
@@ -365,7 +493,7 @@ export default function OwnerStats({ isActive }) {
 
       {/* ROW 2: TRENDS & LEADERBOARD */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-        <WeeklyTrendChart trend={weeklyTrend} />
+        <SalesTrendChart />
         <TopProductsList products={topProducts} />
       </div>
 
@@ -499,6 +627,3 @@ export default function OwnerStats({ isActive }) {
     </div>
   );
 }
-
-// Need React import for useState in the main component
-import React from 'react';

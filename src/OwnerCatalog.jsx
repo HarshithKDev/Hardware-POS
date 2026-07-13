@@ -2,6 +2,8 @@ import { useState, useRef } from 'react';
 import { supabase } from './supabaseClient';
 import { syncInventoryToLocal } from './services/sync';
 import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { generateId } from './utils';
@@ -238,33 +240,74 @@ export default function OwnerCatalog() {
     addItemMutation.mutate({ ...form, barcode: nextBarcode });
   };
 
-  const handleDownloadTemplate = () => {
-    const templateData = [
-      {
-        barcode: '001001', // Example of leading zero preserved by Excel
-        name: 'Example Item (Delete This Row)',
-        category: 'Hardware',
-        sub_category: 'Nails',
-        cost_price: '50',
-        msp: '60',
-        price: '75',
-        unit: 'PCS',
-        min_quantity_warehouse: '10',
-        min_quantity_store: '5'
-      }
+  const handleDownloadTemplate = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Template');
+    const dataSheet = workbook.addWorksheet('Data', { state: 'hidden' });
+
+    // Populate Data Sheet with dynamic categories
+    const catNames = categories.map(c => c.name);
+    const subCatNames = subcategories.map(s => s.name);
+    
+    dataSheet.getColumn(1).values = ['Categories', ...(catNames.length ? catNames : ['Hardware', 'Plumbing'])];
+    dataSheet.getColumn(2).values = ['Subcategories', ...(subCatNames.length ? subCatNames : ['Nails', 'Screws', 'Pipes'])];
+
+    // Setup Template Columns
+    sheet.columns = [
+      { header: 'barcode', key: 'barcode', width: 15 },
+      { header: 'name', key: 'name', width: 35 },
+      { header: 'category', key: 'category', width: 20 },
+      { header: 'sub_category', key: 'sub_category', width: 20 },
+      { header: 'cost_price', key: 'cost_price', width: 15 },
+      { header: 'msp', key: 'msp', width: 15 },
+      { header: 'price', key: 'price', width: 15 },
+      { header: 'unit', key: 'unit', width: 15 },
+      { header: 'type', key: 'type', width: 15 },
+      { header: 'default_length', key: 'default_length', width: 15 },
+      { header: 'default_width', key: 'default_width', width: 15 },
+      { header: 'min_quantity_warehouse', key: 'min_quantity_warehouse', width: 25 },
+      { header: 'min_quantity_store', key: 'min_quantity_store', width: 25 }
     ];
 
-    const worksheet = XLSX.utils.json_to_sheet(templateData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
+    // Add sample rows
+    sheet.addRow({
+      barcode: '001001', name: 'Standard Item Example', category: catNames[0] || 'Hardware', sub_category: subCatNames[0] || 'Nails',
+      cost_price: 50, msp: 60, price: 75, unit: 'PCS', type: 'Standard',
+      min_quantity_warehouse: 10, min_quantity_store: 5
+    });
+    sheet.addRow({
+      barcode: '', name: 'Loose Item Example (Screws)', category: catNames[0] || 'Hardware', sub_category: subCatNames[0] || 'Screws',
+      cost_price: 5, msp: 8, price: 10, unit: 'PCS', type: 'Loose',
+      min_quantity_warehouse: 100, min_quantity_store: 50
+    });
+    sheet.addRow({
+      barcode: '', name: 'Cuttable Item Example (Pipe)', category: catNames[0] || 'Plumbing', sub_category: subCatNames[0] || 'Pipes',
+      cost_price: 120, msp: 150, price: 180, unit: 'FT', type: 'Cuttable',
+      default_length: 20, min_quantity_warehouse: 50, min_quantity_store: 10
+    });
 
-    // Auto-size columns
-    worksheet['!cols'] = [
-      { wch: 15 }, { wch: 35 }, { wch: 15 }, { wch: 15 },
-      { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }
-    ];
+    // Style headers
+    sheet.getRow(1).font = { bold: true };
+    sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
 
-    XLSX.writeFile(workbook, 'Inventory_Import_Template.xlsx');
+    // Add Data Validation for 1000 rows
+    for (let i = 2; i <= 1000; i++) {
+      sheet.getCell(`C${i}`).dataValidation = {
+        type: 'list', allowBlank: true, formulae: ['Data!$A$2:$A$500']
+      };
+      sheet.getCell(`D${i}`).dataValidation = {
+        type: 'list', allowBlank: true, formulae: ['Data!$B$2:$B$500']
+      };
+      sheet.getCell(`H${i}`).dataValidation = {
+        type: 'list', allowBlank: true, formulae: ['"PCS,FT,SQFT,M,KG"']
+      };
+      sheet.getCell(`I${i}`).dataValidation = {
+        type: 'list', allowBlank: true, formulae: ['"Standard,Loose,Cuttable"']
+      };
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    saveAs(new Blob([buffer]), 'Inventory_Import_Template.xlsx');
   };
 
   const handleImportExcel = async (e) => {
@@ -285,24 +328,35 @@ export default function OwnerCatalog() {
 
       showAlert('Importing items... This may take a minute.', 'Info');
 
-      const formattedData = jsonData.map(row => ({
-        barcode: String(row.barcode || row.Barcode || '').trim(),
-        name: String(row.name || row.Name || '').trim(),
-        category: String(row.category || row.Category || 'Uncategorized').trim(),
-        sub_category: String(row.sub_category || row.Subcategory || '').trim(),
-        cost_price: Number(row.cost_price || row.Cost || 0),
-        msp: Number(row.msp || row.MSP || 0),
-        price: Number(row.price || row.Price || row.MRP || 0),
-        stock_warehouse: 0,
-        stock_store: 0,
-        unit: String(row.unit || row.Unit || 'PCS').trim(),
-        min_quantity_warehouse: Number(row.min_quantity_warehouse || row.Min_Quantity_Warehouse || row['Min Quantity (Warehouse)'] || row.min_quantity || 0),
-        min_quantity_store: Number(row.min_quantity_store || row.Min_Quantity_Store || row['Min Quantity (Store)'] || row.min_quantity || 0),
-        is_active: true
-      })).filter(r => r.barcode && r.name);
+      const formattedData = jsonData.map(row => {
+        const rowType = String(row.type || row.Type || 'Standard').trim().toLowerCase();
+        const isLoose = rowType === 'loose';
+        const isCuttable = rowType === 'cuttable';
+        const unit = String(row.unit || row.Unit || 'PCS').trim();
+        
+        return {
+          barcode: String(row.barcode || row.Barcode || '').trim(),
+          name: String(row.name || row.Name || '').trim(),
+          category: String(row.category || row.Category || 'Uncategorized').trim(),
+          sub_category: String(row.sub_category || row.Subcategory || '').trim(),
+          cost_price: Number(row.cost_price || row.Cost || 0),
+          msp: Number(row.msp || row.MSP || 0),
+          price: Number(row.price || row.Price || row.MRP || 0),
+          stock_warehouse: 0,
+          stock_store: 0,
+          unit: unit,
+          is_loose_item: isLoose,
+          is_cuttable: isCuttable,
+          default_length: isCuttable ? (Number(row.default_length || row.Default_Length || row['Default Length']) || null) : null,
+          default_width: (isCuttable && unit.toUpperCase() === 'SQFT') ? (Number(row.default_width || row.Default_Width || row['Default Width']) || null) : null,
+          min_quantity_warehouse: Number(row.min_quantity_warehouse || row.Min_Quantity_Warehouse || row['Min Quantity (Warehouse)'] || row.min_quantity || 0),
+          min_quantity_store: Number(row.min_quantity_store || row.Min_Quantity_Store || row['Min Quantity (Store)'] || row.min_quantity || 0),
+          is_active: true
+        };
+      }).filter(r => r.name);
 
       if (formattedData.length === 0) {
-        throw new Error('No valid rows found. Ensure "barcode" and "name" columns exist.');
+        throw new Error('No valid rows found. Ensure the "name" column exists and is filled.');
       }
 
       // Auto-create missing categories and sub-categories
@@ -344,11 +398,13 @@ export default function OwnerCatalog() {
       }, parseInt(BARCODE_START_VALUE, 10) - 1) || parseInt(BARCODE_START_VALUE, 10) - 1;
 
       let conflictCount = 0;
+      let generatedCount = 0;
       formattedData.forEach(row => {
-        if (existingBarcodes.has(row.barcode)) {
+        if (!row.barcode || existingBarcodes.has(row.barcode)) {
           maxBarcodeNum++;
+          if (row.barcode) conflictCount++; // It had a barcode but it was a conflict
+          else generatedCount++; // It was empty and we generated one
           row.barcode = maxBarcodeNum.toString();
-          conflictCount++;
         }
         existingBarcodes.add(row.barcode);
         row.id = generateId();
@@ -357,8 +413,11 @@ export default function OwnerCatalog() {
       const { error } = await supabase.from('inventory').insert(formattedData);
       if (error) throw error;
 
-      if (conflictCount > 0) {
-        showAlert(`Imported ${formattedData.length} items. Auto-assigned new barcodes to ${conflictCount} conflicting items!`, 'Success');
+      if (conflictCount > 0 || generatedCount > 0) {
+        let msg = `Imported ${formattedData.length} items. `;
+        if (generatedCount > 0) msg += `Auto-generated ${generatedCount} barcodes. `;
+        if (conflictCount > 0) msg += `Resolved ${conflictCount} conflicts.`;
+        showAlert(msg, 'Success');
       } else {
         showAlert(`Successfully imported ${formattedData.length} items! Syncing...`, 'Success');
       }
@@ -478,14 +537,14 @@ export default function OwnerCatalog() {
           {form.item_type === 'cuttable' && form.unit === 'SQFT' && (
             <>
               <div className="lg:col-span-2">
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-def-length">Default Piece Length (Optional)</label>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-def-length">Default Length</label>
                 <div className="relative">
                   <input id="item-def-length" type="number" step="any" min="0" value={form.default_length} onChange={(e) => setForm({ ...form, default_length: e.target.value })} placeholder="e.g. 10" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                   <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>ft</span>
                 </div>
               </div>
               <div className="lg:col-span-2">
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-def-width">Default Roll Height (ft)</label>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-def-width">Default Height</label>
                 <div className="relative">
                   <input id="item-def-width" type="number" step="any" min="0" required value={form.default_width} onChange={(e) => setForm({ ...form, default_width: e.target.value })} placeholder="e.g. 3" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                   <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>ft</span>

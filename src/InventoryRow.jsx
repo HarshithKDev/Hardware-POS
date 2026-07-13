@@ -3,8 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import StockInstancesModal from './StockInstancesModal';
 
-export default function InventoryRow({ item, viewType, categories, subcategories, isGlobalEditMode, editData, onEditChange, isSelected, onSelect, onRestore, isSelectionMode }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+export default function InventoryRow({ item, viewType, categories, subcategories, isGlobalEditMode, editData, onEditChange, isSelected, onSelect, onRestore, isSelectionMode, expandedBarcode, onToggleExpand }) {
+  const isExpanded = expandedBarcode === item.barcode;
 
   const { data: pieceCounts } = useQuery({
     queryKey: ['piece_counts', item.barcode],
@@ -118,7 +118,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
                   <span className="px-2 py-0.5 text-[9px] font-bold uppercase rounded-full" style={{ backgroundColor: 'rgba(234, 179, 8, 0.1)', color: 'var(--color-warning)', border: '1px solid rgba(234, 179, 8, 0.2)' }}>Loose</span>
                 )}
                 {item.is_cuttable && (
-                  <span onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }} className="px-2.5 py-0.5 text-[9px] font-bold uppercase rounded-full cursor-pointer transition-all active:scale-95 shadow-sm flex items-center gap-1 w-max" style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                  <span onClick={(e) => { e.stopPropagation(); onToggleExpand(item.barcode); }} className="px-2.5 py-0.5 text-[9px] font-bold uppercase rounded-full cursor-pointer transition-all active:scale-95 shadow-sm flex items-center gap-1 w-max" style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
                     {isExpanded ? 'Hide Pieces' : 'Cuttable'}
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -163,7 +163,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
               <span className="px-2.5 py-0.5 text-[9px] font-bold uppercase rounded-full whitespace-nowrap" style={{ backgroundColor: 'rgba(234, 179, 8, 0.1)', color: 'var(--color-warning)', border: '1px solid rgba(234, 179, 8, 0.2)' }}>Loose</span>
             )}
             {item.is_cuttable && (
-              <span onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }} className="px-2.5 py-0.5 text-[9px] font-bold uppercase rounded-full whitespace-nowrap cursor-pointer transition-all active:scale-95 shadow-sm flex items-center justify-center gap-1 min-w-[75px]" style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', border: '1px solid rgba(59, 130, 246, 0.2)' }} title="View Pieces">
+              <span onClick={(e) => { e.stopPropagation(); onToggleExpand(item.barcode); }} className="px-2.5 py-0.5 text-[9px] font-bold uppercase rounded-full whitespace-nowrap cursor-pointer transition-all active:scale-95 shadow-sm flex items-center justify-center gap-1 min-w-[75px]" style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', border: '1px solid rgba(59, 130, 246, 0.2)' }} title="View Pieces">
                 {isExpanded ? 'Hide Pieces' : 'Cuttable'}
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -188,7 +188,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
       {isExpanded && item.is_cuttable && (
         <tr>
           <td colSpan="11" className="p-0 border-b" style={{ borderColor: 'var(--border-medium)' }}>
-            <StockInstancesModal isOpen={true} onClose={() => setIsExpanded(false)} item={item} />
+            <StockInstancesModal isOpen={true} onClose={() => onToggleExpand(item.barcode)} item={item} />
           </td>
         </tr>
       )}

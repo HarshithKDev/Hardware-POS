@@ -225,7 +225,7 @@ export default function BarcodePrinter() {
                                   type="number" min="1" max="100" 
                                   value={item.printQty} 
                                   onChange={(e) => updateQuantity(item.barcode, e.target.value)}
-                                  className="w-16 px-2 py-1 text-sm focus:outline-none rounded-md"
+                                  className="w-16 px-2 py-1 text-sm text-center focus:outline-none rounded-md"
                                   style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
                                 />
                               </div>
@@ -234,7 +234,7 @@ export default function BarcodePrinter() {
                                 type="number" min="1" max="100" 
                                 value={item.printQty} 
                                 onChange={(e) => updateQuantity(item.barcode, e.target.value)}
-                                className="w-20 px-2 py-1 text-sm focus:outline-none rounded-md"
+                                className="w-20 px-2 py-1 text-sm text-center focus:outline-none rounded-md"
                                 style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
                               />
                             )}
@@ -276,7 +276,7 @@ export default function BarcodePrinter() {
                   <p className="text-xs font-bold mb-1 truncate mx-auto" style={{ color: '#000000' }}>{printQueue[0].name}</p>
                   <div className="flex justify-center">
                     {/* React Barcode will render inline styles automatically, but ensure it receives standard colors */}
-                    <Barcode value={printQueue[0].barcode} width={1.2} height={40} fontSize={12} margin={0} lineColor="#000000" background="#ffffff" />
+                    <Barcode value={printQueue[0].barcode} width={1.8} height={50} fontSize={12} margin={0} lineColor="#000000" background="#ffffff" />
                   </div>
                   <p className="text-sm font-bold mt-1" style={{ color: '#000000' }}>₹{Number(printQueue[0].price).toFixed(2)}</p>
                 </div>
@@ -296,7 +296,7 @@ export default function BarcodePrinter() {
               (item.instanceBarcodes || []).map((instBarcode, index) => (
                 <div key={`${item.barcode}-inst-${index}`} className="thermal-barcode" style={{ backgroundColor: '#ffffff' }}>
                    <p className="text-[9px] font-bold truncate w-full text-center leading-none mb-1" style={{ color: '#000000' }}>{item.name}</p>
-                   <Barcode value={instBarcode} width={1} height={25} fontSize={10} margin={0} displayValue={true} lineColor="#000000" background="#ffffff" />
+                   <Barcode value={instBarcode} width={1.5} height={35} fontSize={11} margin={0} displayValue={true} lineColor="#000000" background="#ffffff" />
                    <p className="text-[10px] font-bold leading-none mt-1" style={{ color: '#000000' }}>₹{Number(item.price).toFixed(2)}</p>
                 </div>
               ))
@@ -304,7 +304,7 @@ export default function BarcodePrinter() {
               Array.from({ length: Number(item.printQty) || 0 }).map((_, index) => (
                 <div key={`${item.barcode}-${index}`} className="thermal-barcode" style={{ backgroundColor: '#ffffff' }}>
                    <p className="text-[9px] font-bold truncate w-full text-center leading-none mb-1" style={{ color: '#000000' }}>{item.name}</p>
-                   <Barcode value={item.barcode} width={1} height={25} fontSize={10} margin={0} displayValue={true} lineColor="#000000" background="#ffffff" />
+                   <Barcode value={item.barcode} width={1.5} height={35} fontSize={11} margin={0} displayValue={true} lineColor="#000000" background="#ffffff" />
                    <p className="text-[10px] font-bold leading-none mt-1" style={{ color: '#000000' }}>₹{Number(item.price).toFixed(2)}</p>
                 </div>
               ))

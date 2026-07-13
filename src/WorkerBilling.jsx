@@ -32,12 +32,12 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
 
   const tabs = [
     { key: 'dashboard', label: 'Dashboard' },
-    { key: 'receive', label: 'Inbound' },
-    { key: 'transfer', label: 'Transfer' },
   ];
   if (isBillable) {
     tabs.push({ key: 'checkout', label: 'Terminal' });
   } else {
+    tabs.push({ key: 'receive', label: 'Inbound' });
+    tabs.push({ key: 'transfer', label: 'Transfer' });
     tabs.push({ key: 'scanner', label: 'Scanner' });
   }
 

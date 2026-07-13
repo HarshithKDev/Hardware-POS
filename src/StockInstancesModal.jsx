@@ -7,6 +7,15 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
   const { showAlert, showConfirm } = useApp();
   const [instances, setInstances] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [discardModal, setDiscardModal] = useState({ isOpen: false, group: null, inputBarcode: '' });
+
+  const [isMounting, setIsMounting] = useState(true);
+
+  useEffect(() => {
+    // Start animation on next frame
+    const timer = setTimeout(() => setIsMounting(false), 10);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (isOpen && item) {
@@ -47,16 +56,36 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
     });
   };
 
-  return (
-    <div className="p-4 flex flex-col shadow-inner animate-fade-in" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-      <div className="flex justify-between items-center bg-[var(--bg-tertiary)] p-4 shadow-sm border" style={{ borderColor: 'var(--border-medium)' }}>
-        <h3 className="text-sm font-bold tracking-wider" style={{ color: 'var(--text-primary)' }}>MANAGE PIECES: {item.name.toUpperCase()}</h3>
-        <button onClick={onClose} className="px-3 py-1.5 leading-none text-lg text-[var(--text-secondary)] hover:text-[var(--color-error)] transition-colors focus:outline-none">
-          ✕
-        </button>
-      </div>
+  const handleDiscardClick = (group) => {
+    if (group.count === 1) {
+      handleToggleActive(group.instances[0]);
+    } else {
+      setDiscardModal({ isOpen: true, group, inputBarcode: '' });
+    }
+  };
 
-      <div className="p-6">
+  const confirmDiscardBarcode = () => {
+    const { group, inputBarcode } = discardModal;
+    const targetInst = group.instances.find(i => String(i.instance_barcode).toLowerCase() === String(inputBarcode).toLowerCase());
+    if (!targetInst) {
+      showAlert(`Barcode #${inputBarcode} not found in this specific group! Make sure you entered it correctly.`, "Not Found");
+      return;
+    }
+    setDiscardModal({ isOpen: false, group: null, inputBarcode: '' });
+    handleToggleActive(targetInst);
+  };
+
+  return (
+    <div className={`w-full overflow-hidden transition-all duration-300 ease-in-out origin-top ${isMounting ? 'max-h-0 opacity-0 scale-y-95' : 'max-h-[1000px] opacity-100 scale-y-100'}`}>
+      <div className="p-4 flex flex-col shadow-inner" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
+        <div className="flex justify-between items-center bg-[var(--bg-tertiary)] p-4 shadow-sm border" style={{ borderColor: 'var(--border-medium)' }}>
+          <h3 className="text-sm font-bold tracking-wider" style={{ color: 'var(--text-primary)' }}>MANAGE PIECES: {item.name.toUpperCase()}</h3>
+          <button onClick={onClose} className="px-3 py-1.5 leading-none text-lg text-[var(--text-secondary)] hover:text-[var(--color-error)] transition-colors focus:outline-none">
+            ✕
+          </button>
+        </div>
+
+        <div className="p-6">
         <div className="w-full flex flex-col">
           <h4 className="text-xs font-bold uppercase tracking-wider mb-4" style={{ color: 'var(--text-secondary)' }}>EXISTING PIECES</h4>
           
@@ -69,47 +98,61 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
               <table className="w-full text-center whitespace-nowrap bg-[var(--bg-secondary)]">
                 <thead style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-light)' }}>
                   <tr className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                    <th className="p-2 border-r border-[var(--border-light)]">Barcode</th>
                     <th className="p-2 border-r border-[var(--border-light)]">{item.unit === 'SQFT' ? 'Orig Length' : 'Original'}</th>
                     <th className="p-2 border-r border-[var(--border-light)]">{item.unit === 'SQFT' ? 'Curr Length' : 'Current'}</th>
                     {item.unit === 'SQFT' && (
                       <>
                         <th className="p-2 border-r border-[var(--border-light)]">Height</th>
-                        <th className="p-2 border-r border-[var(--border-light)]">Area</th>
+                        <th className="p-2 border-r border-[var(--border-light)]">Area/Piece</th>
                       </>
                     )}
                     <th className="p-2 border-r border-[var(--border-light)]">Status</th>
                     <th className="p-2 border-r border-[var(--border-light)]">Location</th>
+                    <th className="p-2 border-r border-[var(--border-light)]">Quantity</th>
+                    <th className="p-2 border-r border-[var(--border-light)]">Total {item.unit === 'SQFT' ? 'Area' : 'Length'}</th>
                     <th className="p-2">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {instances.map(inst => (
-                    <tr key={inst.id} style={{ borderBottom: '1px solid var(--border-light)', backgroundColor: inst.is_active ? 'transparent' : 'var(--bg-hover)' }}>
-                      <td className="p-2 text-xs font-mono font-bold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{inst.instance_barcode}</td>
-                      <td className="p-2 text-xs" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{inst.original_length} {item.unit === 'SQFT' ? 'ft' : item.unit}</td>
-                      <td className="p-2 text-xs font-bold" style={{ borderRight: '1px solid var(--border-light)', color: inst.current_length > 0 ? 'var(--text-primary)' : 'var(--color-error)' }}>{inst.current_length} {item.unit === 'SQFT' ? 'ft' : item.unit}</td>
+                  {Object.values(instances.filter(i => i.is_active).reduce((acc, inst) => {
+                    const key = `${inst.original_length}_${inst.current_length}_${inst.location}`;
+                    if (!acc[key]) acc[key] = { ...inst, instances: [], count: 0 };
+                    acc[key].instances.push(inst);
+                    acc[key].count += 1;
+                    return acc;
+                  }, {})).sort((a, b) => Number(b.current_length) - Number(a.current_length)).map(group => (
+                    <tr key={`${group.original_length}_${group.current_length}_${group.location}`} style={{ borderBottom: '1px solid var(--border-light)', backgroundColor: 'transparent' }}>
+                      <td className="p-2 text-xs" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{group.original_length} {item.unit === 'SQFT' ? 'ft' : item.unit}</td>
+                      <td className="p-2 text-xs font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{group.current_length} {item.unit === 'SQFT' ? 'ft' : item.unit}</td>
                       {item.unit === 'SQFT' && (
                         <>
                           <td className="p-2 text-xs" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{item.default_width || 0} ft</td>
-                          <td className="p-2 text-xs font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{(Number(inst.current_length) * Number(item.default_width || 0)).toFixed(2)} SQFT</td>
+                          <td className="p-2 text-xs font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{(Number(group.current_length) * Number(item.default_width || 0)).toFixed(2)} SQFT</td>
                         </>
                       )}
                       <td className="p-2 text-[9px] font-bold uppercase" style={{ borderRight: '1px solid var(--border-light)' }}>
-                        <span className="px-2 py-0.5 rounded-sm" style={{ backgroundColor: inst.is_active ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: inst.is_active ? 'var(--color-success)' : 'var(--color-error)' }}>
-                          {inst.is_active ? 'Active' : 'Scrap'}
+                        <span className="px-2 py-0.5 rounded-sm" style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', color: 'var(--color-success)' }}>
+                          Active
                         </span>
                       </td>
                       <td className="p-2 text-xs font-semibold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>
-                        {inst.location || 'Warehouse'}
+                        {group.location || 'Warehouse'}
+                      </td>
+                      <td className="p-2 text-xs font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--color-accent)' }}>
+                        {group.count} PCS
+                      </td>
+                      <td className="p-2 text-xs font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
+                        {item.unit === 'SQFT' 
+                          ? (Number(group.current_length) * Number(item.default_width || 0) * group.count).toFixed(2) + ' SQFT'
+                          : (Number(group.current_length) * group.count).toFixed(2) + ' ' + (item.unit || '')}
                       </td>
                       <td className="p-2">
                         <button 
-                          onClick={() => handleToggleActive(inst)} 
+                          onClick={() => handleDiscardClick(group)} 
                           className="text-[10px] font-bold uppercase px-2 py-1 focus:outline-none hover:underline"
-                          style={{ color: inst.is_active ? 'var(--color-error)' : 'var(--color-success)' }}
+                          style={{ color: 'var(--color-error)' }}
                         >
-                          {inst.is_active ? 'Discard' : 'Restore'}
+                          Discard
                         </button>
                       </td>
                     </tr>
@@ -119,6 +162,37 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Discard Barcode Prompt Modal */}
+      {discardModal.isOpen && (
+        <div className="fixed inset-0 flex items-center justify-center z-[200] px-4 animate-fade-in" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          <div className="w-[85%] max-w-[420px] flex flex-col shadow-2xl animate-scale-in rounded-lg overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+            <div className="flex justify-between items-center pr-2 pl-5 py-4" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-light)' }}>
+              <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Discard Piece</span>
+              <button type="button" onClick={() => setDiscardModal({ isOpen: false, group: null, inputBarcode: '' })} className="p-2 leading-none focus:outline-none rounded-md text-[var(--text-secondary)] hover:text-[var(--color-error)] transition-colors">✕</button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm mb-5 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>You are discarding one piece of <strong style={{ color: 'var(--text-primary)' }}>{discardModal.group?.current_length} {item.unit === 'SQFT' ? 'ft' : item.unit}</strong>.</p>
+              <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-tertiary)' }}>Scan or Enter Barcode</p>
+              <input 
+                type="text" 
+                autoFocus 
+                value={discardModal.inputBarcode} 
+                onChange={e => setDiscardModal({ ...discardModal, inputBarcode: e.target.value })} 
+                onKeyDown={e => { if (e.key === 'Enter' && discardModal.inputBarcode) confirmDiscardBarcode(); }} 
+                className="w-full h-12 px-4 text-lg font-mono focus:outline-none rounded-md transition-all focus:ring-1 focus:border-transparent" 
+                style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)', '--tw-ring-color': 'var(--color-error)' }} 
+                placeholder="e.g. 1006-123456" 
+              />
+            </div>
+            <div className="p-4 flex justify-end gap-3" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
+              <button type="button" onClick={() => setDiscardModal({ isOpen: false, group: null, inputBarcode: '' })} className="h-10 px-6 text-sm font-semibold focus:outline-none rounded-md transition-colors" style={{ color: 'var(--text-primary)', backgroundColor: 'transparent' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>Cancel</button>
+              <button type="button" disabled={!discardModal.inputBarcode} onClick={confirmDiscardBarcode} className="h-10 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 transition-colors hover:bg-red-600" style={{ backgroundColor: 'var(--color-error)' }}>Discard</button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );

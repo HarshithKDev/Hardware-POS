@@ -194,7 +194,7 @@ export default function WorkerDashboardView() {
 
       {lowStockModal.isOpen && (
         <div className="fixed inset-0 flex items-center justify-center z-[150] px-4 animate-fade-in" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <div className="w-[85%] max-w-[360px] flex flex-col rounded-xl overflow-hidden animate-scale-in max-h-[85vh] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-light)' }}>
+          <div className="w-[85%] max-w-[360px] flex flex-col rounded-xl overflow-hidden animate-scale-in h-[400px] max-h-[85vh] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-light)' }}>
             <div className="flex justify-between items-center pr-1 pl-4 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--border-light)' }}>
               <span className="text-sm font-bold tracking-wide" style={{ color: 'var(--text-primary)' }}>
                 {lowStockModal.type === 'store' ? 'Low Store Stock Items' : 'Low Warehouse Stock Items'}

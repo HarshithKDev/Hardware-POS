@@ -286,8 +286,8 @@ function CartTable({ cart, activeTab, onUpdateQuantity, onUpdateDimensions, onCu
                 <td className="p-3 text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{(sellPrice * safeQty).toFixed(2)}</td>
               </>)}
               <td className="p-2 text-center align-middle">
-                <button type="button" onClick={() => onRemoveItem(item.id)} className="w-8 h-8 rounded flex items-center justify-center transition-colors focus:outline-none rounded-md" style={{ color: 'var(--color-danger)', backgroundColor: 'transparent' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'} aria-label={`Remove ${item.name}`}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+                <button type="button" onClick={() => onRemoveItem(item.id)} className="w-8 h-8 mx-auto rounded flex items-center justify-center transition-colors focus:outline-none rounded-md" style={{ color: 'var(--text-secondary)', backgroundColor: 'transparent' }} onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--color-error)'; }} onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }} aria-label={`Remove ${item.name}`}>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 </button>
               </td>
             </tr>
@@ -351,8 +351,8 @@ function CartMobileView({ cart, activeTab, onUpdateQuantity, onUpdateDimensions,
           <div className="pr-2 flex-1">
             <div className="flex justify-between items-start w-full">
               <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name}</p>
-              <button type="button" onClick={() => onRemoveItem(item.id)} className="p-1 rounded transition-colors focus:outline-none rounded-md" style={{ color: 'var(--color-danger)', backgroundColor: 'transparent' }} onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'} aria-label={`Remove ${item.name}`}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+              <button type="button" onClick={() => onRemoveItem(item.id)} className="p-1 rounded transition-colors focus:outline-none rounded-md" style={{ color: 'var(--text-secondary)', backgroundColor: 'transparent' }} onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--color-error)'; }} onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }} aria-label={`Remove ${item.name}`}>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
               </button>
             </div>
             {item.pieceLength && (
@@ -452,6 +452,11 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const [activeCartTab, setActiveCartTab] = useState('local');
   const [cartSessions, setCartSessions] = useState({ local: cart });
 
+  // Held Carts
+  const [heldCarts, setHeldCarts] = useState(() => {
+    try { const saved = localStorage.getItem(`pos_held_carts_${activeTab}`); return saved ? JSON.parse(saved) : []; } catch { return []; }
+  });
+
   const barcodeBuffer = useRef('');
   const lastKeyTime = useRef(Date.now());
   const cartRef = useRef(cart);
@@ -465,6 +470,17 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       localStorage.setItem(`pos_cart_${activeTab}`, JSON.stringify(cart)); 
     }
   }, [cart, activeTab, activeCartTab]);
+
+  useEffect(() => {
+    localStorage.setItem(`pos_held_carts_${activeTab}`, JSON.stringify(heldCarts));
+  }, [heldCarts, activeTab]);
+
+  useEffect(() => {
+    // Sync active held cart modifications into heldCarts array so it persists instantly
+    if (activeCartTab.startsWith('held_')) {
+      setHeldCarts(prev => prev.map(c => c.id === activeCartTab ? { ...c, items: cart } : c));
+    }
+  }, [cart, activeCartTab]);
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
   useEffect(() => { showAlertRef.current = showAlert; }, [showAlert]);
 
@@ -490,10 +506,29 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     setActiveCartTab(tabId);
     if (tabId === 'local') {
       setCart(cartSessions['local'] || []);
+    } else if (tabId.startsWith('held_')) {
+      const hc = heldCarts.find(c => c.id === tabId);
+      setCart(cartSessions[tabId] || (hc ? hc.items : []));
     } else {
       const pc = pendingCarts.find(c => c.id === tabId);
       setCart(cartSessions[tabId] || (pc ? pc.items : []));
     }
+  };
+
+  const handleHoldCart = () => {
+    if (cart.length === 0) return;
+    if (activeCartTab !== 'local') {
+      showAlertRef.current("You can only hold the Local Cart.", "Notice");
+      return;
+    }
+    const newHeld = {
+      id: 'held_' + generateId(),
+      name: `Hold ${new Date().toLocaleTimeString([], {hour: 'numeric', minute:'2-digit', hour12: true})}`,
+      items: cart
+    };
+    setHeldCarts(prev => [...prev, newHeld]);
+    setCart([]);
+    setCartSessions(prev => ({ ...prev, local: [] }));
   };
 
   useEffect(() => {
@@ -864,7 +899,15 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     });
   };
 
-  const handleRemoveItem = (id) => setCart(prev => prev.filter(i => i.id !== id));
+  const handleRemoveItem = (id) => {
+    setCart(prev => {
+      const nextCart = prev.filter(i => i.id !== id);
+      if (nextCart.length === 0 && activeCartTab.startsWith('held_')) {
+        setTimeout(handleCancelSale, 0);
+      }
+      return nextCart;
+    });
+  };
 
   const handleCustomPriceChange = (id, val) => setCart(prev => prev.map(i => i.id === id ? { ...i, customPriceInput: val } : i));
 
@@ -883,7 +926,16 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const calculateTotalUnits = () => cart.reduce((tot, i) => tot + (i.quantity === '' ? 0 : Number(i.quantity)), 0);
 
   const handleCancelSale = () => {
-    if (activeCartTab !== 'local') {
+    if (activeCartTab.startsWith('held_')) {
+      setHeldCarts(prev => prev.filter(c => c.id !== activeCartTab));
+      setCartSessions(prev => {
+        const next = { ...prev };
+        delete next[activeCartTab];
+        return next;
+      });
+      setActiveCartTab('local');
+      setCart(cartSessions['local'] || []);
+    } else if (activeCartTab !== 'local') {
       supabase.from('pending_carts').delete().eq('id', activeCartTab).then();
       setCartSessions(prev => {
         const next = { ...prev };
@@ -1052,7 +1104,16 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         type: activeTab,
       });
 
-      if (activeCartTab !== 'local') {
+      if (activeCartTab.startsWith('held_')) {
+        setHeldCarts(prev => prev.filter(c => c.id !== activeCartTab));
+        setCartSessions(prev => {
+          const next = { ...prev };
+          delete next[activeCartTab];
+          return next;
+        });
+        setActiveCartTab('local');
+        setCart(cartSessions['local'] || []);
+      } else if (activeCartTab !== 'local') {
         // Delete the remote cart
         supabase.from('pending_carts').delete().eq('id', activeCartTab).then();
         // Clear local session for this tab and switch to local
@@ -1325,7 +1386,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       ) : (
         <div className="flex flex-col flex-1 min-h-[500px] shadow-sm print:hidden" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
           {/* Header Block */}
-          {activeTab === 'checkout' && pendingCarts.length > 0 && (
+          {activeTab === 'checkout' && (pendingCarts.length > 0 || heldCarts.length > 0) && (
           <div className="flex gap-1 p-2 bg-[var(--bg-tertiary)] border-b border-[var(--border-medium)] overflow-x-auto whitespace-nowrap scrollbar-hide">
             <button 
               onClick={() => switchCartTab('local')}
@@ -1338,6 +1399,21 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             >
               Local Cart
             </button>
+            {heldCarts.map(hc => (
+              <button 
+                key={hc.id}
+                onClick={() => switchCartTab(hc.id)}
+                className="px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors flex gap-2 items-center"
+                style={{
+                  backgroundColor: activeCartTab === hc.id ? 'var(--color-accent)' : 'var(--bg-primary)',
+                  color: activeCartTab === hc.id ? '#fff' : 'var(--text-secondary)',
+                  border: `1px solid ${activeCartTab === hc.id ? 'var(--color-accent)' : 'var(--border-medium)'}`
+                }}
+              >
+                {hc.name}
+                <span className="bg-white/20 px-1.5 rounded-full text-[10px]">{hc.items?.length || 0}</span>
+              </button>
+            ))}
             {pendingCarts.map(pc => (
               <button 
                 key={pc.id}
@@ -1361,10 +1437,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               {activeTab === 'receive' ? 'Receive New Stock' : activeTab === 'transfer' ? 'Move Stock to Store' : 'Checkout Counter'}
             </h2>
             
-            <form onSubmit={(e) => { e.preventDefault(); processScan(manualBarcode); setManualBarcode(''); setShowSuggestions(false); }} className="mt-3 flex items-center relative w-full">
+            <form onSubmit={(e) => { e.preventDefault(); processScan(manualBarcode); setManualBarcode(''); setShowSuggestions(false); }} className="mt-3 relative w-full md:w-auto">
+              <div className="flex items-center w-full md:w-72 h-10 md:h-9 rounded-md overflow-hidden transition-colors focus-within:border-[var(--color-accent)] focus-within:ring-1 focus-within:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)' }}>
                 <label htmlFor="manual-barcode" className="sr-only">Barcode</label>
-                <input id="manual-barcode" type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} onFocus={() => manualBarcode.trim().length >= 2 && setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder="Search barcode or name..." className="h-10 md:h-9 px-3 text-sm focus:outline-none rounded-md flex-1 md:flex-none md:w-64" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} autoComplete="off" />
-                <button type="submit" className="h-10 md:h-9 px-4 text-sm font-semibold focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-input)', borderLeft: 'none' }}>Add</button>
+                <input id="manual-barcode" type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} onFocus={() => manualBarcode.trim().length >= 2 && setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder="Search barcode or name..." className="h-full w-full px-3 text-sm focus:outline-none flex-1 bg-transparent border-none outline-none rounded-none focus:ring-0 focus:border-transparent focus:shadow-none" style={{ color: 'var(--text-input)', outline: 'none', border: 'none', boxShadow: 'none' }} autoComplete="off" />
+                <button type="submit" className="h-full px-4 text-sm font-bold focus:outline-none transition-colors border-none rounded-none bg-transparent hover:bg-white/5 focus:ring-0 focus:outline-none" style={{ color: 'var(--color-accent)', outline: 'none', border: 'none' }}>ADD</button>
+              </div>
                 {showSuggestions && suggestions.length > 0 && (
                   <ul className="absolute top-[100%] left-0 w-full md:w-64 bg-[var(--bg-secondary)] border border-[var(--border-medium)] z-50 max-h-60 overflow-y-auto shadow-lg mt-1 rounded-sm">
                     {suggestions.map((item) => (
@@ -1425,13 +1503,24 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
         {cart.length > 0 && (
           <div className="p-4 flex flex-col md:flex-row justify-between gap-3" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-            <button
-              onClick={() => showConfirm("Are you sure you want to clear the items?", handleCancelSale, activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items')}
-              className="w-full md:w-auto h-10 px-8 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md"
-              style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
-            >
-              {activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items'}
-            </button>
+            <div className="flex w-full md:w-auto gap-3">
+              <button
+                onClick={() => showConfirm("Are you sure you want to clear the items?", handleCancelSale, activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items')}
+                className="flex-1 md:flex-none h-10 px-6 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md"
+                style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
+              >
+                {activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items'}
+              </button>
+              {activeTab === 'checkout' && activeCartTab === 'local' && (
+                <button
+                  onClick={handleHoldCart}
+                  className="flex-1 md:flex-none h-10 px-6 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md"
+                  style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--color-accent)', border: '1px solid var(--color-accent)' }}
+                >
+                  Hold Cart
+                </button>
+              )}
+            </div>
             <button
               onClick={() => activeTab === 'checkout' ? setCheckoutModal({ isOpen: true, cashGiven: '' }) : handleCompleteTransaction()}
               className="w-full md:w-auto h-10 px-10 text-white text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md focus:ring-2 focus:ring-offset-1 flex justify-center items-center"
