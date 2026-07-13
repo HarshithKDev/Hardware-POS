@@ -200,7 +200,7 @@ function SalesTrendChart() {
         </div>
       </div>
 
-      <div className="flex items-end h-32 gap-1 md:gap-3 w-full px-2" role="img" aria-label="sales trend chart">
+      <div className="flex items-end h-32 gap-1 md:gap-3 w-full px-2 mb-4" role="img" aria-label="sales trend chart">
         {isLoading ? (
           <div className="w-full h-full flex items-center justify-center">
             <div className="premium-wave-loader scale-75">
@@ -221,7 +221,7 @@ function SalesTrendChart() {
                 ₹{point.rev.toFixed(0)} <span className="font-medium text-[9px]" style={{ color: 'var(--text-tertiary)' }}>({point.label})</span>
               </span>
             </div>
-            <span className="text-[8px] font-bold uppercase truncate w-full text-center" style={{ color: 'var(--text-tertiary)' }}>
+            <span className={`absolute -bottom-4 left-1/2 -translate-x-1/2 text-[8px] font-bold uppercase whitespace-nowrap text-center ${timeframe === '1_month' && point.rev === 0 && i !== 0 && i !== trend.length - 1 ? 'opacity-0 md:opacity-100' : ''}`} style={{ color: 'var(--text-tertiary)' }}>
               {point.label}
             </span>
           </div>
