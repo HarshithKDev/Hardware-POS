@@ -221,7 +221,7 @@ function SalesTrendChart() {
                 ₹{point.rev.toFixed(0)} <span className="font-medium text-[9px]" style={{ color: 'var(--text-tertiary)' }}>({point.label})</span>
               </span>
             </div>
-            <span className={`absolute -bottom-4 left-1/2 -translate-x-1/2 text-[8px] font-bold uppercase whitespace-nowrap text-center ${timeframe === '1_month' && point.rev === 0 && i !== 0 && i !== trend.length - 1 ? 'opacity-0 md:opacity-100' : ''}`} style={{ color: 'var(--text-tertiary)' }}>
+            <span className={`absolute -bottom-4 left-1/2 -translate-x-1/2 text-[6px] sm:text-[7px] md:text-[8px] font-bold uppercase whitespace-nowrap text-center`} style={{ color: 'var(--text-tertiary)' }}>
               {point.label}
             </span>
           </div>
