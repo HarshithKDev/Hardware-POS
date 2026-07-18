@@ -45,11 +45,11 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
     <div style={{ fontFamily: "var(--font-family)" }} className="h-full">
       <style>{`
         @media print { 
-          @page { margin: 0; size: 80mm auto; } 
+          @page { margin: 0; } 
           body { margin: 0; padding: 0; background: #ffffff !important; } 
           body * { visibility: hidden; } 
           #printable-receipt, #printable-receipt * { visibility: visible; } 
-          #printable-receipt { position: absolute; left: 0; top: 0; width: 80mm; padding: 4mm; } 
+          #printable-receipt { position: absolute; left: 0; top: 0; width: 80mm; padding: 4mm; margin: 0; } 
         }
       `}</style>
 
