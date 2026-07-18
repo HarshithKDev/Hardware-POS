@@ -334,6 +334,8 @@ tbody tr:hover {
    --------------------------------------------------------------- */
 @media print {
   @page { margin: 0; }
+  * { overflow: visible !important; }
+  html, body { height: auto !important; min-height: 100vh !important; }
   body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body * { visibility: hidden; }
   #printable-receipt, #printable-receipt *, #printable-barcodes, #printable-barcodes * { visibility: visible; }
