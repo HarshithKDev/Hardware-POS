@@ -23,7 +23,7 @@ export default function AppNavbar({ displayUserName, userRole, setIsMobileScanne
 
   return (
     <nav
-      className="w-full flex items-center justify-between px-4 md:px-6 flex-shrink-0 relative z-50"
+      className="w-full flex items-center justify-between px-4 md:px-6 flex-shrink-0 relative z-50 print:hidden"
       style={{
         height: '64px',
         backgroundColor: 'var(--bg-primary)',
