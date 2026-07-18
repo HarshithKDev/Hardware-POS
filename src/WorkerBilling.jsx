@@ -51,7 +51,7 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
           body { margin: 0; padding: 0; background: #ffffff !important; } 
           body * { visibility: hidden; } 
           #printable-receipt, #printable-receipt * { visibility: visible; } 
-          #printable-receipt { position: absolute; left: 0; top: 0; width: 80mm; padding: 4mm; margin: 0; } 
+          #printable-receipt { position: absolute !important; left: 0 !important; top: 0 !important; width: 80mm !important; padding: 4mm; margin: 0 !important; transform: none !important; } 
         }
       `}</style>
 
