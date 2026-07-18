@@ -308,7 +308,7 @@ function App() {
 
       {/* MAIN CONTENT */}
       <main
-        className="flex-1 w-full p-4 md:p-6 overflow-y-auto relative z-10"
+        className="flex-1 w-full p-4 md:p-6 overflow-y-auto relative z-10 print:static print:p-0 print:m-0"
         role="main"
         aria-label="Application content"
       >
