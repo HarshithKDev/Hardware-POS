@@ -47,9 +47,8 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
         @media print { 
           @page { margin: 0; } 
           body { margin: 0; padding: 0; background: #ffffff !important; } 
-          body * { visibility: hidden; } 
-          #printable-receipt, #printable-receipt * { visibility: visible; } 
-          #printable-receipt { position: absolute; left: 0; top: 0; width: 80mm; padding: 4mm; margin: 0; } 
+          .print\:hidden { display: none !important; }
+          #printable-receipt { position: absolute; left: 0; top: 0; width: 80mm; padding: 4mm; margin: 0; background: white; z-index: 99999; } 
         }
       `}</style>
 
