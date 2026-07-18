@@ -1,3 +1,5 @@
+import { createPortal } from 'react-dom';
+
 export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateTime, isPreview = false }) {
   if (!lastReceipt || lastReceipt.type !== 'checkout') return null;
   const totalSavings = lastReceipt.items?.reduce((acc, item) => acc + (Math.max(0, item.mrp - item.finalRate) * item.quantity), 0) || 0;
@@ -63,4 +65,10 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
       </div>
     </div>
   );
+
+  if (!isPreview && typeof document !== 'undefined') {
+    return createPortal(content, document.body);
+  }
+
+  return content;
 }

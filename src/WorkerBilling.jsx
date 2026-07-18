@@ -43,18 +43,6 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
 
   return (
     <div style={{ fontFamily: "var(--font-family)" }} className="h-full">
-      <style>{`
-        @media print { 
-          @page { margin: 0; } 
-          * { overflow: visible !important; }
-          html, body { height: auto !important; min-height: 100vh !important; }
-          body { margin: 0; padding: 0; background: #ffffff !important; } 
-          body * { visibility: hidden; } 
-          #printable-receipt, #printable-receipt * { visibility: visible; } 
-          #printable-receipt { position: absolute !important; left: 0 !important; top: 0 !important; width: 80mm !important; padding: 4mm; margin: 0 !important; transform: none !important; } 
-        }
-      `}</style>
-
       <div className="flex flex-col h-full w-full">
         {!hideNav && (
           <div
