@@ -4,7 +4,7 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
   if (!lastReceipt || lastReceipt.type !== 'checkout') return null;
   const totalSavings = lastReceipt.items?.reduce((acc, item) => acc + (Math.max(0, item.mrp - item.finalRate) * item.quantity), 0) || 0;
 
-  return (
+  const content = (
     <div 
       id={isPreview ? undefined : "printable-receipt"} 
       className={`${isPreview ? 'mx-auto shadow-md border border-gray-300 w-full p-4 md:p-6 bg-white box-border' : 'hidden print:block'} thermal-receipt`} 
@@ -66,7 +66,9 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
     </div>
   );
 
-  if (!isPreview && typeof document !== 'undefined') {
+  // Portal the receipt directly to document.body so it lives OUTSIDE #root.
+  // During print, #root is hidden via CSS, and only this portaled receipt shows.
+  if (!isPreview) {
     return createPortal(content, document.body);
   }
 
