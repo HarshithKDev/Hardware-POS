@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, Fragment } from 'react';
 import { supabase } from './supabaseClient';
 import { Spinner } from './SharedUI';
 import ReceiptTemplate from './ReceiptTemplate';
@@ -161,7 +161,12 @@ function InlineContinuousScanner({ onScan }) {
 }
 
 /** Desktop cart table */
-function CartTable({ cart, activeTab, onUpdateQuantity, onUpdateDimensions, onCustomPriceChange, onCustomPriceBlur, onRemoveItem }) {
+function CartTable({ cart, activeTab, onUpdateQuantity, onUpdateDimensions, onCustomPriceChange, onCustomPriceBlur, onCustomPriceChangeGroup, onCustomPriceBlurGroup, onRemoveItem }) {
+  const [expandedGroups, setExpandedGroups] = React.useState({});
+
+  const toggleGroup = (barcode) => {
+    setExpandedGroups(prev => ({ ...prev, [barcode]: !prev[barcode] }));
+  };
   if (cart.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center min-h-[300px]">
@@ -188,111 +193,218 @@ function CartTable({ cart, activeTab, onUpdateQuantity, onUpdateDimensions, onCu
         </tr>
       </thead>
       <tbody style={{ borderBottom: '1px solid var(--border-light)' }}>
-        {cart.map(item => {
-          const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
-          const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
-          return (
-            <tr key={item.id} className="animate-fade-in" style={{ borderBottom: '1px solid var(--border-light)' }}>
-              <td className="p-3 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name}</p>
-                {item.pieceLength && (
-                  <p className="text-[10px] uppercase font-bold mt-1" style={{ color: 'var(--text-tertiary)' }}>Length per piece: {item.pieceLength} {item.unit}</p>
-                )}
-                <div className="flex items-center justify-center gap-3 mt-1">
-                  <p className="text-xs font-mono" style={{ color: 'var(--color-accent)' }}>#{item.instance_barcode || item.barcode}</p>
-                  {activeTab === 'checkout' && (
-                    <div className="flex justify-center gap-2">
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
-                        MRP: ₹{Number(item.price || 0).toFixed(2)}
-                      </span>
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
-                        MSP: ₹{Number(item.msp || 0).toFixed(2)}
-                      </span>
-                    </div>
+        {(() => {
+          const groupedCart = [];
+          const groupMap = new Map();
+
+          cart.forEach(item => {
+            if (activeTab === 'checkout' && item.is_cuttable) {
+              if (!groupMap.has(item.barcode)) {
+                const group = {
+                  isGroup: true,
+                  id: `group-${item.barcode}`,
+                  barcode: item.barcode,
+                  name: item.name,
+                  unit: item.unit,
+                  price: item.price,
+                  msp: item.msp,
+                  customPriceInput: item.customPriceInput !== undefined ? item.customPriceInput : item.price,
+                  discountPct: item.discountPct || 0,
+                  totalQty: 0,
+                  totalPrice: 0,
+                  children: []
+                };
+                groupedCart.push(group);
+                groupMap.set(item.barcode, group);
+              }
+              const group = groupMap.get(item.barcode);
+              group.children.push(item);
+              const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
+              group.totalQty += safeQty;
+              const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
+              group.totalPrice += sellPrice * safeQty;
+              group.customPriceInput = item.customPriceInput !== undefined ? item.customPriceInput : item.price;
+              group.discountPct = item.discountPct;
+            } else {
+              groupedCart.push(item);
+            }
+          });
+
+          return groupedCart.map(item => {
+            if (item.isGroup) {
+              const isExpanded = expandedGroups[item.barcode];
+              const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
+              return (
+                <React.Fragment key={item.id}>
+                  {/* Parent Row */}
+                  <tr className="animate-fade-in cursor-pointer hover:bg-[var(--bg-hover)]" onClick={() => toggleGroup(item.barcode)} style={{ borderBottom: isExpanded ? 'none' : '1px solid var(--border-light)', backgroundColor: 'var(--bg-secondary)' }}>
+                    <td className="p-3 text-left" style={{ borderRight: '1px solid var(--border-light)' }}>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl font-bold" style={{ color: 'var(--text-secondary)' }}>{isExpanded ? '▼' : '▶'}</span>
+                        <div>
+                          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name} <span className="text-xs bg-[var(--color-accent-bg)] px-2 py-0.5 rounded-full" style={{ color: 'var(--color-accent)' }}>{item.children.length} Pieces</span></p>
+                          <p className="text-xs font-mono mt-1" style={{ color: 'var(--text-tertiary)' }}>#{item.barcode}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-2 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+                      <div className="inline-flex items-center justify-center gap-1.5 bg-[var(--bg-tertiary)] px-3 py-1.5 rounded-md border border-[var(--border-medium)]">
+                        <span className="font-bold text-lg leading-none" style={{ color: 'var(--text-primary)' }}>{Number(item.totalQty).toFixed(2)}</span>
+                        <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>{item.unit}</span>
+                      </div>
+                    </td>
+                    <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }} onClick={e => e.stopPropagation()}>
+                      <input type="number" step="0.01" value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChangeGroup(item.barcode, e.target.value)} onBlur={() => onCustomPriceBlurGroup(item.barcode)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} price`} />
+                    </td>
+                    <td className="p-2" style={{ borderRight: '1px solid var(--border-light)', backgroundColor: 'var(--bg-quaternary)' }}>
+                      <input type="number" value={item.discountPct ? Number(item.discountPct).toFixed(1) : '0.0'} disabled className="w-full h-8 px-2 text-sm font-semibold text-center bg-transparent outline-none cursor-not-allowed" style={{ color: 'var(--text-tertiary)', border: 'none' }} aria-label={`${item.name} discount`} />
+                    </td>
+                    <td className="p-3 text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{item.totalPrice.toFixed(2)}</td>
+                    <td className="p-2 text-center align-middle" onClick={e => e.stopPropagation()}>
+                      <button type="button" onClick={() => item.children.forEach(c => onRemoveItem(c.id))} className="w-8 h-8 mx-auto rounded flex items-center justify-center transition-colors focus:outline-none" style={{ color: 'var(--text-secondary)' }} onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-error)'; }} onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; }} aria-label={`Remove all ${item.name}`}>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      </button>
+                    </td>
+                  </tr>
+                  {/* Child Rows */}
+                  {isExpanded && item.children.map((child, idx) => {
+                    const safeQty = child.quantity === '' ? 0 : Number(child.quantity);
+                    const isLast = idx === item.children.length - 1;
+                    return (
+                      <tr key={child.id} className="animate-fade-in bg-[var(--bg-primary)]" style={{ borderBottom: isLast ? '1px solid var(--border-light)' : '1px dashed var(--border-medium)' }}>
+                        <td className="p-3 pl-12 text-left relative" style={{ borderRight: '1px solid var(--border-light)' }}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-[var(--border-medium)]" style={{ color: 'var(--text-tertiary)' }}>↳</span>
+                            <span className="text-xs font-mono font-bold" style={{ color: 'var(--text-secondary)' }}>Piece #{child.instance_barcode ? (child.instance_barcode.includes('-') ? child.instance_barcode.split('-')[1] : child.instance_barcode.slice(-6)) : 'Unknown'}</span>
+                          </div>
+                        </td>
+                        <td className="p-2 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+                          {child.unit === 'SQFT' ? (
+                              <div className="flex items-center justify-center gap-2">
+                                <span className="font-bold text-sm bg-[var(--bg-tertiary)] px-3 py-1 rounded-sm border border-[var(--border-medium)]" style={{ color: 'var(--text-primary)' }}>{child.pieceLength || child.length} ft</span>
+                                <span className="text-[10px] font-bold" style={{ color: 'var(--text-tertiary)' }}>×</span>
+                                <span className="font-bold text-sm bg-[var(--bg-tertiary)] px-3 py-1 rounded-sm border border-[var(--border-medium)]" style={{ color: 'var(--text-primary)' }}>{child.width} ft</span>
+                                <span className="text-[10px] font-bold ml-2 text-[var(--color-accent)]">{safeQty} sqft</span>
+                              </div>
+                          ) : (
+                              <span className="font-bold text-sm bg-[var(--bg-tertiary)] px-3 py-1 rounded-sm border border-[var(--border-medium)] text-[var(--text-primary)]">{safeQty} {child.unit}</span>
+                          )}
+                        </td>
+                        <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }}></td>
+                        <td className="p-2" style={{ borderRight: '1px solid var(--border-light)', backgroundColor: 'var(--bg-quaternary)' }}></td>
+                        <td className="p-2 text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-light)' }}>₹{(sellPrice * safeQty).toFixed(2)}</td>
+                        <td className="p-2 text-center">
+                          <button type="button" onClick={() => onRemoveItem(child.id)} className="w-6 h-6 mx-auto rounded flex items-center justify-center transition-colors focus:outline-none" style={{ color: 'var(--text-secondary)' }} onMouseEnter={e => e.currentTarget.style.color = 'var(--color-error)'} onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'} aria-label={`Remove piece`}>✕</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </React.Fragment>
+              );
+            }
+            
+            const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
+            const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
+            return (
+              <tr key={item.id} className="animate-fade-in" style={{ borderBottom: '1px solid var(--border-light)' }}>
+                <td className="p-3 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name}</p>
+                  {item.pieceLength && (
+                    <p className="text-[10px] uppercase font-bold mt-1" style={{ color: 'var(--text-tertiary)' }}>Length per piece: {item.pieceLength} {item.unit}</p>
                   )}
-                </div>
-              </td>
-              <td className="p-2" style={activeTab === 'checkout' ? { borderRight: '1px solid var(--border-light)' } : {}}>
-                {(item.unit === 'SQFT' && activeTab === 'checkout') || (item.is_cuttable && activeTab === 'receive') ? (
-                  <div className="flex items-center justify-center gap-2">
-                    {item.instance_barcode && activeTab !== 'receive' ? (
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm bg-[var(--bg-tertiary)] px-3 py-2 rounded-sm border border-[var(--border-medium)]" style={{ color: 'var(--text-primary)' }}>
-                          {item.pieceLength || item.length} {item.unit === 'SQFT' ? 'ft' : item.unit}
+                  <div className="flex items-center justify-center gap-3 mt-1">
+                    <p className="text-xs font-mono" style={{ color: 'var(--color-accent)' }}>#{item.instance_barcode || item.barcode}</p>
+                    {activeTab === 'checkout' && (
+                      <div className="flex justify-center gap-2">
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
+                          MRP: ₹{Number(item.price || 0).toFixed(2)}
                         </span>
-                        {item.unit === 'SQFT' && (
-                          <>
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
+                          MSP: ₹{Number(item.msp || 0).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </td>
+                <td className="p-2" style={activeTab === 'checkout' ? { borderRight: '1px solid var(--border-light)' } : {}}>
+                  {(item.unit === 'SQFT' && activeTab === 'checkout') || (item.is_cuttable && activeTab === 'receive') ? (
+                    <div className="flex items-center justify-center gap-2">
+                      {item.instance_barcode && activeTab !== 'receive' ? (
+                        <div className="flex items-center gap-2 ml-4">
+                            <span className="font-bold text-sm bg-[var(--bg-tertiary)] px-3 py-2 rounded-sm border border-[var(--border-medium)]" style={{ color: 'var(--text-primary)' }}>
+                              {item.length} ft
+                            </span>
                             <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
                             <span className="font-bold text-sm bg-[var(--bg-tertiary)] px-3 py-2 rounded-sm border border-[var(--border-medium)]" style={{ color: 'var(--text-primary)' }}>
                               {item.width} ft
                             </span>
-                          </>
-                        )}
-                      </div>
-                    ) : (
-                      <>
-                        <div className="relative inline-flex items-center">
-                          <input type="number" step="any" placeholder="L" value={activeTab === 'receive' ? (item.default_length || '') : (item.length !== undefined ? item.length : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_length', e.target.value) : onUpdateDimensions(item.id, 'length', e.target.value)} className="w-20 h-10 pl-2 pr-10 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title="Length" aria-label="Length" />
-                          <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>{item.unit === 'SQFT' ? 'ft' : item.unit}</span>
+                            <span className="text-[10px] font-bold ml-2" style={{ color: 'var(--color-accent)' }}>{safeQty} sqft</span>
                         </div>
-                        {item.unit === 'SQFT' && (
-                          <>
-                            <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
-                            <div className="relative inline-flex items-center">
-                              <input type="number" step="any" placeholder="H" value={activeTab === 'receive' ? (item.default_width || '') : (item.width !== undefined ? item.width : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_width', e.target.value) : onUpdateDimensions(item.id, 'width', e.target.value)} className="w-20 h-10 pl-2 pr-10 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title="Height" aria-label="Height" />
-                              <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>ft</span>
-                            </div>
-                          </>
-                        )}
-                        <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
-                        {item.instance_barcode && activeTab === 'receive' ? (
-                          <div className="w-14 h-10 px-2 text-sm font-bold flex items-center justify-center bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-medium)] rounded" title="Quantity is locked to 1 for specific piece">1</div>
-                        ) : (
-                          <input type="number" step="any" min="1" placeholder="Qty" value={activeTab === 'receive' ? item.quantity : (item.rolls !== undefined ? item.rolls : '1')} onChange={(e) => activeTab === 'receive' ? onUpdateQuantity(item.id, e.target.value) : onUpdateDimensions(item.id, 'rolls', e.target.value)} className="w-14 h-10 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title={activeTab === 'receive' ? 'Pcs / Rolls' : 'Qty'} aria-label="Quantity" />
-                        )}
-                      </>
-                    )}
-                    {activeTab === 'checkout' && (
-                      <div className="flex flex-col ml-3 text-left">
-                        <span className="font-bold text-xl leading-none" style={{ color: 'var(--color-accent)' }}>={safeQty}</span>
-                        <span className="text-[10px] font-bold uppercase mt-1" style={{ color: 'var(--text-secondary)' }}>{item.unit}</span>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center">
-                    <div className="flex" style={{ border: '1px solid var(--border-medium)', borderRadius: '2px' }}>
-                      {item.instance_barcode ? (
-                        <div className="w-30 h-8 px-4 flex items-center justify-center text-sm font-semibold text-center bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">{safeQty} </div>
                       ) : (
                         <>
-                          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-8 h-8 font-bold focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }} aria-label={`Decrease ${item.name} quantity`}>-</button>
-                          <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-14 h-8 px-1 text-sm font-semibold text-center focus:outline-none rounded-md" aria-label={`${item.name} quantity`} />
-                          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-8 h-8 font-bold focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', borderLeft: '1px solid var(--border-medium)' }} aria-label={`Increase ${item.name} quantity`}>+</button>
+                          <div className="relative inline-flex items-center">
+                            <input type="number" step="any" placeholder="L" value={activeTab === 'receive' ? (item.default_length || '') : (item.length !== undefined ? item.length : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_length', e.target.value) : onUpdateDimensions(item.id, 'length', e.target.value)} className="w-20 h-10 pl-2 pr-10 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title="Length" aria-label="Length" />
+                            <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>{item.unit === 'SQFT' ? 'ft' : item.unit}</span>
+                          </div>
+                          {item.unit === 'SQFT' && (
+                            <>
+                              <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
+                              <div className="relative inline-flex items-center">
+                                <input type="number" step="any" placeholder="H" value={activeTab === 'receive' ? (item.default_width || '') : (item.width !== undefined ? item.width : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_width', e.target.value) : onUpdateDimensions(item.id, 'width', e.target.value)} className="w-20 h-10 pl-2 pr-10 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title="Height" aria-label="Height" />
+                                <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>ft</span>
+                              </div>
+                            </>
+                          )}
+                          <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
+                          {item.instance_barcode && activeTab === 'receive' ? (
+                            <div className="w-14 h-10 px-2 text-sm font-bold flex items-center justify-center bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-medium)] rounded" title="Quantity is locked to 1 for specific piece">1</div>
+                          ) : (
+                            <input type="number" step="any" min="1" placeholder="Qty" value={activeTab === 'receive' ? item.quantity : (item.rolls !== undefined ? item.rolls : '1')} onChange={(e) => activeTab === 'receive' ? onUpdateQuantity(item.id, e.target.value) : onUpdateDimensions(item.id, 'rolls', e.target.value)} className="w-14 h-10 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title={activeTab === 'receive' ? 'Pcs / Rolls' : 'Qty'} aria-label="Quantity" />
+                          )}
                         </>
                       )}
-                      <div className="h-8 px-2 flex items-center justify-center text-[10px] font-bold uppercase tracking-wider" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', borderLeft: '1px solid var(--border-medium)' }}>{(item.unit === 'SQFT' || item.is_cuttable) && activeTab !== 'checkout' ? 'PIECES' : item.unit}</div>
+                      {activeTab === 'checkout' && (
+                        <div className="flex flex-col ml-3 text-left">
+                          <span className="font-bold text-xl leading-none" style={{ color: 'var(--color-accent)' }}>={safeQty}</span>
+                          <span className="text-[10px] font-bold uppercase mt-1" style={{ color: 'var(--text-secondary)' }}>{item.unit}</span>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
-              </td>
-              {activeTab === 'checkout' && (<>
-                <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }}>
-                  <input type="number" step="0.01" value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChange(item.id, e.target.value)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} price`} />
+                  ) : (
+                    <div className="flex items-center justify-center">
+                      <div className="flex" style={{ border: '1px solid var(--border-medium)', borderRadius: '2px' }}>
+                        {item.instance_barcode ? (
+                          <div className="w-30 h-8 px-4 flex items-center justify-center text-sm font-semibold text-center bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">{safeQty} </div>
+                        ) : (
+                          <>
+                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-8 h-8 font-bold focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }} aria-label={`Decrease ${item.name} quantity`}>-</button>
+                            <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-14 h-8 px-1 text-sm font-semibold text-center focus:outline-none rounded-md" aria-label={`${item.name} quantity`} />
+                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-8 h-8 font-bold focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', borderLeft: '1px solid var(--border-medium)' }} aria-label={`Increase ${item.name} quantity`}>+</button>
+                          </>
+                        )}
+                        <div className="h-8 px-2 flex items-center justify-center text-[10px] font-bold uppercase tracking-wider" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', borderLeft: '1px solid var(--border-medium)' }}>{(item.unit === 'SQFT' || item.is_cuttable) && activeTab !== 'checkout' ? 'PIECES' : item.unit}</div>
+                      </div>
+                    </div>
+                  )}
                 </td>
-                <td className="p-2" style={{ borderRight: '1px solid var(--border-light)', backgroundColor: 'var(--bg-quaternary)' }}>
-                  <input type="number" value={item.discountPct ? Number(item.discountPct).toFixed(1) : '0.0'} disabled className="w-full h-8 px-2 text-sm font-semibold text-center bg-transparent outline-none cursor-not-allowed" style={{ color: 'var(--text-tertiary)', border: 'none' }} aria-label={`${item.name} discount`} />
+                {activeTab === 'checkout' && (<>
+                  <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }}>
+                    <input type="number" step="0.01" value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChange(item.id, e.target.value)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} price`} />
+                  </td>
+                  <td className="p-2" style={{ borderRight: '1px solid var(--border-light)', backgroundColor: 'var(--bg-quaternary)' }}>
+                    <input type="number" value={item.discountPct ? Number(item.discountPct).toFixed(1) : '0.0'} disabled className="w-full h-8 px-2 text-sm font-semibold text-center bg-transparent outline-none cursor-not-allowed" style={{ color: 'var(--text-tertiary)', border: 'none' }} aria-label={`${item.name} discount`} />
+                  </td>
+                  <td className="p-3 text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{(sellPrice * safeQty).toFixed(2)}</td>
+                </>)}
+                <td className="p-2 text-center align-middle">
+                  <button type="button" onClick={() => onRemoveItem(item.id)} className="w-8 h-8 mx-auto rounded flex items-center justify-center transition-colors focus:outline-none rounded-md" style={{ color: 'var(--text-secondary)', backgroundColor: 'transparent' }} onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--color-error)'; }} onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }} aria-label={`Remove ${item.name}`}>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  </button>
                 </td>
-                <td className="p-3 text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{(sellPrice * safeQty).toFixed(2)}</td>
-              </>)}
-              <td className="p-2 text-center align-middle">
-                <button type="button" onClick={() => onRemoveItem(item.id)} className="w-8 h-8 mx-auto rounded flex items-center justify-center transition-colors focus:outline-none rounded-md" style={{ color: 'var(--text-secondary)', backgroundColor: 'transparent' }} onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--color-error)'; }} onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }} aria-label={`Remove ${item.name}`}>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                </button>
-              </td>
-            </tr>
-          );
-        })}
+              </tr>
+            );
+          });
+        })()}
       </tbody>
     </table>
   );
@@ -300,6 +412,11 @@ function CartTable({ cart, activeTab, onUpdateQuantity, onUpdateDimensions, onCu
 
 /** Mobile cart view */
 function CartMobileView({ cart, activeTab, onUpdateQuantity, onUpdateDimensions, onRemoveItem }) {
+  const [expandedGroups, setExpandedGroups] = React.useState({});
+
+  const toggleGroup = (barcode) => {
+    setExpandedGroups(prev => ({ ...prev, [barcode]: !prev[barcode] }));
+  };
   if (cart.length === 0) {
     return (
       <div className="p-10 text-center text-sm font-semibold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>Cart Empty</div>
@@ -312,7 +429,7 @@ function CartMobileView({ cart, activeTab, onUpdateQuantity, onUpdateDimensions,
         <div className="flex justify-between items-start mb-4 gap-4">
           <div className="flex flex-col flex-1">
             <span className="font-bold text-xl leading-tight" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
-            {item.instance_barcode && <span className="font-mono text-sm mt-1" style={{ color: 'var(--color-accent)' }}>Piece #{item.instance_barcode.split('-')[1]}</span>}
+            {item.instance_barcode && <span className="font-mono text-sm mt-1" style={{ color: 'var(--color-accent)' }}>Piece #{item.instance_barcode.includes('-') ? item.instance_barcode.split('-')[1] : item.instance_barcode.slice(-6)}</span>}
           </div>
           <button 
             onClick={() => onRemoveItem(item.id)} 
@@ -342,7 +459,110 @@ function CartMobileView({ cart, activeTab, onUpdateQuantity, onUpdateDimensions,
     ));
   }
 
-  return cart.map((item) => {
+  const groupedCart = [];
+  const groupMap = new Map();
+
+  cart.forEach(item => {
+    if (activeTab === 'checkout' && item.is_cuttable) {
+      if (!groupMap.has(item.barcode)) {
+        const group = {
+          isGroup: true,
+          id: `group-${item.barcode}`,
+          barcode: item.barcode,
+          name: item.name,
+          unit: item.unit,
+          price: item.price,
+          msp: item.msp,
+          customPriceInput: item.customPriceInput !== undefined ? item.customPriceInput : item.price,
+          discountPct: item.discountPct || 0,
+          totalQty: 0,
+          totalPrice: 0,
+          children: []
+        };
+        groupedCart.push(group);
+        groupMap.set(item.barcode, group);
+      }
+      const group = groupMap.get(item.barcode);
+      group.children.push(item);
+      const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
+      group.totalQty += safeQty;
+      const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
+      group.totalPrice += sellPrice * safeQty;
+      group.customPriceInput = item.customPriceInput !== undefined ? item.customPriceInput : item.price;
+      group.discountPct = item.discountPct;
+    } else {
+      groupedCart.push(item);
+    }
+  });
+
+  return groupedCart.map((item) => {
+    if (item.isGroup) {
+      const isExpanded = expandedGroups[item.barcode];
+      return (
+         <React.Fragment key={item.id}>
+             {/* Parent Card */}
+             <div className="p-4 flex flex-col gap-3 animate-fade-in cursor-pointer" onClick={() => toggleGroup(item.barcode)} style={{ borderBottom: isExpanded ? 'none' : '1px solid var(--border-light)', backgroundColor: 'var(--bg-secondary)' }}>
+                 <div className="flex justify-between items-start">
+                     <div className="flex items-center gap-3 pr-2 flex-1">
+                         <span className="text-xl font-bold" style={{ color: 'var(--text-secondary)' }}>{isExpanded ? '▼' : '▶'}</span>
+                         <div>
+                             <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name}</p>
+                             <p className="text-xs mt-1 mb-1" style={{ color: 'var(--text-tertiary)' }}>#{item.barcode}</p>
+                             <span className="text-xs bg-[var(--color-accent-bg)] px-2 py-0.5 rounded-full" style={{ color: 'var(--color-accent)' }}>{item.children.length} Pieces</span>
+                         </div>
+                     </div>
+                     <div className="text-right">
+                         <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>₹{item.totalPrice.toFixed(2)}</p>
+                     </div>
+                 </div>
+                 <div className="flex justify-between items-center mt-1 pt-3" style={{ borderTop: '1px solid var(--border-light)' }}>
+                     <div className="flex flex-col text-left">
+                         <div className="inline-flex items-center gap-1.5 bg-[var(--bg-tertiary)] px-3 py-1.5 rounded-md border border-[var(--border-medium)]">
+                             <span className="font-bold text-lg leading-none" style={{ color: 'var(--text-primary)' }}>{Number(item.totalQty).toFixed(2)}</span>
+                             <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>{item.unit}</span>
+                         </div>
+                     </div>
+                     <div className="flex justify-end gap-2">
+                         <button type="button" onClick={(e) => { e.stopPropagation(); item.children.forEach(c => onRemoveItem(c.id)); }} className="p-2 rounded transition-colors focus:outline-none" style={{ color: 'var(--color-error)' }} aria-label={`Remove all ${item.name}`}>
+                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                         </button>
+                     </div>
+                 </div>
+             </div>
+             {/* Child Cards */}
+             {isExpanded && item.children.map((child, idx) => {
+                 const safeQty = child.quantity === '' ? 0 : Number(child.quantity);
+                 const isLast = idx === item.children.length - 1;
+                 const sellPrice = child.customPriceInput !== undefined && child.customPriceInput !== '' ? Number(child.customPriceInput) : Number(child.price || 0);
+                 return (
+                     <div key={child.id} className="p-3 pl-8 flex flex-col gap-2 animate-fade-in bg-[var(--bg-primary)] relative" style={{ borderBottom: isLast ? '1px solid var(--border-light)' : '1px dashed var(--border-medium)' }}>
+                         <div className="flex justify-between items-center pl-2">
+                             <div className="flex items-center gap-2">
+                                 <span className="text-sm font-bold text-[var(--border-medium)]" style={{ color: 'var(--text-tertiary)' }}>↳</span>
+                                 <span className="text-xs font-mono font-bold" style={{ color: 'var(--text-secondary)' }}>Piece #{child.instance_barcode ? (child.instance_barcode.includes('-') ? child.instance_barcode.split('-')[1] : child.instance_barcode.slice(-6)) : 'Unknown'}</span>
+                             </div>
+                             <button type="button" onClick={() => onRemoveItem(child.id)} className="p-1 rounded transition-colors focus:outline-none" style={{ color: 'var(--text-secondary)' }} aria-label={`Remove piece`}>✕</button>
+                         </div>
+                         <div className="flex justify-between items-center pl-2">
+                             {child.unit === 'SQFT' ? (
+                                 <div className="flex items-center gap-1">
+                                     <span className="font-bold text-xs bg-[var(--bg-tertiary)] px-2 py-1 rounded-sm border border-[var(--border-medium)] text-[var(--text-primary)]">{child.pieceLength || child.length} ft</span>
+                                     <span className="text-[10px] font-bold" style={{ color: 'var(--text-tertiary)' }}>×</span>
+                                     <span className="font-bold text-xs bg-[var(--bg-tertiary)] px-2 py-1 rounded-sm border border-[var(--border-medium)] text-[var(--text-primary)]">{child.width} ft</span>
+                                     <span className="text-[10px] font-bold ml-1 text-[var(--color-accent)]">{safeQty} sqft</span>
+                                 </div>
+                             ) : (
+                                 <span className="font-bold text-xs bg-[var(--bg-tertiary)] px-2 py-1 rounded-sm border border-[var(--border-medium)] text-[var(--text-primary)]">{safeQty} {child.unit}</span>
+                             )}
+                             <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>₹{(sellPrice * safeQty).toFixed(2)}</p>
+                         </div>
+                     </div>
+                 );
+             })}
+         </React.Fragment>
+      );
+    }
+    
     const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
     const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
     return (
@@ -395,9 +615,11 @@ function CartMobileView({ cart, activeTab, onUpdateQuantity, onUpdateDimensions,
                   </>
                 )}
               </div>
-              <div className="flex flex-col text-right">
-                <span className="font-bold text-xl leading-none" style={{ color: 'var(--color-accent)' }}>={safeQty}</span>
-                <span className="text-[10px] font-bold uppercase mt-1" style={{ color: 'var(--text-secondary)' }}>{item.unit}</span>
+              <div className="flex flex-col items-end justify-center">
+                <div className="inline-flex items-center gap-1.5 bg-[var(--bg-tertiary)] px-3 py-1.5 rounded-md border border-[var(--border-medium)]">
+                  <span className="font-bold text-lg leading-none" style={{ color: 'var(--text-primary)' }}>{safeQty}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>{item.unit}</span>
+                </div>
               </div>
             </div>
           ) : (
@@ -540,7 +762,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     const fetchSuggestions = async () => {
       try {
         const searchStr = manualBarcode.trim();
-        const baseSearch = searchStr.includes('-') ? searchStr.split('-')[0] : searchStr;
+        const baseSearch = searchStr;
         const { data: parentData } = await getInventoryByQuery({
           limit: 10,
           offset: 0,
@@ -549,28 +771,26 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         
         let finalSuggestions = parentData || [];
         
-        // If they are explicitly searching for an instance, fetch it
-        if (searchStr.includes('-')) {
-          const { data: instData } = await supabase.from('stock_instances')
-            .select('instance_barcode, current_length, parent_barcode')
-            .ilike('instance_barcode', `%${searchStr}%`)
-            .eq('is_active', true)
-            .limit(5);
-            
-          if (instData && instData.length > 0) {
-            const instanceSuggestions = instData.map(inst => {
-              const parent = finalSuggestions.find(p => p.barcode === inst.parent_barcode);
-              if (!parent) return null;
-              return {
-                ...parent,
-                barcode: inst.instance_barcode,
-                name: `${parent.name} (Piece #${inst.instance_barcode.split('-')[1]}) [${inst.current_length} ${parent.unit === 'SQFT' ? 'ft' : parent.unit}]`
-              };
-            }).filter(Boolean);
-            
-            // Add specific instances to the top of the list
-            finalSuggestions = [...instanceSuggestions, ...finalSuggestions];
-          }
+        // Check if search matches any active stock instances
+        const { data: instData } = await supabase.from('stock_instances')
+          .select('instance_barcode, current_length, parent_barcode, inventory:parent_barcode(name, unit)')
+          .ilike('instance_barcode', `%${searchStr}%`)
+          .eq('is_active', true)
+          .limit(5);
+          
+        if (instData && instData.length > 0) {
+          const instanceSuggestions = instData.map(inst => {
+            const parentName = inst.inventory?.name || 'Unknown Item';
+            const parentUnit = inst.inventory?.unit || 'UNIT';
+            return {
+              barcode: inst.instance_barcode,
+              name: `${parentName} (Piece #${inst.instance_barcode.slice(-6)}) [${inst.current_length} ${parentUnit === 'SQFT' ? 'ft' : parentUnit}]`,
+              isInstancePlaceholder: true // Just a visual flag
+            };
+          });
+          
+          // Add specific instances to the top of the list
+          finalSuggestions = [...instanceSuggestions, ...finalSuggestions];
         }
         
         setSuggestions(finalSuggestions);
@@ -590,20 +810,41 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     let scannedInstanceBarcode = null;
     let searchBarcode = cleanBarcode;
 
-    // Check if it's an instance barcode (e.g., 1001-001)
-    if (cleanBarcode.includes('-')) {
-      const parts = cleanBarcode.split('-');
-      if (parts.length === 2 && !isNaN(parts[1])) {
-        searchBarcode = parts[0];
-        scannedInstanceBarcode = cleanBarcode;
-      }
-    }
-
+    // First try exact match in inventory
     let item = cartRef.current.find(i => i.barcode === searchBarcode && !i.is_cuttable);
     if (!item) {
       item = await getInventoryItemByBarcode(searchBarcode);
-      if (!item) return showAlertRef.current(`Barcode ${cleanBarcode} not found in the system.`, "Error");
     }
+
+    // If exact match fails, check if it's a 6-digit suffixed instance barcode
+    if (!item && cleanBarcode.length > 6) {
+      const possibleParent = cleanBarcode.slice(0, -6);
+      const possibleSuffix = cleanBarcode.slice(-6);
+      
+      if (!isNaN(possibleSuffix)) {
+        const parentItem = await getInventoryItemByBarcode(possibleParent);
+        if (parentItem && parentItem.is_cuttable) {
+          searchBarcode = possibleParent;
+          scannedInstanceBarcode = cleanBarcode;
+          item = parentItem;
+        }
+      }
+    }
+
+    // Handle legacy dash format just in case there are old barcodes floating around
+    if (!item && cleanBarcode.includes('-')) {
+      const parts = cleanBarcode.split('-');
+      if (parts.length === 2 && !isNaN(parts[1])) {
+        const parentItem = await getInventoryItemByBarcode(parts[0]);
+        if (parentItem && parentItem.is_cuttable) {
+          searchBarcode = parts[0];
+          scannedInstanceBarcode = cleanBarcode;
+          item = parentItem;
+        }
+      }
+    }
+
+    if (!item) return showAlertRef.current(`Barcode ${cleanBarcode} not found in the system.`, "Error");
 
     if (item) {
       const currentTab = activeTabRef.current;
@@ -803,7 +1044,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         id: generateId(),
         instance_barcode: instance.instance_barcode,
         discard_scrap: discardScrap,
-        name: `${item.name} (Cut from #${instance.instance_barcode.split('-')[1] || 'Piece'})`,
+        name: `${item.name} (Cut from #${instance.instance_barcode.includes('-') ? instance.instance_barcode.split('-')[1] : instance.instance_barcode.slice(-6)})`,
         customPriceInput: Number(item.price || 0).toFixed(2),
         discountPct: 0,
         quantity: item.unit === 'SQFT' ? parseFloat((addQty * (Number(item.default_width) || 1)).toFixed(2)) : addQty,
@@ -910,6 +1151,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   };
 
   const handleCustomPriceChange = (id, val) => setCart(prev => prev.map(i => i.id === id ? { ...i, customPriceInput: val } : i));
+  const handleCustomPriceChangeGroup = (barcode, val) => setCart(prev => prev.map(i => (i.barcode === barcode && i.is_cuttable) ? { ...i, customPriceInput: val } : i));
 
   const applyCustomPriceBlur = (id) => setCart(prev => prev.map(i => {
     if (i.id === id) {
@@ -921,6 +1163,28 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     }
     return i;
   }));
+
+  const handleCustomPriceBlurGroup = (barcode) => {
+    setCart(prev => {
+      return prev.map(i => {
+        if (i.barcode === barcode && i.is_cuttable) {
+          const msp = Number(i.msp || 0);
+          let val = Number(i.customPriceInput);
+          if (isNaN(val) || val <= 0) val = Number(i.price);
+          if (val < msp && cashierName !== 'admin') {
+            setTimeout(() => showAlertRef.current(`Cannot sell ${i.name} below MSP (₹${msp})`, "Price Error"), 0);
+            val = msp;
+          }
+          let newDisc = 0;
+          if (val < Number(i.price)) {
+            newDisc = ((Number(i.price) - val) / Number(i.price)) * 100;
+          }
+          return { ...i, customPriceInput: val.toFixed(2), discountPct: newDisc };
+        }
+        return i;
+      });
+    });
+  };
 
   const calculateTotal = () => cart.reduce((tot, i) => tot + Math.round((i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0)) * 100) * (i.quantity === '' ? 0 : Number(i.quantity)), 0) / 100;
   const calculateTotalUnits = () => cart.reduce((tot, i) => tot + (i.quantity === '' ? 0 : Number(i.quantity)), 0);
@@ -1230,7 +1494,16 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                 <p className="text-xs font-bold text-center p-4 text-[var(--color-error)]">No active pieces found.</p>
               ) : (
                 <div className="max-h-[300px] overflow-y-auto flex flex-col gap-2 mb-4">
-                  {selectPieceModal.instances.map(inst => (
+                  {selectPieceModal.instances.map(inst => {
+                    let availableLength = Number(inst.current_length);
+                    if (selectPieceModal.action === 'checkout') {
+                      const inCartQty = cart.filter(c => c.instance_barcode === inst.instance_barcode).reduce((sum, c) => sum + Number(c.quantity || 0), 0);
+                      availableLength -= inCartQty;
+                    }
+                    
+                    if (availableLength <= 0 && selectPieceModal.action === 'checkout') return null;
+                    
+                    return (
                     <button
                       key={inst.id}
                       onClick={() => {
@@ -1250,15 +1523,16 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                           setManualBarcode('');
                         } else {
                           // Checkout mode: proceed to cutting
-                          setCutLengthModal({ isOpen: true, item: selectPieceModal.item, instance: inst, cutQty: '', discardScrap: false });
+                          setCutLengthModal({ isOpen: true, item: selectPieceModal.item, instance: { ...inst, current_length: availableLength }, cutQty: '', discardScrap: false });
                         }
                       }}
                       className="p-3 text-left border border-[var(--border-medium)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] transition-colors flex justify-between items-center focus:outline-none rounded-md focus:border-[var(--color-accent)]"
                     >
                       <span className="font-mono text-xs font-bold" style={{ color: 'var(--color-accent)' }}>#{inst.instance_barcode}</span>
-                      <span className="text-sm font-bold text-[var(--text-primary)]">{inst.current_length} {selectPieceModal.item?.unit} left</span>
+                      <span className="text-sm font-bold text-[var(--text-primary)]">{availableLength} {selectPieceModal.item?.unit} left</span>
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1298,7 +1572,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
             <form onSubmit={handleCutLengthSubmit}>
               <div className="p-6">
-                <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>How much of <strong style={{ color: 'var(--color-accent)' }}>{cutLengthModal.item?.name}</strong> are you cutting from piece <strong className="font-mono text-[var(--text-primary)]">#{cutLengthModal.instance?.instance_barcode.split('-')[1] || cutLengthModal.instance?.instance_barcode}</strong>?</p>
+                <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>How much of <strong style={{ color: 'var(--color-accent)' }}>{cutLengthModal.item?.name}</strong> are you cutting from piece <strong className="font-mono text-[var(--text-primary)]">#{cutLengthModal.instance?.instance_barcode.includes('-') ? cutLengthModal.instance?.instance_barcode.split('-')[1] : cutLengthModal.instance?.instance_barcode.slice(-6)}</strong>?</p>
 
                 <p className="text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Current Piece: {cutLengthModal.instance?.current_length} {cutLengthModal.item?.unit === 'SQFT' ? 'ft' : cutLengthModal.item?.unit}</p>
 
@@ -1486,6 +1760,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             onUpdateDimensions={updateDimensions}
             onCustomPriceChange={handleCustomPriceChange}
             onCustomPriceBlur={applyCustomPriceBlur}
+            onCustomPriceChangeGroup={handleCustomPriceChangeGroup}
+            onCustomPriceBlurGroup={handleCustomPriceBlurGroup}
             onRemoveItem={handleRemoveItem}
           />
         </div>

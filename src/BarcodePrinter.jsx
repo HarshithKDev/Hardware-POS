@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Barcode from 'react-barcode';
 import { supabase } from './supabaseClient'; 
 
@@ -105,7 +106,7 @@ export default function BarcodePrinter() {
          const qItem = updatedQueue[existingIndex];
          qItem.printQty += 1;
          if (item.is_cuttable) {
-           qItem.instanceBarcodes = Array.from({ length: qItem.printQty }).map((_, i) => `${item.barcode}-${qItem.nextSeq + i}`);
+           qItem.instanceBarcodes = Array.from({ length: qItem.printQty }).map((_, i) => `${item.barcode}${String(qItem.nextSeq + i).padStart(6, '0')}`);
          }
          setPrintQueue(updatedQueue);
       } else {
@@ -113,21 +114,33 @@ export default function BarcodePrinter() {
         if (item.is_cuttable) {
           const { data: latest } = await supabase.from('stock_instances')
             .select('instance_barcode')
-            .eq('item_barcode', item.barcode)
+            .eq('parent_barcode', item.barcode)
             .order('created_at', { ascending: false })
             .limit(1);
           
           if (latest && latest.length > 0) {
-            const parts = latest[0].instance_barcode.split('-');
-            if (parts.length === 2 && !isNaN(parts[1])) {
-              nextSeq = Number(parts[1]) + 1;
+            const lastBarcode = latest[0].instance_barcode;
+            let lastSeqStr = "";
+            if (lastBarcode.includes('-')) {
+              lastSeqStr = lastBarcode.split('-')[1];
+            } else {
+              lastSeqStr = lastBarcode.slice(-6);
             }
+            if (!isNaN(lastSeqStr) && lastSeqStr.trim() !== '') {
+              nextSeq = Number(lastSeqStr) + 1;
+            }
+          }
+          
+          // Check local cache in case labels were printed but not yet inwarded
+          const localSeqs = JSON.parse(localStorage.getItem('printed_seqs') || '{}');
+          if (localSeqs[item.barcode]) {
+            nextSeq = Math.max(nextSeq, localSeqs[item.barcode]);
           }
         }
 
         const newQueueItem = { ...item, printQty: 1, nextSeq };
         if (item.is_cuttable) {
-          newQueueItem.instanceBarcodes = [`${item.barcode}-${nextSeq}`];
+          newQueueItem.instanceBarcodes = [`${item.barcode}${String(nextSeq).padStart(6, '0')}`];
         }
         setPrintQueue([...printQueue, newQueueItem]);
       }
@@ -143,7 +156,7 @@ export default function BarcodePrinter() {
         const updatedItem = { ...item, printQty: qty };
         if (item.is_cuttable && qty !== '') {
           const targetLength = Number(qty);
-          updatedItem.instanceBarcodes = Array.from({ length: targetLength }).map((_, i) => `${item.barcode}-${item.nextSeq + i}`);
+          updatedItem.instanceBarcodes = Array.from({ length: targetLength }).map((_, i) => `${item.barcode}${String(item.nextSeq + i).padStart(6, '0')}`);
         }
         return updatedItem;
       }
@@ -153,6 +166,26 @@ export default function BarcodePrinter() {
 
   const removeFromQueue = (barcode) => {
     setPrintQueue(printQueue.filter(item => item.barcode !== barcode));
+  };
+
+  const handlePrint = () => {
+    // Save sequences to cache so the next print session won't overlap un-inwarded stickers
+    const localSeqs = JSON.parse(localStorage.getItem('printed_seqs') || '{}');
+    let hasUpdates = false;
+    
+    printQueue.forEach(item => {
+      if (item.is_cuttable && item.nextSeq) {
+         const nextAvailableSeq = item.nextSeq + (Number(item.printQty) || 0);
+         localSeqs[item.barcode] = Math.max(localSeqs[item.barcode] || 1001, nextAvailableSeq);
+         hasUpdates = true;
+      }
+    });
+    
+    if (hasUpdates) {
+      localStorage.setItem('printed_seqs', JSON.stringify(localSeqs));
+    }
+    
+    window.print();
   };
 
   const totalLabels = printQueue.reduce((sum, item) => sum + (Number(item.printQty) || 0), 0);
@@ -218,26 +251,15 @@ export default function BarcodePrinter() {
                             {item.name} <span className="block text-xs" style={{ color: 'var(--text-tertiary)' }}>#{item.barcode}</span>
                           </td>
                           <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }}>
-                            {item.is_cuttable ? (
-                              <div className="flex flex-col gap-1">
-                                <span className="text-xs text-[var(--color-accent)] font-semibold">Unique Rolls</span>
-                                <input 
-                                  type="number" min="1" max="100" 
-                                  value={item.printQty} 
-                                  onChange={(e) => updateQuantity(item.barcode, e.target.value)}
-                                  className="w-16 px-2 py-1 text-sm text-center focus:outline-none rounded-md"
-                                  style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
-                                />
-                              </div>
-                            ) : (
+                            <div className="flex justify-center">
                               <input 
                                 type="number" min="1" max="100" 
                                 value={item.printQty} 
                                 onChange={(e) => updateQuantity(item.barcode, e.target.value)}
-                                className="w-20 px-2 py-1 text-sm text-center focus:outline-none rounded-md"
+                                className="w-16 px-2 py-1 text-sm text-center focus:outline-none rounded-md"
                                 style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
                               />
-                            )}
+                            </div>
                           </td>
                           <td className="p-2 text-center">
                             <button onClick={() => removeFromQueue(item.barcode)} className="font-bold text-lg leading-none" style={{ color: 'var(--color-error)' }}>×</button>
@@ -253,17 +275,17 @@ export default function BarcodePrinter() {
                 <div className="flex gap-4">
                   <button 
                     onClick={() => setPrintQueue([])}
-                    className="px-4 py-2 text-sm transition-colors focus:outline-none rounded-md hover:bg-[var(--bg-hover)]"
-                    style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+                    className="flex-1 px-4 py-3 font-semibold rounded-md border border-[var(--border-medium)] transition-colors focus:outline-none"
+                    style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                   >
                     Clear All
                   </button>
                   <button 
-                    onClick={() => window.print()}
-                    className="flex-1 py-2 text-white text-sm transition-colors border-transparent focus:outline-none rounded-md hover:opacity-90"
+                    onClick={handlePrint}
+                    className="flex-[3] px-4 py-3 font-semibold text-white rounded-md transition-opacity focus:outline-none shadow-sm"
                     style={{ backgroundColor: 'var(--color-accent)' }}
                   >
-                    Print All {totalLabels} Label{totalLabels !== 1 ? 's' : ''}
+                    Print All {totalLabels} Labels
                   </button>
                 </div>
               )}
@@ -276,7 +298,7 @@ export default function BarcodePrinter() {
                   <p className="text-xs font-bold mb-1 truncate mx-auto" style={{ color: '#000000' }}>{printQueue[0].name}</p>
                   <div className="flex justify-center">
                     {/* React Barcode will render inline styles automatically, but ensure it receives standard colors */}
-                    <Barcode value={printQueue[0].barcode} width={1.8} height={50} fontSize={12} margin={0} lineColor="#000000" background="#ffffff" />
+                    <Barcode value={printQueue[0].is_cuttable && printQueue[0].instanceBarcodes?.length > 0 ? printQueue[0].instanceBarcodes[0] : printQueue[0].barcode} width={1.8} height={50} fontSize={12} margin={0} lineColor="#000000" background="#ffffff" />
                   </div>
                   <p className="text-sm font-bold mt-1" style={{ color: '#000000' }}>₹{Number(printQueue[0].price).toFixed(2)}</p>
                 </div>
@@ -289,7 +311,7 @@ export default function BarcodePrinter() {
         </div>
       </div>
 
-      {printQueue.length > 0 && (
+      {printQueue.length > 0 && createPortal(
         <div id="printable-barcodes" className="absolute -top-[9999px] left-0 opacity-0 pointer-events-none print:static print:opacity-100 print:pointer-events-auto grid grid-cols-5 gap-x-1 gap-y-4 pt-4 px-2 content-start place-items-center w-full bg-white text-black" style={{ backgroundColor: '#ffffff' }}>
           {printQueue.map((item) => (
             item.is_cuttable ? (
@@ -310,7 +332,8 @@ export default function BarcodePrinter() {
               ))
             )
           ))}
-        </div>
+        </div>,
+        document.body
       )}
       
     </div>

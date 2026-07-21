@@ -38,7 +38,7 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
         </thead>
         <tbody className="align-top">
           {lastReceipt.items.map((item, i) => (
-            <tr key={i}>
+            <tr key={i} className="hover:!bg-transparent">
               <td className="py-1 pr-1 text-wrap text-black" style={{ color: '#000' }}>{item.name}</td>
               <td className="py-1 text-center text-black" style={{ color: '#000' }}>{item.quantity} {item.unit}</td>
               <td className="py-1 text-right text-black" style={{ color: '#000' }}>{item.finalRate.toFixed(2)}</td>

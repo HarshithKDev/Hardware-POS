@@ -102,10 +102,31 @@ export default function WorkerScanner({ cashierName }) {
 
   const handleScan = async (barcode) => {
     try {
-      const isInstance = barcode.includes('-');
-      let searchBarcode = isInstance ? barcode.split('-')[0] : barcode;
+      let isInstance = false;
+      let searchBarcode = barcode;
+      let instanceBarcodeSuffix = "";
+
+      if (barcode.includes('-')) {
+        isInstance = true;
+        searchBarcode = barcode.split('-')[0];
+        instanceBarcodeSuffix = barcode.split('-')[1];
+      }
       
       let item = await getInventoryItemByBarcode(searchBarcode);
+      
+      if (!item && !isInstance && barcode.length > 6) {
+        const possibleParent = barcode.slice(0, -6);
+        const possibleSuffix = barcode.slice(-6);
+        if (!isNaN(possibleSuffix)) {
+          const parentItem = await getInventoryItemByBarcode(possibleParent);
+          if (parentItem && parentItem.is_cuttable) {
+            item = parentItem;
+            searchBarcode = possibleParent;
+            isInstance = true;
+            instanceBarcodeSuffix = possibleSuffix;
+          }
+        }
+      }
       
       if (!item) {
         // Fallback for UPC/EAN format differences
@@ -139,7 +160,7 @@ export default function WorkerScanner({ cashierName }) {
           maxStock = Number(data.current_length);
         } catch (err) {
           console.error(err);
-          showAlert(`Could not verify stock for piece #${barcode.split('-')[1]}`, "Error");
+          showAlert(`Could not verify stock for piece #${instanceBarcodeSuffix}`, "Error");
           return;
         }
       } else {
@@ -175,8 +196,8 @@ export default function WorkerScanner({ cashierName }) {
             id: generateId(), 
             quantity: 1,
             maxStock: maxStock,
-            instance_barcode: instanceBarcode,
-            name: isInstance ? `${item.name} (Piece #${barcode.split('-')[1]})` : item.name
+            instance_barcode: isInstance ? barcode : null,
+            name: isInstance ? `${item.name} (Piece #${instanceBarcodeSuffix})` : item.name
           }, ...prev];
         }
       });
@@ -335,7 +356,7 @@ export default function WorkerScanner({ cashierName }) {
               <div className="flex justify-between items-start mb-4 gap-4">
                 <div className="flex flex-col flex-1">
                   <span className="font-bold text-xl leading-tight" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
-                  {item.instance_barcode && <span className="font-mono text-sm mt-1" style={{ color: 'var(--color-accent)' }}>Piece #{item.instance_barcode.split('-')[1]}</span>}
+                  {item.instance_barcode && <span className="font-mono text-sm mt-1" style={{ color: 'var(--color-accent)' }}>Piece #{item.instance_barcode.includes('-') ? item.instance_barcode.split('-')[1] : item.instance_barcode.slice(-6)}</span>}
                 </div>
                 <button 
                   onClick={() => updateQuantity(item.id, 0)} 
