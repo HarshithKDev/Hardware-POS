@@ -24,7 +24,9 @@ export function AppProvider({ children }) {
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('posDarkMode');
-      if (saved !== null) return JSON.parse(saved);
+      if (saved !== null) {
+        try { return JSON.parse(saved); } catch (e) { /* fallback */ }
+      }
       return window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
     return false;

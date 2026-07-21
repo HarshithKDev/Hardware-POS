@@ -1,25 +1,25 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Camera, LogOut } from 'lucide-react';
 
+function NavButton({ path, label, onClick, location, navigate }) {
+  const isActive = onClick ? false : location.pathname.startsWith(path);
+  return (
+    <button
+      onClick={onClick || (() => navigate(path))}
+      className="h-9 px-4 text-sm font-medium transition-colors"
+      style={{
+        backgroundColor: isActive ? 'var(--bg-tertiary)' : 'transparent',
+        color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
 export default function AppNavbar({ displayUserName, userRole, setIsMobileScannerOpen, setShowLogoutConfirm }) {
   const navigate = useNavigate();
   const location = useLocation();
-
-  const NavButton = ({ path, label, onClick }) => {
-    const isActive = onClick ? false : location.pathname.startsWith(path);
-    return (
-      <button
-        onClick={onClick || (() => navigate(path))}
-        className="h-9 px-4 text-sm font-medium transition-colors"
-        style={{
-          backgroundColor: isActive ? 'var(--bg-tertiary)' : 'transparent',
-          color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-        }}
-      >
-        {label}
-      </button>
-    );
-  };
 
   return (
     <nav
@@ -52,11 +52,11 @@ export default function AppNavbar({ displayUserName, userRole, setIsMobileScanne
         </button>
         {userRole === 'owner' ? (
           <>
-            <NavButton path="/owner" label="Management" />
-            <NavButton path="/printer" label="Barcodes" />
+            <NavButton path="/owner" label="Management" location={location} navigate={navigate} />
+            <NavButton path="/printer" label="Barcodes" location={location} navigate={navigate} />
           </>
         ) : (
-          <NavButton path="/terminal" label="Terminal" />
+          <NavButton path="/terminal" label="Terminal" location={location} navigate={navigate} />
         )}
         <div className="h-5 w-px mx-2" style={{ backgroundColor: 'var(--border-medium)' }}></div>
         <button

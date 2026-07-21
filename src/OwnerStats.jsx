@@ -18,7 +18,13 @@ import {
 
 /** Animates a number counting up from 0 */
 function AnimatedNumber({ valueStr, duration = 1000 }) {
-  const [displayValue, setDisplayValue] = useState('');
+  const [displayValue, setDisplayValue] = useState(valueStr);
+  const [prevValueStr, setPrevValueStr] = useState(valueStr);
+
+  if (valueStr !== prevValueStr) {
+    setPrevValueStr(valueStr);
+    setDisplayValue(valueStr);
+  }
   
   useEffect(() => {
     let prefix = '';
@@ -31,7 +37,6 @@ function AnimatedNumber({ valueStr, duration = 1000 }) {
     
     const target = parseFloat(numStr);
     if (isNaN(target)) {
-      setDisplayValue(valueStr);
       return;
     }
     
@@ -173,7 +178,7 @@ function SalesTrendChart() {
 
   useEffect(() => {
     if (trend && trend.length > 0) {
-      setIsAnimated(false);
+      queueMicrotask(() => setIsAnimated(false));
       const timer = setTimeout(() => setIsAnimated(true), 100);
       return () => clearTimeout(timer);
     }

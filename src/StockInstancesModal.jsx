@@ -17,13 +17,7 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    if (isOpen && item) {
-      fetchInstances();
-    }
-  }, [isOpen, item]);
-
-  const fetchInstances = async () => {
+  const fetchInstances = React.useCallback(async () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
@@ -37,7 +31,13 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [item, showAlert]);
+
+  useEffect(() => {
+    if (isOpen && item) {
+      fetchInstances();
+    }
+  }, [isOpen, item, fetchInstances]);
 
   const handleToggleActive = async (instance) => {
     const action = instance.is_active ? "discard" : "restore";

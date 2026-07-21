@@ -132,7 +132,8 @@ export default function BarcodePrinter() {
           }
           
           // Check local cache in case labels were printed but not yet inwarded
-          const localSeqs = JSON.parse(localStorage.getItem('printed_seqs') || '{}');
+          let localSeqs = {};
+          try { localSeqs = JSON.parse(localStorage.getItem('printed_seqs') || '{}'); } catch (e) { localSeqs = {}; }
           if (localSeqs[item.barcode]) {
             nextSeq = Math.max(nextSeq, localSeqs[item.barcode]);
           }
@@ -170,7 +171,8 @@ export default function BarcodePrinter() {
 
   const handlePrint = () => {
     // Save sequences to cache so the next print session won't overlap un-inwarded stickers
-    const localSeqs = JSON.parse(localStorage.getItem('printed_seqs') || '{}');
+    let localSeqs = {};
+    try { localSeqs = JSON.parse(localStorage.getItem('printed_seqs') || '{}'); } catch (e) { localSeqs = {}; }
     let hasUpdates = false;
     
     printQueue.forEach(item => {

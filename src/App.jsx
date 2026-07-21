@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from './supabaseClient';
 import { Spinner, PageLoader } from './SharedUI';
 import EntryFlow from './EntryFlow';
 import WorkerBilling from './WorkerBilling';
 import OwnerDashboard from './OwnerDashboard';
 import BarcodePrinter from './BarcodePrinter';
-import { LogoutModal, MobileScannerModal, ProductInfoModal } from './AppModals';
+import { MobileScannerModal, ProductInfoModal } from './AppModals';
 import { AlertDialog, ConfirmDialog } from './Dialog';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from './AppContext';
@@ -46,7 +46,7 @@ function App() {
 
   const isBillable = cashierName === 'owner' || (workerData && !workerData.password?.includes('NON_BILLABLE'));
 
-  useEffect(() => { fetchInitialData(); }, []);
+
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -91,7 +91,7 @@ function App() {
     }
   }, [shopSettings?.shop_name]);
 
-  const fetchInitialData = async () => {
+  const fetchInitialData = useCallback(async () => {
     try {
       setIsInitialLoad(true);
       const { data: settingsData, error: settingsError } = await supabase
@@ -126,7 +126,10 @@ function App() {
     } finally {
       setIsInitialLoad(false);
     }
-  };
+  }, []);
+
+  useEffect(() => { fetchInitialData(); }, [fetchInitialData]);
+
 
   const handleLoginSuccess = (role, rememberMe = false) => {
     setUserRole(role);
@@ -197,13 +200,14 @@ function App() {
         onCancel={closeConfirm}
       />
 
-      {/* MODALS */}
-      {showLogoutConfirm && (
-        <LogoutModal
-          onConfirm={confirmLogout}
-          onCancel={() => setShowLogoutConfirm(false)}
-        />
-      )}
+      <ConfirmDialog
+        isOpen={showLogoutConfirm}
+        title="Sign Out"
+        message="You will be logged out of the current session. Any unsaved data will be lost. Continue?"
+        confirmLabel="Sign Out"
+        onConfirm={confirmLogout}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
 
       {isMobileScannerOpen && (
         <MobileScannerModal

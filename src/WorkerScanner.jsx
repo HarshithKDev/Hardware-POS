@@ -77,6 +77,7 @@ export default function WorkerScanner({ cashierName }) {
         }
       };
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isScanning]);
 
   const playBeep = () => {

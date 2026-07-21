@@ -50,12 +50,14 @@ export const EyeSlashIcon = () => (
 
 export function CreatableDropdown({ value, onChange, options, placeholder, onCreate, disabled, required }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(value || '');
+  const [prevValue, setPrevValue] = useState(value);
   const wrapperRef = useRef(null);
 
-  useEffect(() => {
+  if (value !== prevValue) {
+    setPrevValue(value);
     setSearch(value || '');
-  }, [value]);
+  }
 
   useEffect(() => {
     function handleClickOutside(event) {

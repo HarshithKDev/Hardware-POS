@@ -2,25 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { supabase } from './supabaseClient';
 
-export function LogoutModal({ onConfirm, onCancel }) {
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[500] px-4 print:hidden animate-fade-in">
-      <div className="w-[85%] max-w-[400px] rounded-xl overflow-hidden flex flex-col animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-        <div className="flex justify-between items-center pr-1 pl-4 py-1" style={{ borderBottom: '1px solid var(--border-light)' }}>
-          <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Sign Out</span>
-          <button onClick={onCancel} className="px-3 py-1.5 leading-none transition-none focus:outline-none" style={{ color: 'var(--text-secondary)' }}>✕</button>
-        </div>
-        <div className="p-6">
-          <p className="text-sm" style={{ color: 'var(--text-primary)' }}>You will be logged out of the current session. Any unsaved data will be lost. Continue?</p>
-        </div>
-        <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-          <button onClick={onConfirm} className="px-6 py-2 rounded-md text-white text-sm border border-transparent focus:outline-none focus:ring-1 focus:ring-[var(--border-light)] transition-colors hover:opacity-90" style={{ backgroundColor: 'var(--color-accent)' }}>Sign Out</button>
-          <button onClick={onCancel} className="px-6 py-2 rounded-md text-sm focus:outline-none transition-colors hover:bg-[var(--bg-hover)]" style={{ backgroundColor: 'transparent', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>Cancel</button>
-        </div>
-      </div>
-    </div>
-  );
-}
+
 
 export function MobileScannerModal({ onClose, setScannedProduct, onScan }) {
   const scannerRef = useRef(null);
