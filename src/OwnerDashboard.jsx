@@ -88,7 +88,7 @@ export default function OwnerDashboard() {
         className={`
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
           md:translate-x-0 
-          absolute md:relative top-0 left-0 h-full z-50
+          absolute md:relative top-0 left-0 h-full md:h-[calc(100%-2rem)] z-50
           w-64 md:w-56 flex-shrink-0 py-4 
           m-0 md:m-4 md:mr-2 rounded-r-2xl md:rounded-xl 
           border-r md:border border-[var(--border-medium)] md:border-[var(--border-light)] 

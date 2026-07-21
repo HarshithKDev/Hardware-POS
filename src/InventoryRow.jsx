@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import StockInstancesModal from './StockInstancesModal';
 
-export default function InventoryRow({ item, viewType, categories, subcategories, isGlobalEditMode, editData, onEditChange, isSelected, onSelect, onRestore, isSelectionMode, expandedBarcode, onToggleExpand }) {
+export default function InventoryRow({ item, viewType, categories, subcategories, isGlobalEditMode, editData, onEditChange, isSelected, onSelect, onRestore, isSelectionMode, expandedBarcode, onToggleExpand, virtuosoProps }) {
   const isExpanded = expandedBarcode === item.barcode;
 
   const { data: pieceCounts } = useQuery({
@@ -33,7 +33,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
   if (isGlobalEditMode && isSelected && viewType === 'warehouse') {
     const data = editData || item;
     return (
-      <tr className="transition-none" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+      <tr {...virtuosoProps} className="transition-none" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
         {isSelectionMode && (
           <td className="p-3 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
             <input type="checkbox" checked={isSelected} onChange={() => onSelect(item.barcode)} className="w-4 h-4 rounded text-accent focus:ring-accent" />
@@ -96,6 +96,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
   return (
     <>
       <tr 
+        {...virtuosoProps}
         className={`hover-row ${isSelectionMode ? 'cursor-pointer' : ''} ${isSelected ? 'selected' : ''} block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none border md:border-b md:border-t-0 md:border-l-0 md:border-r-0 border-[var(--border-medium)] md:border-[var(--border-light)] mb-3 md:mb-0 relative`}
         style={{ borderBottomWidth: '1px', borderBottomStyle: 'solid' }}
         onClick={() => {

@@ -1,11 +1,11 @@
 import { supabase } from '../supabaseClient';
 import { 
-  clearInventoryCache, 
   saveInventoryBatch, 
   getOfflineQueue, 
   deleteOfflineTransaction,
   setSyncStatus,
-  markTransactionFailed
+  markTransactionFailed,
+  deleteOrphanedInventory
 } from './db';
 
 const PAGE_SIZE = 500;
@@ -20,7 +20,7 @@ export const syncInventoryToLocal = async () => {
 
     let offset = 0;
     let hasMore = true;
-    const allData = [];
+    const syncedBarcodes = new Set();
 
     while (hasMore) {
       const { data, error } = await supabase
@@ -34,7 +34,9 @@ export const syncInventoryToLocal = async () => {
       }
 
       if (data && data.length > 0) {
-        allData.push(...data);
+        await saveInventoryBatch(data);
+        data.forEach(item => syncedBarcodes.add(item.barcode));
+        
         offset += PAGE_SIZE;
         if (data.length < PAGE_SIZE) {
           hasMore = false;
@@ -44,10 +46,9 @@ export const syncInventoryToLocal = async () => {
       }
     }
 
-    // Perform atomic-like swap locally to prevent "missing items" during sync
-    await clearInventoryCache();
-    if (allData.length > 0) {
-      await saveInventoryBatch(allData);
+    // Cleanup items that were deleted or deactivated remotely
+    if (syncedBarcodes.size > 0) {
+      await deleteOrphanedInventory(syncedBarcodes);
     }
 
     await setSyncStatus('inventory_sync', { status: 'idle', last_sync: new Date().toISOString() });

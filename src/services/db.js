@@ -3,6 +3,8 @@ import { openDB } from 'idb';
 const DB_NAME = 'HardwarePOSDB';
 const DB_VERSION = 1;
 
+let cachedInventory = null;
+
 export const initDB = async () => {
   return openDB(DB_NAME, DB_VERSION, {
     upgrade(db) {
@@ -22,6 +24,7 @@ export const initDB = async () => {
 export const clearInventoryCache = async () => {
   const db = await initDB();
   await db.clear('inventory');
+  cachedInventory = null;
 };
 
 export const saveInventoryBatch = async (items) => {
@@ -31,6 +34,7 @@ export const saveInventoryBatch = async (items) => {
     tx.store.put(item);
   });
   await tx.done;
+  cachedInventory = null;
 };
 
 export const getInventoryItemByBarcode = async (barcode) => {
@@ -39,9 +43,15 @@ export const getInventoryItemByBarcode = async (barcode) => {
 };
 
 export const getInventoryByQuery = async ({ limit, offset, search, category, subcategory, sortOption, viewType, status = 'active' }) => {
-  const db = await initDB();
-  const tx = db.transaction('inventory', 'readonly');
-  let allItems = await tx.store.getAll();
+  let allItems;
+  if (cachedInventory) {
+    allItems = [...cachedInventory];
+  } else {
+    const db = await initDB();
+    const tx = db.transaction('inventory', 'readonly');
+    cachedInventory = await tx.store.getAll();
+    allItems = [...cachedInventory];
+  }
   
   if (status === 'deactivated') {
     allItems = allItems.filter(i => i.is_active === false);
@@ -136,4 +146,18 @@ export const getSyncStatus = async (key) => {
 export const setSyncStatus = async (key, value) => {
   const db = await initDB();
   await db.put('sync_status', { key, ...value });
+};
+
+export const deleteOrphanedInventory = async (syncedBarcodes) => {
+  const db = await initDB();
+  const tx = db.transaction('inventory', 'readwrite');
+  let cursor = await tx.store.openCursor();
+  while (cursor) {
+    if (!syncedBarcodes.has(cursor.key)) {
+      cursor.delete();
+    }
+    cursor = await cursor.continue();
+  }
+  await tx.done;
+  cachedInventory = null;
 };

@@ -11,7 +11,7 @@ export default function OwnerCategories() {
   const [newCategory, setNewCategory] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [newSubcategory, setNewSubcategory] = useState('');
-  const [expandedCategoryId, setExpandedCategoryId] = useState(null);
+  const [expandedCategoryName, setExpandedCategoryName] = useState(null);
 
   // Fetch Categories
   const { data: categories = [] } = useQuery({
@@ -84,7 +84,7 @@ export default function OwnerCategories() {
       queryClient.invalidateQueries({ queryKey: ['subcategories'] });
       setNewSubcategory('');
       const parentCat = categories.find(c => c.name === category_name);
-      if (parentCat) setExpandedCategoryId(parentCat.id);
+      if (parentCat) setExpandedCategoryName(parentCat.name);
       showAlert('Sub-category added successfully.', 'Success');
     },
     onError: (e) => showAlert(e.message, 'System Error')
@@ -150,8 +150,8 @@ export default function OwnerCategories() {
     showConfirm(`Delete sub-category "${name}"?`, () => deleteSubcategoryMutation.mutate({ id, name, category_name }));
   };
 
-  const toggleCategory = (id) => {
-    setExpandedCategoryId(expandedCategoryId === id ? null : id);
+  const toggleCategory = (name) => {
+    setExpandedCategoryName(expandedCategoryName === name ? null : name);
   };
 
   return (
@@ -175,7 +175,7 @@ export default function OwnerCategories() {
             <div className="relative">
               <select id="parent-cat" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
                 <option value="">-- Select Category --</option>
-                {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                {categories.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
             </div>
@@ -202,13 +202,13 @@ export default function OwnerCategories() {
               {categories.length === 0 ? (
                 <tr><td colSpan="3" className="h-[50vh] align-middle text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No categories found.</td></tr>
               ) : categories.map(cat => {
-                const isExpanded = expandedCategoryId === cat.id;
+                const isExpanded = expandedCategoryName === cat.name;
                 const catSubcategories = subcategories.filter(sub => sub.category_name === cat.name);
 
                 return (
-                  <Fragment key={cat.id}>
+                  <Fragment key={cat.name}>
                     <tr
-                      onClick={() => toggleCategory(cat.id)}
+                      onClick={() => toggleCategory(cat.name)}
                       className="cursor-pointer group transition-colors"
                       style={{ backgroundColor: isExpanded ? 'var(--color-accent-bg)' : 'var(--bg-secondary)', borderBottom: '1px solid var(--border-light)' }}
                     >
@@ -220,7 +220,7 @@ export default function OwnerCategories() {
                       </td>
                       <td className="p-2 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
                         <button
-                          onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.id, cat.name); }}
+                          onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.name, cat.name); }}
                           className="h-8 px-4 text-xs font-semibold uppercase tracking-wider focus:outline-none transition-colors"
                           style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
                           onMouseEnter={(e) => {
@@ -255,12 +255,12 @@ export default function OwnerCategories() {
                             ) : (
                               <div className="flex flex-col gap-2 mt-4 max-w-md w-full">
                                 {catSubcategories.map(sub => (
-                                  <div key={sub.id} className="group flex items-center justify-between px-4 py-3 rounded-sm transition-colors" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+                                  <div key={sub.name} className="group flex items-center justify-between px-4 py-3 rounded-sm transition-colors" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
                                     <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                                       {sub.name}
                                     </span>
                                     <button
-                                      onClick={(e) => { e.stopPropagation(); handleDeleteSubcategory(sub.id, sub.name, sub.category_name); }}
+                                      onClick={(e) => { e.stopPropagation(); handleDeleteSubcategory(sub.name, sub.name, sub.category_name); }}
                                       className="p-1.5 rounded-sm transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                                       style={{ color: 'var(--text-tertiary)' }}
                                       onMouseEnter={(e) => {

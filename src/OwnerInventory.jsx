@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, forwardRef } from 'react';
+import { TableVirtuoso } from 'react-virtuoso';
 import { supabase } from './supabaseClient';
 import { getInventoryByQuery, saveInventoryBatch, getInventoryItemByBarcode } from './services/db';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { escapeIlike, debounce } from './utils';
-import { INV_PER_PAGE, STALE_TIME_5MIN } from './constants';
+import { STALE_TIME_5MIN } from './constants';
 import InventoryRow from './InventoryRow';
 
 export default function OwnerInventory({ viewType }) {
@@ -15,8 +16,6 @@ export default function OwnerInventory({ viewType }) {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedSubcategory, setSelectedSubcategory] = useState('');
   const [sortOption, setSortOption] = useState('barcode-desc');
-  const [invPage, setInvPage] = useState(0);
-  
   const [selectedBarcodes, setSelectedBarcodes] = useState([]);
   const [expandedBarcode, setExpandedBarcode] = useState(null);
   const [isGlobalEditMode, setIsGlobalEditMode] = useState(false);
@@ -34,7 +33,6 @@ export default function OwnerInventory({ viewType }) {
 
   const handleSearchChange = useCallback((e) => {
     setInventorySearch(e.target.value);
-    setInvPage(0);
     debouncedSetSearch(e.target.value);
   }, [debouncedSetSearch]);
 
@@ -59,16 +57,15 @@ export default function OwnerInventory({ viewType }) {
   });
 
   const { data: inventoryData, isLoading } = useQuery({
-    queryKey: ['inventory', viewType, invPage, debouncedSearch, sortOption, selectedCategory, selectedSubcategory],
+    queryKey: ['inventory', viewType, debouncedSearch, sortOption, selectedCategory, selectedSubcategory],
     queryFn: async () => {
       if (!navigator.onLine) {
         // Fallback or primarily use local IDB
       }
       // Actually, since we sync to local IDB in the background, we can just query IDB directly for lightning fast pagination!
-      const from = invPage * INV_PER_PAGE;
       const { data, totalCount } = await getInventoryByQuery({
-        limit: INV_PER_PAGE,
-        offset: from,
+        limit: 1000000,
+        offset: 0,
         search: debouncedSearch,
         category: selectedCategory,
         subcategory: selectedSubcategory,
@@ -289,8 +286,6 @@ export default function OwnerInventory({ viewType }) {
 
   const items = inventoryData?.items || [];
   const totalInvItems = inventoryData?.total || 0;
-  const maxPages = Math.max(1, Math.ceil(totalInvItems / INV_PER_PAGE));
-  const safeInvPage = Math.min(invPage, maxPages - 1);
 
   return (
     <div className="flex flex-col flex-1">
@@ -380,7 +375,7 @@ export default function OwnerInventory({ viewType }) {
               <div className="relative w-full md:w-[200px] flex-shrink-0">
                 <select
                   value={selectedCategory}
-                  onChange={(e) => { setSelectedCategory(e.target.value); setSelectedSubcategory(''); setInvPage(0); }}
+                  onChange={(e) => { setSelectedCategory(e.target.value); setSelectedSubcategory(''); }}
                   className="h-11 md:h-10 w-full pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer font-medium rounded-md"
                   style={{ border: '1px solid var(--border-input)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-input)' }}
                   aria-label="Filter by category"
@@ -397,7 +392,7 @@ export default function OwnerInventory({ viewType }) {
               <div className="relative w-full md:w-[200px] flex-shrink-0">
                 <select
                   value={selectedSubcategory}
-                  onChange={(e) => { setSelectedSubcategory(e.target.value); setInvPage(0); }}
+                  onChange={(e) => { setSelectedSubcategory(e.target.value); }}
                   disabled={!selectedCategory}
                   className="h-11 md:h-10 w-full pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer font-medium disabled:cursor-not-allowed rounded-md"
                   style={{ border: '1px solid var(--border-input)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-input)' }}
@@ -417,7 +412,7 @@ export default function OwnerInventory({ viewType }) {
               <div className="relative w-full md:w-[220px] flex-shrink-0">
                 <select
                   value={sortOption}
-                  onChange={(e) => { setSortOption(e.target.value); setInvPage(0); }}
+                  onChange={(e) => { setSortOption(e.target.value); }}
                   className="h-11 md:h-10 w-full pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer font-medium rounded-md"
                   style={{ border: '1px solid var(--border-input)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-input)' }}
                   aria-label="Sort inventory"
@@ -442,35 +437,22 @@ export default function OwnerInventory({ viewType }) {
         </div>
       )}
 
-      <div className="overflow-x-auto overflow-y-hidden flex-1 min-h-[300px] md:shadow-sm md:rounded-lg" style={{ backgroundColor: 'transparent' }}>
-        <table className={`w-full text-center md:whitespace-nowrap border-collapse block md:table min-w-0 md:min-w-[1100px] ${(isLoading || items.length === 0) ? 'h-full' : ''}`}>
-          <thead className="hidden md:table-header-group sticky top-0" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
-            <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-              {isSelectionMode && (
-                <th className="p-3 w-12 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
-                  <input type="checkbox" checked={items.length > 0 && selectedBarcodes.length === items.length} onChange={toggleSelectAll} className="w-4 h-4 rounded text-accent focus:ring-accent cursor-pointer" />
-                </th>
-              )}
-              <th className="p-3 min-w-[120px]" style={{ borderRight: '1px solid var(--border-light)' }}>Barcode</th>
-              <th className="p-3 min-w-[160px]" style={{ borderRight: '1px solid var(--border-light)' }}>Item Details</th>
-              <th className="p-3 w-28" style={{ borderRight: '1px solid var(--border-light)' }}>Category</th>
-              <th className="p-3 w-28" style={{ borderRight: '1px solid var(--border-light)' }}>Sub-category</th>
-              <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Cost</th>
-              <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>MSP</th>
-              <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>MRP</th>
-              <th className="p-3 w-24 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Whse Qty</th>
-              <th className="p-3 w-24 text-center">Store Qty</th>
-            </tr>
-          </thead>
-          <tbody className="block md:table-row-group" style={{ borderBottom: '1px solid var(--border-medium)' }}>
-            {isLoading ? (
-              <tr className="block md:table-row"><td colSpan="10" className="block md:table-cell h-full align-middle text-center text-sm font-semibold p-4" style={{ color: 'var(--text-tertiary)' }}>Loading inventory...</td></tr>
-            ) : items.length === 0 ? (
-              <tr className="block md:table-row"><td colSpan="10" className="block md:table-cell h-full align-middle text-center text-sm font-semibold p-4" style={{ color: 'var(--text-tertiary)' }}>No items found matching the search.</td></tr>
-            ) : (
-              items.map(item => (
+            <div className="flex-1 min-h-[300px] md:shadow-sm md:rounded-lg overflow-hidden flex flex-col" style={{ backgroundColor: 'transparent' }}>
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full"><p style={{color: 'var(--text-tertiary)'}}>Loading inventory...</p></div>
+        ) : items.length === 0 ? (
+          <div className="flex items-center justify-center h-full"><p style={{color: 'var(--text-tertiary)'}}>No items found matching the search.</p></div>
+        ) : (
+          <TableVirtuoso
+            data={items}
+            useWindowScroll={false}
+            style={{ height: '100%', width: '100%' }}
+            components={{
+              Table: (props) => <table {...props} className="w-full text-center md:whitespace-nowrap border-collapse block md:table min-w-0 md:min-w-[1100px]" style={{...props.style}} />,
+              TableHead: forwardRef((props, ref) => <thead ref={ref} {...props} className="hidden md:table-header-group sticky top-0 z-10" style={{ ...props.style, backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }} />),
+              TableBody: forwardRef((props, ref) => <tbody ref={ref} {...props} className="block md:table-row-group" style={{ ...props.style, borderBottom: '1px solid var(--border-medium)' }} />),
+              TableRow: ({ item, children, ...props }) => (
                 <InventoryRow
-                  key={item.barcode}
                   item={item}
                   viewType={viewType}
                   categories={categories}
@@ -484,33 +466,31 @@ export default function OwnerInventory({ viewType }) {
                   isSelectionMode={isSelectionMode}
                   expandedBarcode={expandedBarcode}
                   onToggleExpand={(barcode) => setExpandedBarcode(prev => prev === barcode ? null : barcode)}
+                  virtuosoProps={props}
                 />
-              ))
+              )
+            }}
+            fixedHeaderContent={() => (
+              <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+                {isSelectionMode && (
+                  <th className="p-3 w-12 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+                    <input type="checkbox" checked={items.length > 0 && selectedBarcodes.length === items.length} onChange={toggleSelectAll} className="w-4 h-4 rounded text-accent focus:ring-accent cursor-pointer" />
+                  </th>
+                )}
+                <th className="p-3 min-w-[120px]" style={{ borderRight: '1px solid var(--border-light)' }}>Barcode</th>
+                <th className="p-3 min-w-[160px]" style={{ borderRight: '1px solid var(--border-light)' }}>Item Details</th>
+                <th className="p-3 w-28" style={{ borderRight: '1px solid var(--border-light)' }}>Category</th>
+                <th className="p-3 w-28" style={{ borderRight: '1px solid var(--border-light)' }}>Sub-category</th>
+                <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Cost</th>
+                <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>MSP</th>
+                <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>MRP</th>
+                <th className="p-3 w-24 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Whse Qty</th>
+                <th className="p-3 w-24 text-center">Store Qty</th>
+              </tr>
             )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="flex justify-between items-center mt-2 pt-2 gap-2">
-        <button
-          onClick={() => setInvPage(p => Math.max(0, p - 1))}
-          disabled={invPage === 0 || isLoading}
-          className="h-11 md:h-8 px-4 md:px-6 flex-1 md:flex-none text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md transition-colors"
-          style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
-        >
-          Previous
-        </button>
-        <span className="text-xs md:text-sm font-semibold text-center whitespace-nowrap px-1" style={{ color: 'var(--text-secondary)' }}>
-          Page {safeInvPage + 1} of {maxPages}
-        </span>
-        <button
-          onClick={() => setInvPage(p => p + 1)}
-          disabled={(safeInvPage + 1) * INV_PER_PAGE >= totalInvItems || isLoading}
-          className="h-11 md:h-8 px-4 md:px-6 flex-1 md:flex-none text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md transition-colors"
-          style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
-        >
-          Next
-        </button>
+            itemContent={() => null}
+          />
+        )}
       </div>
     </div>
   );

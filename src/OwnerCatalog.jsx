@@ -186,16 +186,11 @@ export default function OwnerCatalog() {
       try {
         const currentUser = (await supabase.auth.getUser()).data.user?.email || 'Unknown';
         await supabase.from('audit_logs').insert([{
-          action: 'CREATE',
+          action_type: 'CREATE',
           barcode: savedItem.barcode,
           item_name: savedItem.name,
-          user_email: currentUser,
-          changes: JSON.stringify([
-            `Created item: ${savedItem.name}`,
-            `Category: ${savedItem.category || 'N/A'}, Sub-category: ${savedItem.sub_category || 'N/A'}`,
-            `Cost: ₹${savedItem.cost_price}, MSP: ₹${savedItem.msp}, MRP: ₹${savedItem.price}`,
-            `Item Type: ${savedItem.is_cuttable ? 'Cuttable' : (savedItem.is_loose_item ? 'Loose' : 'Standard')}, Unit: ${savedItem.unit}`
-          ])
+          performed_by: 'Owner',
+          changes: `Item: ${savedItem.name} | Category: ${savedItem.category || 'N/A'} | Sub-Category: ${savedItem.sub_category || 'N/A'} | Cost: ₹${savedItem.cost_price} | MSP: ₹${savedItem.msp} | MRP: ₹${savedItem.price} | Type: ${savedItem.is_cuttable ? 'Cuttable' : (savedItem.is_loose_item ? 'Loose' : 'Standard')}`
         }]);
       } catch (err) {
         console.error("Failed to log item creation", err);
