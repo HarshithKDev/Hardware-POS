@@ -6,12 +6,13 @@ import { useApp } from './AppContext';
 import WorkerDashboardView from './WorkerDashboardView';
 import WorkerTerminal from './WorkerTerminal';
 import WorkerScanner from './WorkerScanner';
+import { CartProvider } from './contexts/CartContext';
 
 export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = false }) {
   const { tab } = useParams();
   const activeTab = hideNav ? defaultTab : (tab || 'dashboard');
   const navigate = useNavigate();
-  const { shopSettings, cashierName } = useApp();
+  const { shopSettings, cashierName, userRole } = useApp();
 
   const { data: workerData, isLoading } = useQuery({
     queryKey: ['workerPermissions', cashierName],
@@ -20,11 +21,11 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
       if (error) throw error;
       return data;
     },
-    enabled: cashierName !== 'owner',
+    enabled: userRole !== 'owner',
   });
 
   // Default to true while loading so we don't flash hiding the tab
-  const isBillable = cashierName === 'owner' || isLoading || !workerData?.password?.includes('NON_BILLABLE');
+  const isBillable = userRole === 'owner' || isLoading || !workerData?.password?.includes('NON_BILLABLE');
 
   const handleTabSwitch = (newTab) => {
     if (!hideNav) navigate(`/terminal/${newTab}`);
@@ -83,11 +84,13 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
             <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Your account does not have billing permissions.</p>
           </div>
         ) : (
-          <WorkerTerminal
-            activeTab={activeTab}
-            shopSettings={shopSettings}
-            cashierName={cashierName}
-          />
+          <CartProvider activeTab={activeTab}>
+            <WorkerTerminal
+              activeTab={activeTab}
+              shopSettings={shopSettings}
+              cashierName={cashierName}
+            />
+          </CartProvider>
         )}
       </div>
     </div>

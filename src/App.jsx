@@ -37,14 +37,14 @@ function App() {
   const { data: workerData } = useQuery({
     queryKey: ['workerPermissions', cashierName],
     queryFn: async () => {
-      if (!cashierName || cashierName === 'owner') return null;
+      if (!cashierName || userRole === 'owner') return null;
       const { data } = await supabase.from('workers').select('password').eq('name', cashierName).single();
       return data;
     },
-    enabled: !!cashierName && cashierName !== 'owner',
+    enabled: !!cashierName && userRole !== 'owner',
   });
 
-  const isBillable = cashierName === 'owner' || (workerData && !workerData.password?.includes('NON_BILLABLE'));
+  const isBillable = userRole === 'owner' || (workerData && !workerData.password?.includes('NON_BILLABLE'));
 
 
 

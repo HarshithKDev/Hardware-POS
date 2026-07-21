@@ -174,7 +174,7 @@ export default function OwnerCategories() {
             <label htmlFor="parent-cat" className="sr-only">Parent Category</label>
             <div className="relative">
               <select id="parent-cat" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
-                <option value="">-- Select Parent Category --</option>
+                <option value="">-- Select Category --</option>
                 {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>

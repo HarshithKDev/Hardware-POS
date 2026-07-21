@@ -161,7 +161,7 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
       {/* Discard Barcode Prompt Modal */}
       {discardModal.isOpen && (
         <div className="fixed inset-0 flex items-center justify-center z-[200] px-4 animate-fade-in" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <div className="w-[85%] max-w-[420px] flex flex-col shadow-2xl animate-scale-in rounded-lg overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+          <div className="w-[85%] max-w-[420px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
             <div className="flex justify-between items-center pr-2 pl-5 py-4" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-light)' }}>
               <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Discard Piece</span>
               <button type="button" onClick={() => setDiscardModal({ isOpen: false, group: null, inputBarcode: '' })} className="p-2 leading-none focus:outline-none rounded-md text-[var(--text-secondary)] hover:text-[var(--color-error)] transition-colors">✕</button>
