@@ -344,3 +344,45 @@ tbody tr:hover {
 
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.hide-x-scrollbar::-webkit-scrollbar:horizontal { display: none; height: 0; }
+.hide-x-scrollbar { scrollbar-width: none; }
+
+/* Disable all horizontal scrollbars globally to prevent 1px jitter tracks */
+::-webkit-scrollbar:horizontal {
+  height: 0px !important;
+  display: none !important;
+}
+
+/* ---------------------------------------------------------------
+   UI/UX POLISH - MICRO-INTERACTIONS & GLASSMORPHISM
+   --------------------------------------------------------------- */
+.glass-header {
+  background-color: rgba(18, 18, 18, 0.75) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.premium-hover {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.premium-hover:hover {
+  background-color: var(--bg-hover) !important;
+  transform: scale(1.002);
+  z-index: 1;
+}
+
+.btn-press {
+  transition: transform 0.1s ease-out;
+}
+.btn-press:active {
+  transform: scale(0.97);
+}
+
+.glow-accent {
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+  transition: box-shadow 0.2s ease;
+}
+.glow-accent:hover {
+  box-shadow: 0 0 25px rgba(59, 130, 246, 0.5);
+}

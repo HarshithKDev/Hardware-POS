@@ -1,6 +1,6 @@
 import { useState, Fragment, useCallback } from 'react';
 import { supabase } from './supabaseClient';
-import { Spinner, PageLoader } from './SharedUI';
+import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import { useQuery } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { formatDateTime } from './utils';
@@ -180,9 +180,9 @@ export default function OwnerLedger({ isActive }) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto overflow-x-hidden md:overflow-x-auto shadow-sm min-h-[400px] md:rounded-lg" style={{ backgroundColor: 'transparent' }}>
-          <table className={`w-full text-left border-collapse block md:table min-w-0 md:min-w-[700px] ${(isLoadingBills && bills.length === 0 || bills.length === 0) ? 'h-full' : ''}`}>
-            <thead className="hidden md:table-header-group sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
+        <div className="flex-1 overflow-auto hide-x-scrollbar overflow-x-hidden md:overflow-x-auto shadow-sm min-h-[400px] md:rounded-lg" style={{ backgroundColor: 'transparent' }}>
+          <table className={`w-full max-w-full text-left border-collapse block md:table min-w-0 md:min-w-[700px] ${(isLoadingBills && bills.length === 0 || bills.length === 0) ? 'h-full' : ''}`}>
+            <thead className="hidden md:table-header-group sticky top-0 z-10 glass-header" style={{ borderBottom: '1px solid var(--border-medium)' }}>
               <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                 <th className="p-3 w-48 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Date & Time</th>
                 <th className="p-3 w-32 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Cashier</th>
@@ -194,7 +194,7 @@ export default function OwnerLedger({ isActive }) {
               {isLoadingBills && bills.length === 0 ? (
                 <tr className="block md:table-row"><td colSpan="4" className="block md:table-cell h-full text-center p-4"><PageLoader text="Loading sales..." /></td></tr>
               ) : bills.length === 0 ? (
-                <tr className="block md:table-row"><td colSpan="4" className="block md:table-cell h-full align-middle text-center text-sm font-semibold p-4" style={{ color: 'var(--text-tertiary)' }}>No sales records found.</td></tr>
+                <tr className="block md:table-row"><td colSpan="4" className="block md:table-cell h-full p-0"><EmptyState message="No sales found for this period." /></td></tr>
               ) : bills.map(bill => {
                 const isExpanded = expandedBillId === bill.id;
                 const items = billItemsCache[bill.id] || [];
@@ -202,7 +202,7 @@ export default function OwnerLedger({ isActive }) {
                   <Fragment key={bill.id}>
                     <tr
                       onClick={() => toggleRow(bill)}
-                      className="cursor-pointer group block md:table-row rounded-lg md:rounded-none mb-3 md:mb-0 border border-[var(--border-medium)] md:border-b md:border-t-0 md:border-l-0 md:border-r-0 md:border-[var(--border-light)]"
+                      className={`cursor-pointer premium-hover block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none border md:border-b md:border-t-0 md:border-l-0 md:border-r-0 border-[var(--border-medium)] md:border-[var(--border-light)] mb-3 md:mb-0 relative ${isExpanded ? 'bg-[var(--bg-hover)]' : ''}`}
                       style={{
                         backgroundColor: isExpanded ? 'var(--color-accent-bg)' : 'var(--bg-secondary)',
                       }}
@@ -241,14 +241,14 @@ export default function OwnerLedger({ isActive }) {
                       <tr className="block md:table-row" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
                         <td colSpan="4" className="block md:table-cell p-0" style={{ borderBottom: '2px solid var(--color-accent)' }}>
                           {isLoadingItems ? (
-                            <div className="p-6 flex justify-center"><Spinner className="w-6 h-6" style={{ color: 'var(--color-accent)' }} /></div>
+                            <div className="p-6 flex justify-center"><PageLoader text="" /></div>
                           ) : (
                             <div className="p-6 px-8">
                               <p className="text-xs font-bold uppercase tracking-widest mb-3 pb-2" style={{ color: 'var(--text-tertiary)', borderBottom: '1px solid var(--border-light)' }}>
                                 Bill #{bill.id.split('-')[0]} Items
                               </p>
-                              <div className="overflow-x-auto overflow-y-hidden w-full">
-                                <table className="w-full text-left border-collapse shadow-sm block md:table" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-light)' }}>
+                              <div className="overflow-x-auto overflow-y-hidden w-full rounded-lg shadow-sm" style={{ border: '1px solid var(--border-light)' }}>
+                                <table className="w-full text-left border-collapse block md:table" style={{ backgroundColor: 'var(--bg-secondary)' }}>
                                   <thead className="hidden md:table-header-group" style={{ backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-light)' }}>
                                     <tr className="text-xs font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>
                                       <th className="px-4 py-2 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Item Name</th>
@@ -291,8 +291,8 @@ export default function OwnerLedger({ isActive }) {
         </div>
 
         <div className="flex justify-between items-center p-3 mt-auto shadow-sm rounded-lg" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
-          <button onClick={() => setSalesPage(p => Math.max(0, p - 1))} disabled={salesPage === 0} className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)]" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>Previous</button>
-          <button onClick={() => setSalesPage(p => p + 1)} disabled={!hasMoreBills} className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)]" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>Next</button>
+          <button onClick={() => setSalesPage(p => Math.max(0, p - 1))} disabled={salesPage === 0} className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] btn-press" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>Previous</button>
+          <button onClick={() => setSalesPage(p => p + 1)} disabled={!hasMoreBills} className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] btn-press" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>Next</button>
         </div>
       </div>
     </div>

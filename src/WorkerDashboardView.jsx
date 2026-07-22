@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { supabase } from './supabaseClient';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
-import { Spinner, PageLoader } from './SharedUI';
+import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import { escapeIlike, debounce } from './utils';
 import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD, INV_PER_PAGE, STALE_TIME_5MIN } from './constants';
 
@@ -170,7 +170,7 @@ export default function WorkerDashboardView() {
               {isLoading ? (
                  <tr><td colSpan="5" className="h-full text-center py-6 align-middle"><PageLoader text="Loading items..." /></td></tr>
               ) : paginatedInventory.length === 0 ? (
-                <tr><td colSpan="5" className="h-full text-center py-6 text-sm font-semibold align-middle" style={{ color: 'var(--text-tertiary)' }}>No items found.</td></tr>
+                <tr><td colSpan="5" className="h-full p-0"><EmptyState message="No items found." /></td></tr>
               ) : paginatedInventory.map(item => (
                 <tr key={item.id} className="transition-colors hover:bg-[var(--bg-hover)] text-center" style={{ borderBottom: '1px solid var(--border-light)' }}>
                   <td className="p-1.5 md:p-3 font-semibold tracking-wider font-mono truncate align-middle" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{item.barcode}</td>

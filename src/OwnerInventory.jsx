@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, forwardRef } from 'react';
-import { TableVirtuoso } from 'react-virtuoso';
+import { Virtuoso } from 'react-virtuoso';
+import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import { supabase } from './supabaseClient';
 import { getInventoryByQuery, saveInventoryBatch, getInventoryItemByBarcode } from './services/db';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -441,54 +442,56 @@ export default function OwnerInventory({ viewType }) {
         {isLoading ? (
           <div className="flex items-center justify-center h-full"><p style={{color: 'var(--text-tertiary)'}}>Loading inventory...</p></div>
         ) : items.length === 0 ? (
-          <div className="flex items-center justify-center h-full"><p style={{color: 'var(--text-tertiary)'}}>No items found matching the search.</p></div>
+          <EmptyState message="No items found matching the search." icon="search" />
         ) : (
-          <TableVirtuoso
+          <Virtuoso
             data={items}
             useWindowScroll={false}
             style={{ height: '100%', width: '100%' }}
+            className="hide-x-scrollbar"
             components={{
-              Table: (props) => <table {...props} className="w-full text-center md:whitespace-nowrap border-collapse block md:table min-w-0 md:min-w-[1100px]" style={{...props.style}} />,
-              TableHead: forwardRef((props, ref) => <thead ref={ref} {...props} className="hidden md:table-header-group sticky top-0 z-10" style={{ ...props.style, backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }} />),
-              TableBody: forwardRef((props, ref) => <tbody ref={ref} {...props} className="block md:table-row-group" style={{ ...props.style, borderBottom: '1px solid var(--border-medium)' }} />),
-              TableRow: ({ item, children, ...props }) => (
-                <InventoryRow
-                  item={item}
-                  viewType={viewType}
-                  categories={categories}
-                  subcategories={subcategories}
-                  isSelected={selectedBarcodes.includes(item.barcode)}
-                  onSelect={toggleSelect}
-                  isGlobalEditMode={isGlobalEditMode}
-                  editData={bulkEditData[item.barcode]}
-                  onEditChange={handleBulkEditChange}
-                  onRestore={handleRestore}
-                  isSelectionMode={isSelectionMode}
-                  expandedBarcode={expandedBarcode}
-                  onToggleExpand={(barcode) => setExpandedBarcode(prev => prev === barcode ? null : barcode)}
-                  virtuosoProps={props}
-                />
-              )
+              List: forwardRef((props, ref) => (
+                <table ref={ref} {...props} className="w-full max-w-full text-center border-collapse block md:table min-w-0 md:min-w-[1100px]" style={{...props.style}}>
+                  <thead className="hidden md:table-header-group sticky top-0 z-10 glass-header" style={{ borderBottom: '1px solid var(--border-medium)' }}>
+                    <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+                      {isSelectionMode && (
+                        <th className="p-3 w-12 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+                          <input type="checkbox" checked={items.length > 0 && selectedBarcodes.length === items.length} onChange={toggleSelectAll} className="w-4 h-4 rounded text-accent focus:ring-accent cursor-pointer" />
+                        </th>
+                      )}
+                      <th className="p-3 min-w-[120px]" style={{ borderRight: '1px solid var(--border-light)' }}>Barcode</th>
+                      <th className="p-3 min-w-[160px]" style={{ borderRight: '1px solid var(--border-light)' }}>Item Details</th>
+                      <th className="p-3 w-28" style={{ borderRight: '1px solid var(--border-light)' }}>Category</th>
+                      <th className="p-3 w-28" style={{ borderRight: '1px solid var(--border-light)' }}>Sub-category</th>
+                      <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Cost</th>
+                      <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>MSP</th>
+                      <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>MRP</th>
+                      <th className="p-3 w-24 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Whse Qty</th>
+                      <th className="p-3 w-24 text-center">Store Qty</th>
+                    </tr>
+                  </thead>
+                  {props.children}
+                </table>
+              )),
+              Item: forwardRef((props, ref) => <tbody ref={ref} {...props} className="block md:table-row-group" />)
             }}
-            fixedHeaderContent={() => (
-              <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                {isSelectionMode && (
-                  <th className="p-3 w-12 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
-                    <input type="checkbox" checked={items.length > 0 && selectedBarcodes.length === items.length} onChange={toggleSelectAll} className="w-4 h-4 rounded text-accent focus:ring-accent cursor-pointer" />
-                  </th>
-                )}
-                <th className="p-3 min-w-[120px]" style={{ borderRight: '1px solid var(--border-light)' }}>Barcode</th>
-                <th className="p-3 min-w-[160px]" style={{ borderRight: '1px solid var(--border-light)' }}>Item Details</th>
-                <th className="p-3 w-28" style={{ borderRight: '1px solid var(--border-light)' }}>Category</th>
-                <th className="p-3 w-28" style={{ borderRight: '1px solid var(--border-light)' }}>Sub-category</th>
-                <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Cost</th>
-                <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>MSP</th>
-                <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>MRP</th>
-                <th className="p-3 w-24 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Whse Qty</th>
-                <th className="p-3 w-24 text-center">Store Qty</th>
-              </tr>
+            itemContent={(index, item) => (
+              <InventoryRow
+                item={item}
+                viewType={viewType}
+                categories={categories}
+                subcategories={subcategories}
+                isSelected={selectedBarcodes.includes(item.barcode)}
+                onSelect={toggleSelect}
+                isGlobalEditMode={isGlobalEditMode}
+                editData={bulkEditData[item.barcode]}
+                onEditChange={handleBulkEditChange}
+                onRestore={handleRestore}
+                isSelectionMode={isSelectionMode}
+                expandedBarcode={expandedBarcode}
+                onToggleExpand={(barcode) => setExpandedBarcode(prev => prev === barcode ? null : barcode)}
+              />
             )}
-            itemContent={() => null}
           />
         )}
       </div>

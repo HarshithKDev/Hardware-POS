@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
 import { Spinner } from './SharedUI';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export default function StockInstancesModal({ isOpen, onClose, item }) {
   const { showAlert, showConfirm } = useApp();
-  const [instances, setInstances] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [discardModal, setDiscardModal] = useState({ isOpen: false, group: null, inputBarcode: '' });
+  const queryClient = useQueryClient();
 
   const [isMounting, setIsMounting] = useState(true);
 
@@ -17,27 +17,17 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
     return () => clearTimeout(timer);
   }, []);
 
-  const fetchInstances = React.useCallback(async () => {
-    setIsLoading(true);
-    try {
+  const { data: instances = [], isLoading } = useQuery({
+    queryKey: ['stock_instances', item.barcode],
+    queryFn: async () => {
       const { data, error } = await supabase
         .rpc('get_stock_instances', { p_barcode: String(item.barcode) });
-      
       if (error) throw error;
-      setInstances(data || []);
-    } catch (err) {
-      console.error(err);
-      showAlert("Failed to load stock pieces.", "Error");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [item, showAlert]);
-
-  useEffect(() => {
-    if (isOpen && item) {
-      fetchInstances();
-    }
-  }, [isOpen, item, fetchInstances]);
+      return data || [];
+    },
+    enabled: !!(isOpen && item),
+    staleTime: 60 * 1000,
+  });
 
   const handleToggleActive = async (instance) => {
     const action = instance.is_active ? "discard" : "restore";
@@ -49,9 +39,12 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
             p_is_active: !instance.is_active 
           });
         if (error) throw error;
-        fetchInstances();
+        showAlert(`Piece ${action}ed successfully.`, "Success");
+        queryClient.invalidateQueries({ queryKey: ['stock_instances', item.barcode] });
+        queryClient.invalidateQueries({ queryKey: ['piece_counts', item.barcode] });
       } catch (err) {
-        showAlert(err.message, "Error");
+        console.error(err);
+        showAlert(`Failed to ${action} piece.`, "Error");
       }
     });
   };
