@@ -462,7 +462,7 @@ export default function OwnerInventory({ viewType }) {
                       <th className="p-3 min-w-[120px]" style={{ borderRight: '1px solid var(--border-light)' }}>Barcode</th>
                       <th className="p-3 min-w-[160px]" style={{ borderRight: '1px solid var(--border-light)' }}>Item Details</th>
                       <th className="p-3 w-28" style={{ borderRight: '1px solid var(--border-light)' }}>Category</th>
-                      <th className="p-3 w-28" style={{ borderRight: '1px solid var(--border-light)' }}>Sub-category</th>
+                      <th className="p-3 w-28" style={{ borderRight: '1px solid var(--border-light)' }}>SUBCAT</th>
                       <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Cost</th>
                       <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>MSP</th>
                       <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>MRP</th>
