@@ -314,22 +314,29 @@ export default function BarcodePrinter() {
       </div>
 
       {printQueue.length > 0 && createPortal(
-        <div id="printable-barcodes" className="absolute -top-[9999px] left-0 opacity-0 pointer-events-none print:static print:opacity-100 print:pointer-events-auto grid grid-cols-5 gap-x-1 gap-y-4 pt-4 px-2 content-start place-items-center w-full bg-white text-black" style={{ backgroundColor: '#ffffff' }}>
+        <div id="printable-barcodes" className="absolute -top-[9999px] left-0 opacity-0 pointer-events-none print:static print:opacity-100 print:pointer-events-auto" style={{ backgroundColor: '#ffffff', margin: 0, padding: 0 }}>
+          <style dangerouslySetInnerHTML={{ __html: `
+            @media print {
+              @page { size: 50mm 30mm !important; margin: 0 !important; }
+              body { margin: 0 !important; padding: 0 !important; }
+              #printable-barcodes { display: block !important; margin: 0 !important; padding: 0 !important; }
+            }
+          `}} />
           {printQueue.map((item) => (
             item.is_cuttable ? (
               (item.instanceBarcodes || []).map((instBarcode, index) => (
                 <div key={`${item.barcode}-inst-${index}`} className="thermal-barcode" style={{ backgroundColor: '#ffffff' }}>
-                   <p className="text-[9px] font-bold truncate w-full text-center leading-none mb-1" style={{ color: '#000000' }}>{item.name}</p>
-                   <Barcode value={instBarcode} width={1.5} height={35} fontSize={11} margin={0} displayValue={true} lineColor="#000000" background="#ffffff" />
-                   <p className="text-[10px] font-bold leading-none mt-1" style={{ color: '#000000' }}>₹{Number(item.price).toFixed(2)}</p>
+                  <p style={{ color: '#000000', fontSize: '9px', fontWeight: 'bold', lineHeight: 1, marginBottom: '2px' }}>{item.name}</p>
+                  <Barcode value={instBarcode} width={1.5} height={28} fontSize={10} margin={0} displayValue={true} lineColor="#000000" background="#ffffff" />
+                  <p style={{ color: '#000000', fontSize: '10px', fontWeight: 'bold', lineHeight: 1, marginTop: '2px' }}>₹{Number(item.price).toFixed(2)}</p>
                 </div>
               ))
             ) : (
               Array.from({ length: Number(item.printQty) || 0 }).map((_, index) => (
                 <div key={`${item.barcode}-${index}`} className="thermal-barcode" style={{ backgroundColor: '#ffffff' }}>
-                   <p className="text-[9px] font-bold truncate w-full text-center leading-none mb-1" style={{ color: '#000000' }}>{item.name}</p>
-                   <Barcode value={item.barcode} width={1.5} height={35} fontSize={11} margin={0} displayValue={true} lineColor="#000000" background="#ffffff" />
-                   <p className="text-[10px] font-bold leading-none mt-1" style={{ color: '#000000' }}>₹{Number(item.price).toFixed(2)}</p>
+                  <p style={{ color: '#000000', fontSize: '9px', fontWeight: 'bold', lineHeight: 1, marginBottom: '2px' }}>{item.name}</p>
+                  <Barcode value={item.barcode} width={1.5} height={28} fontSize={10} margin={0} displayValue={true} lineColor="#000000" background="#ffffff" />
+                  <p style={{ color: '#000000', fontSize: '10px', fontWeight: 'bold', lineHeight: 1, marginTop: '2px' }}>₹{Number(item.price).toFixed(2)}</p>
                 </div>
               ))
             )
