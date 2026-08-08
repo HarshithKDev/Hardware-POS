@@ -342,19 +342,21 @@ tbody tr:hover {
   #printable-barcodes { margin: 0; padding: 0; }
   #printable-barcodes > style { display: none; }
   .thermal-barcode { 
-    width: 48mm; 
-    height: 28mm; 
+    width: 50mm; 
+    height: 25mm; 
     margin: 0; 
-    padding: 4mm 1mm 0 1mm;
+    padding: 1mm;
     box-sizing: border-box; 
     overflow: hidden; 
-    display: block;
-    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
     page-break-after: always; 
     break-after: page; 
   }
-  .thermal-barcode p { margin: 0; padding: 0; }
-  .thermal-barcode svg { display: inline-block; max-width: 46mm; }
+  .thermal-barcode p { margin: 0; padding: 0; text-align: center; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .thermal-barcode svg { display: block; max-width: 48mm; }
 }
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

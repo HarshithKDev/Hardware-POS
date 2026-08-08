@@ -317,7 +317,7 @@ export default function BarcodePrinter() {
         <div id="printable-barcodes" className="absolute -top-[9999px] left-0 opacity-0 pointer-events-none print:static print:opacity-100 print:pointer-events-auto" style={{ backgroundColor: '#ffffff', margin: 0, padding: 0 }}>
           <style dangerouslySetInnerHTML={{ __html: `
             @media print {
-              @page { size: 50mm 30mm !important; margin: 0 !important; }
+              @page { size: 50mm 25mm; margin: 0 !important; }
               body { margin: 0 !important; padding: 0 !important; }
               #printable-barcodes { display: block !important; margin: 0 !important; padding: 0 !important; }
             }
