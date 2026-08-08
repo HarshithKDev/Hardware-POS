@@ -353,10 +353,16 @@ tbody tr:hover {
     justify-content: center;
     align-items: center;
     page-break-after: always; 
-    break-after: page; 
+    break-after: page;
+    -webkit-print-color-adjust: exact !important; 
+    print-color-adjust: exact !important; 
   }
-  .thermal-barcode p { margin: 0; padding: 0; text-align: center; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .thermal-barcode svg { display: block; max-width: 48mm; }
+  .thermal-barcode * {
+    -webkit-print-color-adjust: exact !important; 
+    print-color-adjust: exact !important; 
+  }
+  .thermal-barcode p { margin: 0; padding: 0; text-align: center; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: black !important; }
+  .thermal-barcode svg { display: block; max-width: 48mm; width: 100%; height: auto; }
 }
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
