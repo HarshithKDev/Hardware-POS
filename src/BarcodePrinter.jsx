@@ -326,17 +326,17 @@ export default function BarcodePrinter() {
             item.is_cuttable ? (
               (item.instanceBarcodes || []).map((instBarcode, index) => (
                 <div key={`${item.barcode}-inst-${index}`} className="thermal-barcode" style={{ backgroundColor: '#ffffff' }}>
-                  <p style={{ color: '#000000', fontSize: '9px', fontWeight: 'bold', lineHeight: 1, marginBottom: '2px' }}>{item.name}</p>
-                  <Barcode value={instBarcode} width={1.5} height={28} fontSize={10} margin={0} displayValue={true} lineColor="#000000" background="#ffffff" />
-                  <p style={{ color: '#000000', fontSize: '10px', fontWeight: 'bold', lineHeight: 1, marginTop: '2px' }}>₹{Number(item.price).toFixed(2)}</p>
+                  <p style={{ color: '#000000', fontSize: '9px', fontWeight: 'bold', lineHeight: 1, marginBottom: '1px' }}>{item.name}</p>
+                  <Barcode value={instBarcode} width={1.25} height={24} fontSize={10} margin={0} displayValue={true} lineColor="#000000" background="#ffffff" />
+                  <p style={{ color: '#000000', fontSize: '10px', fontWeight: 'bold', lineHeight: 1, marginTop: '1px' }}>₹{Number(item.price).toFixed(2)}</p>
                 </div>
               ))
             ) : (
               Array.from({ length: Number(item.printQty) || 0 }).map((_, index) => (
                 <div key={`${item.barcode}-${index}`} className="thermal-barcode" style={{ backgroundColor: '#ffffff' }}>
-                  <p style={{ color: '#000000', fontSize: '9px', fontWeight: 'bold', lineHeight: 1, marginBottom: '2px' }}>{item.name}</p>
-                  <Barcode value={item.barcode} width={1.5} height={28} fontSize={10} margin={0} displayValue={true} lineColor="#000000" background="#ffffff" />
-                  <p style={{ color: '#000000', fontSize: '10px', fontWeight: 'bold', lineHeight: 1, marginTop: '2px' }}>₹{Number(item.price).toFixed(2)}</p>
+                  <p style={{ color: '#000000', fontSize: '9px', fontWeight: 'bold', lineHeight: 1, marginBottom: '1px' }}>{item.name}</p>
+                  <Barcode value={item.barcode} width={1.25} height={24} fontSize={10} margin={0} displayValue={true} lineColor="#000000" background="#ffffff" />
+                  <p style={{ color: '#000000', fontSize: '10px', fontWeight: 'bold', lineHeight: 1, marginTop: '1px' }}>₹{Number(item.price).toFixed(2)}</p>
                 </div>
               ))
             )
