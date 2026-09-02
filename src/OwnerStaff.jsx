@@ -12,7 +12,7 @@ export default function OwnerStaff() {
 
   const [newStaffName, setNewStaffName] = useState('');
   const [newStaffPassword, setNewStaffPassword] = useState('');
-  const [newStaffIsBillable, setNewStaffIsBillable] = useState(true);
+  const [newStaffIsBillable, setNewStaffIsBillable] = useState("true");
 
   const { data: staffList = [], isLoading } = useQuery({
     queryKey: ['staff'],
@@ -62,7 +62,7 @@ export default function OwnerStaff() {
       queryClient.invalidateQueries({ queryKey: ['staff'] });
       setNewStaffName('');
       setNewStaffPassword('');
-      setNewStaffIsBillable(true);
+      setNewStaffIsBillable("true");
       showAlert('Staff member added successfully.', 'Success');
     },
     onError: (e) => showAlert(e.message, 'Failed to add staff'),
@@ -95,7 +95,7 @@ export default function OwnerStaff() {
     e.preventDefault();
     if (!newStaffName.trim()) return showAlert("Name cannot be empty.", "Validation");
     if (newStaffPassword.length < 6) return showAlert("Password must be at least 6 characters.", "Validation");
-    addStaffMutation.mutate({ name: newStaffName, password: newStaffPassword, isBillable: newStaffIsBillable });
+    addStaffMutation.mutate({ name: newStaffName, password: newStaffPassword, isBillable: newStaffIsBillable === "true" });
   };
 
   const handleRemove = (id, name) => {
@@ -146,8 +146,8 @@ export default function OwnerStaff() {
               <select
                 id="staff-type"
                 value={newStaffIsBillable}
-                onChange={(e) => setNewStaffIsBillable(e.target.value === 'true')}
-                className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer rounded-md"
+                onChange={(e) => setNewStaffIsBillable(e.target.value)}
+                className="w-full h-10 px-3 text-sm focus:outline-none rounded-md appearance-none cursor-pointer"
                 style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
               >
                 <option value="true">Billable</option>

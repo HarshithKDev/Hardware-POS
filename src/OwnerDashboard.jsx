@@ -120,7 +120,7 @@ export default function OwnerDashboard() {
 
       {/* MAIN CONTENT */}
       <main
-        className="flex-1 p-2 md:p-6 md:pb-2 overflow-y-auto relative m-0 md:m-4 md:ml-2 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm"
+        className="flex-1 flex flex-col p-2 md:p-6 md:pb-2 overflow-y-auto relative m-0 md:m-4 md:ml-2 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm"
         style={{ backgroundColor: 'var(--bg-secondary)' }}
         role="main"
         aria-label="Dashboard content"
@@ -132,7 +132,7 @@ export default function OwnerDashboard() {
         {activeTab === 'categories' && <OwnerCategories />}
 
         {activeTab === 'warehouse' && (
-          <div className="flex flex-col h-full animate-fade-in">
+          <div className="flex flex-col flex-1 h-full animate-fade-in">
             <h1 className="text-2xl font-medium mb-6" style={{ color: 'var(--text-primary)' }}>
               Main Storage Actions
             </h1>

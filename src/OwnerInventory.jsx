@@ -279,6 +279,17 @@ export default function OwnerInventory({ viewType }) {
           changes: `${isRecycle ? 'Restored' : 'Deleted'} ${selectedBarcodes.length} items`,
           performed_by: 'Owner'
         }]);
+        // Update local IDB so the UI reflects the change immediately
+        try {
+          const localItems = await Promise.all(selectedBarcodes.map(bc => getInventoryItemByBarcode(bc)));
+          const validLocalItems = localItems.filter(Boolean).map(item => ({ ...item, is_active: updateValue }));
+          if (validLocalItems.length > 0) {
+            await saveInventoryBatch(validLocalItems);
+          }
+        } catch (e) {
+          console.error("Local IDB bulk remove/restore failed", e);
+        }
+        
         queryClient.invalidateQueries({ queryKey: ['inventory'] });
         setSelectedBarcodes([]);
         setIsGlobalEditMode(false);
@@ -291,7 +302,7 @@ export default function OwnerInventory({ viewType }) {
   const totalInvItems = inventoryData?.total || 0;
 
   return (
-    <div className="flex flex-col flex-1">
+    <div className="flex flex-col flex-1 h-full animate-fade-in w-full relative">
       {selectedBarcodes.length > 0 ? (
         <div className="flex items-center justify-between p-3 mb-4 rounded-lg shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--color-accent)' }}>
           <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
