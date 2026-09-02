@@ -8,8 +8,8 @@ let cachedInventory = null;
 export const initDB = async () => {
   return openDB(DB_NAME, DB_VERSION, {
     upgrade(db) {
-      if (!db.objectStoreNames.contains('inventory')) {
-        db.createObjectStore('inventory', { keyPath: 'barcode' });
+      if (!db.objectStoreNames.contains('product_master')) {
+        db.createObjectStore('product_master', { keyPath: 'barcode' });
       }
       if (!db.objectStoreNames.contains('offline_queue')) {
         db.createObjectStore('offline_queue', { keyPath: 'id', autoIncrement: true });
@@ -23,13 +23,13 @@ export const initDB = async () => {
 
 export const clearInventoryCache = async () => {
   const db = await initDB();
-  await db.clear('inventory');
+  await db.clear('product_master');
   cachedInventory = null;
 };
 
 export const saveInventoryBatch = async (items) => {
   const db = await initDB();
-  const tx = db.transaction('inventory', 'readwrite');
+  const tx = db.transaction('product_master', 'readwrite');
   items.forEach(item => {
     tx.store.put(item);
   });
@@ -39,7 +39,7 @@ export const saveInventoryBatch = async (items) => {
 
 export const getInventoryItemByBarcode = async (barcode) => {
   const db = await initDB();
-  return db.get('inventory', barcode);
+  return db.get('product_master', barcode);
 };
 
 export const getInventoryByQuery = async ({ limit, offset, search, category, subcategory, sortOption, viewType, status = 'active' }) => {
@@ -48,7 +48,7 @@ export const getInventoryByQuery = async ({ limit, offset, search, category, sub
     allItems = [...cachedInventory];
   } else {
     const db = await initDB();
-    const tx = db.transaction('inventory', 'readonly');
+    const tx = db.transaction('product_master', 'readonly');
     cachedInventory = await tx.store.getAll();
     allItems = [...cachedInventory];
   }
@@ -90,8 +90,16 @@ export const getInventoryByQuery = async ({ limit, offset, search, category, sub
   else if (sortOption === 'barcode-desc') allItems.sort((a, b) => compareBarcodes(b.barcode, a.barcode));
   else if (sortOption === 'name-asc') allItems.sort((a, b) => a.name.localeCompare(b.name));
   else if (sortOption === 'name-desc') allItems.sort((a, b) => b.name.localeCompare(a.name));
-  else if (sortOption === 'stock-asc') allItems.sort((a, b) => Number(viewType === 'warehouse' ? a.stock_warehouse : a.stock_store) - Number(viewType === 'warehouse' ? b.stock_warehouse : b.stock_store));
-  else if (sortOption === 'stock-desc') allItems.sort((a, b) => Number(viewType === 'warehouse' ? b.stock_warehouse : b.stock_store) - Number(viewType === 'warehouse' ? a.stock_warehouse : a.stock_store));
+  else if (sortOption === 'stock-asc') allItems.sort((a, b) => {
+      const stockA = a.batches ? a.batches.reduce((sum, batch) => sum + Number(viewType === 'warehouse' ? batch.stock_warehouse : batch.stock_store), 0) : 0;
+      const stockB = b.batches ? b.batches.reduce((sum, batch) => sum + Number(viewType === 'warehouse' ? batch.stock_warehouse : batch.stock_store), 0) : 0;
+      return stockA - stockB;
+  });
+  else if (sortOption === 'stock-desc') allItems.sort((a, b) => {
+      const stockA = a.batches ? a.batches.reduce((sum, batch) => sum + Number(viewType === 'warehouse' ? batch.stock_warehouse : batch.stock_store), 0) : 0;
+      const stockB = b.batches ? b.batches.reduce((sum, batch) => sum + Number(viewType === 'warehouse' ? batch.stock_warehouse : batch.stock_store), 0) : 0;
+      return stockB - stockA;
+  });
   else allItems.sort((a, b) => a.barcode.localeCompare(b.barcode));
 
   return {
@@ -150,7 +158,7 @@ export const setSyncStatus = async (key, value) => {
 
 export const deleteOrphanedInventory = async (syncedBarcodes) => {
   const db = await initDB();
-  const tx = db.transaction('inventory', 'readwrite');
+  const tx = db.transaction('product_master', 'readwrite');
   let cursor = await tx.store.openCursor();
   while (cursor) {
     if (!syncedBarcodes.has(cursor.key)) {

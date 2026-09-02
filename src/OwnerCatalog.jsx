@@ -19,7 +19,7 @@ export default function OwnerCatalog() {
   const [form, setForm] = useState({
     name: '', category: '', sub_category: '', cost_price: '',
     msp: '', price: '', unit: 'PCS', min_quantity_warehouse: '', min_quantity_store: '', item_type: 'standard',
-    default_length: '', default_width: ''
+    default_length: '', default_width: '', billing_increment: '0.01', billing_method: 'exact'
   });
   const [nextBarcode, setNextBarcode] = useState('');
   const [printLabelCount, setPrintLabelCount] = useState(0);
@@ -51,7 +51,7 @@ export default function OwnerCatalog() {
   useQuery({
     queryKey: ['nextBarcode'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('inventory').select('barcode');
+      const { data, error } = await supabase.from('product_master').select('barcode');
       if (error) throw error;
       const next = data?.reduce((max, item) => {
         const num = parseInt(item.barcode, 10);
@@ -125,17 +125,12 @@ export default function OwnerCatalog() {
       let currentBarcode = itemData.barcode;
       // Retry loop to handle TOCTOU collision when multiple users create items at once
       for (let attempt = 0; attempt < BARCODE_RETRY_ATTEMPTS; attempt++) {
-        const { error } = await supabase.from('inventory').insert([{
+        const { error } = await supabase.from('product_master').insert([{
           id: generateId(),
           barcode: currentBarcode,
           name: itemData.name,
           category: itemData.category || null,
           sub_category: itemData.sub_category || null,
-          cost_price: Number(itemData.cost_price),
-          msp: Number(itemData.msp),
-          price: Number(itemData.price),
-          stock_warehouse: 0,
-          stock_store: 0,
           unit: itemData.unit,
           min_quantity_warehouse: Number(itemData.min_quantity_warehouse) || 0,
           min_quantity_store: Number(itemData.min_quantity_store) || 0,
@@ -143,19 +138,47 @@ export default function OwnerCatalog() {
           is_cuttable: itemData.item_type === 'cuttable',
           default_length: itemData.item_type === 'cuttable' ? (Number(itemData.default_length) || null) : null,
           default_width: (itemData.item_type === 'cuttable' && itemData.unit === 'SQFT') ? (Number(itemData.default_width) || null) : null,
+          billing_increment: Number(itemData.billing_increment) || 0.01,
+          billing_method: itemData.billing_method || 'exact',
           is_active: true
         }]);
 
-        if (!error) return {
-          ...itemData,
-          barcode: currentBarcode,
-          is_cuttable: itemData.item_type === 'cuttable',
-          is_loose_item: itemData.item_type === 'loose'
-        };
+        if (!error) {
+          // Insert initial batch
+          const batchId = generateId();
+          const { error: batchError } = await supabase.from('inventory_batches').insert([{
+            batch_id: batchId,
+            barcode: currentBarcode,
+            purchase_cost: Number(itemData.cost_price),
+            selling_price: Number(itemData.price),
+            msp: Number(itemData.msp),
+            stock_warehouse: 0,
+            stock_store: 0,
+            is_active: true
+          }]);
+          
+          if (batchError) throw batchError;
+          
+          return {
+            ...itemData,
+            barcode: currentBarcode,
+            is_cuttable: itemData.item_type === 'cuttable',
+            is_loose_item: itemData.item_type === 'loose',
+            batches: [{
+              batch_id: batchId,
+              purchase_cost: Number(itemData.cost_price),
+              selling_price: Number(itemData.price),
+              msp: Number(itemData.msp),
+              stock_warehouse: 0,
+              stock_store: 0,
+              is_active: true
+            }]
+          };
+        }
 
         if (error.code === '23505' && error.message.includes('barcode')) {
           console.warn(`Barcode ${currentBarcode} taken, retrying... (Attempt ${attempt + 1}/${BARCODE_RETRY_ATTEMPTS})`);
-          const { data: latest } = await supabase.from('inventory').select('barcode').order('barcode', { ascending: false }).limit(1);
+          const { data: latest } = await supabase.from('product_master').select('barcode').order('barcode', { ascending: false }).limit(1);
           currentBarcode = latest && latest.length > 0 ? (parseInt(latest[0].barcode, 10) + 1).toString() : (parseInt(currentBarcode, 10) + 1).toString();
         } else {
           throw error;
@@ -178,7 +201,7 @@ export default function OwnerCatalog() {
         setBarcodePreview({ isOpen: true, previewHtml, printHtml });
       }
 
-      setForm({ name: '', category: '', sub_category: '', cost_price: '', msp: '', price: '', unit: 'PCS', min_quantity_warehouse: '', min_quantity_store: '', item_type: 'standard', default_length: '', default_width: '' });
+      setForm({ name: '', category: '', sub_category: '', cost_price: '', msp: '', price: '', unit: 'PCS', min_quantity_warehouse: '', min_quantity_store: '', item_type: 'standard', default_length: '', default_width: '', billing_increment: '0.01', billing_method: 'exact' });
       setPrintLabelCount(0);
       showAlert(`Added "${savedItem.name}" with Barcode ${savedItem.barcode}.`, "Success");
 
@@ -385,7 +408,7 @@ export default function OwnerCatalog() {
       }
 
       // Resolve barcode conflicts to avoid overwriting existing items
-      const { data: existingInventory } = await supabase.from('inventory').select('barcode');
+      const { data: existingInventory } = await supabase.from('product_master').select('barcode');
       const existingBarcodes = new Set(existingInventory?.map(i => i.barcode) || []);
       let maxBarcodeNum = existingInventory?.reduce((max, item) => {
         const num = parseInt(item.barcode, 10);
@@ -394,6 +417,9 @@ export default function OwnerCatalog() {
 
       let conflictCount = 0;
       let generatedCount = 0;
+      const productMasterData = [];
+      const batchesData = [];
+      
       formattedData.forEach(row => {
         if (!row.barcode || existingBarcodes.has(row.barcode)) {
           maxBarcodeNum++;
@@ -403,10 +429,42 @@ export default function OwnerCatalog() {
         }
         existingBarcodes.add(row.barcode);
         row.id = generateId();
+        
+        productMasterData.push({
+          id: row.id,
+          barcode: row.barcode,
+          name: row.name,
+          category: row.category,
+          sub_category: row.sub_category,
+          unit: row.unit,
+          is_loose_item: row.is_loose_item,
+          is_cuttable: row.is_cuttable,
+          default_length: row.default_length,
+          default_width: row.default_width,
+          min_quantity_warehouse: row.min_quantity_warehouse,
+          min_quantity_store: row.min_quantity_store,
+          is_active: row.is_active,
+          billing_increment: 0.01,
+          billing_method: 'exact'
+        });
+        
+        batchesData.push({
+          batch_id: generateId(),
+          barcode: row.barcode,
+          purchase_cost: row.cost_price,
+          selling_price: row.price,
+          msp: row.msp,
+          stock_warehouse: 0,
+          stock_store: 0,
+          is_active: row.is_active
+        });
       });
 
-      const { error } = await supabase.from('inventory').insert(formattedData);
+      const { error } = await supabase.from('product_master').insert(productMasterData);
       if (error) throw error;
+      
+      const { error: batchError } = await supabase.from('inventory_batches').insert(batchesData);
+      if (batchError) throw batchError;
 
       if (conflictCount > 0 || generatedCount > 0) {
         let msg = `Imported ${formattedData.length} items. `;
@@ -582,6 +640,29 @@ export default function OwnerCatalog() {
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
             </div>
+          </div>
+          
+          <div className="lg:col-span-2">
+             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-bill-method">Billing Method</label>
+             <div className="relative">
+               <select
+                 id="item-bill-method"
+                 required
+                 value={form.billing_method}
+                 onChange={(e) => setForm({ ...form, billing_method: e.target.value })}
+                 className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer"
+                 style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
+               >
+                 <option value="exact">Exact (No rounding)</option>
+                 <option value="round_up">Round Up (e.g. 6.4 → 6.5)</option>
+               </select>
+               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
+             </div>
+          </div>
+          
+          <div className="lg:col-span-2">
+             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-bill-inc">Billing Increment</label>
+             <input id="item-bill-inc" type="number" step="any" min="0" required value={form.billing_increment} onChange={(e) => setForm({ ...form, billing_increment: e.target.value })} placeholder="e.g. 0.5" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md disabled:opacity-50" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} disabled={form.billing_method === 'exact'} />
           </div>
         </div>
 

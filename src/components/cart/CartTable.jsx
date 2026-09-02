@@ -63,9 +63,11 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
               const group = groupMap.get(item.barcode);
               group.children.push(item);
               const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
+              const billableQty = item.billableQuantity !== undefined && item.billableQuantity !== '' ? Number(item.billableQuantity) : safeQty;
               group.totalQty += safeQty;
+              group.totalBillableQty = (group.totalBillableQty || 0) + billableQty;
               const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
-              group.totalPrice += sellPrice * safeQty;
+              group.totalPrice += sellPrice * billableQty;
               group.customPriceInput = item.customPriceInput !== undefined ? item.customPriceInput : item.price;
               group.discountPct = item.discountPct;
             } else {
@@ -112,6 +114,7 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                   {/* Child Rows */}
                   {isExpanded && item.children.map((child, idx) => {
                     const safeQty = child.quantity === '' ? 0 : Number(child.quantity);
+                    const billableQty = child.billableQuantity !== undefined && child.billableQuantity !== '' ? Number(child.billableQuantity) : safeQty;
                     const isLast = idx === item.children.length - 1;
                     return (
                       <tr key={child.id} className="animate-fade-in bg-[var(--bg-primary)]" style={{ borderBottom: isLast ? '1px solid var(--border-light)' : '1px dashed var(--border-medium)' }}>
@@ -135,7 +138,12 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                         </td>
                         <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }}></td>
                         <td className="p-2" style={{ borderRight: '1px solid var(--border-light)', backgroundColor: 'var(--bg-quaternary)' }}></td>
-                        <td className="p-2 text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-light)' }}>₹{(sellPrice * safeQty).toFixed(2)}</td>
+                        <td className="p-2 text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-light)' }}>
+                          ₹{(sellPrice * billableQty).toFixed(2)}
+                          {safeQty !== billableQty && (
+                             <div className="text-[10px] text-[var(--text-tertiary)] font-normal">Billed for {billableQty} sqft</div>
+                          )}
+                        </td>
                         <td className="p-2 text-center">
                           <button type="button" onClick={() => onRemoveItem(child.id)} className="w-6 h-6 mx-auto rounded flex items-center justify-center transition-colors focus:outline-none" style={{ color: 'var(--text-secondary)' }} onMouseEnter={e => e.currentTarget.style.color = 'var(--color-error)'} onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'} aria-label={`Remove piece`}>✕</button>
                         </td>
@@ -147,6 +155,7 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
             }
             
             const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
+            const billableQty = item.billableQuantity !== undefined && item.billableQuantity !== '' ? Number(item.billableQuantity) : safeQty;
             const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
             return (
               <tr key={item.id} className="animate-fade-in" style={{ borderBottom: '1px solid var(--border-light)' }}>
@@ -237,7 +246,12 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                   <td className="p-2" style={{ borderRight: '1px solid var(--border-light)', backgroundColor: 'var(--bg-quaternary)' }}>
                     <input type="number" value={item.discountPct ? Number(item.discountPct).toFixed(1) : '0.0'} disabled className="w-full h-8 px-2 text-sm font-semibold text-center bg-transparent outline-none cursor-not-allowed" style={{ color: 'var(--text-tertiary)', border: 'none' }} aria-label={`${item.name} discount`} />
                   </td>
-                  <td className="p-3 text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{(sellPrice * safeQty).toFixed(2)}</td>
+                  <td className="p-3 text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
+                    ₹{(sellPrice * billableQty).toFixed(2)}
+                    {safeQty !== billableQty && (
+                      <div className="text-[10px] text-[var(--text-tertiary)] font-normal mt-1">Billed: {billableQty} {item.unit}</div>
+                    )}
+                  </td>
                 </>)}
                 <td className="p-2 text-center align-middle">
                   <button type="button" onClick={() => onRemoveItem(item.id)} className=" text-[var(--text-secondary)] hover:bg-red-500/10 hover:text-[var(--color-error)]" aria-label={`Remove ${item.name}`}>

@@ -53,6 +53,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const [selectPieceModal, setSelectPieceModal] = useState({ isOpen: false, item: null, instances: [], isLoading: false, action: 'checkout' });
   const [cutLengthModal, setCutLengthModal] = useState({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false });
   const [receiveLengthModal, setReceiveLengthModal] = useState({ isOpen: false, item: null, length: '' });
+  
+  // Batch selection
+  const [selectBatchModal, setSelectBatchModal] = useState({ isOpen: false, item: null, batches: [] });
 
   // Pending Carts (Mobile Scanner)
   const [pendingCarts, setPendingCarts] = useState([]);
@@ -291,10 +294,16 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
       // Normal items stock check
       if (currentTab === 'checkout' && !item.is_cuttable) {
+        if (item.batches && item.batches.length > 1) {
+          setSelectBatchModal({ isOpen: true, item, batches: item.batches });
+          return;
+        }
+        
+        const totalStock = item.batches ? item.batches.reduce((sum, b) => sum + Number(b.stock_store), 0) : Number(item.stock_store || 0);
         const currentCartItem = cartRef.current.find(c => c.barcode === cleanBarcode);
         const currentQty = currentCartItem ? (Number(currentCartItem.quantity) || 0) : 0;
-        if (Number(item.stock_store || 0) <= 0) return showAlertRef.current(`${item.name} is out of stock in the store.`, "Out of Stock");
-        if (currentQty >= Number(item.stock_store || 0)) return showAlertRef.current(`You only have ${item.stock_store} of ${item.name} in the store.`, "Stock Limit");
+        if (totalStock <= 0) return showAlertRef.current(`${item.name} is out of stock in the store.`, "Out of Stock");
+        if (currentQty >= totalStock) return showAlertRef.current(`You only have ${totalStock} of ${item.name} in the store.`, "Stock Limit");
       }
 
       if (item.is_loose_item) {
@@ -303,9 +312,31 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       }
 
       setCart(prev => {
-        const idx = prev.findIndex(c => c.barcode === cleanBarcode);
-        if (idx >= 0) { const up = [...prev]; up[idx] = { ...up[idx], quantity: (Number(up[idx].quantity) || 0) + 1 }; return up; }
-        return [...prev, { ...item, id: generateId(), customPriceInput: Number(item.price || 0).toFixed(2), discountPct: 0, quantity: item.unit === 'SQFT' ? 0 : 1, unit: item.unit || 'PCS', length: '', width: '', rolls: '1' }];
+        const batch = item.batches && item.batches.length === 1 ? item.batches[0] : null;
+        const defaultPrice = batch ? batch.selling_price : item.price;
+        const msp = batch ? batch.msp : item.msp;
+        const batchId = batch ? batch.batch_id : null;
+        
+        const idx = prev.findIndex(c => c.barcode === cleanBarcode && c.batch_id === batchId);
+        if (idx >= 0) { 
+          const up = [...prev]; 
+          up[idx] = { ...up[idx], quantity: (Number(up[idx].quantity) || 0) + 1, billableQuantity: (Number(up[idx].quantity) || 0) + 1 }; 
+          return up; 
+        }
+        
+        return [...prev, { 
+          ...item, 
+          id: generateId(), 
+          customPriceInput: Number(defaultPrice || 0).toFixed(2), 
+          price: defaultPrice,
+          msp: msp,
+          batch_id: batchId,
+          discountPct: 0, 
+          quantity: item.unit === 'SQFT' ? 0 : 1, 
+          billableQuantity: item.unit === 'SQFT' ? 0 : 1, 
+          unit: item.unit || 'PCS', 
+          length: '', width: '', rolls: '1' 
+        }];
       });
     }
   }, []);
@@ -365,6 +396,33 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       }];
     });
     setLooseItemModal({ isOpen: false, item: null, qty: '' });
+  };
+  
+  const handleSelectBatchSubmit = (batch) => {
+    const item = selectBatchModal.item;
+    
+    setCart(prev => {
+      const idx = prev.findIndex(c => c.barcode === item.barcode && c.batch_id === batch.batch_id);
+      if (idx >= 0) {
+        const up = [...prev];
+        up[idx] = { ...up[idx], quantity: (Number(up[idx].quantity) || 0) + 1, billableQuantity: (Number(up[idx].quantity) || 0) + 1 };
+        return up;
+      }
+      return [...prev, {
+        ...item,
+        id: generateId(),
+        customPriceInput: Number(batch.selling_price || 0).toFixed(2),
+        price: batch.selling_price,
+        msp: batch.msp,
+        batch_id: batch.batch_id,
+        discountPct: 0,
+        quantity: 1,
+        billableQuantity: 1,
+        unit: item.unit || 'PCS',
+        length: '', width: '', rolls: '1'
+      }];
+    });
+    setSelectBatchModal({ isOpen: false, item: null, batches: [] });
   };
 
   const handleCutLengthSubmit = (e) => {
@@ -442,11 +500,19 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                 newQty = maxLength;
               }
             } else {
-              const maxStock = Number(i.stock_store || 0);
-              if (newQty > maxStock) { limitMsg = `You only have ${maxStock} of ${i.name} in the store.`; newQty = maxStock; }
+              const maxStock = i.batch_id && i.batches ? i.batches.find(b => b.batch_id === i.batch_id)?.stock_store : Number(i.stock_store || 0);
+              if (newQty > maxStock) { limitMsg = `You only have ${maxStock} in this batch in the store.`; newQty = maxStock; }
             }
           }
-          return { ...i, quantity: newQty, pieceLength: (i.is_cuttable && i.unit !== 'SQFT') ? newQty : i.pieceLength };
+          
+          let billableQty = newQty;
+          const method = i.billing_method || 'exact';
+          const inc = Number(i.billing_increment || 0.01);
+          if (method === 'round_up' && inc > 0 && newQty !== '') {
+            billableQty = Math.ceil(Number(newQty) / inc) * inc;
+          }
+          
+          return { ...i, quantity: newQty, billableQuantity: billableQty, pieceLength: (i.is_cuttable && i.unit !== 'SQFT') ? newQty : i.pieceLength };
         }
         return i;
       }).filter(i => i.quantity !== 0);
@@ -529,7 +595,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     });
   };
 
-  const calculateTotal = () => cart.reduce((tot, i) => tot + Math.round((i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0)) * 100) * (i.quantity === '' ? 0 : Number(i.quantity)), 0) / 100;
+  const calculateTotal = () => cart.reduce((tot, i) => {
+    const qty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : (i.quantity === '' ? 0 : Number(i.quantity));
+    const price = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0);
+    return tot + Math.round(price * 100) * qty;
+  }, 0) / 100;
+  
   const calculateTotalUnits = () => cart.reduce((tot, i) => tot + (i.quantity === '' ? 0 : Number(i.quantity)), 0);
 
   const handleCancelSale = () => {
@@ -635,12 +706,16 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               }
             }
           }
+          const finalPrice = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0);
           return {
             barcode: i.barcode,
             name: i.name,
-            quantity: calcQuantity,
-            price: i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0),
-            discountPct: 0,
+            batch_id: i.batch_id || null,
+            actual_quantity: calcQuantity,
+            billable_quantity: i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : calcQuantity,
+            system_price: Number(i.price || 0),
+            final_price: finalPrice,
+            negotiated_discount: i.discountPct || 0,
             unit: i.unit,
             instance_barcode: i.instance_barcode || null,
             discard_scrap: i.discard_scrap || false,
@@ -704,7 +779,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         id: successData.bill_id.split('-')[0],
         items: finalCart.map(i => {
           const finalRate = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0);
-          return { ...i, quantity: Number(i.quantity), finalRate, mrp: Number(i.price || 0), lineTotal: finalRate * Number(i.quantity) };
+          const bQty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : Number(i.quantity);
+          return { ...i, quantity: bQty, actual_quantity: Number(i.quantity), finalRate, mrp: Number(i.price || 0), lineTotal: finalRate * bQty };
         }),
         total: calculateTotal(),
         date: new Date(),
@@ -793,6 +869,51 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                 {isCheckingOut ? <Spinner className="w-4 h-4 text-white" /> : 'Complete Sale'}
               </button>
               <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} disabled={isCheckingOut} className="h-9 px-8 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Select Batch Modal */}
+      {selectBatchModal.isOpen && selectBatchModal.item && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-[100] print:hidden px-4 animate-fade-in"
+          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="select-batch-title"
+        >
+          <div className="w-[85%] max-w-[450px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+            <div className="flex justify-between items-center pr-1 pl-4 py-1" style={{ borderBottom: '1px solid var(--border-light)' }}>
+              <span id="select-batch-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Select Batch for {selectBatchModal.item.name}</span>
+              <button onClick={() => setSelectBatchModal({ isOpen: false, item: null, batches: [] })} className="px-3 py-1.5 leading-none focus:outline-none rounded-md" aria-label="Close batch selection">✕</button>
+            </div>
+            
+            <div className="p-4 max-h-[60vh] overflow-y-auto">
+               {selectBatchModal.batches.filter(b => Number(b.stock_store) > 0).map(batch => (
+                 <button 
+                   key={batch.batch_id}
+                   onClick={() => handleSelectBatchSubmit(batch)}
+                   className="w-full text-left p-4 mb-2 rounded-lg border flex justify-between items-center transition-colors hover:bg-[var(--bg-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]"
+                   style={{ borderColor: 'var(--border-medium)', backgroundColor: 'var(--bg-primary)' }}
+                 >
+                   <div>
+                     <div className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>₹{Number(batch.selling_price).toFixed(2)}</div>
+                     <div className="text-xs uppercase tracking-wider mt-1" style={{ color: 'var(--text-tertiary)' }}>MSP: ₹{Number(batch.msp).toFixed(2)}</div>
+                   </div>
+                   <div className="text-right">
+                     <div className="text-sm font-bold" style={{ color: 'var(--color-accent)' }}>{batch.stock_store} {selectBatchModal.item.unit}</div>
+                     <div className="text-xs uppercase tracking-wider mt-1" style={{ color: 'var(--text-tertiary)' }}>In Stock</div>
+                   </div>
+                 </button>
+               ))}
+               {selectBatchModal.batches.filter(b => Number(b.stock_store) > 0).length === 0 && (
+                 <div className="text-center p-4 text-sm" style={{ color: 'var(--text-tertiary)' }}>No active stock for this item.</div>
+               )}
+            </div>
+            
+            <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
+              <button onClick={() => setSelectBatchModal({ isOpen: false, item: null, batches: [] })} className="h-9 px-6 text-sm font-semibold focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}>Cancel</button>
             </div>
           </div>
         </div>

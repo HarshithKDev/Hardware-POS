@@ -300,8 +300,8 @@ export default function OwnerStats({ isActive }) {
       }
       const batchResults = await Promise.all(
         chunks.map(batch =>
-          supabase.from('bill_items')
-            .select('name, quantity, price_at_sale, cost_at_sale, unit, bill_id')
+            supabase.from('bill_items')
+            .select('name, quantity, price_at_sale, cost_at_sale, unit, bill_id, profit, cost_allocated, billable_quantity')
             .in('bill_id', batch)
         )
       );
@@ -317,12 +317,13 @@ export default function OwnerStats({ isActive }) {
         itemsData.forEach(item => {
           const cleanName = item.name.split(' (Cut from ')[0];
           soldNames30Days.add(cleanName);
-          const qty = Number(item.quantity || 0);
-          const cost = Number(item.cost_at_sale || 0);
+          const qty = Number(item.billable_quantity || item.quantity || 0);
           const price = Number(item.price_at_sale || 0);
-          const lineCost = cost * qty;
+          
+          // Use pre-calculated profit and cost_allocated from DB if available, else fallback
+          const lineCost = item.cost_allocated !== undefined && item.cost_allocated !== null ? Number(item.cost_allocated) : (Number(item.cost_at_sale || 0) * Number(item.quantity || 0));
           const lineRev = price * qty;
-          const lineProfit = lineRev - lineCost;
+          const lineProfit = item.profit !== undefined && item.profit !== null ? Number(item.profit) : (lineRev - lineCost);
 
           if (productStats30Days[cleanName]) {
             productStats30Days[cleanName].profit += lineProfit;

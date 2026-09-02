@@ -81,15 +81,10 @@ export default function OwnerInventory({ viewType }) {
 
   const updateItemMutation = useMutation({
     mutationFn: async ({ oldItem, newItem }) => {
-      const { error } = await supabase.from('inventory').update({
+      const { error } = await supabase.from('product_master').update({
         name: newItem.name,
         category: newItem.category,
         sub_category: newItem.sub_category,
-        cost_price: Number(newItem.cost_price || 0),
-        msp: Number(newItem.msp || 0),
-        price: Number(newItem.price || 0),
-        stock_warehouse: Number(newItem.stock_warehouse || 0),
-        stock_store: Number(newItem.stock_store || 0),
         unit: newItem.unit,
         is_loose_item: Boolean(newItem.is_loose_item),
         default_length: newItem.unit === 'SQFT' ? (Number(newItem.default_length) || null) : null,
@@ -137,7 +132,7 @@ export default function OwnerInventory({ viewType }) {
   const handleRemove = (barcode) => {
     showConfirm("Remove this item from the active list?", async () => {
       const itemToDelete = items.find(i => i.barcode === barcode);
-      const { error } = await supabase.from('inventory').update({ is_active: false }).eq('barcode', barcode);
+      const { error } = await supabase.from('product_master').update({ is_active: false }).eq('barcode', barcode);
       if (error) {
         showAlert(error.message, "Error Removing Item");
       } else {
@@ -166,7 +161,7 @@ export default function OwnerInventory({ viewType }) {
   const handleRestore = (barcode) => {
     showConfirm("Restore this item to active inventory?", async () => {
       const itemToRestore = items.find(i => i.barcode === barcode);
-      const { error } = await supabase.from('inventory').update({ is_active: true }).eq('barcode', barcode);
+      const { error } = await supabase.from('product_master').update({ is_active: true }).eq('barcode', barcode);
       if (error) {
         showAlert(error.message, "Error Restoring Item");
       } else {
@@ -236,7 +231,7 @@ export default function OwnerInventory({ viewType }) {
     if (itemsToSave.length === 0) return;
     try {
       // First update Supabase
-      const { error } = await supabase.from('inventory').upsert(itemsToSave, { onConflict: 'barcode' });
+      const { error } = await supabase.from('product_master').upsert(itemsToSave, { onConflict: 'barcode' });
       if (error) throw error;
       
       // Then update local IDB
@@ -265,7 +260,7 @@ export default function OwnerInventory({ viewType }) {
     showConfirm(`Are you sure you want to ${viewType === 'recycle' ? 'restore' : 'delete'} ${selectedBarcodes.length} items?`, async () => {
       const isRecycle = viewType === 'recycle';
       const updateValue = isRecycle ? true : false;
-      const { error } = await supabase.from('inventory').update({ is_active: updateValue }).in('barcode', selectedBarcodes);
+      const { error } = await supabase.from('product_master').update({ is_active: updateValue }).in('barcode', selectedBarcodes);
       
       if (error) {
         showAlert(error.message, `Error ${isRecycle ? 'Restoring' : 'Removing'} Items`);

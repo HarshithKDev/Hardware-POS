@@ -15,7 +15,7 @@ export const syncInventoryToLocal = async () => {
     await setSyncStatus('inventory_sync', { status: 'syncing', last_sync: null });
     
     // First, verify if we have network by doing a small ping
-    const { error: pingError } = await supabase.from('inventory').select('id').limit(1);
+    const { error: pingError } = await supabase.from('product_master').select('barcode').limit(1);
     if (pingError) throw pingError;
 
     let offset = 0;
@@ -23,22 +23,45 @@ export const syncInventoryToLocal = async () => {
     const syncedBarcodes = new Set();
 
     while (hasMore) {
-      const { data, error } = await supabase
-        .from('inventory')
+      // Fetch product masters
+      const { data: products, error: prodError } = await supabase
+        .from('product_master')
         .select('*')
         .eq('is_active', true)
         .range(offset, offset + PAGE_SIZE - 1);
         
-      if (error) {
-        throw error;
-      }
+      if (prodError) throw prodError;
 
-      if (data && data.length > 0) {
-        await saveInventoryBatch(data);
-        data.forEach(item => syncedBarcodes.add(item.barcode));
+      if (products && products.length > 0) {
+        const barcodes = products.map(p => p.barcode);
+        
+        // Fetch batches for these products
+        const { data: batches, error: batchError } = await supabase
+          .from('inventory_batches')
+          .select('*')
+          .in('barcode', barcodes)
+          .eq('is_active', true);
+          
+        if (batchError) throw batchError;
+
+        const batchesByBarcode = {};
+        if (batches) {
+          batches.forEach(b => {
+            if (!batchesByBarcode[b.barcode]) batchesByBarcode[b.barcode] = [];
+            batchesByBarcode[b.barcode].push(b);
+          });
+        }
+
+        const mergedProducts = products.map(p => ({
+          ...p,
+          batches: batchesByBarcode[p.barcode] || []
+        }));
+
+        await saveInventoryBatch(mergedProducts);
+        mergedProducts.forEach(item => syncedBarcodes.add(item.barcode));
         
         offset += PAGE_SIZE;
-        if (data.length < PAGE_SIZE) {
+        if (products.length < PAGE_SIZE) {
           hasMore = false;
         }
       } else {
@@ -67,7 +90,7 @@ export const flushOfflineQueue = async () => {
     if (queue.length === 0) return;
 
     // Check connection first
-    const { error: pingError } = await supabase.from('inventory').select('id').limit(1);
+    const { error: pingError } = await supabase.from('product_master').select('barcode').limit(1);
     if (pingError) return; // Offline, abort flush
 
     console.log(`Attempting to flush ${queue.length} offline transactions...`);

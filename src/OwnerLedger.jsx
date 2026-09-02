@@ -252,9 +252,11 @@ export default function OwnerLedger({ isActive }) {
                                   <thead className="hidden md:table-header-group" style={{ backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-light)' }}>
                                     <tr className="text-xs font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>
                                       <th className="px-4 py-2 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Item Name</th>
-                                      <th className="px-4 py-2 text-center w-32" style={{ borderRight: '1px solid var(--border-light)' }}>Qty</th>
-                                      <th className="px-4 py-2 text-center w-32" style={{ borderRight: '1px solid var(--border-light)' }}>Unit Price</th>
-                                      <th className="px-4 py-2 text-center w-32">Total</th>
+                                      <th className="px-4 py-2 text-center w-24" style={{ borderRight: '1px solid var(--border-light)' }}>Qty (Billed)</th>
+                                      <th className="px-4 py-2 text-center w-24" style={{ borderRight: '1px solid var(--border-light)' }}>Price</th>
+                                      <th className="px-4 py-2 text-center w-24" style={{ borderRight: '1px solid var(--border-light)' }}>Disc %</th>
+                                      <th className="px-4 py-2 text-center w-24" style={{ borderRight: '1px solid var(--border-light)' }}>Total</th>
+                                      <th className="px-4 py-2 text-center w-24" style={{ color: 'var(--color-success)' }}>Profit</th>
                                     </tr>
                                   </thead>
                                   <tbody className="block md:table-row-group">
@@ -270,9 +272,23 @@ export default function OwnerLedger({ isActive }) {
                                           </div>
                                         </td>
                                         <td className="hidden md:table-cell px-4 py-2 text-sm font-medium text-center" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
-                                        <td className="hidden md:table-cell px-4 py-2 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)' }}>{item.quantity} {item.unit}</td>
-                                        <td className="hidden md:table-cell px-4 py-2 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)' }}>₹{Number(item.price_at_sale).toFixed(2)}</td>
-                                        <td className="hidden md:table-cell px-4 py-2 text-sm text-center font-bold" style={{ color: 'var(--text-primary)' }}>₹{(item.price_at_sale * item.quantity).toFixed(2)}</td>
+                                        <td className="hidden md:table-cell px-4 py-2 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+                                          {Number(item.actual_quantity) !== Number(item.billable_quantity) && (
+                                             <div className="text-[10px] text-[var(--text-tertiary)]">Act: {item.actual_quantity}</div>
+                                          )}
+                                          {item.billable_quantity || item.quantity} {item.unit}
+                                        </td>
+                                        <td className="hidden md:table-cell px-4 py-2 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+                                          {Number(item.negotiated_discount) > 0 && (
+                                            <div className="text-[10px] text-[var(--text-tertiary)] line-through">₹{Number(item.system_price || item.price_at_sale).toFixed(2)}</div>
+                                          )}
+                                          ₹{Number(item.price_at_sale).toFixed(2)}
+                                        </td>
+                                        <td className="hidden md:table-cell px-4 py-2 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+                                          {Number(item.negotiated_discount || 0).toFixed(1)}%
+                                        </td>
+                                        <td className="hidden md:table-cell px-4 py-2 text-sm text-center font-bold" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>₹{(item.price_at_sale * (item.billable_quantity || item.quantity)).toFixed(2)}</td>
+                                        <td className="hidden md:table-cell px-4 py-2 text-sm text-center font-bold" style={{ color: 'var(--color-success)' }}>₹{Number(item.profit || 0).toFixed(2)}</td>
                                       </tr>
                                     ))}
                                   </tbody>

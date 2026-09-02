@@ -15,24 +15,27 @@
   --linear-surface: #121212;
   --linear-surface-hover: #1A1A1A;
   --linear-surface-elevated: #171717;
-  
+
   --linear-border: #262626;
   --linear-border-hover: #404040;
-  
+
   --linear-text: #FAFAFA;
   --linear-text-muted: #A1A1AA;
   --linear-text-dim: #52525B;
 
-  --linear-accent: #3B82F6; /* Blue 500 */
-  --linear-accent-hover: #2563EB; /* Blue 600 */
+  --linear-accent: #3B82F6;
+  /* Blue 500 */
+  --linear-accent-hover: #2563EB;
+  /* Blue 600 */
   --linear-accent-transparent: rgba(59, 130, 246, 0.1);
-  --linear-accent-text: #DBEAFE; /* Blue 100 */
-  
+  --linear-accent-text: #DBEAFE;
+  /* Blue 100 */
+
   --linear-error: #EF4444;
   --linear-error-bg: rgba(239, 68, 68, 0.1);
   --linear-success: #22C55E;
   --linear-success-bg: rgba(34, 197, 94, 0.1);
-  
+
   /* Semantic Mappings */
   --bg-primary: var(--linear-bg);
   --bg-secondary: var(--linear-surface);
@@ -79,19 +82,19 @@
   --md3-on-primary: var(--linear-text);
   --md3-primary-container: var(--linear-accent-transparent);
   --md3-on-primary-container: var(--linear-accent);
-  
+
   --md3-secondary-container: var(--linear-surface-elevated);
   --md3-on-secondary-container: var(--linear-text);
-  
+
   --md3-error-container: var(--linear-error-bg);
   --md3-on-error-container: var(--linear-error);
-  
+
   --md3-surface-container-lowest: var(--linear-bg);
   --md3-surface-container-low: var(--linear-surface);
   --md3-surface-container: var(--linear-surface);
   --md3-surface-container-high: var(--linear-surface-elevated);
   --md3-surface-container-highest: var(--linear-surface-elevated);
-  
+
   --md3-outline: var(--linear-border);
   --md3-outline-variant: var(--linear-border);
 
@@ -147,12 +150,13 @@ textarea {
   background-color: var(--bg-input);
   color: var(--text-input);
   border: 1px solid var(--border-input);
-  border-radius: 6px; /* Linear uses subtle rounding */
+  border-radius: 6px;
+  /* Linear uses subtle rounding */
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
   line-height: 1.5;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 input:focus,
@@ -160,7 +164,7 @@ select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 1px var(--color-accent), inset 0 1px 2px rgba(0,0,0,0.2);
+  box-shadow: 0 0 0 1px var(--color-accent), inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 input:hover:not(:disabled, :focus),
@@ -247,17 +251,33 @@ input[type="search"]::-webkit-search-results-decoration {
    ANIMATION UTILITIES
    --------------------------------------------------------------- */
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
+
 .animate-fade-in {
   animation: fade-in 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @keyframes scale-in {
-  from { opacity: 0; transform: scale(0.96); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
+
 .animate-scale-in {
   animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
@@ -318,37 +338,101 @@ tbody tr:hover {
   animation: premium-wave 1s ease-in-out infinite;
 }
 
-.premium-wave-loader span:nth-child(1) { animation-delay: 0.0s; opacity: 0.5; }
-.premium-wave-loader span:nth-child(2) { animation-delay: 0.1s; opacity: 0.7; }
-.premium-wave-loader span:nth-child(3) { animation-delay: 0.2s; opacity: 1; }
-.premium-wave-loader span:nth-child(4) { animation-delay: 0.3s; opacity: 0.7; }
-.premium-wave-loader span:nth-child(5) { animation-delay: 0.4s; opacity: 0.5; }
+.premium-wave-loader span:nth-child(1) {
+  animation-delay: 0.0s;
+  opacity: 0.5;
+}
+
+.premium-wave-loader span:nth-child(2) {
+  animation-delay: 0.1s;
+  opacity: 0.7;
+}
+
+.premium-wave-loader span:nth-child(3) {
+  animation-delay: 0.2s;
+  opacity: 1;
+}
+
+.premium-wave-loader span:nth-child(4) {
+  animation-delay: 0.3s;
+  opacity: 0.7;
+}
+
+.premium-wave-loader span:nth-child(5) {
+  animation-delay: 0.4s;
+  opacity: 0.5;
+}
 
 @keyframes premium-wave {
-  0%, 100% { transform: scaleY(0.5); }
-  50% { transform: scaleY(1.2); }
+
+  0%,
+  100% {
+    transform: scaleY(0.5);
+  }
+
+  50% {
+    transform: scaleY(1.2);
+  }
 }
 
 /* ---------------------------------------------------------------
    PRINT STYLES
    --------------------------------------------------------------- */
 @media print {
-  @page { margin: 0 !important; }
-  body { margin: 0 !important; padding: 0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
-  body > #root { display: none !important; }
-  #printable-receipt { display: block !important; position: static !important; width: 80mm !important; margin: 0 !important; transform: none !important; }
-  .print\:hidden { display: none !important; }
-  .thermal-receipt { width: 80mm; max-width: 80mm; margin: 0 !important; padding: 6mm 4mm 2mm 4mm; page-break-after: always; box-sizing: border-box; }
-  #printable-barcodes { margin: 0 !important; padding: 0 !important; display: block !important; }
-  #printable-barcodes > style { display: none !important; }
-  
-  .thermal-barcode { 
-    width: 48mm; 
-    height: 24mm; 
-    margin: 0 auto; 
+  @page {
+    margin: 0 !important;
+  }
+
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    background: white;
+  }
+
+  body>#root {
+    display: none !important;
+  }
+
+  #printable-receipt {
+    display: block !important;
+    position: static !important;
+    width: 80mm !important;
+    margin: 0 !important;
+    transform: none !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+
+  .thermal-receipt {
+    width: 80mm;
+    max-width: 80mm;
+    margin: 0 !important;
+    padding: 6mm 4mm 2mm 4mm;
+    page-break-after: always;
+    box-sizing: border-box;
+  }
+
+  #printable-barcodes {
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+
+  #printable-barcodes>style {
+    display: none !important;
+  }
+
+  .thermal-barcode {
+    width: 48mm;
+    height: 24mm;
+    margin: 0 auto;
     padding: 0.5mm;
-    box-sizing: border-box; 
-    overflow: hidden; 
+    box-sizing: border-box;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -356,35 +440,51 @@ tbody tr:hover {
     page-break-inside: avoid;
     break-inside: avoid;
     /* Use exact page size in jsx @page to naturally paginate, avoiding page-break-after blank pages */
-    -webkit-print-color-adjust: exact !important; 
-    print-color-adjust: exact !important; 
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
+
   .thermal-barcode * {
-    -webkit-print-color-adjust: exact !important; 
-    print-color-adjust: exact !important; 
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
-  .thermal-barcode p { 
-    margin: 0; 
-    padding: 0; 
-    text-align: center; 
-    width: 100%; 
-    white-space: nowrap; 
-    overflow: hidden; 
-    text-overflow: ellipsis; 
-    color: black !important; 
+
+  .thermal-barcode p {
+    margin: 0;
+    padding: 0;
+    text-align: center;
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: black !important;
   }
-  .thermal-barcode svg { 
-    display: block; 
-    max-width: 100%; 
-    height: auto !important; 
+
+  .thermal-barcode svg {
+    display: block;
+    max-width: 100%;
+    height: auto !important;
     max-height: 16mm;
   }
 }
-.hide-scrollbar::-webkit-scrollbar { display: none; }
-.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-.hide-x-scrollbar::-webkit-scrollbar:horizontal { display: none; height: 0; }
-.hide-x-scrollbar { scrollbar-width: none; }
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-x-scrollbar::-webkit-scrollbar:horizontal {
+  display: none;
+  height: 0;
+}
+
+.hide-x-scrollbar {
+  scrollbar-width: none;
+}
 
 /* Disable all horizontal scrollbars globally to prevent 1px jitter tracks */
 ::-webkit-scrollbar:horizontal {
@@ -410,6 +510,7 @@ tbody tr:hover {
 .premium-hover {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 .premium-hover:hover {
   background-color: var(--bg-hover) !important;
   transform: scale(1.002);
@@ -419,6 +520,7 @@ tbody tr:hover {
 .btn-press {
   transition: transform 0.1s ease-out;
 }
+
 .btn-press:active {
   transform: scale(0.97);
 }
@@ -427,6 +529,7 @@ tbody tr:hover {
   box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
   transition: box-shadow 0.2s ease;
 }
+
 .glow-accent:hover {
   box-shadow: 0 0 25px rgba(59, 130, 246, 0.5);
 }

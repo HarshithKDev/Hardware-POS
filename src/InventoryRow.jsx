@@ -29,6 +29,12 @@ export default function InventoryRow({ item, viewType, categories, subcategories
   });
 
   const availableSubcategories = subcategories?.filter(sub => sub.category_name === (editData?.category || item.category)) || [];
+  
+  const displayCost = item.batches && item.batches.length > 0 ? item.batches[0].purchase_cost : item.cost_price;
+  const displayMsp = item.batches && item.batches.length > 0 ? item.batches[0].msp : item.msp;
+  const displayPrice = item.batches && item.batches.length > 0 ? item.batches[0].selling_price : item.price;
+  const totalWhse = item.batches ? item.batches.reduce((sum, b) => sum + Number(b.stock_warehouse), 0) : Number(item.stock_warehouse || 0);
+  const totalStore = item.batches ? item.batches.reduce((sum, b) => sum + Number(b.stock_store), 0) : Number(item.stock_store || 0);
 
   if (isGlobalEditMode && isSelected && viewType === 'warehouse') {
     const data = editData || item;
@@ -128,24 +134,24 @@ export default function InventoryRow({ item, viewType, categories, subcategories
              </div>
            </div>
            
-           <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-[var(--border-medium)]">
-             <div>
-               <div className="text-[10px] uppercase text-[var(--text-secondary)] font-semibold mb-0.5">Whse Qty</div>
-               <div className="text-sm font-bold text-[var(--text-primary)]">
-                 {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : (item.stock_warehouse || 0)} <span className="text-[10px] font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
+             <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-[var(--border-medium)]">
+               <div>
+                 <div className="text-[10px] uppercase text-[var(--text-secondary)] font-semibold mb-0.5">Whse Qty</div>
+                 <div className="text-sm font-bold text-[var(--text-primary)]">
+                   {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : totalWhse} <span className="text-[10px] font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
+                 </div>
+               </div>
+               <div>
+                 <div className="text-[10px] uppercase text-[var(--text-secondary)] font-semibold mb-0.5">Store Qty</div>
+                 <div className="text-sm font-bold text-[var(--text-primary)]">
+                   {item.is_cuttable ? (pieceCounts ? pieceCounts.store : '...') : totalStore} <span className="text-[10px] font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
+                 </div>
+               </div>
+               <div className="text-right">
+                 <div className="text-[10px] uppercase text-[var(--text-secondary)] font-semibold mb-0.5">Price</div>
+                 <div className="text-sm font-bold text-[var(--text-primary)]">₹{Number(displayPrice||0).toFixed(2)}</div>
                </div>
              </div>
-             <div>
-               <div className="text-[10px] uppercase text-[var(--text-secondary)] font-semibold mb-0.5">Store Qty</div>
-               <div className="text-sm font-bold text-[var(--text-primary)]">
-                 {item.is_cuttable ? (pieceCounts ? pieceCounts.store : '...') : (item.stock_store || 0)} <span className="text-[10px] font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
-               </div>
-             </div>
-             <div className="text-right">
-               <div className="text-[10px] uppercase text-[var(--text-secondary)] font-semibold mb-0.5">Price</div>
-               <div className="text-sm font-bold text-[var(--text-primary)]">₹{Number(item.price||0).toFixed(2)}</div>
-             </div>
-           </div>
         </td>
 
         {/* DESKTOP TABLE LAYOUT */}
@@ -175,14 +181,14 @@ export default function InventoryRow({ item, viewType, categories, subcategories
       </td>
       <td className="hidden md:table-cell p-3 text-sm" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{item.category || '-'}</td>
       <td className="hidden md:table-cell p-3 text-sm" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{item.sub_category || '-'}</td>
-      <td className="hidden md:table-cell p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(item.cost_price||0).toFixed(2)}</td>
-      <td className="hidden md:table-cell p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(item.msp||0).toFixed(2)}</td>
-      <td className="hidden md:table-cell p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(item.price||0).toFixed(2)}</td>
+      <td className="hidden md:table-cell p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(displayCost||0).toFixed(2)}</td>
+      <td className="hidden md:table-cell p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(displayMsp||0).toFixed(2)}</td>
+      <td className="hidden md:table-cell p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(displayPrice||0).toFixed(2)}</td>
       <td className="hidden md:table-cell p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
-        {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : (item.stock_warehouse || 0)} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
+        {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : totalWhse} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
       </td>
       <td className="hidden md:table-cell p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
-        {item.is_cuttable ? (pieceCounts ? pieceCounts.store : '...') : (item.stock_store || 0)} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
+        {item.is_cuttable ? (pieceCounts ? pieceCounts.store : '...') : totalStore} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
       </td>
       </tr>
       {isExpanded && item.is_cuttable && (
