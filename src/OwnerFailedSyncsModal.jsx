@@ -32,9 +32,9 @@ export default function OwnerFailedSyncsModal({ failedSyncs, onClose }) {
   };
 
   const handleDiscard = (id) => {
-    showConfirm('Are you sure you want to permanently delete this failed transaction? This action cannot be undone.', () => {
+    showConfirm('Delete this failed transaction? This cannot be undone.', () => {
       discardMutation.mutate(id);
-    }, 'Discard Transaction');
+    }, 'Discard Transaction', 'Delete Permanently', 'Cancel', true);
   };
 
   return (

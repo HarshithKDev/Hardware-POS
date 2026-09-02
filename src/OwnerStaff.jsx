@@ -102,7 +102,10 @@ export default function OwnerStaff() {
     showConfirm(
       `Remove ${name} from staff list? \n\nNote: This will prevent them from opening the terminal, but their Supabase Auth account will still exist.`,
       () => removeStaffMutation.mutate({ id, name }),
-      "Confirm Removal"
+      "Remove Staff",
+      "Remove Staff",
+      "Cancel",
+      true
     );
   };
 

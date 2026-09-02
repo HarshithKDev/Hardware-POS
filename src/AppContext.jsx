@@ -58,19 +58,21 @@ export function AppProvider({ children }) {
     setAlertConfig((prev) => ({ ...prev, isOpen: false }));
   }, []);
 
-  // --- Confirm Dialog ---
   const [confirmConfig, setConfirmConfig] = useState({
     isOpen: false,
     message: '',
     title: 'Confirm Action',
+    confirmLabel: 'Confirm',
+    cancelLabel: 'Cancel',
+    isDestructive: false,
   });
 
   // Store callback in a ref to keep it out of state (functions aren't serializable)
   const confirmCallbackRef = useRef(null);
 
-  const showConfirm = useCallback((message, onConfirmCallback, title = 'Confirm Action') => {
+  const showConfirm = useCallback((message, onConfirmCallback, title = 'Confirm Action', confirmLabel = 'Confirm', cancelLabel = 'Cancel', isDestructive = false) => {
     confirmCallbackRef.current = onConfirmCallback;
-    setConfirmConfig({ isOpen: true, message, title });
+    setConfirmConfig({ isOpen: true, message, title, confirmLabel, cancelLabel, isDestructive });
   }, []);
 
   const handleConfirm = useCallback(() => {

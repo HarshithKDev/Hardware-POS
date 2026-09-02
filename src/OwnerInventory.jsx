@@ -130,7 +130,9 @@ export default function OwnerInventory({ viewType }) {
   });
 
   const handleRemove = (barcode) => {
-    showConfirm("Remove this item from the active list?", async () => {
+    const itemToDelete = items.find(i => i.barcode === barcode);
+    const itemName = itemToDelete?.name || barcode;
+    showConfirm(`Deactivate ${itemName}?`, async () => {
       const itemToDelete = items.find(i => i.barcode === barcode);
       const { error } = await supabase.from('product_master').update({ is_active: false }).eq('barcode', barcode);
       if (error) {
@@ -155,11 +157,13 @@ export default function OwnerInventory({ viewType }) {
         }
         queryClient.invalidateQueries({ queryKey: ['inventory'] });
       }
-    });
+    }, 'Deactivate Item', 'Deactivate', 'Cancel', true);
   };
 
   const handleRestore = (barcode) => {
-    showConfirm("Restore this item to active inventory?", async () => {
+    const itemToRestore = items.find(i => i.barcode === barcode);
+    const itemName = itemToRestore?.name || barcode;
+    showConfirm(`Restore ${itemName}?`, async () => {
       const itemToRestore = items.find(i => i.barcode === barcode);
       const { error } = await supabase.from('product_master').update({ is_active: true }).eq('barcode', barcode);
       if (error) {
@@ -185,7 +189,7 @@ export default function OwnerInventory({ viewType }) {
         queryClient.invalidateQueries({ queryKey: ['inventory'] });
         showAlert(`${itemToRestore?.name || barcode} restored successfully!`, "Item Restored");
       }
-    });
+    }, 'Restore Item', 'Restore', 'Cancel', false);
   };
 
   const toggleSelect = (barcode) => {
@@ -257,8 +261,11 @@ export default function OwnerInventory({ viewType }) {
   };
 
   const bulkDelete = () => {
-    showConfirm(`Are you sure you want to ${viewType === 'recycle' ? 'restore' : 'delete'} ${selectedBarcodes.length} items?`, async () => {
-      const isRecycle = viewType === 'recycle';
+    const isRecycle = viewType === 'recycle';
+    const actionText = isRecycle ? 'restore' : 'delete permanently';
+    const title = isRecycle ? 'Restore Items' : 'Delete Items';
+    const confirmLabel = isRecycle ? 'Restore' : 'Delete';
+    showConfirm(`${actionText.charAt(0).toUpperCase() + actionText.slice(1)} ${selectedBarcodes.length} items?`, async () => {
       const updateValue = isRecycle ? true : false;
       const { error } = await supabase.from('product_master').update({ is_active: updateValue }).in('barcode', selectedBarcodes);
       
@@ -277,7 +284,7 @@ export default function OwnerInventory({ viewType }) {
         setIsGlobalEditMode(false);
         showAlert(`Successfully ${isRecycle ? 'restored' : 'removed'} ${selectedBarcodes.length} items!`, "Success");
       }
-    });
+    }, title, confirmLabel, 'Cancel', !isRecycle);
   };
 
   const items = inventoryData?.items || [];

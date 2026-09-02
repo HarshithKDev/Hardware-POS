@@ -119,7 +119,7 @@ export default function OwnerCategories() {
   });
 
   const handleDeleteCategory = (id, name) => {
-    showConfirm(`Delete category "${name}"?`, () => deleteCategoryMutation.mutate({ id, name }));
+    showConfirm(`Delete category "${name}"?`, () => deleteCategoryMutation.mutate({ id, name }), 'Delete Category', 'Delete Category', 'Cancel', true);
   };
 
   const deleteSubcategoryMutation = useMutation({
@@ -147,7 +147,7 @@ export default function OwnerCategories() {
   });
 
   const handleDeleteSubcategory = (id, name, category_name) => {
-    showConfirm(`Delete sub-category "${name}"?`, () => deleteSubcategoryMutation.mutate({ id, name, category_name }));
+    showConfirm(`Delete sub-category "${name}"?`, () => deleteSubcategoryMutation.mutate({ id, name, category_name }), 'Delete Sub-category', 'Delete Sub-category', 'Cancel', true);
   };
 
   const toggleCategory = (name) => {

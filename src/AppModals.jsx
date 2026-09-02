@@ -93,7 +93,7 @@ export function ProductInfoModal({ product, onClose }) {
           </div>
         </div>
         <div className="p-4 flex justify-end" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-          <button onClick={onClose} className="px-6 py-2 rounded-md text-white text-sm border border-transparent focus:outline-none transition-opacity hover:opacity-90" style={{ backgroundColor: 'var(--color-accent)' }}>OK</button>
+          <button onClick={onClose} className="px-6 py-2 rounded-md text-white text-sm border border-transparent focus:outline-none transition-opacity hover:opacity-90" style={{ backgroundColor: 'var(--color-accent)' }}>Close</button>
         </div>
       </div>
     </div>

@@ -111,7 +111,7 @@ export function CreatableDropdown({ value, onChange, options, placeholder, onCre
       </div>
 
       {isOpen && !disabled && (
-        <div className="absolute z-50 w-full mt-1 max-h-60 overflow-y-auto rounded-md border border-[var(--border-light)] shadow-lg" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+        <div className="absolute z-50 w-full mt-1 max-h-96 overflow-y-auto rounded-md border border-[var(--border-light)] shadow-lg" style={{ backgroundColor: 'var(--bg-secondary)' }}>
           {filteredOptions.map(opt => (
             <div
               key={opt}

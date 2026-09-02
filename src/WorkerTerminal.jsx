@@ -1070,7 +1070,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         <div className="flex flex-col flex-1 bg-[var(--bg-primary)] overflow-hidden" style={{ minHeight: 'calc(100vh - 160px)' }}>
           {cart.length > 0 && (
             <div className="p-4 flex-shrink-0 flex gap-2" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
-              <button onClick={() => showConfirm("Clear?", handleCancelSale, 'Clear')} className="w-1/3 py-4 text-white font-black uppercase tracking-widest text-lg shadow-lg rounded-lg transition-all active:scale-95" style={{ backgroundColor: 'var(--color-error)' }}>CLEAR</button>
+              <button onClick={() => showConfirm("Clear cart?", handleCancelSale, 'Clear Cart', 'Clear Cart', 'Keep Cart', true)} className="w-1/3 py-4 text-white font-black uppercase tracking-widest text-lg shadow-lg rounded-lg transition-all active:scale-95" style={{ backgroundColor: 'var(--color-error)' }}>CLEAR</button>
               <button onClick={handleCompleteTransaction} className="w-2/3 py-4 text-white font-black uppercase tracking-widest text-lg shadow-lg rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2" style={{ backgroundColor: 'var(--color-accent)' }}>
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                 COMPLETE {cart.length}
@@ -1245,7 +1245,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           <div className="p-4 flex flex-col md:flex-row justify-between gap-3" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
             <div className="flex w-full md:w-auto gap-3">
               <button
-                onClick={() => showConfirm("Are you sure you want to clear the items?", handleCancelSale, activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items')}
+                onClick={() => showConfirm("Clear all items?", handleCancelSale, activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items', 'Clear', 'Cancel', true)}
                 className="flex-1 md:flex-none h-10 px-6 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md"
                 style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
               >

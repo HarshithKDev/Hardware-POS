@@ -170,6 +170,7 @@ export function ConfirmDialog({
   onCancel,
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
+  isDestructive = false,
 }) {
   const labelId = 'confirm-dialog-title';
   const descId = 'confirm-dialog-desc';
@@ -208,8 +209,11 @@ export function ConfirmDialog({
         </button>
         <button
           onClick={onConfirm}
-          className="h-10 px-6 text-sm font-medium rounded-md transition-opacity hover:opacity-90"
-          style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-accent-fg)' }}
+          className={`h-10 px-6 text-sm font-medium rounded-md transition-opacity hover:opacity-90 ${isDestructive ? 'text-white' : ''}`}
+          style={{ 
+            backgroundColor: isDestructive ? 'var(--color-error)' : 'var(--color-accent)', 
+            color: isDestructive ? '#fff' : 'var(--color-accent-fg)' 
+          }}
         >
           {confirmLabel}
         </button>

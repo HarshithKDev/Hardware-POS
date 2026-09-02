@@ -198,6 +198,9 @@ function App() {
         message={confirmConfig.message}
         onConfirm={handleConfirm}
         onCancel={closeConfirm}
+        confirmLabel={confirmConfig.confirmLabel}
+        cancelLabel={confirmConfig.cancelLabel}
+        isDestructive={confirmConfig.isDestructive}
       />
 
       <ConfirmDialog
