@@ -534,13 +534,15 @@ export default function OwnerCatalog() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-4 md:p-6 rounded-xl shadow-sm flex flex-col flex-1 gap-4" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <form onSubmit={handleSubmit} className="p-4 md:p-8 rounded-xl shadow-sm flex flex-col gap-6" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Row 1: Name */}
           <div className="md:col-span-2 lg:col-span-4">
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-name">Item Name</label>
             <input id="item-name" type="text" autoFocus required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. 10mm Steel Rebar" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
           </div>
 
+          {/* Row 2: Category & Subcategory */}
           <div className="lg:col-span-2">
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-cat">Category</label>
             <CreatableDropdown
@@ -552,7 +554,6 @@ export default function OwnerCatalog() {
               required={true}
             />
           </div>
-
           <div className="lg:col-span-2">
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-subcat">Sub-category</label>
             <CreatableDropdown
@@ -566,6 +567,7 @@ export default function OwnerCatalog() {
             />
           </div>
 
+          {/* Row 3: Item Type & Unit Type */}
           <div className="lg:col-span-2">
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-type">Item Type</label>
             <div className="relative">
@@ -587,6 +589,7 @@ export default function OwnerCatalog() {
             </div>
           </div>
 
+          {/* Conditional: Cuttable dimensions */}
           {form.item_type === 'cuttable' && (
             <>
               <div className="lg:col-span-2">
@@ -608,6 +611,7 @@ export default function OwnerCatalog() {
             </>
           )}
 
+          {/* Row 4: Pricing */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-cost">Cost Price (₹)</label>
             <input id="item-cost" type="number" step="any" min="0" required value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
@@ -620,8 +624,11 @@ export default function OwnerCatalog() {
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-mrp">Max Retail Price (₹)</label>
             <input id="item-mrp" type="number" step="any" min="0" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
           </div>
-          <div></div>
+          <div>
+            {/* Blank placeholder to align the grid properly if needed, but flex gap handles it if it wraps. We'll leave it 3 items for prices, next items are span-2 anyway so they wrap. */}
+          </div>
 
+          {/* Row 5: Min Qtys */}
           <div className="flex gap-4 lg:col-span-2">
             <div className="flex-1">
               <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-min-qty-whse">Min Qty (Warehouse)</label>
@@ -638,7 +645,8 @@ export default function OwnerCatalog() {
               </div>
             </div>
           </div>
-          
+
+          {/* Row 6: Billing Method */}
           <div className="lg:col-span-2">
              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-bill-method">Billing Method</label>
              <div className="relative">
@@ -662,11 +670,8 @@ export default function OwnerCatalog() {
              <input id="item-bill-inc" type="number" step="any" min="0" required value={form.billing_increment} onChange={(e) => setForm({ ...form, billing_increment: e.target.value })} placeholder="e.g. 0.5" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md disabled:opacity-50" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} disabled={form.billing_method === 'exact'} />
           </div>
         </div>
-        
-        {/* Spacer to push the footer down if the screen is tall */}
-        <div className="flex-1" />
 
-        <div className="flex justify-between items-center mt-auto pt-6" style={{ borderTop: '1px solid var(--border-light)' }}>
+        <div className="flex justify-between items-center mt-2 pt-6" >
           {form.item_type !== 'cuttable' ? (
             <div className="flex items-center gap-4">
               <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Print Labels:</label>

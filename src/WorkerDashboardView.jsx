@@ -21,8 +21,8 @@ export default function WorkerDashboardView() {
   const { data: lowStockCounts } = useQuery({
     queryKey: ['lowStockCounts'],
     queryFn: async () => {
-      const { count: storeCount } = await supabase.from('inventory').select('*', { count: 'exact', head: true }).eq('is_active', true).lt('stock_store', STORE_LOW_STOCK_THRESHOLD);
-      const { count: whseCount } = await supabase.from('inventory').select('*', { count: 'exact', head: true }).eq('is_active', true).lt('stock_warehouse', WAREHOUSE_LOW_STOCK_THRESHOLD);
+      const { count: storeCount } = await supabase.from('product_master').select('*', { count: 'exact', head: true }).eq('is_active', true).lt('stock_store', STORE_LOW_STOCK_THRESHOLD);
+      const { count: whseCount } = await supabase.from('product_master').select('*', { count: 'exact', head: true }).eq('is_active', true).lt('stock_warehouse', WAREHOUSE_LOW_STOCK_THRESHOLD);
       return { store: storeCount || 0, warehouse: whseCount || 0 };
     },
     staleTime: STALE_TIME_5MIN,
@@ -34,7 +34,7 @@ export default function WorkerDashboardView() {
       if (!lowStockModal.type) return [];
       const threshold = lowStockModal.type === 'store' ? STORE_LOW_STOCK_THRESHOLD : WAREHOUSE_LOW_STOCK_THRESHOLD;
       const col = lowStockModal.type === 'store' ? 'stock_store' : 'stock_warehouse';
-      const { data, error } = await supabase.from('inventory').select('*').eq('is_active', true).lt(col, threshold).order(col, { ascending: true });
+      const { data, error } = await supabase.from('product_master').select('*').eq('is_active', true).lt(col, threshold).order(col, { ascending: true });
       if (error) throw error;
       return data || [];
     },
@@ -52,7 +52,7 @@ export default function WorkerDashboardView() {
     queryKey: ['workerInventory', debouncedSearch, sortOption],
     queryFn: async ({ pageParam = 0 }) => {
       const from = pageParam * INV_PER_PAGE;
-      let query = supabase.from('inventory').select('*', { count: 'exact' }).eq('is_active', true);
+      let query = supabase.from('product_master').select('*', { count: 'exact' }).eq('is_active', true);
       
       // Sanitized search (fixes #1)
       if (debouncedSearch.trim() !== '') {
@@ -84,8 +84,8 @@ export default function WorkerDashboardView() {
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   return (
-    <div className="flex flex-col h-full p-3 md:p-6 animate-fade-in flex-1 rounded-xl border border-[var(--border-light)] shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
-      <h2 className="text-xl md:text-2xl font-medium mb-3 md:mb-6 hidden md:block" style={{ color: 'var(--text-primary)' }}>Staff Dashboard</h2>
+    <div className="flex flex-col h-full p-4 animate-fade-in flex-1 m-0 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+      <h2 className="text-xl md:text-2xl font-medium mb-4 hidden md:block" style={{ color: 'var(--text-primary)' }}>Staff Dashboard</h2>
       
       <div className="grid grid-cols-2 gap-3 md:gap-4 mb-3 md:mb-6">
         <button onClick={() => setLowStockModal({ isOpen: true, type: 'store' })} className="p-4 md:p-6 rounded-lg border border-[var(--border-light)] text-left cursor-pointer flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
@@ -159,10 +159,10 @@ export default function WorkerDashboardView() {
           <table className="w-full text-center table-fixed text-[10px] md:text-sm border-collapse" style={{ color: 'var(--text-primary)' }}>
             <thead style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
               <tr className="text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>
-                <th className="p-1.5 md:p-3 w-[15%] md:w-auto align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>BC</th>
-                <th className="p-1.5 md:p-3 w-[40%] md:w-auto align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>Name</th>
-                <th className="p-1.5 md:p-3 w-[15%] md:w-auto align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>MRP</th>
-                <th className="p-1.5 md:p-3 w-[15%] md:w-auto align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>WHS</th>
+                <th className="p-1.5 md:p-3 w-[15%] md:w-auto align-middle" style={{ borderRight: '1px solid var(--border-light)' }}>BC</th>
+                <th className="p-1.5 md:p-3 w-[40%] md:w-auto align-middle" style={{ borderRight: '1px solid var(--border-light)' }}>Name</th>
+                <th className="p-1.5 md:p-3 w-[15%] md:w-auto align-middle" style={{ borderRight: '1px solid var(--border-light)' }}>MRP</th>
+                <th className="p-1.5 md:p-3 w-[15%] md:w-auto align-middle" style={{ borderRight: '1px solid var(--border-light)' }}>WHS</th>
                 <th className="p-1.5 md:p-3 w-[15%] md:w-auto align-middle">STR</th>
               </tr>
             </thead>

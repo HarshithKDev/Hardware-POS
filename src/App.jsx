@@ -228,10 +228,9 @@ function App() {
 
       {/* NAVBAR */}
       <nav
-        className="w-full shadow-sm h-[56px] md:h-[60px] flex-shrink-0 relative z-[9999] print:hidden"
+        className="w-full md:w-auto shadow-sm h-[56px] md:h-[60px] flex-shrink-0 relative z-[9999] print:hidden md:mx-4 md:my-4 md:rounded-xl border-b md:border border-[var(--border-medium)] md:border-[var(--border-light)]"
         style={{
           backgroundColor: 'var(--bg-secondary)',
-          borderBottom: '1px solid var(--border-medium)',
         }}
         role="navigation"
         aria-label="Main navigation"
@@ -315,7 +314,7 @@ function App() {
 
       {/* MAIN CONTENT */}
       <main
-        className="flex-1 w-full p-4 md:p-6 overflow-y-auto relative z-10 print:static print:p-0 print:m-0"
+        className="flex-1 w-full md:px-4 md:pb-4 overflow-y-auto relative z-10 print:static"
         role="main"
         aria-label="Application content"
       >

@@ -180,7 +180,7 @@ export default function OwnerLedger({ isActive }) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto hide-x-scrollbar overflow-x-hidden md:overflow-x-auto shadow-sm min-h-[400px] md:rounded-lg" style={{ backgroundColor: 'transparent' }}>
+        <div className="flex-1 overflow-auto hide-x-scrollbar overflow-x-hidden md:overflow-x-auto shadow-sm min-h-[400px] md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent' }}>
           <table className={`w-full max-w-full text-left border-collapse block md:table min-w-0 md:min-w-[700px] ${(isLoadingBills && bills.length === 0 || bills.length === 0) ? 'h-full' : ''}`}>
             <thead className="hidden md:table-header-group sticky top-0 z-10 glass-header" style={{ borderBottom: '1px solid var(--border-medium)' }}>
               <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>

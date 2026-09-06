@@ -185,7 +185,7 @@ function SalesTrendChart() {
   }, [trend]);
 
   return (
-    <div className="p-5 rounded-lg border border-[var(--border-light)] flex flex-col justify-between lg:col-span-2" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+    <div className="p-5 rounded-lg border border-[var(--border-light)] flex flex-col h-full lg:col-span-2" style={{ backgroundColor: 'var(--bg-secondary)' }}>
       <div className="flex justify-between items-center mb-4">
         <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Sales Trend</p>
         <div className="relative inline-flex items-center rounded-md transition-colors hover:bg-[var(--bg-tertiary)]" style={{ border: '1px solid var(--border-medium)' }}>
@@ -205,7 +205,7 @@ function SalesTrendChart() {
         </div>
       </div>
 
-      <div className="flex items-end h-32 gap-1 md:gap-3 w-full px-2 mb-4" role="img" aria-label="sales trend chart">
+      <div className="flex flex-1 items-end min-h-[8rem] gap-1 md:gap-3 w-full px-2 mb-4" role="img" aria-label="sales trend chart">
         {isLoading ? (
           <div className="w-full h-full flex items-center justify-center">
             <div className="premium-wave-loader scale-75">
@@ -239,11 +239,11 @@ function SalesTrendChart() {
 /** Top products list */
 function TopProductsList({ products }) {
   return (
-    <div className="p-5 rounded-lg border border-[var(--border-light)]" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-      <p className="text-xs font-semibold uppercase tracking-wider mb-4 pb-2" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-light)' }}>
+    <div className="p-5 rounded-lg border border-[var(--border-light)] flex flex-col h-full" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+      <p className="text-xs font-semibold uppercase tracking-wider mb-4 pb-2 shrink-0" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-light)' }}>
         Top 5 Profit Makers (30 Days)
       </p>
-      <ul>
+      <ul className="flex-1 overflow-y-auto">
         {products.length === 0 ? (
           <li className="text-sm py-4 text-center" style={{ color: 'var(--text-tertiary)' }}>Not enough data.</li>
         ) : products.map((p, idx) => (
@@ -360,7 +360,7 @@ export default function OwnerStats({ isActive }) {
 
     // --- Inventory ---
     const { count: totalCount } = await supabase
-      .from('inventory')
+      .from('product_master')
       .select('*', { count: 'exact', head: true })
       .eq('is_active', true);
 
@@ -368,7 +368,7 @@ export default function OwnerStats({ isActive }) {
     const pageCount = Math.ceil((totalCount || 0) / pageSize);
     const invPages = await Promise.all(
       Array.from({ length: pageCount }, (_, i) =>
-        supabase.from('inventory')
+        supabase.from('product_master')
           .select('barcode, name, price, cost_price, stock_warehouse, stock_store, min_quantity_warehouse, min_quantity_store')
           .eq('is_active', true)
           .range(i * pageSize, (i + 1) * pageSize - 1)
@@ -451,8 +451,8 @@ export default function OwnerStats({ isActive }) {
   } = data;
 
   return (
-    <div className="h-full relative pb-10">
-      <h1 className="text-2xl font-medium mb-6" style={{ color: 'var(--text-primary)' }}>Business Overview</h1>
+    <div className="flex flex-col h-full relative">
+      <h1 className="text-2xl font-medium mb-6 shrink-0" style={{ color: 'var(--text-primary)' }}>Business Overview</h1>
 
       {failedSyncs && failedSyncs.length > 0 && (
         <div className="mb-6 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm" style={{ backgroundColor: 'rgba(239, 68, 68, 0.05)', border: '1px solid var(--color-error)' }}>
@@ -470,7 +470,7 @@ export default function OwnerStats({ isActive }) {
       )}
 
       {/* ROW 1: TODAY'S VITALS */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 shrink-0">
         <StatCard title="Today Revenue" value={`₹${todaysTrueRevenue.toFixed(2)}`} borderColor="var(--color-success)" />
         <StatCard
           title="Today Profit"
@@ -498,13 +498,13 @@ export default function OwnerStats({ isActive }) {
       </div>
 
       {/* ROW 2: TRENDS & LEADERBOARD */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4 flex-1 min-h-0">
         <SalesTrendChart />
         <TopProductsList products={topProducts} />
       </div>
 
       {/* ROW 3: CAPITAL */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 shrink-0">
         <StatCard title="Total Asset Value" value={`₹${totalInventoryValue.toFixed(2)}`} borderColor="var(--text-tertiary)" />
         <StatCard title="Warehouse Capital" value={`₹${warehouseCapital.toFixed(2)}`} borderColor="var(--color-accent)" />
         <div className="col-span-2 md:col-span-1">
@@ -549,7 +549,7 @@ export default function OwnerStats({ isActive }) {
                       <p className="text-xl font-bold" style={{ color: 'var(--color-success)' }}>₹{todaysGrossProfit.toFixed(2)}</p>
                     </div>
                   </div>
-                  <div className="overflow-x-auto w-full">
+                  <div className="overflow-x-auto w-full shadow-sm rounded-lg" style={{ border: '1px solid var(--border-light)' }}>
                     <table className="w-full text-left border-collapse">
                       <thead className="sticky top-0 shadow-sm" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-light)' }}>
                         <tr className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
@@ -579,7 +579,7 @@ export default function OwnerStats({ isActive }) {
               )}
 
               {(activeModal === 'low-store' || activeModal === 'dead-stock') && (
-                <div className="overflow-x-auto w-full">
+                <div className="overflow-x-auto w-full shadow-sm rounded-lg" style={{ border: '1px solid var(--border-light)' }}>
                   <table className="w-full text-left border-collapse">
                     <thead className="sticky top-0 shadow-sm" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-light)' }}>
                       <tr className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>

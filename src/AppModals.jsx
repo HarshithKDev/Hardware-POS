@@ -28,7 +28,7 @@ export function MobileScannerModal({ onClose, setScannedProduct, onScan }) {
       }
 
       const { data } = await supabase
-        .from('inventory')
+        .from('product_master')
         .select('*')
         .eq('barcode', decodedText)
         .eq('is_active', true)

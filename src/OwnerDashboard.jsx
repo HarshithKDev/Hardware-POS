@@ -47,7 +47,7 @@ export default function OwnerDashboard() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-full overflow-hidden relative" style={{ backgroundColor: 'var(--bg-primary)' }}>
+    <div className="flex flex-col md:flex-row h-full overflow-hidden relative md:gap-4" style={{ backgroundColor: 'transparent' }}>
       {/* MOBILE MENU TOGGLE */}
       <div
         className="md:hidden flex justify-between items-center p-4"
@@ -88,9 +88,9 @@ export default function OwnerDashboard() {
         className={`
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
           md:translate-x-0 
-          absolute md:relative top-0 left-0 h-full md:h-[calc(100%-2rem)] z-50
+          absolute md:relative top-0 left-0 h-full md:h-full z-50
           w-64 md:w-56 flex-shrink-0 py-4 
-          m-0 md:m-4 md:mr-2 rounded-r-2xl md:rounded-xl 
+          m-0 md:rounded-xl 
           border-r md:border border-[var(--border-medium)] md:border-[var(--border-light)] 
           shadow-2xl md:shadow-sm transition-transform duration-300 ease-in-out
         `}
@@ -120,7 +120,7 @@ export default function OwnerDashboard() {
 
       {/* MAIN CONTENT */}
       <main
-        className="flex-1 flex flex-col p-2 md:p-6 md:pb-2 overflow-y-auto relative m-0 md:m-4 md:ml-2 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm"
+        className="flex-1 flex flex-col p-4 overflow-y-auto relative m-0 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm"
         style={{ backgroundColor: 'var(--bg-secondary)' }}
         role="main"
         aria-label="Dashboard content"
@@ -168,12 +168,12 @@ export default function OwnerDashboard() {
             </div>
             {warehouseSubTab === 'inventory' && <OwnerInventory viewType="warehouse" />}
             {warehouseSubTab === 'receive' && (
-              <div className="flex-1 mb-4 rounded-lg overflow-hidden border border-[var(--border-light)] bg-[var(--bg-secondary)]">
+              <div className="flex-1 rounded-lg overflow-hidden border border-[var(--border-light)] bg-[var(--bg-secondary)]">
                 <WorkerBilling defaultTab="receive" hideNav={true} />
               </div>
             )}
             {warehouseSubTab === 'transfer' && (
-              <div className="flex-1 mb-4 rounded-lg overflow-hidden border border-[var(--border-light)] bg-[var(--bg-secondary)]">
+              <div className="flex-1 rounded-lg overflow-hidden border border-[var(--border-light)] bg-[var(--bg-secondary)]">
                 <WorkerBilling defaultTab="transfer" hideNav={true} />
               </div>
             )}
@@ -183,7 +183,7 @@ export default function OwnerDashboard() {
 
         {activeTab === 'checkout' && (
           <div className="flex flex-col h-full animate-fade-in">
-            <div className="flex-1 mb-4 rounded-lg overflow-hidden border border-[var(--border-light)] bg-[var(--bg-secondary)]">
+            <div className="flex-1 rounded-lg overflow-hidden border border-[var(--border-light)] bg-[var(--bg-secondary)]">
               <WorkerBilling defaultTab="checkout" hideNav={true} />
             </div>
           </div>

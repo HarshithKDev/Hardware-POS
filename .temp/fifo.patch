@@ -1,0 +1,544 @@
+diff --git a/src/OwnerCatalog.jsx b/src/OwnerCatalog.jsx
+index 41c0b01..71398a0 100644
+--- a/src/OwnerCatalog.jsx
++++ b/src/OwnerCatalog.jsx
+@@ -253,6 +253,7 @@ export default function OwnerCatalog() {
+ 
+   const handleSubmit = async (e) => {
+     e.preventDefault();
++    if (addItemMutation.isPending) return; // prevent double-submit
+     if (!form.name.trim()) return showAlert("Item name is required.", "Validation Error");
+     if (Number(form.msp) < Number(form.cost_price)) return showAlert("MSP cannot be lower than Cost Price.", "Validation Error");
+     if (Number(form.price) < Number(form.msp)) return showAlert("Selling Price cannot be lower than MSP.", "Validation Error");
+@@ -535,11 +536,13 @@ export default function OwnerCatalog() {
+ 
+       <form onSubmit={handleSubmit} className="p-4 md:p-8 rounded-xl shadow-sm flex flex-col gap-6" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
++          {/* Row 1: Name */}
+           <div className="md:col-span-2 lg:col-span-4">
+             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-name">Item Name</label>
+             <input id="item-name" type="text" autoFocus required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. 10mm Steel Rebar" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+           </div>
+ 
++          {/* Row 2: Category & Subcategory */}
+           <div className="lg:col-span-2">
+             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-cat">Category</label>
+             <CreatableDropdown
+@@ -551,7 +554,6 @@ export default function OwnerCatalog() {
+               required={true}
+             />
+           </div>
+-
+           <div className="lg:col-span-2">
+             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-subcat">Sub-category</label>
+             <CreatableDropdown
+@@ -565,22 +567,19 @@ export default function OwnerCatalog() {
+             />
+           </div>
+ 
+-          <div>
+-            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-cost">Cost Price (₹)</label>
+-            <input id="item-cost" type="number" step="any" min="0" required value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+-          </div>
+-
+-          <div>
+-            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-msp">Min Selling Price (₹)</label>
+-            <input id="item-msp" type="number" step="any" min="0" required value={form.msp} onChange={(e) => setForm({ ...form, msp: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+-          </div>
+-
+-          <div>
+-            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-mrp">Max Retail Price (₹)</label>
+-            <input id="item-mrp" type="number" step="any" min="0" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
++          {/* Row 3: Item Type & Unit Type */}
++          <div className="lg:col-span-2">
++            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-type">Item Type</label>
++            <div className="relative">
++              <select id="item-type" required value={form.item_type} onChange={(e) => setForm({ ...form, item_type: e.target.value })} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
++                <option value="standard">Standard Item</option>
++                <option value="loose">Loose / Bulk Box (Prompt Qty)</option>
++                <option value="cuttable">Cuttable Stock (Pipes/Mesh)</option>
++              </select>
++              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
++            </div>
+           </div>
+-
+-          <div>
++          <div className="lg:col-span-2">
+             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-unit">Unit Type</label>
+             <div className="relative">
+               <select id="item-unit" required value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
+@@ -590,25 +589,46 @@ export default function OwnerCatalog() {
+             </div>
+           </div>
+ 
+-          {form.item_type === 'cuttable' && form.unit === 'SQFT' && (
++          {/* Conditional: Cuttable dimensions */}
++          {form.item_type === 'cuttable' && (
+             <>
+               <div className="lg:col-span-2">
+-                <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-def-length">Default Length</label>
++                <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-def-length">Default Length (per piece)</label>
+                 <div className="relative">
+-                  <input id="item-def-length" type="number" step="any" min="0" value={form.default_length} onChange={(e) => setForm({ ...form, default_length: e.target.value })} placeholder="e.g. 10" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+-                  <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>ft</span>
++                  <input id="item-def-length" type="number" step="any" min="0" value={form.default_length} onChange={(e) => setForm({ ...form, default_length: e.target.value })} placeholder="e.g. 20" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
++                  <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{UNIT_TYPES.find(u => u.value === form.unit)?.label || form.unit}</span>
+                 </div>
+               </div>
+-              <div className="lg:col-span-2">
+-                <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-def-width">Default Height</label>
+-                <div className="relative">
+-                  <input id="item-def-width" type="number" step="any" min="0" required value={form.default_width} onChange={(e) => setForm({ ...form, default_width: e.target.value })} placeholder="e.g. 3" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+-                  <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>ft</span>
++              {form.unit === 'SQFT' && (
++                <div className="lg:col-span-2">
++                  <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-def-width">Default Width</label>
++                  <div className="relative">
++                    <input id="item-def-width" type="number" step="any" min="0" required value={form.default_width} onChange={(e) => setForm({ ...form, default_width: e.target.value })} placeholder="e.g. 3" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
++                    <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>ft</span>
++                  </div>
+                 </div>
+-              </div>
++              )}
+             </>
+           )}
+ 
++          {/* Row 4: Pricing */}
++          <div>
++            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-cost">Cost Price (₹)</label>
++            <input id="item-cost" type="number" step="any" min="0" required value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
++          </div>
++          <div>
++            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-msp">Min Selling Price (₹)</label>
++            <input id="item-msp" type="number" step="any" min="0" required value={form.msp} onChange={(e) => setForm({ ...form, msp: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
++          </div>
++          <div>
++            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-mrp">Max Retail Price (₹)</label>
++            <input id="item-mrp" type="number" step="any" min="0" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
++          </div>
++          <div>
++            {/* Blank placeholder to align the grid properly if needed, but flex gap handles it if it wraps. We'll leave it 3 items for prices, next items are span-2 anyway so they wrap. */}
++          </div>
++
++          {/* Row 5: Min Qtys */}
+           <div className="flex gap-4 lg:col-span-2">
+             <div className="flex-1">
+               <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-min-qty-whse">Min Qty (Warehouse)</label>
+@@ -625,26 +645,8 @@ export default function OwnerCatalog() {
+               </div>
+             </div>
+           </div>
+-          
+-          <div className="lg:col-span-2">
+-            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-type">Item Type</label>
+-            <div className="relative">
+-              <select
+-                id="item-type"
+-                required
+-                value={form.item_type}
+-                onChange={(e) => setForm({ ...form, item_type: e.target.value })}
+-                className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer"
+-                style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
+-              >
+-                <option value="standard">Standard Item</option>
+-                <option value="loose">Loose / Bulk Box (Prompt Qty)</option>
+-                <option value="cuttable">Cuttable Stock (Pipes/Mesh)</option>
+-              </select>
+-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
+-            </div>
+-          </div>
+-          
++
++          {/* Row 6: Billing Method */}
+           <div className="lg:col-span-2">
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-bill-method">Billing Method</label>
+              <div className="relative">
+@@ -669,7 +671,7 @@ export default function OwnerCatalog() {
+           </div>
+         </div>
+ 
+-        <div className="flex justify-between items-center mt-2 pt-6" style={{ borderTop: '1px solid var(--border-light)' }}>
++        <div className="flex justify-between items-center mt-2 pt-6" >
+           {form.item_type !== 'cuttable' ? (
+             <div className="flex items-center gap-4">
+               <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Print Labels:</label>
+diff --git a/src/WorkerTerminal.jsx b/src/WorkerTerminal.jsx
+index 2a0c516..25e5ca1 100644
+--- a/src/WorkerTerminal.jsx
++++ b/src/WorkerTerminal.jsx
+@@ -210,10 +210,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
+           setCart(prev => {
+             const idx = prev.findIndex(c => c.instance_barcode === scannedInstanceBarcode);
+             if (idx >= 0) return prev;
+-            return [...prev, { ...item, id: generateId(), instance_barcode: scannedInstanceBarcode, customPriceInput: Number(item.price || 0).toFixed(2), discountPct: 0, quantity: 1, unit: item.unit, length: '', width: '', default_length: item.default_length, default_width: item.default_width }];
++            return [...prev, { ...item, id: generateId(), instance_barcode: scannedInstanceBarcode, customPriceInput: Number(item.price || 0).toFixed(2), discountPct: 0, quantity: 1, unit: item.unit, length: '', width: '', default_length: item.default_length, default_width: item.default_width, has_preset_length: !!item.default_length, has_preset_width: !!item.default_width, purchase_cost: Number(item.cost_price || 0).toFixed(2), selling_price: Number(item.price || 0).toFixed(2) }];
+           });
+         } else {
+-          setCart(prev => [...prev, { ...item, id: generateId(), customPriceInput: Number(item.price || 0).toFixed(2), discountPct: 0, quantity: 1, unit: item.unit, length: '', width: '', default_length: item.default_length, default_width: item.default_width }]);
++          setCart(prev => [...prev, { ...item, id: generateId(), customPriceInput: Number(item.price || 0).toFixed(2), discountPct: 0, quantity: 1, unit: item.unit, length: '', width: '', default_length: item.default_length, default_width: item.default_width, has_preset_length: !!item.default_length, has_preset_width: !!item.default_width, purchase_cost: Number(item.cost_price || 0).toFixed(2), selling_price: Number(item.price || 0).toFixed(2) }]);
+         }
+         setManualBarcode('');
+         return;
+@@ -335,7 +335,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
+           quantity: item.unit === 'SQFT' ? 0 : 1, 
+           billableQuantity: item.unit === 'SQFT' ? 0 : 1, 
+           unit: item.unit || 'PCS', 
+-          length: '', width: '', rolls: '1' 
++          length: '', width: '', rolls: '1',
++          purchase_cost: Number(item.cost_price || 0).toFixed(2), 
++          selling_price: Number(item.price || 0).toFixed(2)
+         }];
+       });
+     }
+@@ -665,7 +667,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
+       if (activeTab === 'checkout' && navigator.onLine) {
+         try {
+           const barcodes = finalCart.map(item => item.barcode);
+-          const { data: liveStock, error: stockError } = await supabase.from('inventory').select('barcode, name, stock_store').in('barcode', barcodes);
++          const { data: liveStock, error: stockError } = await supabase.from('product_master').select('barcode, name, stock_store').in('barcode', barcodes);
+           if (!stockError && liveStock) {
+             for (const cartItem of finalCart) {
+               const liveItem = liveStock.find(i => i.barcode === cartItem.barcode);
+@@ -722,7 +724,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
+             piece_length: i.pieceLength || null,
+             num_rolls: (activeTab === 'receive' && i.is_cuttable) ? Number(i.quantity) : null,
+             default_length: i.default_length ? Number(i.default_length) : null,
+-            default_width: i.default_width ? Number(i.default_width) : null
++            default_width: i.default_width ? Number(i.default_width) : null,
++            purchase_cost: i.purchase_cost !== undefined ? Number(i.purchase_cost) : (i.cost_price ? Number(i.cost_price) : 0),
++            selling_price: i.selling_price !== undefined ? Number(i.selling_price) : (i.price ? Number(i.price) : 0)
+           };
+         }),
+       };
+@@ -842,12 +846,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
+           aria-labelledby="checkout-title"
+         >
+           <div className="w-[85%] max-w-[450px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+-            <div className="flex justify-between items-center pr-1 pl-4 py-1" style={{ borderBottom: '1px solid var(--border-light)' }}>
++            <div className="flex justify-between items-center pr-1 pl-4 py-1" >
+               <span id="checkout-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Checkout Payment</span>
+               <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} className="px-3 py-1.5 leading-none focus:outline-none rounded-md" aria-label="Close checkout">✕</button>
+             </div>
+             <div className="p-6">
+-              <div className="flex justify-between items-end mb-6 pb-4" style={{ borderBottom: '1px solid var(--border-light)' }}>
++              <div className="flex justify-between items-end mb-6 pb-4" >
+                 <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Total Due</span>
+                 <span className="text-4xl font-light" style={{ color: 'var(--color-accent)' }} aria-live="polite">₹{cartTotal.toFixed(2)}</span>
+               </div>
+@@ -864,7 +868,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
+                 </div>
+               )}
+             </div>
+-            <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
++            <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+               <button onClick={handleCompleteTransaction} disabled={isCheckingOut || isShortfall} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 flex justify-center items-center min-w-[120px]" style={{ backgroundColor: 'var(--color-accent)' }}>
+                 {isCheckingOut ? <Spinner className="w-4 h-4 text-white" /> : 'Complete Sale'}
+               </button>
+@@ -884,7 +888,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
+           aria-labelledby="select-batch-title"
+         >
+           <div className="w-[85%] max-w-[450px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+-            <div className="flex justify-between items-center pr-1 pl-4 py-1" style={{ borderBottom: '1px solid var(--border-light)' }}>
++            <div className="flex justify-between items-center pr-1 pl-4 py-1" >
+               <span id="select-batch-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Select Batch for {selectBatchModal.item.name}</span>
+               <button onClick={() => setSelectBatchModal({ isOpen: false, item: null, batches: [] })} className="px-3 py-1.5 leading-none focus:outline-none rounded-md" aria-label="Close batch selection">✕</button>
+             </div>
+@@ -912,7 +916,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
+                )}
+             </div>
+             
+-            <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
++            <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+               <button onClick={() => setSelectBatchModal({ isOpen: false, item: null, batches: [] })} className="h-9 px-6 text-sm font-semibold focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}>Cancel</button>
+             </div>
+           </div>
+@@ -923,7 +927,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
+       {looseItemModal.isOpen && (
+         <div className="fixed inset-0 flex items-center justify-center z-[150] px-4 animate-fade-in" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+           <div className="w-[85%] max-w-[400px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+-            <div className="flex justify-between items-center pr-1 pl-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
++            <div className="flex justify-between items-center pr-1 pl-4 py-3" >
+               <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Loose Item Quantity</span>
+               <button type="button" onClick={() => setLooseItemModal({ isOpen: false, item: null, qty: '' })} className="px-3 py-1.5 leading-none focus:outline-none rounded-md text-lg">✕</button>
+             </div>
+@@ -933,7 +937,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
+                 <label htmlFor="loose-qty" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Enter Quantity</label>
+                 <input id="loose-qty" type="number" step="any" min="0.1" autoFocus value={looseItemModal.qty} onChange={(e) => setLooseItemModal({ ...looseItemModal, qty: e.target.value })} placeholder="0" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+               </div>
+-              <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
++              <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                 <button type="submit" disabled={!looseItemModal.qty} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50" style={{ backgroundColor: 'var(--color-accent)' }}>Add to Cart</button>
+               </div>
+             </form>
+@@ -945,7 +949,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
+       {selectPieceModal.isOpen && (
+         <div className="fixed inset-0 flex items-center justify-center z-[150] px-4 animate-fade-in" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+           <div className="w-[85%] max-w-[400px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+-            <div className="flex justify-between items-center pr-1 pl-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
++            <div className="flex justify-between items-center pr-1 pl-4 py-3" >
+               <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Select Piece</span>
+               <button type="button" onClick={() => setSelectPieceModal({ isOpen: false, item: null, instances: [], isLoading: false, action: 'checkout' })} className="px-3 py-1.5 leading-none focus:outline-none rounded-md text-lg">✕</button>
+             </div>
+@@ -1007,8 +1011,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
+       {/* Receive Length Modal */}
+       {receiveLengthModal.isOpen && (
+         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
+-          <div className="w-full max-w-sm flex flex-col shadow-2xl" style={{ backgroundColor: 'var(--bg-primary)', borderTop: '4px solid var(--color-accent)' }}>
+-            <div className="flex justify-between items-center p-4" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
++          <div className="w-full max-w-sm flex flex-col shadow-2xl" style={{ backgroundColor: 'var(--bg-primary)' }}>
++            <div className="flex justify-between items-center p-4" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+               <h3 className="font-bold tracking-wider text-sm" style={{ color: 'var(--text-primary)' }}>ENTER PIECE LENGTH</h3>
+               <button type="button" onClick={() => setReceiveLengthModal({ isOpen: false, item: null, length: '' })} className="px-3 py-1.5 leading-none focus:outline-none rounded-md text-lg">✕</button>
+             </div>
+@@ -1029,7 +1033,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
+       {cutLengthModal.isOpen && (
+         <div className="fixed inset-0 flex items-center justify-center z-[150] px-4 animate-fade-in" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+           <div className="w-[85%] max-w-[400px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+-            <div className="flex justify-between items-center pr-1 pl-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
++            <div className="flex justify-between items-center pr-1 pl-4 py-3" >
+               <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Cut Length</span>
+               <button type="button" onClick={() => setCutLengthModal({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false })} className="px-3 py-1.5 leading-none focus:outline-none rounded-md text-lg">✕</button>
+             </div>
+@@ -1058,7 +1062,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
+                   </label>
+                 )}
+               </div>
+-              <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
++              <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+                 <button type="submit" disabled={!cutLengthModal.cutQty} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50" style={{ backgroundColor: 'var(--color-accent)' }}>Add Cut</button>
+               </div>
+             </form>
+@@ -1069,7 +1073,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
+       {isMobileScannerTab ? (
+         <div className="flex flex-col flex-1 bg-[var(--bg-primary)] overflow-hidden" style={{ minHeight: 'calc(100vh - 160px)' }}>
+           {cart.length > 0 && (
+-            <div className="p-4 flex-shrink-0 flex gap-2" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
++            <div className="p-4 flex-shrink-0 flex gap-2" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+               <button onClick={() => showConfirm("Clear cart?", handleCancelSale, 'Clear Cart', 'Clear Cart', 'Keep Cart', true)} className="w-1/3 py-4 text-white font-black uppercase tracking-widest text-lg shadow-lg rounded-lg transition-all active:scale-95" style={{ backgroundColor: 'var(--color-error)' }}>CLEAR</button>
+               <button onClick={handleCompleteTransaction} className="w-2/3 py-4 text-white font-black uppercase tracking-widest text-lg shadow-lg rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2" style={{ backgroundColor: 'var(--color-accent)' }}>
+                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+@@ -1078,7 +1082,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
+             </div>
+           )}
+           {isMobileScannerOpen && (
+-            <div className="p-4 w-full flex justify-center bg-[var(--bg-primary)] flex-shrink-0" style={{ borderBottom: '1px solid var(--border-medium)' }}>
++            <div className="p-4 w-full flex justify-center bg-[var(--bg-primary)] flex-shrink-0" >
+               <div className="w-full max-w-md rounded-xl overflow-hidden border-4 flex flex-col justify-center relative" style={{ minHeight: '200px', maxHeight: '300px', borderColor: 'var(--color-success)', backgroundColor: 'var(--bg-secondary)' }}>
+                 <InlineContinuousScanner onScan={async (barcode) => { await processScan(barcode); }} />
+               </div>
+@@ -1101,7 +1105,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
+               />
+             )}
+           </div>
+-          <div className="p-4 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1)] flex-shrink-0" style={{ backgroundColor: 'var(--bg-secondary)', borderTop: '2px solid var(--border-medium)' }}>
++          <div className="p-4 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1)] flex-shrink-0" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+             <button 
+               onClick={() => setIsMobileScannerOpen(!isMobileScannerOpen)}
+               className="w-full py-5 font-bold uppercase text-lg text-white shadow-md rounded-md transition-all active:scale-95 flex items-center justify-center gap-2"
+@@ -1169,7 +1173,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
+             ))}
+           </div>
+         )}
+-        <div className={`p-4 flex flex-col md:flex-row justify-between gap-4 ${(activeTab === 'receive' || activeTab === 'transfer') ? 'hidden md:flex' : ''} ${activeTab === 'receive' ? 'pos-receive-bg' : activeTab === 'transfer' ? 'pos-transfer-bg' : ''}`} style={{ borderBottom: '1px solid var(--border-medium)', ...(activeTab !== 'receive' && activeTab !== 'transfer' ? { backgroundColor: 'var(--bg-tertiary)' } : {}) }}>
++        <div className={`p-4 flex flex-col md:flex-row justify-between gap-4 ${(activeTab === 'receive' || activeTab === 'transfer') ? 'hidden md:flex' : ''} ${activeTab === 'receive' ? 'pos-receive-bg' : activeTab === 'transfer' ? 'pos-transfer-bg' : ''}`} style={{ ...(activeTab !== 'receive' && activeTab !== 'transfer' ? { backgroundColor: 'var(--bg-tertiary)' } : {}) }}>
+           <div className="flex flex-col w-full md:w-auto flex-1 md:flex-none">
+             <h2 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>
+               {activeTab === 'receive' ? 'Receive New Stock' : activeTab === 'transfer' ? 'Move Stock to Store' : 'Checkout Counter'}
+@@ -1216,7 +1220,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
+         </div>
+ 
+         {/* Desktop View */}
+-        <div className="hidden md:block flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)' }}>
++        <div className="hidden md:block flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-light)', borderRadius: '8px' }}>
+           <CartTable
+             cart={cart}
+             activeTab={activeTab}
+@@ -1231,7 +1235,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
+         </div>
+ 
+         {/* Mobile View for Checkout */}
+-        <div className="md:hidden flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
++        <div className="md:hidden flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+           <CartMobileView
+             cart={cart}
+             activeTab={activeTab}
+diff --git a/src/components/cart/CartTable.jsx b/src/components/cart/CartTable.jsx
+index ca1be10..b1c19e5 100644
+--- a/src/components/cart/CartTable.jsx
++++ b/src/components/cart/CartTable.jsx
+@@ -20,22 +20,28 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
+   }
+ 
+   return (
+-    <table className="w-full text-center whitespace-nowrap border-collapse" role="table">
+-      <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-light)' }}>
++    <table className="hw-table text-center whitespace-nowrap" role="table">
++      <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)' }}>
+         <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+-          <th className="p-3 w-2/5 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Item Name</th>
+-          <th className={`p-3 text-center w-72 ${activeTab === 'checkout' ? '' : ''}`} style={activeTab === 'checkout' ? { borderRight: '1px solid var(--border-light)' } : {}}>Quantity</th>
++          <th className="p-3 w-2/5 text-center" >Item Name</th>
++          <th className={`p-3 text-center w-72 ${activeTab === 'checkout' || activeTab === 'receive' ? '' : ''}`} style={activeTab === 'checkout' || activeTab === 'receive' ? {  } : {}}>Quantity</th>
+           {activeTab === 'checkout' && (
+             <>
+-              <th className="p-3 text-center w-36" style={{ borderRight: '1px solid var(--border-light)' }}>Price (₹)</th>
+-              <th className="p-3 text-center w-28" style={{ borderRight: '1px solid var(--border-light)' }}>Disc (%)</th>
+-              <th className="p-3 text-center w-32" style={{ borderRight: '1px solid var(--border-light)' }}>Total</th>
++              <th className="p-3 text-center w-36" >Price (₹)</th>
++              <th className="p-3 text-center w-28" >Disc (%)</th>
++              <th className="p-3 text-center w-32" >Total</th>
++            </>
++          )}
++          {activeTab === 'receive' && (
++            <>
++              <th className="p-3 text-center w-32" >Cost (₹)</th>
++              <th className="p-3 text-center w-32" >Sell (₹)</th>
+             </>
+           )}
+           <th className="p-3 w-12"></th>
+         </tr>
+       </thead>
+-      <tbody style={{ borderBottom: '1px solid var(--border-light)' }}>
++      <tbody >
+         {(() => {
+           const groupedCart = [];
+           const groupMap = new Map();
+@@ -83,7 +89,7 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
+                 <React.Fragment key={item.id}>
+                   {/* Parent Row */}
+                   <tr className="animate-fade-in cursor-pointer bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)]" onClick={() => toggleGroup(item.barcode)} style={{ borderBottom: isExpanded ? 'none' : '1px solid var(--border-light)' }}>
+-                    <td className="p-3 text-left" style={{ borderRight: '1px solid var(--border-light)' }}>
++                    <td className="p-3 text-left" >
+                       <div className="flex items-center gap-3">
+                         <span className="text-xl font-bold" style={{ color: 'var(--text-secondary)' }}>{isExpanded ? '▼' : '▶'}</span>
+                         <div>
+@@ -92,19 +98,19 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
+                         </div>
+                       </div>
+                     </td>
+-                    <td className="p-2 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
++                    <td className="p-2 text-center" >
+                       <div className="inline-flex items-center justify-center gap-1.5 bg-[var(--bg-tertiary)] px-3 py-1.5 rounded-md border border-[var(--border-medium)]">
+                         <span className="font-bold text-lg leading-none" style={{ color: 'var(--text-primary)' }}>{Number(item.totalQty).toFixed(2)}</span>
+                         <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>{item.unit}</span>
+                       </div>
+                     </td>
+-                    <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }} onClick={e => e.stopPropagation()}>
++                    <td className="p-2"  onClick={e => e.stopPropagation()}>
+                       <input type="number" step="0.01" value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChangeGroup(item.barcode, e.target.value)} onBlur={() => onCustomPriceBlurGroup(item.barcode)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} price`} />
+                     </td>
+-                    <td className="p-2" style={{ borderRight: '1px solid var(--border-light)', backgroundColor: 'var(--bg-quaternary)' }}>
++                    <td className="p-2" style={{ backgroundColor: 'var(--bg-quaternary)' }}>
+                       <input type="number" value={item.discountPct ? Number(item.discountPct).toFixed(1) : '0.0'} disabled className="w-full h-8 px-2 text-sm font-semibold text-center bg-transparent outline-none cursor-not-allowed" style={{ color: 'var(--text-tertiary)', border: 'none' }} aria-label={`${item.name} discount`} />
+                     </td>
+-                    <td className="p-3 text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{item.totalPrice.toFixed(2)}</td>
++                    <td className="p-3 text-center text-sm font-bold" style={{ color: 'var(--text-primary)' }}>₹{item.totalPrice.toFixed(2)}</td>
+                     <td className="p-2 text-center align-middle" onClick={e => e.stopPropagation()}>
+                       <button type="button" onClick={() => item.children.forEach(c => onRemoveItem(c.id))} className="w-8 h-8 mx-auto rounded flex items-center justify-center transition-colors focus:outline-none" style={{ color: 'var(--text-secondary)' }} onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-error)'; }} onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; }} aria-label={`Remove all ${item.name}`}>
+                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+@@ -118,13 +124,13 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
+                     const isLast = idx === item.children.length - 1;
+                     return (
+                       <tr key={child.id} className="animate-fade-in bg-[var(--bg-primary)]" style={{ borderBottom: isLast ? '1px solid var(--border-light)' : '1px dashed var(--border-medium)' }}>
+-                        <td className="p-3 pl-12 text-left relative" style={{ borderRight: '1px solid var(--border-light)' }}>
++                        <td className="p-3 pl-12 text-left relative" >
+                           <div className="flex items-center gap-2">
+                             <span className="text-sm font-bold text-[var(--border-medium)]" style={{ color: 'var(--text-tertiary)' }}>↳</span>
+                             <span className="text-xs font-mono font-bold" style={{ color: 'var(--text-secondary)' }}>Piece #{child.instance_barcode ? (child.instance_barcode.includes('-') ? child.instance_barcode.split('-')[1] : child.instance_barcode.slice(-6)) : 'Unknown'}</span>
+                           </div>
+                         </td>
+-                        <td className="p-2 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
++                        <td className="p-2 text-center" >
+                           {child.unit === 'SQFT' ? (
+                               <div className="flex items-center justify-center gap-2">
+                                 <span className="font-bold text-sm bg-[var(--bg-tertiary)] px-3 py-1 rounded-sm border border-[var(--border-medium)]" style={{ color: 'var(--text-primary)' }}>{child.pieceLength || child.length} ft</span>
+@@ -136,9 +142,9 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
+                               <span className="font-bold text-sm bg-[var(--bg-tertiary)] px-3 py-1 rounded-sm border border-[var(--border-medium)] text-[var(--text-primary)]">{safeQty} {child.unit}</span>
+                           )}
+                         </td>
+-                        <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }}></td>
+-                        <td className="p-2" style={{ borderRight: '1px solid var(--border-light)', backgroundColor: 'var(--bg-quaternary)' }}></td>
+-                        <td className="p-2 text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-light)' }}>
++                        <td className="p-2" ></td>
++                        <td className="p-2" style={{ backgroundColor: 'var(--bg-quaternary)' }}></td>
++                        <td className="p-2 text-center text-sm font-bold" >
+                           ₹{(sellPrice * billableQty).toFixed(2)}
+                           {safeQty !== billableQty && (
+                              <div className="text-[10px] text-[var(--text-tertiary)] font-normal">Billed for {billableQty} sqft</div>
+@@ -158,8 +164,8 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
+             const billableQty = item.billableQuantity !== undefined && item.billableQuantity !== '' ? Number(item.billableQuantity) : safeQty;
+             const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
+             return (
+-              <tr key={item.id} className="animate-fade-in" style={{ borderBottom: '1px solid var(--border-light)' }}>
+-                <td className="p-3 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
++              <tr key={item.id} className="animate-fade-in" >
++                <td className="p-3 text-center" >
+                   <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name}</p>
+                   {item.pieceLength && (
+                     <p className="text-[10px] uppercase font-bold mt-1" style={{ color: 'var(--text-tertiary)' }}>Length per piece: {item.pieceLength} {item.unit}</p>
+@@ -178,7 +184,7 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
+                     )}
+                   </div>
+                 </td>
+-                <td className="p-2" style={activeTab === 'checkout' ? { borderRight: '1px solid var(--border-light)' } : {}}>
++                <td className="p-2" style={activeTab === 'checkout' ? {  } : {}}>
+                   {(item.unit === 'SQFT' && activeTab === 'checkout') || (item.is_cuttable && activeTab === 'receive') ? (
+                     <div className="flex items-center justify-center gap-2">
+                       {item.instance_barcode && activeTab !== 'receive' ? (
+@@ -195,14 +201,14 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
+                       ) : (
+                         <>
+                           <div className="relative inline-flex items-center">
+-                            <input type="number" step="any" placeholder="L" value={activeTab === 'receive' ? (item.default_length || '') : (item.length !== undefined ? item.length : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_length', e.target.value) : onUpdateDimensions(item.id, 'length', e.target.value)} className="w-24 h-10 pl-2 pr-12 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title="Length" aria-label="Length" />
++                            <input type="number" step="any" placeholder="L" disabled={activeTab === 'receive' && item.has_preset_length} value={activeTab === 'receive' ? (item.default_length || '') : (item.length !== undefined ? item.length : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_length', e.target.value) : onUpdateDimensions(item.id, 'length', e.target.value)} className={`w-24 h-10 pl-2 pr-12 text-sm font-semibold text-center focus:outline-none rounded-md ${activeTab === 'receive' && item.has_preset_length ? 'opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]' : ''}`} style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title={activeTab === 'receive' && item.has_preset_length ? "Length is preset by default" : "Length"} aria-label="Length" />
+                             <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>{item.unit === 'SQFT' ? 'ft' : item.unit}</span>
+                           </div>
+                           {item.unit === 'SQFT' && (
+                             <>
+                               <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
+                               <div className="relative inline-flex items-center">
+-                                <input type="number" step="any" placeholder="H" value={activeTab === 'receive' ? (item.default_width || '') : (item.width !== undefined ? item.width : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_width', e.target.value) : onUpdateDimensions(item.id, 'width', e.target.value)} className="w-24 h-10 pl-2 pr-12 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title="Height" aria-label="Height" />
++                                <input type="number" step="any" placeholder="H" disabled={activeTab === 'receive' && item.has_preset_width} value={activeTab === 'receive' ? (item.default_width || '') : (item.width !== undefined ? item.width : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_width', e.target.value) : onUpdateDimensions(item.id, 'width', e.target.value)} className={`w-24 h-10 pl-2 pr-12 text-sm font-semibold text-center focus:outline-none rounded-md ${activeTab === 'receive' && item.has_preset_width ? 'opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]' : ''}`} style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title={activeTab === 'receive' && item.has_preset_width ? "Width is preset by default" : "Height"} aria-label="Height" />
+                                 <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>ft</span>
+                               </div>
+                             </>
+@@ -229,7 +235,7 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
+                           <div className="w-30 h-8 px-4 flex items-center justify-center text-sm font-semibold text-center bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">{safeQty} </div>
+                         ) : (
+                           <>
+-                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-8 h-8 font-bold focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }} aria-label={`Decrease ${item.name} quantity`}>-</button>
++                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-8 h-8 font-bold focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)' }} aria-label={`Decrease ${item.name} quantity`}>-</button>
+                             <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-14 h-8 px-1 text-sm font-semibold text-center focus:outline-none rounded-md" aria-label={`${item.name} quantity`} />
+                             <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-8 h-8 font-bold focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', borderLeft: '1px solid var(--border-medium)' }} aria-label={`Increase ${item.name} quantity`}>+</button>
+                           </>
+@@ -240,19 +246,27 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
+                   )}
+                 </td>
+                 {activeTab === 'checkout' && (<>
+-                  <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }}>
++                  <td className="p-2" >
+                     <input type="number" step="0.01" value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChange(item.id, e.target.value)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} price`} />
+                   </td>
+-                  <td className="p-2" style={{ borderRight: '1px solid var(--border-light)', backgroundColor: 'var(--bg-quaternary)' }}>
++                  <td className="p-2" style={{ backgroundColor: 'var(--bg-quaternary)' }}>
+                     <input type="number" value={item.discountPct ? Number(item.discountPct).toFixed(1) : '0.0'} disabled className="w-full h-8 px-2 text-sm font-semibold text-center bg-transparent outline-none cursor-not-allowed" style={{ color: 'var(--text-tertiary)', border: 'none' }} aria-label={`${item.name} discount`} />
+                   </td>
+-                  <td className="p-3 text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
++                  <td className="p-3 text-center text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+                     ₹{(sellPrice * billableQty).toFixed(2)}
+                     {safeQty !== billableQty && (
+                       <div className="text-[10px] text-[var(--text-tertiary)] font-normal mt-1">Billed: {billableQty} {item.unit}</div>
+                     )}
+                   </td>
+                 </>)}
++                {activeTab === 'receive' && (<>
++                  <td className="p-2" >
++                    <input type="number" step="0.01" value={item.purchase_cost !== undefined ? item.purchase_cost : Number(item.price || 0).toFixed(2)} onChange={(e) => onUpdateDimensions(item.id, 'purchase_cost', e.target.value)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} purchase cost`} />
++                  </td>
++                  <td className="p-2" >
++                    <input type="number" step="0.01" value={item.selling_price !== undefined ? item.selling_price : Number(item.price || 0).toFixed(2)} onChange={(e) => onUpdateDimensions(item.id, 'selling_price', e.target.value)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} selling price`} />
++                  </td>
++                </>)}
+                 <td className="p-2 text-center align-middle">
+                   <button type="button" onClick={() => onRemoveItem(item.id)} className=" text-[var(--text-secondary)] hover:bg-red-500/10 hover:text-[var(--color-error)]" aria-label={`Remove ${item.name}`}>
+                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>

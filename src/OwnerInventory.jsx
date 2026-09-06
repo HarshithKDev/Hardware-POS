@@ -451,7 +451,7 @@ export default function OwnerInventory({ viewType }) {
         </div>
       )}
 
-            <div className="flex-1 min-h-[300px] md:shadow-sm md:rounded-lg overflow-hidden flex flex-col" style={{ backgroundColor: 'transparent' }}>
+            <div className="flex-1 min-h-[300px] md:shadow-sm md:rounded-lg overflow-hidden flex flex-col md:border border-[var(--border-light)]" style={{ backgroundColor: 'transparent' }}>
         {isLoading ? (
           <div className="flex items-center justify-center h-full"><p style={{color: 'var(--text-tertiary)'}}>Loading inventory...</p></div>
         ) : items.length === 0 ? (

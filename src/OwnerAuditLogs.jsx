@@ -86,7 +86,7 @@ const formatChanges = (changes) => {
 
       const [{ data: auditData, error: auditError }, { data: inventoryData }] = await Promise.all([
         auditQuery,
-        supabase.from('inventory').select('barcode, unit')
+        supabase.from('product_master').select('barcode, unit')
       ]);
       
       if (auditError) throw auditError;
@@ -282,9 +282,9 @@ const formatChanges = (changes) => {
         </div>
       )}
 
-      <div className="flex-1 overflow-auto overflow-x-hidden md:overflow-x-auto shadow-sm md:rounded-lg" style={{ backgroundColor: 'transparent' }}>
+      <div className="flex-1 overflow-auto overflow-x-hidden md:overflow-x-auto shadow-sm md:rounded-lg border border-[var(--border-light)]" style={{ backgroundColor: 'transparent' }}>
         <table className="w-full text-left md:whitespace-nowrap border-collapse block md:table min-w-0 md:min-w-[900px]">
-          <thead className="hidden md:table-header-group sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
+          <thead className="hidden md:table-header-group sticky top-0 z-10 glass-header" style={{ borderBottom: '1px solid var(--border-medium)' }}>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
               <th className="p-3 w-40 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Date & Time</th>
               <th className="p-3 w-24 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Action</th>

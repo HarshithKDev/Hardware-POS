@@ -24,7 +24,7 @@ export default function BarcodePrinter() {
       if (searchTerm.trim() === '') { setFilteredInventory([]); return; }
       
       // 1. Fetch matching inventory items (both standard and cuttable)
-      const { data: matchedInventory } = await supabase.from('inventory')
+      const { data: matchedInventory } = await supabase.from('product_master')
         .select('*')
         .or(`name.ilike.%${searchTerm}%,barcode.ilike.%${searchTerm}%`)
         .eq('is_active', true)

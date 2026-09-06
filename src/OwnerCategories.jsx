@@ -100,7 +100,7 @@ export default function OwnerCategories() {
   const deleteCategoryMutation = useMutation({
     mutationFn: async ({ id, name }) => {
       // Cascade check (fixes #8)
-      const { count } = await supabase.from('inventory').select('*', { count: 'exact', head: true }).eq('category', name).eq('is_active', true);
+      const { count } = await supabase.from('product_master').select('*', { count: 'exact', head: true }).eq('category', name).eq('is_active', true);
       if (count && count > 0) throw new Error(`Cannot delete category "${name}" because it is assigned to ${count} active item(s) in the inventory.`);
 
       const { error } = await supabase.from('categories').delete().eq('name', name);
@@ -125,7 +125,7 @@ export default function OwnerCategories() {
   const deleteSubcategoryMutation = useMutation({
     mutationFn: async ({ id, name, category_name }) => {
       // Cascade check (fixes #8)
-      const { count } = await supabase.from('inventory').select('*', { count: 'exact', head: true }).eq('sub_category', name).eq('is_active', true);
+      const { count } = await supabase.from('product_master').select('*', { count: 'exact', head: true }).eq('sub_category', name).eq('is_active', true);
       if (count && count > 0) throw new Error(`Cannot delete sub-category "${name}" because it is assigned to ${count} active item(s) in the inventory.`);
 
       const query = supabase.from('subcategories').delete().eq('name', name);
@@ -155,11 +155,11 @@ export default function OwnerCategories() {
   };
 
   return (
-    <div className="flex flex-col h-full gap-6 animate-fade-in w-full">
+    <div className="flex flex-col h-full gap-4 animate-fade-in w-full">
       <h1 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>Manage Categories & Sub-categories</h1>
 
-      <div className="flex flex-col md:flex-row gap-6">
-        <div className="p-6 flex-1 shadow-sm rounded-lg border border-[var(--border-light)]" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="p-4 md:p-6 flex-1 shadow-sm rounded-lg border border-[var(--border-light)]" style={{ backgroundColor: 'var(--bg-secondary)' }}>
           <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-secondary)' }}>Add Category</h2>
           <form onSubmit={handleAddCategory} className="flex gap-2">
             <label htmlFor="new-cat" className="sr-only">Category Name</label>
@@ -168,7 +168,7 @@ export default function OwnerCategories() {
           </form>
         </div>
 
-        <div className="p-6 flex-1 shadow-sm rounded-lg border border-[var(--border-light)]" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+        <div className="p-4 md:p-6 flex-1 shadow-sm rounded-lg border border-[var(--border-light)]" style={{ backgroundColor: 'var(--bg-secondary)' }}>
           <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-secondary)' }}>Add Sub-category</h2>
           <form onSubmit={handleAddSubcategory} className="flex flex-col gap-2">
             <label htmlFor="parent-cat" className="sr-only">Parent Category</label>
