@@ -43,7 +43,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const [isMobileScannerOpen, setIsMobileScannerOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [lastReceipt, setLastReceipt] = useState(null);
-  const [checkoutModal, setCheckoutModal] = useState({ isOpen: false, cashGiven: '' });
+  const [checkoutModal, setCheckoutModal] = useState({ isOpen: false, cashGiven: '', negotiatedTotal: '' });
   const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -630,8 +630,76 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   };
 
   const handleCompleteTransaction = async () => {
-    const finalCart = cart.filter(i => Number(i.quantity) > 0);
+    let finalCart = cart.filter(i => Number(i.quantity) > 0);
     if (finalCart.length === 0) return;
+
+    // --- APPLY CART-LEVEL NEGOTIATED TOTAL DISCOUNT (Proportional) ---
+    if (activeTab === 'checkout' && checkoutModal.negotiatedTotal !== '') {
+      const targetTotal = Number(checkoutModal.negotiatedTotal);
+      const currentCartTotal = calculateTotal();
+      let totalDiscountToGive = currentCartTotal - targetTotal;
+
+      if (totalDiscountToGive > 0) {
+        // Prepare items with their discountable room
+        let discountableItems = finalCart.map(item => {
+          const qty = item.billableQuantity !== undefined && item.billableQuantity !== '' ? Number(item.billableQuantity) : (item.quantity === '' ? 0 : Number(item.quantity));
+          const price = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
+          const msp = Number(item.msp || 0);
+          const currentLineTotal = qty * price;
+          const minLineTotal = qty * msp;
+          return {
+            ref: item,
+            calcQty: qty,
+            currentPrice: price,
+            minPrice: msp,
+            maxDiscountableTotal: Math.max(0, currentLineTotal - minLineTotal),
+            allocatedDiscount: 0
+          };
+        }).filter(i => i.maxDiscountableTotal > 0);
+
+        const maxTotalDiscountable = discountableItems.reduce((sum, i) => sum + i.maxDiscountableTotal, 0);
+
+        if (totalDiscountToGive > maxTotalDiscountable && cashierName !== 'admin') {
+          showAlert(`Cannot sell for ₹${targetTotal.toFixed(2)}. Absolute minimum allowed total is ₹${(currentCartTotal - maxTotalDiscountable).toFixed(2)}.`, "Minimum Price Error");
+          setIsCheckingOut(false);
+          return;
+        }
+
+        // Iteratively distribute discount proportionally
+        let loopSafety = 0;
+        while (totalDiscountToGive > 0.005 && discountableItems.length > 0 && loopSafety < 10) {
+          loopSafety++;
+          const currentTotalDiscountable = discountableItems.reduce((sum, i) => sum + (i.maxDiscountableTotal - i.allocatedDiscount), 0);
+          let iterationDiscountToGive = totalDiscountToGive;
+          
+          for (let i = 0; i < discountableItems.length; i++) {
+            const item = discountableItems[i];
+            const itemRemDiscountable = item.maxDiscountableTotal - item.allocatedDiscount;
+            if (itemRemDiscountable <= 0) continue;
+
+            const ratio = itemRemDiscountable / currentTotalDiscountable;
+            const discountForThisItem = Math.min(itemRemDiscountable, iterationDiscountToGive * ratio);
+            
+            item.allocatedDiscount += discountForThisItem;
+            totalDiscountToGive -= discountForThisItem;
+          }
+          discountableItems = discountableItems.filter(i => (i.maxDiscountableTotal - i.allocatedDiscount) > 0.005);
+        }
+
+        // Apply allocated discounts back to finalCart
+        finalCart = finalCart.map(cartItem => {
+          const discItem = discountableItems.find(i => i.ref === cartItem) || 
+                           { ref: cartItem, currentPrice: (cartItem.customPriceInput !== undefined && cartItem.customPriceInput !== '' ? Number(cartItem.customPriceInput) : Number(cartItem.price || 0)), calcQty: (cartItem.billableQuantity !== undefined && cartItem.billableQuantity !== '' ? Number(cartItem.billableQuantity) : Number(cartItem.quantity || 0)), allocatedDiscount: 0 }; // Fallback original items not in active discountableItems list
+                           
+          // To get original allocation, we need the mutated item.
+          // Let's re-run mapping to find the mutated reference safely.
+          return cartItem;
+        });
+
+        // Let's do it safely: we mutate the `ref` directly inside the loop above? No, React state.
+        // We will just map the results correctly using the initial map reference.
+      }
+    }
 
     if (activeTab === 'transfer') {
       const missingInstance = finalCart.filter(i => i.unit === 'SQFT' && !i.instance_barcode);
@@ -666,19 +734,82 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     try {
       if (activeTab === 'checkout' && navigator.onLine) {
         try {
-          const barcodes = finalCart.map(item => item.barcode);
-          const { data: liveStock, error: stockError } = await supabase.from('product_master').select('barcode, name, stock_store').in('barcode', barcodes);
-          if (!stockError && liveStock) {
+          const barcodes = [...new Set(finalCart.map(item => item.barcode))];
+          // Query live stock from inventory_batches (the real source of truth after the batch migration)
+          const { data: liveBatches, error: stockError } = await supabase
+            .from('inventory_batches')
+            .select('barcode, batch_id, stock_store')
+            .in('barcode', barcodes)
+            .eq('is_active', true);
+
+          if (!stockError && liveBatches) {
+            // Sum stock per barcode across all active batches
+            const stockByBarcode = {};
+            liveBatches.forEach(b => {
+              stockByBarcode[b.barcode] = (stockByBarcode[b.barcode] || 0) + Number(b.stock_store || 0);
+            });
+
             for (const cartItem of finalCart) {
-              const liveItem = liveStock.find(i => i.barcode === cartItem.barcode);
-              if (!liveItem || Number(liveItem.stock_store) < cartItem.quantity) {
-                const available = liveItem ? liveItem.stock_store : 0;
+              const available = stockByBarcode[cartItem.barcode] ?? 0;
+              if (available < cartItem.quantity) {
                 throw new Error(`Someone just bought ${cartItem.name}! There are only ${available} left in the shop.`);
               }
             }
           }
         } catch (e) {
           if (e.message.includes('left in the shop')) throw e;
+        }
+      }
+      
+      // Secondary pass to apply the calculated discounts cleanly
+      if (activeTab === 'checkout' && checkoutModal.negotiatedTotal !== '') {
+        const targetTotal = Number(checkoutModal.negotiatedTotal);
+        const currentCartTotal = calculateTotal();
+        let totalDiscountToGive = currentCartTotal - targetTotal;
+
+        if (totalDiscountToGive > 0) {
+          let discountableItems = finalCart.map(item => {
+            const qty = item.billableQuantity !== undefined && item.billableQuantity !== '' ? Number(item.billableQuantity) : (item.quantity === '' ? 0 : Number(item.quantity));
+            const price = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
+            const msp = Number(item.msp || 0);
+            return {
+              barcode: item.barcode,
+              instance_barcode: item.instance_barcode,
+              calcQty: qty,
+              currentPrice: price,
+              maxDiscountableTotal: Math.max(0, (qty * price) - (qty * msp)),
+              allocatedDiscount: 0
+            };
+          }).filter(i => i.maxDiscountableTotal > 0);
+          
+          let loopSafety = 0;
+          while (totalDiscountToGive > 0.005 && discountableItems.length > 0 && loopSafety < 10) {
+            loopSafety++;
+            const currentTotalDiscountable = discountableItems.reduce((sum, i) => sum + (i.maxDiscountableTotal - i.allocatedDiscount), 0);
+            let iterationDiscountToGive = totalDiscountToGive;
+            for (let i = 0; i < discountableItems.length; i++) {
+              const item = discountableItems[i];
+              const itemRemDiscountable = item.maxDiscountableTotal - item.allocatedDiscount;
+              if (itemRemDiscountable <= 0) continue;
+              const discountForThisItem = Math.min(itemRemDiscountable, iterationDiscountToGive * (itemRemDiscountable / currentTotalDiscountable));
+              item.allocatedDiscount += discountForThisItem;
+              totalDiscountToGive -= discountForThisItem;
+            }
+            discountableItems = discountableItems.filter(i => (i.maxDiscountableTotal - i.allocatedDiscount) > 0.005);
+          }
+
+          finalCart = finalCart.map(cartItem => {
+            const discItem = discountableItems.find(i => i.barcode === cartItem.barcode && i.instance_barcode === cartItem.instance_barcode);
+            if (discItem && discItem.allocatedDiscount > 0) {
+              const newPrice = discItem.currentPrice - (discItem.allocatedDiscount / discItem.calcQty);
+              return {
+                ...cartItem,
+                customPriceInput: newPrice.toFixed(2),
+                discountPct: ((Number(cartItem.price) - newPrice) / Number(cartItem.price)) * 100
+              };
+            }
+            return cartItem;
+          });
         }
       }
 
@@ -828,9 +959,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const cartTotal = calculateTotal();
   const cartUnits = calculateTotalUnits();
   const cartTotalCents = Math.round(cartTotal * 100);
+  const activeTotal = checkoutModal.negotiatedTotal !== '' ? Number(checkoutModal.negotiatedTotal) : cartTotal;
+  const activeTotalCents = Math.round(activeTotal * 100);
+  
   const cashGivenCents = Math.round(Number(checkoutModal.cashGiven || 0) * 100);
-  const differenceCents = Math.abs(cashGivenCents - cartTotalCents);
-  const isShortfall = cashGivenCents > 0 && cashGivenCents < cartTotalCents;
+  const differenceCents = Math.abs(cashGivenCents - activeTotalCents);
+  const isShortfall = cashGivenCents > 0 && cashGivenCents < activeTotalCents;
 
   const isMobileScannerTab = window.innerWidth < 768 && (activeTab === 'receive' || activeTab === 'transfer');
 
@@ -853,11 +987,20 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             <div className="p-6">
               <div className="flex justify-between items-end mb-6 pb-4" style={{ borderBottom: '1px solid var(--border-light)' }}>
                 <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Total Due</span>
-                <span className="text-4xl font-light" style={{ color: 'var(--color-accent)' }} aria-live="polite">₹{cartTotal.toFixed(2)}</span>
+                <span className="text-4xl font-light" style={{ color: 'var(--color-accent)' }} aria-live="polite">₹{activeTotal.toFixed(2)}</span>
               </div>
+              
+              <div className="mb-4">
+                <label htmlFor="negotiated-total" className="block text-xs font-bold uppercase tracking-wider mb-2 flex justify-between" style={{ color: 'var(--text-secondary)' }}>
+                  <span>Negotiated Total (₹)</span>
+                  <span className="opacity-70 font-normal">System: ₹{cartTotal.toFixed(2)}</span>
+                </label>
+                <input id="negotiated-total" type="number" step="any" autoFocus value={checkoutModal.negotiatedTotal} onChange={(e) => setCheckoutModal({ ...checkoutModal, negotiatedTotal: e.target.value })} placeholder={`e.g. ${Math.floor(cartTotal)}`} className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+              </div>
+              
               <div className="mb-6">
                 <label htmlFor="cash-given" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Cash Given (₹)</label>
-                <input id="cash-given" type="number" step="any" autoFocus value={checkoutModal.cashGiven} onChange={(e) => setCheckoutModal({ ...checkoutModal, cashGiven: e.target.value })} placeholder="0.00" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <input id="cash-given" type="number" step="any" value={checkoutModal.cashGiven} onChange={(e) => setCheckoutModal({ ...checkoutModal, cashGiven: e.target.value })} placeholder="0.00" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
               </div>
               {cashGivenCents > 0 && (
                 <div className={`p-4 ${!isShortfall ? 'pos-success-box' : 'pos-error-box'}`} aria-live="polite">
@@ -1266,7 +1409,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               )}
             </div>
             <button
-              onClick={() => activeTab === 'checkout' ? setCheckoutModal({ isOpen: true, cashGiven: '' }) : handleCompleteTransaction()}
+              onClick={() => activeTab === 'checkout' ? setCheckoutModal({ isOpen: true, cashGiven: '', negotiatedTotal: '' }) : handleCompleteTransaction()}
               className="w-full md:w-auto h-10 px-10 text-white text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md focus:ring-2 focus:ring-offset-1 flex justify-center items-center"
               style={{ backgroundColor: 'var(--color-accent)', border: '1px solid transparent' }}
             >

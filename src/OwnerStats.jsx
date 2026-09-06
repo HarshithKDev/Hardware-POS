@@ -287,7 +287,7 @@ export default function OwnerStats({ isActive }) {
     let soldNames30Days = new Set();
     let productStats30Days = {};
 
-    let todaysTrueRevenue = 0, todaysGrossProfit = 0, todaysTotalCost = 0;
+    let todaysTrueRevenue = 0, todaysGrossProfit = 0, todaysTotalCost = 0, todaysTotalDiscount = 0;
     let todaysSalesDetails = [];
     let topProducts = [];
 
@@ -298,17 +298,18 @@ export default function OwnerStats({ isActive }) {
       for (let i = 0; i < billIds.length; i += chunkSize) {
         chunks.push(billIds.slice(i, i + chunkSize));
       }
-      const batchResults = await Promise.all(
-        chunks.map(batch =>
-            supabase.from('bill_items')
-            .select('name, quantity, price_at_sale, cost_at_sale, unit, bill_id, profit, cost_allocated, billable_quantity')
-            .in('bill_id', batch)
-        )
-      );
+      const batchResults = [];
+      // Fetch in sequential batches to prevent network stall
+      for (const batch of chunks) {
+        const res = await supabase.from('bill_items')
+          .select('name, quantity, price_at_sale, cost_at_sale, unit, bill_id, profit, cost_allocated, billable_quantity, system_price')
+          .in('bill_id', batch);
+        batchResults.push(res);
+      }
       const itemsData = batchResults.flatMap(r => r.data || []);
 
       if (itemsData.length > 0) {
-        let tProfitCents = 0, tCostCents = 0;
+        let tProfitCents = 0, tCostCents = 0, tSystemRevCents = 0, tFinalRevCents = 0;
         const todaySalesMap = {};
         const todayBillIds = new Set(
           billsData.filter(b => b.created_at >= todayStart && b.created_at <= todayEnd).map(b => b.id)
@@ -323,6 +324,7 @@ export default function OwnerStats({ isActive }) {
           // Use pre-calculated profit and cost_allocated from DB if available, else fallback
           const lineCost = item.cost_allocated !== undefined && item.cost_allocated !== null ? Number(item.cost_allocated) : (Number(item.cost_at_sale || 0) * Number(item.quantity || 0));
           const lineRev = price * qty;
+          const lineSystemRev = Number(item.system_price || price) * qty;
           const lineProfit = item.profit !== undefined && item.profit !== null ? Number(item.profit) : (lineRev - lineCost);
 
           if (productStats30Days[cleanName]) {
@@ -335,6 +337,8 @@ export default function OwnerStats({ isActive }) {
           if (todayBillIds.has(item.bill_id)) {
             tProfitCents += Math.round(lineProfit * 100);
             tCostCents += Math.round(lineCost * 100);
+            tSystemRevCents += Math.round(lineSystemRev * 100);
+            tFinalRevCents += Math.round(lineRev * 100);
             if (todaySalesMap[cleanName]) {
               todaySalesMap[cleanName].qty += qty;
               todaySalesMap[cleanName].lineCost += lineCost;
@@ -351,6 +355,7 @@ export default function OwnerStats({ isActive }) {
           .reduce((sum, bill) => sum + Math.round(Number(bill.total_amount || 0) * 100), 0);
 
         todaysTrueRevenue = todayTotalRevCents / 100;
+        todaysTotalDiscount = (tSystemRevCents - tFinalRevCents) / 100;
         todaysGrossProfit = tProfitCents / 100;
         todaysTotalCost = tCostCents / 100;
         todaysSalesDetails = Object.values(todaySalesMap).sort((a, b) => b.lineProfit - a.lineProfit);
@@ -366,14 +371,14 @@ export default function OwnerStats({ isActive }) {
 
     const pageSize = 1000;
     const pageCount = Math.ceil((totalCount || 0) / pageSize);
-    const invPages = await Promise.all(
-      Array.from({ length: pageCount }, (_, i) =>
-        supabase.from('product_master')
+    const invPages = [];
+    for (let i = 0; i < pageCount; i++) {
+       const res = await supabase.from('product_master')
           .select('barcode, name, price, cost_price, stock_warehouse, stock_store, min_quantity_warehouse, min_quantity_store')
           .eq('is_active', true)
-          .range(i * pageSize, (i + 1) * pageSize - 1)
-      )
-    );
+          .range(i * pageSize, (i + 1) * pageSize - 1);
+       invPages.push(res);
+    }
     const allStats = invPages.flatMap(r => r.data || []);
 
     let lowStoreItems = [], lowWarehouseItems = [], deadStockItems = [];
@@ -403,6 +408,7 @@ export default function OwnerStats({ isActive }) {
       todaysTrueRevenue,
       todaysGrossProfit,
       todaysTotalCost,
+      todaysTotalDiscount,
       todaysSalesDetails,
       lowStoreItems: lowStoreItems.sort((a, b) => a.name.localeCompare(b.name)),
       lowWarehouseItems: lowWarehouseItems.sort((a, b) => a.name.localeCompare(b.name)),
@@ -444,7 +450,7 @@ export default function OwnerStats({ isActive }) {
   }
 
   const {
-    todaysTrueRevenue, todaysGrossProfit, todaysTotalCost, todaysSalesDetails,
+    todaysTrueRevenue, todaysGrossProfit, todaysTotalCost, todaysTotalDiscount, todaysSalesDetails,
     lowStoreItems, deadStockItems, deadStockValue,
     totalInventoryValue, warehouseCapital, storeCapital,
     topProducts, failedSyncs
@@ -470,7 +476,7 @@ export default function OwnerStats({ isActive }) {
       )}
 
       {/* ROW 1: TODAY'S VITALS */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4 shrink-0">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-4 shrink-0">
         <StatCard title="Today Revenue" value={`₹${todaysTrueRevenue.toFixed(2)}`} borderColor="var(--color-success)" />
         <StatCard
           title="Today Profit"
@@ -478,6 +484,11 @@ export default function OwnerStats({ isActive }) {
           borderColor="var(--color-success)"
           onClick={() => setActiveModal('profit')}
           clickLabel="View today's profit details"
+        />
+        <StatCard
+          title="Discount Given"
+          value={`₹${(todaysTotalDiscount || 0).toFixed(2)}`}
+          borderColor="var(--color-warning)"
         />
         <StatCard
           title="Shop Low Stock"

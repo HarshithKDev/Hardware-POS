@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import { Spinner, PageLoader } from './SharedUI';
-import { debounce } from './utils';
+import { debounce, formatDateTime } from './utils';
 
 const formatChanges = (changes) => {
   if (!changes || changes === '—') return <span style={{ color: 'var(--text-tertiary)' }}>—</span>;
@@ -127,7 +127,7 @@ const formatChanges = (changes) => {
         return {
           id: `audit-${log.id}`,
           timestamp: new Date(log.created_at).getTime(),
-          date: new Date(log.created_at).toLocaleString(),
+          date: formatDateTime(log.created_at).full,
           action_type: actionType,
           barcode: log.barcode,
           item_name: log.item_name ? log.item_name.split(' (Cut from ')[0] : log.item_name,

@@ -160,7 +160,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
             <input type="checkbox" checked={isSelected} onChange={() => onSelect(item.barcode)} onClick={e => e.stopPropagation()} className="w-4 h-4 rounded text-accent focus:ring-accent" />
           </td>
         )}
-        <td className="hidden md:table-cell p-3 text-sm font-semibold tracking-wider font-mono" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--color-accent)' }}>{item.barcode}</td>
+        <td className="hidden md:table-cell p-3 w-20 text-sm font-semibold tracking-wider font-mono" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--color-accent)' }}>{item.barcode}</td>
       <td className="hidden md:table-cell p-3 text-sm font-medium" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
         <div className="relative flex justify-center items-center w-full min-h-[1.5rem]">
           <span className="text-center">{item.name}</span>
@@ -179,8 +179,8 @@ export default function InventoryRow({ item, viewType, categories, subcategories
           </div>
         </div>
       </td>
-      <td className="hidden md:table-cell p-3 text-sm" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{item.category || '-'}</td>
-      <td className="hidden md:table-cell p-3 text-sm" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{item.sub_category || '-'}</td>
+      <td className="hidden md:table-cell p-3 w-36 text-sm whitespace-nowrap" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{item.category || '-'}</td>
+      <td className="hidden md:table-cell p-3 w-36 text-sm whitespace-nowrap" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{item.sub_category || '-'}</td>
       <td className="hidden md:table-cell p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(displayCost||0).toFixed(2)}</td>
       <td className="hidden md:table-cell p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(displayMsp||0).toFixed(2)}</td>
       <td className="hidden md:table-cell p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(displayPrice||0).toFixed(2)}</td>

@@ -472,10 +472,10 @@ export default function OwnerInventory({ viewType }) {
                           <input type="checkbox" checked={items.length > 0 && selectedBarcodes.length === items.length} onChange={toggleSelectAll} className="w-4 h-4 rounded text-accent focus:ring-accent cursor-pointer" />
                         </th>
                       )}
-                      <th className="p-3 min-w-[120px]" style={{ borderRight: '1px solid var(--border-light)' }}>Barcode</th>
+                      <th className="p-3 w-20" style={{ borderRight: '1px solid var(--border-light)' }}>Barcode</th>
                       <th className="p-3 min-w-[160px]" style={{ borderRight: '1px solid var(--border-light)' }}>Item Details</th>
-                      <th className="p-3 w-28" style={{ borderRight: '1px solid var(--border-light)' }}>Category</th>
-                      <th className="p-3 w-28" style={{ borderRight: '1px solid var(--border-light)' }}>SUBCAT</th>
+                      <th className="p-3 w-36" style={{ borderRight: '1px solid var(--border-light)' }}>Category</th>
+                      <th className="p-3 w-36" style={{ borderRight: '1px solid var(--border-light)' }}>SUBCAT</th>
                       <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Cost</th>
                       <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>MSP</th>
                       <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>MRP</th>
