@@ -6,7 +6,6 @@ import { useApp } from './AppContext';
 import { formatDateTime } from './utils';
 import { SALES_PER_PAGE } from './constants';
 import * as XLSX from 'xlsx';
-import LedgerAnalytics from './LedgerAnalytics';
 
 export default function OwnerLedger({ isActive }) {
   const { showAlert } = useApp();
@@ -20,7 +19,6 @@ export default function OwnerLedger({ isActive }) {
   const [expandedBillId, setExpandedBillId] = useState(null);
   const [billItemsCache, setBillItemsCache] = useState({});
   const [isLoadingItems, setIsLoadingItems] = useState(false);
-  const [activeSubTab, setActiveSubTab] = useState('transactions'); // 'transactions' or 'analytics'
 
   const fetchBills = useCallback(async () => {
     const from = salesPage * SALES_PER_PAGE;
@@ -135,20 +133,6 @@ export default function OwnerLedger({ isActive }) {
     <div className="h-full flex flex-col relative w-full">
       <div className="flex justify-between items-end mb-6">
         <h1 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>Sales History</h1>
-        <div className="flex gap-2 p-1 rounded-md" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
-          <button
-            onClick={() => setActiveSubTab('transactions')}
-            className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors ${activeSubTab === 'transactions' ? 'bg-[var(--color-accent)] text-white' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-          >
-            Transactions
-          </button>
-          <button
-            onClick={() => setActiveSubTab('analytics')}
-            className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors ${activeSubTab === 'analytics' ? 'bg-[var(--color-accent)] text-white' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-          >
-            Analytics
-          </button>
-        </div>
       </div>
 
       <div className="flex flex-col flex-1 min-h-0">
@@ -198,17 +182,7 @@ export default function OwnerLedger({ isActive }) {
           </div>
         </div>
 
-        {activeSubTab === 'analytics' ? (
-          <LedgerAnalytics 
-            dateFilter={dateFilter} 
-            customDate={customDate} 
-            startDate={startDate} 
-            endDate={endDate} 
-            isActive={isActive && activeSubTab === 'analytics'} 
-          />
-        ) : (
-          <>
-            <div className="flex-1 overflow-auto hide-x-scrollbar overflow-x-hidden md:overflow-x-auto shadow-sm min-h-[400px] md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent' }}>
+        <div className="flex-1 overflow-auto hide-x-scrollbar overflow-x-hidden md:overflow-x-auto shadow-sm min-h-[400px] md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent' }}>
               <table className={`w-full max-w-full text-left border-collapse block md:table min-w-0 md:min-w-[700px] ${(isLoadingBills && bills.length === 0 || bills.length === 0) ? 'h-full' : ''}`}>
             <thead className="hidden md:table-header-group sticky top-0 z-10 glass-header" style={{ borderBottom: '1px solid var(--border-medium)' }}>
               <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
@@ -338,8 +312,6 @@ export default function OwnerLedger({ isActive }) {
           <button onClick={() => setSalesPage(p => Math.max(0, p - 1))} disabled={salesPage === 0} className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] btn-press" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>Previous</button>
           <button onClick={() => setSalesPage(p => p + 1)} disabled={!hasMoreBills} className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] btn-press" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>Next</button>
         </div>
-        </>
-        )}
       </div>
     </div>
   );

@@ -18,7 +18,7 @@ import {
   History, 
   Users, 
   Search, 
-  Menu 
+  Menu
 } from 'lucide-react';
 
 const NAV_ITEMS = [
