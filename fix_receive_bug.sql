@@ -73,22 +73,45 @@ BEGIN
                 WHERE instance_barcode = v_item->>'instance_barcode';
             END IF;
 
-        ELSIF p_action = 'RECEIVE' THEN
-            -- Find the correct batch to update
-            v_target_batch := NULLIF(v_item->>'batch_id', '')::uuid;
-            
-            IF v_target_batch IS NULL THEN
-                SELECT batch_id INTO v_target_batch
-                FROM public.inventory_batches
-                WHERE barcode = v_item->>'barcode' AND is_active = true
-                ORDER BY created_at DESC LIMIT 1;
-            END IF;
+            -- Log to Audit Logs
+            INSERT INTO public.audit_logs (action_type, barcode, item_name, changes, performed_by)
+            VALUES (
+                'SALE', v_item->>'barcode', v_item->>'name', 
+                json_build_object('quantity', v_actual_qty, 'price', v_final_price)::text, 
+                p_cashier_name
+            );
 
-            -- Update warehouse stock
+        ELSIF p_action = 'RECEIVE' THEN
+            -- Check if we have an exact matching active batch by price
+            SELECT batch_id INTO v_target_batch
+            FROM public.inventory_batches
+            WHERE barcode = v_item->>'barcode' 
+              AND purchase_cost = (v_item->>'purchase_cost')::numeric 
+              AND selling_price = (v_item->>'selling_price')::numeric
+              AND is_active = true
+            ORDER BY created_at DESC LIMIT 1;
+
             IF v_target_batch IS NOT NULL THEN
+                -- Exact price match found, add stock to it
                 UPDATE public.inventory_batches
                 SET stock_warehouse = stock_warehouse + v_actual_qty
                 WHERE batch_id = v_target_batch;
+            ELSE
+                -- No exact match, create a new batch
+                v_target_batch := gen_random_uuid();
+                INSERT INTO public.inventory_batches (
+                    batch_id, barcode, purchase_cost, selling_price, msp, 
+                    stock_warehouse, stock_store, is_active
+                ) VALUES (
+                    v_target_batch,
+                    v_item->>'barcode',
+                    COALESCE((v_item->>'purchase_cost')::numeric, 0),
+                    COALESCE((v_item->>'selling_price')::numeric, 0),
+                    COALESCE((v_item->>'msp')::numeric, 0),
+                    v_actual_qty,
+                    0,
+                    true
+                );
             END IF;
             
             -- If it is cuttable, we must generate new stock instances
@@ -116,6 +139,14 @@ BEGIN
                 END LOOP;
             END IF;
 
+            -- Log to Audit Logs
+            INSERT INTO public.audit_logs (action_type, barcode, item_name, changes, performed_by)
+            VALUES (
+                'RECEIVE', v_item->>'barcode', v_item->>'name', 
+                json_build_object('quantity', v_actual_qty, 'purchase_cost', v_item->>'purchase_cost', 'selling_price', v_item->>'selling_price')::text, 
+                p_cashier_name
+            );
+
         ELSIF p_action = 'TRANSFER' THEN
             -- Find the correct batch to update
             v_target_batch := NULLIF(v_item->>'batch_id', '')::uuid;
@@ -139,6 +170,14 @@ BEGIN
                 SET location = 'Store'
                 WHERE instance_barcode = v_item->>'instance_barcode';
             END IF;
+            
+            -- Log to Audit Logs
+            INSERT INTO public.audit_logs (action_type, barcode, item_name, changes, performed_by)
+            VALUES (
+                'TRANSFER', v_item->>'barcode', v_item->>'name', 
+                json_build_object('quantity', v_actual_qty, 'location', 'Store', 'instance', v_item->>'instance_barcode')::text, 
+                p_cashier_name
+            );
         END IF;
     END LOOP;
 

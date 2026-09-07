@@ -283,10 +283,23 @@ const formatChanges = (changes) => {
       )}
 
       <div className="flex-1 overflow-auto overflow-x-hidden md:overflow-x-auto shadow-sm md:rounded-lg border border-[var(--border-light)]" style={{ backgroundColor: 'transparent' }}>
+        {isLoading && limit === 300 ? (
+          <div className="h-full min-h-[400px] flex flex-col items-center justify-center">
+            <PageLoader text="Loading logs..." />
+          </div>
+        ) : error ? (
+          <div className="h-full min-h-[400px] flex items-center justify-center">
+            <p className="text-sm font-semibold" style={{ color: 'var(--color-error)' }}>Failed to load logs: {error.message}</p>
+          </div>
+        ) : filteredLogs.length === 0 ? (
+          <div className="h-full min-h-[400px] flex items-center justify-center">
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No matching audit logs found.</p>
+          </div>
+        ) : (
         <table className="w-full text-left md:whitespace-nowrap border-collapse block md:table min-w-0 md:min-w-[900px]">
           <thead className="hidden md:table-header-group sticky top-0 z-10 glass-header" style={{ borderBottom: '1px solid var(--border-medium)' }}>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-              <th className="p-3 w-40 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Date & Time</th>
+              <th className="p-3 w-40 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Date &amp; Time</th>
               <th className="p-3 w-24 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Action</th>
               <th className="p-3 w-24 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Barcode</th>
               <th className="p-3 w-64 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Item Name</th>
@@ -295,13 +308,6 @@ const formatChanges = (changes) => {
             </tr>
           </thead>
           <tbody className="block md:table-row-group p-2 md:p-0">
-            {isLoading && limit === 300 ? (
-              <tr className="block md:table-row"><td colSpan="6" className="block md:table-cell h-[50vh] align-middle text-center p-4"><PageLoader text="Loading logs..." /></td></tr>
-            ) : error ? (
-              <tr className="block md:table-row"><td colSpan="6" className="block md:table-cell p-8 text-center text-sm font-semibold text-[var(--color-error)]">Failed to load logs: {error.message}</td></tr>
-            ) : filteredLogs.length === 0 ? (
-              <tr className="block md:table-row"><td colSpan="6" className="block md:table-cell h-[50vh] align-middle text-center text-sm font-semibold p-4" style={{ color: 'var(--text-tertiary)' }}>No matching audit logs found.</td></tr>
-            ) : (
               <>
                 {filteredLogs.map(log => {
                   const styles = getActionStyles(log.action_type);
@@ -376,9 +382,10 @@ const formatChanges = (changes) => {
                   </tr>
                 )}
               </>
-            )}
+            
           </tbody>
         </table>
+        )}
       </div>
     </div>
   );

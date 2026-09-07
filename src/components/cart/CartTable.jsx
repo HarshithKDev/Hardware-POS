@@ -27,15 +27,14 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
           <th className={`p-3 text-center w-72 ${activeTab === 'checkout' || activeTab === 'receive' ? '' : ''}`} style={activeTab === 'checkout' || activeTab === 'receive' ? { borderRight: '1px solid var(--border-light)' } : {}}>Quantity</th>
           {activeTab === 'checkout' && (
             <>
-              <th className="p-3 text-center w-36" style={{ borderRight: '1px solid var(--border-light)' }}>Price (₹)</th>
-              <th className="p-3 text-center w-28" style={{ borderRight: '1px solid var(--border-light)' }}>Disc (%)</th>
+              <th className="p-3 text-center w-36" style={{ borderRight: '1px solid var(--border-light)' }}>MRP (₹)</th>
               <th className="p-3 text-center w-32" style={{ borderRight: '1px solid var(--border-light)' }}>Total</th>
             </>
           )}
           {activeTab === 'receive' && (
             <>
               <th className="p-3 text-center w-32" style={{ borderRight: '1px solid var(--border-light)' }}>Cost (₹)</th>
-              <th className="p-3 text-center w-32" style={{ borderRight: '1px solid var(--border-light)' }}>Sell (₹)</th>
+              <th className="p-3 text-center w-32" style={{ borderRight: '1px solid var(--border-light)' }}>MRP (₹)</th>
             </>
           )}
           <th className="p-3 w-12"></th>
@@ -107,9 +106,6 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                     <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }} onClick={e => e.stopPropagation()}>
                       <input type="number" step="0.01" value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChangeGroup(item.barcode, e.target.value)} onBlur={() => onCustomPriceBlurGroup(item.barcode)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} price`} />
                     </td>
-                    <td className="p-2" style={{ borderRight: '1px solid var(--border-light)', backgroundColor: 'var(--bg-quaternary)' }}>
-                      <input type="number" value={item.discountPct ? Number(item.discountPct).toFixed(1) : '0.0'} disabled className="w-full h-8 px-2 text-sm font-semibold text-center bg-transparent outline-none cursor-not-allowed" style={{ color: 'var(--text-tertiary)', border: 'none' }} aria-label={`${item.name} discount`} />
-                    </td>
                     <td className="p-3 text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{item.totalPrice.toFixed(2)}</td>
                     <td className="p-2 text-center align-middle" onClick={e => e.stopPropagation()}>
                       <button type="button" onClick={() => item.children.forEach(c => onRemoveItem(c.id))} className="w-8 h-8 mx-auto rounded flex items-center justify-center transition-colors focus:outline-none" style={{ color: 'var(--text-secondary)' }} onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-error)'; }} onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; }} aria-label={`Remove all ${item.name}`}>
@@ -143,7 +139,6 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                           )}
                         </td>
                         <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }}></td>
-                        <td className="p-2" style={{ borderRight: '1px solid var(--border-light)', backgroundColor: 'var(--bg-quaternary)' }}></td>
                         <td className="p-2 text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-light)' }}>
                           ₹{(sellPrice * billableQty).toFixed(2)}
                           {safeQty !== billableQty && (
@@ -248,9 +243,6 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                 {activeTab === 'checkout' && (<>
                   <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }}>
                     <input type="number" step="0.01" value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChange(item.id, e.target.value)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} price`} />
-                  </td>
-                  <td className="p-2" style={{ borderRight: '1px solid var(--border-light)', backgroundColor: 'var(--bg-quaternary)' }}>
-                    <input type="number" value={item.discountPct ? Number(item.discountPct).toFixed(1) : '0.0'} disabled className="w-full h-8 px-2 text-sm font-semibold text-center bg-transparent outline-none cursor-not-allowed" style={{ color: 'var(--text-tertiary)', border: 'none' }} aria-label={`${item.name} discount`} />
                   </td>
                   <td className="p-3 text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
                     ₹{(sellPrice * billableQty).toFixed(2)}

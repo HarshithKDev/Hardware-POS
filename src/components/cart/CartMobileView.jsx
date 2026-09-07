@@ -3,7 +3,7 @@ import React from 'react';
 /** Mobile cart view */
 import { useCart } from '../../contexts/CartContext';
 
-const CartMobileView = React.memo(function CartMobileView({ activeTab }) {
+const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQuantity, onUpdateDimensions, onRemoveItem }) {
   const { cart } = useCart();
   const [expandedGroups, setExpandedGroups] = React.useState({});
 
@@ -48,6 +48,19 @@ const CartMobileView = React.memo(function CartMobileView({ activeTab }) {
             <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, Number(item.quantity) + 1)} className="w-14 h-14 flex items-center justify-center rounded-md bg-[var(--bg-tertiary)] active:bg-[var(--bg-hover)] text-[var(--text-primary)] border-2 border-[var(--border-medium)] font-bold text-3xl leading-none transition-all active:scale-95">+</button>
           </div>
         </div>
+
+        {activeTab === 'receive' && (
+          <div className="flex gap-4 mt-4 pt-4" style={{ borderTop: '2px dashed var(--border-light)' }}>
+            <div className="flex-1">
+              <span className="text-xs font-bold uppercase tracking-wider block mb-1" style={{ color: 'var(--text-secondary)' }}>Purchase Cost</span>
+              <input type="number" step="0.01" value={item.purchase_cost !== undefined ? item.purchase_cost : Number(item.price || 0).toFixed(2)} onChange={(e) => onUpdateDimensions(item.id, 'purchase_cost', e.target.value)} placeholder="0.00" className="w-full h-12 px-2 text-lg font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)' }} />
+            </div>
+            <div className="flex-1">
+              <span className="text-xs font-bold uppercase tracking-wider block mb-1" style={{ color: 'var(--text-secondary)' }}>MRP</span>
+              <input type="number" step="0.01" value={item.selling_price !== undefined ? item.selling_price : Number(item.price || 0).toFixed(2)} onChange={(e) => onUpdateDimensions(item.id, 'selling_price', e.target.value)} placeholder="0.00" className="w-full h-12 px-2 text-lg font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)' }} />
+            </div>
+          </div>
+        )}
       </div>
     ));
   }

@@ -293,17 +293,27 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       }
 
       // Normal items stock check
-      if (currentTab === 'checkout' && !item.is_cuttable) {
-        if (item.batches && item.batches.length > 1) {
+      let autoSelectedBatch = null;
+      if ((currentTab === 'checkout' || currentTab === 'transfer') && !item.is_cuttable) {
+        const stockField = currentTab === 'transfer' ? 'stock_warehouse' : 'stock_store';
+        const locationName = currentTab === 'transfer' ? 'warehouse' : 'store';
+        
+        const availableBatches = item.batches ? item.batches.filter(b => Number(b[stockField]) > 0) : [];
+        
+        if (availableBatches.length > 1) {
           setSelectBatchModal({ isOpen: true, item, batches: item.batches });
           return;
+        } else if (availableBatches.length === 1) {
+          autoSelectedBatch = availableBatches[0];
         }
         
-        const totalStock = item.batches ? item.batches.reduce((sum, b) => sum + Number(b.stock_store), 0) : Number(item.stock_store || 0);
-        const currentCartItem = cartRef.current.find(c => c.barcode === cleanBarcode);
+        const totalStock = availableBatches.length === 1 ? Number(autoSelectedBatch[stockField]) : (item.batches ? item.batches.reduce((sum, b) => sum + Number(b[stockField]), 0) : Number(item[stockField] || 0));
+        
+        const currentCartItem = cartRef.current.find(c => c.barcode === cleanBarcode && (!autoSelectedBatch || c.batch_id === autoSelectedBatch.batch_id));
         const currentQty = currentCartItem ? (Number(currentCartItem.quantity) || 0) : 0;
-        if (totalStock <= 0) return showAlertRef.current(`${item.name} is out of stock in the store.`, "Out of Stock");
-        if (currentQty >= totalStock) return showAlertRef.current(`You only have ${totalStock} of ${item.name} in the store.`, "Stock Limit");
+        
+        if (totalStock <= 0) return showAlertRef.current(`${item.name} is out of stock in the ${locationName}.`, "Out of Stock");
+        if (currentQty >= totalStock) return showAlertRef.current(`You only have ${totalStock} of ${item.name} in the ${locationName}.`, "Stock Limit");
       }
 
       if (item.is_loose_item) {
@@ -312,7 +322,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       }
 
       setCart(prev => {
-        const batch = item.batches && item.batches.length === 1 ? item.batches[0] : null;
+        const batch = autoSelectedBatch || (item.batches && item.batches.length === 1 ? item.batches[0] : null);
         const defaultPrice = batch ? batch.selling_price : item.price;
         const msp = batch ? batch.msp : item.msp;
         const batchId = batch ? batch.batch_id : null;
@@ -509,9 +519,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           
           let billableQty = newQty;
           const method = i.billing_method || 'exact';
-          const inc = Number(i.billing_increment || 0.01);
-          if (method === 'round_up' && inc > 0 && newQty !== '') {
-            billableQty = Math.ceil(Number(newQty) / inc) * inc;
+          if (method === 'round_up' && newQty !== '') {
+            billableQty = Math.round(Number(newQty));
           }
           
           return { ...i, quantity: newQty, billableQuantity: billableQty, pieceLength: (i.is_cuttable && i.unit !== 'SQFT') ? newQty : i.pieceLength };
@@ -857,7 +866,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             default_length: i.default_length ? Number(i.default_length) : null,
             default_width: i.default_width ? Number(i.default_width) : null,
             purchase_cost: i.purchase_cost !== undefined ? Number(i.purchase_cost) : (i.cost_price ? Number(i.cost_price) : 0),
-            selling_price: i.selling_price !== undefined ? Number(i.selling_price) : (i.price ? Number(i.price) : 0)
+            selling_price: i.selling_price !== undefined ? Number(i.selling_price) : (i.price ? Number(i.price) : 0),
+            msp: i.msp !== undefined ? Number(i.msp) : 0
           };
         }),
       };
@@ -1037,7 +1047,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             </div>
             
             <div className="p-4 max-h-[60vh] overflow-y-auto">
-               {selectBatchModal.batches.filter(b => Number(b.stock_store) > 0).map(batch => (
+               {selectBatchModal.batches.filter(b => Number(activeTab === 'transfer' ? b.stock_warehouse : b.stock_store) > 0).map(batch => (
                  <button 
                    key={batch.batch_id}
                    onClick={() => handleSelectBatchSubmit(batch)}
@@ -1049,12 +1059,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                      <div className="text-xs uppercase tracking-wider mt-1" style={{ color: 'var(--text-tertiary)' }}>MSP: ₹{Number(batch.msp).toFixed(2)}</div>
                    </div>
                    <div className="text-right">
-                     <div className="text-sm font-bold" style={{ color: 'var(--color-accent)' }}>{batch.stock_store} {selectBatchModal.item.unit}</div>
+                     <div className="text-sm font-bold" style={{ color: 'var(--color-accent)' }}>{activeTab === 'transfer' ? batch.stock_warehouse : batch.stock_store} {selectBatchModal.item.unit}</div>
                      <div className="text-xs uppercase tracking-wider mt-1" style={{ color: 'var(--text-tertiary)' }}>In Stock</div>
                    </div>
                  </button>
                ))}
-               {selectBatchModal.batches.filter(b => Number(b.stock_store) > 0).length === 0 && (
+               {selectBatchModal.batches.filter(b => Number(activeTab === 'transfer' ? b.stock_warehouse : b.stock_store) > 0).length === 0 && (
                  <div className="text-center p-4 text-sm" style={{ color: 'var(--text-tertiary)' }}>No active stock for this item.</div>
                )}
             </div>
@@ -1114,9 +1124,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                     
                     if (availableLength <= 0 && selectPieceModal.action === 'checkout') return null;
                     
+                    const isAlreadyInCartTransfer = selectPieceModal.action === 'transfer' && cart.some(c => c.instance_barcode === inst.instance_barcode);
+                    
                     return (
                     <button
                       key={inst.id}
+                      disabled={isAlreadyInCartTransfer}
                       onClick={() => {
                         const actionType = selectPieceModal.action;
                         setSelectPieceModal({ isOpen: false, item: null, instances: [], isLoading: false, action: 'checkout' });
@@ -1137,10 +1150,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                           setCutLengthModal({ isOpen: true, item: selectPieceModal.item, instance: { ...inst, current_length: availableLength }, cutQty: '', discardScrap: false });
                         }
                       }}
-                      className="p-3 text-left border border-[var(--border-medium)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] transition-colors flex justify-between items-center focus:outline-none rounded-md focus:border-[var(--color-accent)]"
+                      className={`p-3 text-left border border-[var(--border-medium)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] transition-colors flex justify-between items-center focus:outline-none rounded-md focus:border-[var(--color-accent)] ${isAlreadyInCartTransfer ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
                     >
                       <span className="font-mono text-xs font-bold" style={{ color: 'var(--color-accent)' }}>#{inst.instance_barcode}</span>
-                      <span className="text-sm font-bold text-[var(--text-primary)]">{availableLength} {selectPieceModal.item?.unit} left</span>
+                      <span className="text-sm font-bold text-[var(--text-primary)]">
+                        {isAlreadyInCartTransfer ? 'Already in Cart' : `${availableLength} ${selectPieceModal.item?.unit} left`}
+                      </span>
                     </button>
                     );
                   })}

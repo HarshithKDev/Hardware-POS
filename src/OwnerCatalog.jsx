@@ -609,15 +609,15 @@ export default function OwnerCatalog() {
           )}
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-cost">Cost Price (₹)</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-cost">Cost Price (₹){form.item_type === 'cuttable' ? ` (per ${form.unit.toLowerCase()})` : ''}</label>
             <input id="item-cost" type="number" step="any" min="0" required value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
           </div>
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-msp">Min Selling Price (₹)</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-msp">Min Selling Price (₹){form.item_type === 'cuttable' ? ` (per ${form.unit.toLowerCase()})` : ''}</label>
             <input id="item-msp" type="number" step="any" min="0" required value={form.msp} onChange={(e) => setForm({ ...form, msp: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
           </div>
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-mrp">Max Retail Price (₹)</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-mrp">Max Retail Price (₹){form.item_type === 'cuttable' ? ` (per ${form.unit.toLowerCase()})` : ''}</label>
             <input id="item-mrp" type="number" step="any" min="0" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
           </div>
           <div></div>
@@ -651,15 +651,10 @@ export default function OwnerCatalog() {
                  style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
                >
                  <option value="exact">Exact (No rounding)</option>
-                 <option value="round_up">Round Up (e.g. 6.4 → 6.5)</option>
+                 <option value="round_up">Standard Rounding (e.g. 8.4 → 8, 8.5 → 9)</option>
                </select>
                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
              </div>
-          </div>
-          
-          <div className="lg:col-span-2">
-             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-bill-inc">Billing Increment</label>
-             <input id="item-bill-inc" type="number" step="any" min="0" required value={form.billing_increment} onChange={(e) => setForm({ ...form, billing_increment: e.target.value })} placeholder="e.g. 0.5" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md disabled:opacity-50" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} disabled={form.billing_method === 'exact'} />
           </div>
         </div>
         

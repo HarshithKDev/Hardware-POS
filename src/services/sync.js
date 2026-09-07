@@ -70,9 +70,7 @@ export const syncInventoryToLocal = async () => {
     }
 
     // Cleanup items that were deleted or deactivated remotely
-    if (syncedBarcodes.size > 0) {
-      await deleteOrphanedInventory(syncedBarcodes);
-    }
+    await deleteOrphanedInventory(syncedBarcodes);
 
     await setSyncStatus('inventory_sync', { status: 'idle', last_sync: new Date().toISOString() });
     console.log('Inventory successfully synced to local DB');

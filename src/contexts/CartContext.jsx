@@ -63,10 +63,10 @@ export function CartProvider({ children, activeTab }) {
     }
   }, [activeCartTab]);
 
-  const calculateBillableQuantity = useCallback((actualQty, increment = 0, method = 'exact') => {
+  const calculateBillableQuantity = useCallback((actualQty, method = 'exact') => {
     let qty = Number(actualQty) || 0;
-    if (method === 'round_up' && increment > 0) {
-      qty = Math.ceil(qty / increment) * increment;
+    if (method === 'round_up') {
+      qty = Math.round(qty);
     }
     // Handle floating point precision issues (e.g. 6.500000001)
     return Math.round(qty * 1000) / 1000;
@@ -76,9 +76,8 @@ export function CartProvider({ children, activeTab }) {
     setCart(prev => prev.map(item => {
       if (item.id === id) {
         const actualQty = newQty;
-        const inc = Number(item.billing_increment || 0.01);
         const method = item.billing_method || 'exact';
-        const billableQty = calculateBillableQuantity(actualQty, inc, method);
+        const billableQty = calculateBillableQuantity(actualQty, method);
         return { ...item, quantity: actualQty, billableQuantity: billableQty };
       }
       return item;
