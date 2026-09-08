@@ -92,9 +92,10 @@ BEGIN
             ORDER BY created_at DESC LIMIT 1;
 
             IF v_target_batch IS NOT NULL THEN
-                -- Exact price match found, add stock to it
+                -- Exact price match found, add stock to it and update MSP if needed
                 UPDATE public.inventory_batches
-                SET stock_warehouse = stock_warehouse + v_actual_qty
+                SET stock_warehouse = stock_warehouse + v_actual_qty,
+                    msp = COALESCE((v_item->>'msp')::numeric, msp)
                 WHERE batch_id = v_target_batch;
             ELSE
                 -- No exact match, create a new batch

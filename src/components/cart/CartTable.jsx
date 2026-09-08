@@ -35,6 +35,7 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
             <>
               <th className="p-3 text-center w-32" style={{ borderRight: '1px solid var(--border-light)' }}>Cost (₹)</th>
               <th className="p-3 text-center w-32" style={{ borderRight: '1px solid var(--border-light)' }}>MRP (₹)</th>
+              <th className="p-3 text-center w-32" style={{ borderRight: '1px solid var(--border-light)' }}>MSP (₹)</th>
             </>
           )}
           <th className="p-3 w-12"></th>
@@ -257,6 +258,9 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                   </td>
                   <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }}>
                     <input type="number" step="0.01" value={item.selling_price !== undefined ? item.selling_price : Number(item.price || 0).toFixed(2)} onChange={(e) => onUpdateDimensions(item.id, 'selling_price', e.target.value)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} selling price`} />
+                  </td>
+                  <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }}>
+                    <input type="number" step="0.01" value={item.msp_price !== undefined ? item.msp_price : Number(item.msp || 0).toFixed(2)} onChange={(e) => onUpdateDimensions(item.id, 'msp_price', e.target.value)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} minimum selling price`} />
                   </td>
                 </>)}
                 <td className="p-2 text-center align-middle">

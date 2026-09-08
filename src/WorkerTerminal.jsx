@@ -210,10 +210,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           setCart(prev => {
             const idx = prev.findIndex(c => c.instance_barcode === scannedInstanceBarcode);
             if (idx >= 0) return prev;
-            return [...prev, { ...item, id: generateId(), instance_barcode: scannedInstanceBarcode, customPriceInput: Number(item.price || 0).toFixed(2), discountPct: 0, quantity: 1, unit: item.unit, length: '', width: '', default_length: item.default_length, default_width: item.default_width, has_preset_length: !!item.default_length, has_preset_width: !!item.default_width, purchase_cost: Number(item.cost_price || 0).toFixed(2), selling_price: Number(item.price || 0).toFixed(2) }];
+            return [...prev, { ...item, id: generateId(), instance_barcode: scannedInstanceBarcode, customPriceInput: Number(item.price || 0).toFixed(2), discountPct: 0, quantity: 1, unit: item.unit, length: '', width: '', default_length: item.default_length, default_width: item.default_width, has_preset_length: !!item.default_length, has_preset_width: !!item.default_width, purchase_cost: Number(item.cost_price || 0).toFixed(2), selling_price: Number(item.price || 0).toFixed(2), msp_price: Number(item.msp || 0).toFixed(2) }];
           });
         } else {
-          setCart(prev => [...prev, { ...item, id: generateId(), customPriceInput: Number(item.price || 0).toFixed(2), discountPct: 0, quantity: 1, unit: item.unit, length: '', width: '', default_length: item.default_length, default_width: item.default_width, has_preset_length: !!item.default_length, has_preset_width: !!item.default_width, purchase_cost: Number(item.cost_price || 0).toFixed(2), selling_price: Number(item.price || 0).toFixed(2) }]);
+          setCart(prev => [...prev, { ...item, id: generateId(), customPriceInput: Number(item.price || 0).toFixed(2), discountPct: 0, quantity: 1, unit: item.unit, length: '', width: '', default_length: item.default_length, default_width: item.default_width, has_preset_length: !!item.default_length, has_preset_width: !!item.default_width, purchase_cost: Number(item.cost_price || 0).toFixed(2), selling_price: Number(item.price || 0).toFixed(2), msp_price: Number(item.msp || 0).toFixed(2) }]);
         }
         setManualBarcode('');
         return;
@@ -347,7 +347,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           unit: item.unit || 'PCS', 
           length: '', width: '', rolls: '1',
           purchase_cost: Number(item.cost_price || 0).toFixed(2), 
-          selling_price: Number(item.price || 0).toFixed(2)
+          selling_price: Number(item.price || 0).toFixed(2),
+          msp_price: Number(item.msp || 0).toFixed(2)
         }];
       });
     }
@@ -867,7 +868,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             default_width: i.default_width ? Number(i.default_width) : null,
             purchase_cost: i.purchase_cost !== undefined ? Number(i.purchase_cost) : (i.cost_price ? Number(i.cost_price) : 0),
             selling_price: i.selling_price !== undefined ? Number(i.selling_price) : (i.price ? Number(i.price) : 0),
-            msp: i.msp !== undefined ? Number(i.msp) : 0
+            msp: i.msp_price !== undefined ? Number(i.msp_price) : (i.msp ? Number(i.msp) : 0)
           };
         }),
       };
