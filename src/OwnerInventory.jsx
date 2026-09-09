@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback, forwardRef } from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
+import PrintBatchModal from './PrintBatchModal';
 import { supabase } from './supabaseClient';
 import { getInventoryByQuery, saveInventoryBatch, getInventoryItemByBarcode } from './services/db';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ConfirmDialog } from './Dialog';
 import { useApp } from './AppContext';
 import { escapeIlike, debounce } from './utils';
 import { STALE_TIME_5MIN } from './constants';
@@ -21,6 +23,8 @@ export default function OwnerInventory({ viewType }) {
   const [expandedBarcode, setExpandedBarcode] = useState(null);
   const [isGlobalEditMode, setIsGlobalEditMode] = useState(false);
   const [bulkEditData, setBulkEditData] = useState({});
+  const [printModal, setPrintModal] = useState({ isOpen: false, item: null, batch: null });
+  const [batchToDelete, setBatchToDelete] = useState(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
 
@@ -228,6 +232,35 @@ export default function OwnerInventory({ viewType }) {
         [barcode]: { ...existing, [field]: value }
       };
     });
+  };
+
+  const handleDeleteBatch = (batchId) => {
+    setBatchToDelete(batchId);
+  };
+
+  const confirmDeleteBatch = async () => {
+    if (!batchToDelete) return;
+    try {
+      const { error } = await supabase.from('inventory_batches').update({ is_active: false }).eq('batch_id', batchToDelete);
+      if (error) throw error;
+      
+      // Instantly update IndexedDB cache
+      const { initDB, saveInventoryBatch } = await import('./services/db.js');
+      const db = await initDB();
+      const allItems = await db.getAll('product_master');
+      const itemToUpdate = allItems.find(i => i.batches && i.batches.some(b => b.batch_id === batchToDelete));
+      if (itemToUpdate) {
+        itemToUpdate.batches = itemToUpdate.batches.filter(b => b.batch_id !== batchToDelete);
+        await saveInventoryBatch([itemToUpdate]);
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete batch: " + err.message);
+    } finally {
+      setBatchToDelete(null);
+    }
   };
 
   const saveBulkEdits = async () => {
@@ -480,7 +513,8 @@ export default function OwnerInventory({ viewType }) {
                       <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>MSP</th>
                       <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>MRP</th>
                       <th className="p-3 w-24 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Whse Qty</th>
-                      <th className="p-3 w-24 text-center">Store Qty</th>
+                      <th className="p-3 w-24 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Store Qty</th>
+                      <th className="p-3 w-16 text-center">Actions</th>
                     </tr>
                   </thead>
                   {props.children}
@@ -503,11 +537,33 @@ export default function OwnerInventory({ viewType }) {
                 isSelectionMode={isSelectionMode}
                 expandedBarcode={expandedBarcode}
                 onToggleExpand={(barcode) => setExpandedBarcode(prev => prev === barcode ? null : barcode)}
+                onPrint={(batch) => setPrintModal({ isOpen: true, item, batch: batch || null })}
+                onDeleteBatch={handleDeleteBatch}
               />
             )}
           />
         )}
       </div>
+
+      {printModal.isOpen && printModal.item && (
+        <PrintBatchModal 
+          isOpen={printModal.isOpen} 
+          onClose={() => setPrintModal({ isOpen: false, item: null, batch: null })} 
+          item={printModal.item} 
+          selectedBatch={printModal.batch}
+        />
+      )}
+
+      <ConfirmDialog
+        isOpen={!!batchToDelete}
+        title="Delete Batch"
+        message="Are you sure you want to delete this empty batch? This action will hide the batch from this list."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        isDestructive={true}
+        onConfirm={confirmDeleteBatch}
+        onCancel={() => setBatchToDelete(null)}
+      />
     </div>
   );
 }

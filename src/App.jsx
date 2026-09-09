@@ -4,7 +4,6 @@ import { Spinner, PageLoader } from './SharedUI';
 import EntryFlow from './EntryFlow';
 import WorkerBilling from './WorkerBilling';
 import OwnerDashboard from './OwnerDashboard';
-import BarcodePrinter from './BarcodePrinter';
 import { MobileScannerModal, ProductInfoModal } from './AppModals';
 import { AlertDialog, ConfirmDialog } from './Dialog';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
@@ -283,18 +282,6 @@ function App() {
                   <span className="hidden md:inline">Management</span>
                   <LayoutDashboard size={18} className="md:hidden" />
                 </button>
-                <button
-                  onClick={() => navigate('/printer')}
-                  className="h-11 w-11 md:h-auto md:w-auto rounded-md md:px-6 md:py-2.5 text-xs font-bold uppercase tracking-wider focus:outline-none transition-colors shrink-0 flex items-center justify-center gap-2"
-                  style={{
-                    backgroundColor: location.pathname.startsWith('/printer') ? 'var(--color-accent)' : 'var(--bg-secondary)',
-                    color: location.pathname.startsWith('/printer') ? 'var(--color-accent-fg)' : 'var(--text-primary)',
-                    border: `1px solid ${location.pathname.startsWith('/printer') ? 'var(--color-accent)' : 'var(--border-medium)'}`,
-                  }}
-                >
-                  <span className="hidden md:inline">Barcodes</span>
-                  <Printer size={18} className="md:hidden" />
-                </button>
                 <div className="h-8 w-px mx-1" style={{ backgroundColor: 'var(--border-medium)' }} />
               </>
             )}
@@ -323,7 +310,6 @@ function App() {
             <>
               <Route path="/owner/:tab" element={<OwnerDashboard />} />
               <Route path="/owner" element={<Navigate to="/owner/dashboard" replace />} />
-              <Route path="/printer" element={<BarcodePrinter />} />
             </>
           )}
           {userRole && (

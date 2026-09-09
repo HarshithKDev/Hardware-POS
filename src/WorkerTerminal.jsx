@@ -163,6 +163,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     if (!cleanBarcode) return;
 
     let scannedInstanceBarcode = null;
+    let scannedBatchNumber = null;
     let searchBarcode = cleanBarcode;
 
     // First try exact match in inventory
@@ -171,7 +172,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       item = await getInventoryItemByBarcode(searchBarcode);
     }
 
-    // If exact match fails, check if it's a 6-digit suffixed instance barcode
+    // If exact match fails, check if it's a 6-digit suffixed instance barcode for cuttables
     if (!item && cleanBarcode.length > 6) {
       const possibleParent = cleanBarcode.slice(0, -6);
       const possibleSuffix = cleanBarcode.slice(-6);
@@ -186,15 +187,21 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       }
     }
 
-    // Handle legacy dash format just in case there are old barcodes floating around
+    // Handle dash format (-01, -02) for either legacy cuttable or NEW batch suffixes
     if (!item && cleanBarcode.includes('-')) {
       const parts = cleanBarcode.split('-');
       if (parts.length === 2 && !isNaN(parts[1])) {
         const parentItem = await getInventoryItemByBarcode(parts[0]);
-        if (parentItem && parentItem.is_cuttable) {
-          searchBarcode = parts[0];
-          scannedInstanceBarcode = cleanBarcode;
-          item = parentItem;
+        if (parentItem) {
+          if (parentItem.is_cuttable) {
+            searchBarcode = parts[0];
+            scannedInstanceBarcode = cleanBarcode;
+            item = parentItem;
+          } else {
+            searchBarcode = parts[0];
+            scannedBatchNumber = Number(parts[1]);
+            item = parentItem;
+          }
         }
       }
     }
@@ -292,18 +299,35 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         return;
       }
 
-      // Normal items stock check
+      // Normal items batch auto-selection if scanned a specific batch barcode
       let autoSelectedBatch = null;
+      if (scannedBatchNumber !== null && item.batches) {
+        const specificBatch = item.batches.find(b => b.batch_number === scannedBatchNumber);
+        if (specificBatch) {
+          autoSelectedBatch = specificBatch;
+        } else {
+          return showAlertRef.current(`Batch #${String(scannedBatchNumber).padStart(2,'0')} of ${item.name} not found.`, "Batch Not Found");
+        }
+      }
+
+      // Normal items stock check
       if ((currentTab === 'checkout' || currentTab === 'transfer') && !item.is_cuttable) {
         const stockField = currentTab === 'transfer' ? 'stock_warehouse' : 'stock_store';
         const locationName = currentTab === 'transfer' ? 'warehouse' : 'store';
         
-        const availableBatches = item.batches ? item.batches.filter(b => Number(b[stockField]) > 0) : [];
+        let availableBatches = item.batches ? item.batches.filter(b => Number(b[stockField]) > 0) : [];
         
-        if (availableBatches.length > 1) {
+        if (autoSelectedBatch) {
+           if (Number(autoSelectedBatch[stockField]) <= 0) {
+             return showAlertRef.current(`Batch #${String(scannedBatchNumber).padStart(2,'0')} of ${item.name} is out of stock in the ${locationName}.`, "Out of Stock");
+           }
+           availableBatches = [autoSelectedBatch];
+        }
+
+        if (availableBatches.length > 1 && !autoSelectedBatch) {
           setSelectBatchModal({ isOpen: true, item, batches: item.batches });
           return;
-        } else if (availableBatches.length === 1) {
+        } else if (availableBatches.length === 1 && !autoSelectedBatch) {
           autoSelectedBatch = availableBatches[0];
         }
         

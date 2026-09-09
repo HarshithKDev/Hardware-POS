@@ -59,7 +59,6 @@ export default function AppNavbar({ displayUserName, userRole, setIsMobileScanne
               navigate={navigate}
               onClick={location.pathname.startsWith('/owner') ? () => window.location.reload() : undefined}
             />
-            <NavButton path="/printer" label="Barcodes" location={location} navigate={navigate} />
           </>
         ) : (
           <NavButton path="/terminal" label="Terminal" location={location} navigate={navigate} />

@@ -102,7 +102,7 @@ BEGIN
                 v_target_batch := gen_random_uuid();
                 INSERT INTO public.inventory_batches (
                     batch_id, barcode, purchase_cost, selling_price, msp, 
-                    stock_warehouse, stock_store, is_active
+                    stock_warehouse, stock_store, is_active, batch_number
                 ) VALUES (
                     v_target_batch,
                     v_item->>'barcode',
@@ -111,7 +111,8 @@ BEGIN
                     COALESCE((v_item->>'msp')::numeric, 0),
                     v_actual_qty,
                     0,
-                    true
+                    true,
+                    (SELECT COALESCE(MAX(batch_number), 0) + 1 FROM public.inventory_batches WHERE barcode = v_item->>'barcode')
                 );
             END IF;
             
