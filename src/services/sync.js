@@ -82,18 +82,17 @@ export const syncInventoryToLocal = async () => {
 
 export const flushOfflineQueue = async () => {
   try {
-    let queue = await getOfflineQueue();
-    if (!queue || queue.length === 0) return;
-    queue = queue.filter(tx => tx.status !== 'failed');
-    if (queue.length === 0) return;
-
     // Check connection first
     const { error: pingError } = await supabase.from('product_master').select('barcode').limit(1);
     if (pingError) return; // Offline, abort flush
 
-    console.log(`Attempting to flush ${queue.length} offline transactions...`);
+    let queue = await getOfflineQueue();
+    if (queue && queue.length > 0) {
+      queue = queue.filter(tx => tx.status !== 'failed');
+      if (queue.length > 0) {
+        console.log(`Attempting to flush ${queue.length} offline transactions...`);
 
-    for (const tx of queue) {
+        for (const tx of queue) {
       try {
         const payload = {
           p_action: tx.p_action,
@@ -111,11 +110,16 @@ export const flushOfflineQueue = async () => {
           await deleteOfflineTransaction(tx.id);
           console.log(`Successfully synced offline transaction ${tx.id}`);
         }
-      } catch (e) {
-        console.error('Exception while flushing transaction:', e);
-        await markTransactionFailed(tx.id, e.message || 'Unknown exception');
+        } catch (e) {
+          console.error('Exception while flushing transaction:', e);
+          await markTransactionFailed(tx.id, e.message || 'Unknown exception');
+        }
       }
     }
+  }
+    
+    // Trigger one consolidated sync after flushing the queue (or if queue was empty but we are online)
+    await syncInventoryToLocal();
   } catch (err) {
     console.error('Failed to flush offline queue:', err);
   }
@@ -126,14 +130,12 @@ let syncInterval = null;
 
 export const startBackgroundSync = () => {
   // Initial syncs
-  syncInventoryToLocal();
-  flushOfflineQueue();
+  syncInventoryToLocal().then(() => flushOfflineQueue());
 
   // Setup listeners for online/offline events
   window.addEventListener('online', () => {
     console.log('Network is back online. Flushing queue...');
     flushOfflineQueue();
-    syncInventoryToLocal();
   });
 
   // Setup polling every 5 minutes to fetch new inventory changes
@@ -142,7 +144,6 @@ export const startBackgroundSync = () => {
     syncInterval = setInterval(() => {
       if (navigator.onLine) {
         flushOfflineQueue();
-        syncInventoryToLocal();
       }
     }, 5 * 60 * 1000);
   }

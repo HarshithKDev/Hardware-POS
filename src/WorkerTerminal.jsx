@@ -59,7 +59,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
   // Pending Carts (Mobile Scanner)
   const [pendingCarts, setPendingCarts] = useState([]);
-
+  
+  // Offline status
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   const barcodeBuffer = useRef('');
   const lastKeyTime = useRef(Date.now());
@@ -73,6 +75,17 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
   useEffect(() => { showAlertRef.current = showAlert; }, [showAlert]);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'checkout') {
@@ -422,10 +435,21 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         up[idx] = { ...up[idx], quantity: (Number(up[idx].quantity) || 0) + addQty };
         return up;
       }
+      
+      const stockField = activeTab === 'transfer' ? 'stock_warehouse' : 'stock_store';
+      let targetBatch = null;
+      if (item.batches && item.batches.length > 0) {
+        targetBatch = item.batches.find(b => Number(b[stockField]) > 0) || item.batches[0];
+      }
+      
       return [...prev, {
         ...item,
         id: generateId(),
-        customPriceInput: Number(item.price || 0).toFixed(2),
+        batch_id: targetBatch ? targetBatch.batch_id : null,
+        customPriceInput: Number(targetBatch ? targetBatch.selling_price : (item.price || 0)).toFixed(2),
+        price: targetBatch ? targetBatch.selling_price : item.price,
+        msp: targetBatch ? targetBatch.msp : item.msp,
+        purchase_cost: targetBatch ? targetBatch.purchase_cost : item.cost_price,
         discountPct: 0,
         quantity: addQty,
         unit: item.unit || 'PCS',
@@ -885,8 +909,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             negotiated_discount: i.discountPct || 0,
             unit: i.unit,
             instance_barcode: i.instance_barcode || null,
+            cut_length: i.is_cuttable ? (Number(i.length) || Number(i.pieceLength) || 0) : null,
             discard_scrap: i.discard_scrap || false,
-            piece_length: i.pieceLength || null,
             num_rolls: (activeTab === 'receive' && i.is_cuttable) ? Number(i.quantity) : null,
             default_length: i.default_length ? Number(i.default_length) : null,
             default_width: i.default_width ? Number(i.default_width) : null,
@@ -1309,7 +1333,16 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           </div>
         </div>
       ) : (
-        <div className="flex flex-col flex-1 min-h-[500px] shadow-sm print:hidden" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+        <div className="flex flex-col flex-1 min-h-[500px] shadow-sm print:hidden relative" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+          
+          {/* Offline Banner */}
+          {!isOnline && (
+            <div className="w-full bg-[var(--color-error)] text-white text-xs font-bold uppercase tracking-wider text-center py-1 flex items-center justify-center gap-2 relative z-10 shadow-sm">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+              Offline Mode - Changes will sync when internet returns
+            </div>
+          )}
+
           {/* Header Block */}
           {activeTab === 'checkout' && (pendingCarts.length > 0 || heldCarts.length > 0) && (
           <div className="flex gap-1 p-2 bg-[var(--bg-tertiary)] border-b border-[var(--border-medium)] overflow-x-auto whitespace-nowrap scrollbar-hide">

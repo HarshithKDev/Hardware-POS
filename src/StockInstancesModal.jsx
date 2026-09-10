@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import Barcode from 'react-barcode';
 import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
 import { Spinner } from './SharedUI';
@@ -7,6 +9,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 export default function StockInstancesModal({ isOpen, onClose, item }) {
   const { showAlert, showConfirm } = useApp();
   const [discardModal, setDiscardModal] = useState({ isOpen: false, group: null, inputBarcode: '' });
+  const [printModal, setPrintModal] = useState({ isOpen: false, group: null, qty: 1 });
+  const [isPrinting, setIsPrinting] = useState(false);
   const queryClient = useQueryClient();
 
   const [isMounting, setIsMounting] = useState(true);
@@ -68,8 +72,22 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
     handleToggleActive(targetInst);
   };
 
+  const handlePrintClick = (group) => {
+    setPrintModal({ isOpen: true, group, qty: 1 });
+  };
+
+  const confirmPrint = () => {
+    setIsPrinting(true);
+    setTimeout(() => {
+      window.print();
+      setIsPrinting(false);
+      setPrintModal({ isOpen: false, group: null, qty: 1 });
+    }, 500);
+  };
+
   return (
-    <div className={`w-full overflow-hidden transition-all duration-300 ease-in-out origin-top ${isMounting ? 'max-h-0 opacity-0 scale-y-95' : 'max-h-[1000px] opacity-100 scale-y-100'}`}>
+    <>
+      <div className={`w-full overflow-hidden transition-all duration-300 ease-in-out origin-top ${isMounting ? 'max-h-0 opacity-0 scale-y-95' : 'max-h-[1000px] opacity-100 scale-y-100'}`}>
       <div className="p-6 flex flex-col shadow-inner" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-sm font-bold tracking-wider" style={{ color: 'var(--text-primary)' }}>
@@ -133,13 +151,24 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
                           ? (Number(group.current_length) * Number(item.default_width || 0) * group.count).toFixed(2) + ' SQFT'
                           : (Number(group.current_length) * group.count).toFixed(2) + ' ' + (item.unit || '')}
                       </td>
-                      <td className="p-2">
+                      <td className="p-2 flex gap-1 justify-center">
+                        <button 
+                          onClick={() => handlePrintClick(group)} 
+                          className="p-1.5 rounded-md transition-colors hover:bg-[var(--color-accent-bg)] cursor-pointer text-[var(--color-accent)]"
+                          title="Print Barcode"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0v-2.94a2.25 2.25 0 012.25-2.25h6a2.25 2.25 0 012.25 2.25v2.94z" />
+                          </svg>
+                        </button>
                         <button 
                           onClick={() => handleDiscardClick(group)} 
-                          className="text-[10px] font-bold uppercase px-2 py-1 focus:outline-none hover:underline"
-                          style={{ color: 'var(--color-error)' }}
+                          className="p-1.5 rounded-md transition-colors hover:bg-red-50 text-red-500 cursor-pointer"
+                          title="Discard Piece"
                         >
-                          Discard
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                          </svg>
                         </button>
                       </td>
                     </tr>
@@ -152,7 +181,7 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
       </div>
 
       {/* Discard Barcode Prompt Modal */}
-      {discardModal.isOpen && (
+      {discardModal.isOpen && createPortal(
         <div className="fixed inset-0 flex items-center justify-center z-[200] px-4 animate-fade-in" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
           <div className="w-[85%] max-w-[420px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
             <div className="flex justify-between items-center pr-2 pl-5 py-4" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-light)' }}>
@@ -178,8 +207,101 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
               <button type="button" disabled={!discardModal.inputBarcode} onClick={confirmDiscardBarcode} className="h-10 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 transition-colors hover:bg-red-600" style={{ backgroundColor: 'var(--color-error)' }}>Discard</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Print Preview Modal */}
+      {printModal.isOpen && printModal.group && createPortal(
+        <div className="fixed inset-0 flex items-center justify-center z-[300] px-4 animate-fade-in" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+          <div className="w-[90%] max-w-[450px] rounded-xl overflow-hidden flex flex-col shadow-2xl bg-[var(--bg-secondary)] border border-[var(--border-light)]">
+            <div className="flex justify-between items-center px-5 py-3 border-b border-[var(--border-light)]">
+              <h2 className="text-sm font-bold text-[var(--text-primary)]">Print Labels: {item.name}</h2>
+              <button onClick={() => setPrintModal({ isOpen: false, group: null, qty: 1 })} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">✕</button>
+            </div>
+            
+            <div className="p-5 flex flex-col gap-5">
+              {/* Visual Preview */}
+              <div className="flex flex-col items-center justify-center p-4 bg-white border border-[var(--border-medium)] rounded-lg mx-auto w-[250px] shadow-sm">
+                <p className="text-[10px] font-bold text-black mb-1 w-full text-center truncate">
+                  {item.name} ({printModal.group.current_length} {item.unit === 'SQFT' ? 'ft' : item.unit})
+                </p>
+                <Barcode 
+                  value={printModal.group.instances[0].instance_barcode} 
+                  width={1.5} 
+                  height={30} 
+                  fontSize={12} 
+                  margin={0} 
+                  displayValue={true} 
+                  lineColor="#000000" 
+                  background="#ffffff" 
+                />
+                <p className="text-xs font-bold text-black mt-1">₹{Number(item.price).toFixed(2)}</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1 uppercase tracking-wider">Labels Per Piece</label>
+                <input 
+                  type="number" 
+                  value={printModal.qty} 
+                  onChange={e => setPrintModal({ ...printModal, qty: Number(e.target.value) })}
+                  className="w-full h-10 px-3 rounded-md bg-[var(--bg-input)] border border-[var(--border-medium)] text-sm font-bold focus:outline-none focus:border-[var(--color-accent)]"
+                  min="1"
+                  max="100"
+                />
+              </div>
+
+              <div className="mt-2 text-xs text-[var(--text-secondary)] bg-[var(--bg-tertiary)] p-3 rounded-md border border-[var(--border-light)]">
+                <p><strong>Note:</strong> This will print <strong>{printModal.qty}</strong> label(s) for EACH of the <strong>{printModal.group.instances.length}</strong> piece(s) in this group, yielding a total of <strong>{printModal.qty * printModal.group.instances.length}</strong> labels.</p>
+              </div>
+            </div>
+
+            <div className="px-5 py-4 border-t border-[var(--border-light)] bg-[var(--bg-tertiary)] flex justify-end gap-3">
+              <button 
+                onClick={() => setPrintModal({ isOpen: false, group: null, qty: 1 })}
+                className="px-4 py-2 text-sm font-semibold rounded-md border border-[var(--border-medium)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmPrint}
+                disabled={isPrinting}
+                className="px-6 py-2 text-sm font-bold rounded-md text-white shadow-sm flex items-center gap-2 transition-all hover:opacity-90 disabled:opacity-50"
+                style={{ backgroundColor: 'var(--color-accent)' }}
+              >
+                {isPrinting ? 'Printing...' : 'Print Labels'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Hidden container for printing */}
+      {isPrinting && printModal.group && createPortal(
+        <div id="printable-barcodes" className="absolute -top-[9999px] left-0 opacity-0 pointer-events-none print:static print:opacity-100 print:pointer-events-auto" style={{ backgroundColor: '#ffffff', margin: 0, padding: 0 }}>
+          <style dangerouslySetInnerHTML={{ __html: `
+            @media print {
+              @page { size: 50mm 25mm; margin: 0 !important; }
+              body { margin: 0 !important; padding: 0 !important; }
+              #printable-barcodes { display: block !important; margin: 0 !important; padding: 0 !important; }
+            }
+          `}} />
+          {printModal.group.instances.flatMap((inst, instIndex) => 
+            Array.from({ length: printModal.qty || 1 }).map((_, qtyIndex) => (
+              <div key={`${inst.instance_barcode}-${instIndex}-${qtyIndex}`} className="thermal-barcode" style={{ backgroundColor: '#ffffff', width: '50mm', height: '25mm', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', pageBreakAfter: 'always' }}>
+                <p style={{ color: '#000000', fontSize: '9px', fontWeight: 'bold', lineHeight: 1, margin: 0, marginBottom: '2px', textAlign: 'center', width: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {item.name} ({inst.current_length} {item.unit === 'SQFT' ? 'ft' : item.unit})
+                </p>
+                <Barcode value={inst.instance_barcode} width={1.25} height={24} fontSize={10} margin={0} displayValue={true} lineColor="#000000" background="#ffffff" />
+                <p style={{ color: '#000000', fontSize: '10px', fontWeight: 'bold', lineHeight: 1, margin: 0, marginTop: '2px' }}>₹{Number(item.price).toFixed(2)}</p>
+              </div>
+            ))
+          )}
+        </div>,
+        document.body
       )}
     </div>
+    </>
   );
 }

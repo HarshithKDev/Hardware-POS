@@ -216,17 +216,15 @@ export default function InventoryRow({ item, viewType, categories, subcategories
         {item.is_cuttable ? (pieceCounts ? pieceCounts.store : '...') : totalStore} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
       </td>
       <td className="hidden md:table-cell p-3 text-center">
-        {!item.is_cuttable && (
-          <button 
-            onClick={(e) => { e.stopPropagation(); onPrint(); }}
-            className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
-            title="Print Barcode"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-[var(--color-accent)]">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0v-2.94a2.25 2.25 0 012.25-2.25h6a2.25 2.25 0 012.25 2.25v2.94z" />
-            </svg>
-          </button>
-        )}
+        <button 
+          onClick={(e) => { e.stopPropagation(); onPrint(); }}
+          className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
+          title="Print Barcode"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-[var(--color-accent)]">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0v-2.94a2.25 2.25 0 012.25-2.25h6a2.25 2.25 0 012.25 2.25v2.94z" />
+          </svg>
+        </button>
       </td>
       </tr>
       {isExpanded && item.is_cuttable && (
@@ -250,7 +248,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
                 <table className="w-full text-left text-sm border-collapse">
                   <thead className="bg-[var(--bg-hover)] border-b border-[var(--border-light)]">
                     <tr className="text-[10px] uppercase font-bold text-[var(--text-secondary)]">
-                      <th className="p-3 pl-4 border-r border-[var(--border-light)]">Received Date</th>
+                      <th className="p-3 pl-4 border-r border-[var(--border-light)]">Batch Number</th>
                       <th className="p-3 text-right border-r border-[var(--border-light)]">Cost (₹)</th>
                       <th className="p-3 text-right border-r border-[var(--border-light)]">MSP (₹)</th>
                       <th className="p-3 text-right border-r border-[var(--border-light)]">MRP (₹)</th>
@@ -263,7 +261,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
                     {item.batches.map(batch => (
                       <tr key={batch.batch_id} className="border-b border-[var(--border-light)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors">
                         <td className="p-3 pl-4 text-xs font-medium text-[var(--text-secondary)] border-r border-[var(--border-light)]">
-                          {new Date(batch.created_at).toLocaleDateString()} {new Date(batch.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          {item.barcode}-{String(batch.batch_number || 1).padStart(2, '0')}
                         </td>
                         <td className="p-3 text-right font-medium text-[var(--text-primary)] border-r border-[var(--border-light)]">{Number(batch.purchase_cost).toFixed(2)}</td>
                         <td className="p-3 text-right font-medium text-[var(--text-primary)] border-r border-[var(--border-light)]">{Number(batch.msp).toFixed(2)}</td>

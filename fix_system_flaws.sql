@@ -1,12 +1,24 @@
--- RUN THIS IN YOUR SUPABASE SQL EDITOR TO FIX THE RECEIVE BUG
+-- RUN THIS IN YOUR SUPABASE SQL EDITOR TO FIX SYSTEM FLAWS
 
--- 1. Updates process_pos_transaction to properly update the active batch and create stock instances for cuttable items
+-- 0. Clean up existing corrupted data (caused by the SQFT bug)
+UPDATE public.inventory_batches SET stock_store = 0 WHERE stock_store < 0;
+UPDATE public.inventory_batches SET stock_warehouse = 0 WHERE stock_warehouse < 0;
+UPDATE public.stock_instances SET current_length = 0, is_active = false WHERE current_length <= 0;
 
+-- 1. Add CHECK constraints to prevent negative inventory values
+ALTER TABLE public.inventory_batches
+  ADD CONSTRAINT chk_stock_store_nonnegative CHECK (stock_store >= 0),
+  ADD CONSTRAINT chk_stock_warehouse_nonnegative CHECK (stock_warehouse >= 0);
+
+ALTER TABLE public.stock_instances
+  ADD CONSTRAINT chk_current_length_nonnegative CHECK (current_length >= 0);
+
+-- 2. Update process_pos_transaction with Scrap handling, auto-deactivation, and concurrency locks
 CREATE OR REPLACE FUNCTION public.process_pos_transaction(
     p_action TEXT, -- 'SALE', 'RECEIVE', 'TRANSFER'
     p_location TEXT, -- 'Store', 'Warehouse-Inbound', 'Warehouse-Transfer'
     p_cashier_name TEXT,
-    p_items JSONB -- [{barcode, name, batch_id, actual_quantity, billable_quantity, system_price, final_price, unit, instance_barcode, num_rolls, default_length, ...}]
+    p_items JSONB -- [{barcode, name, batch_id, actual_quantity, billable_quantity, system_price, final_price, unit, instance_barcode, num_rolls, default_length, cut_length, discard_scrap...}]
 ) RETURNS json AS $$
 DECLARE
     v_bill_id UUID;
@@ -25,6 +37,8 @@ DECLARE
     v_rolls INTEGER;
     v_seq INTEGER;
     v_inst_barcode TEXT;
+    v_cut_length NUMERIC;
+    v_new_length NUMERIC;
 BEGIN
     -- Generate Bill ID as a proper UUID
     v_bill_id := gen_random_uuid();
@@ -68,8 +82,17 @@ BEGIN
 
             -- Deduct from stock instances if cuttable
             IF (v_item->>'instance_barcode') IS NOT NULL AND (v_item->>'instance_barcode') != '' THEN
+                v_cut_length := COALESCE((v_item->>'cut_length')::numeric, v_actual_qty);
+                
+                -- Get new length to determine if it should remain active
+                SELECT current_length - v_cut_length INTO v_new_length 
+                FROM public.stock_instances 
+                WHERE instance_barcode = v_item->>'instance_barcode';
+
                 UPDATE public.stock_instances
-                SET current_length = current_length - COALESCE((v_item->>'cut_length')::numeric, v_actual_qty)
+                SET 
+                    current_length = CASE WHEN (v_item->>'discard_scrap')::boolean = true THEN 0 ELSE current_length - v_cut_length END,
+                    is_active = CASE WHEN (v_item->>'discard_scrap')::boolean = true OR v_new_length <= 0 THEN false ELSE true END
                 WHERE instance_barcode = v_item->>'instance_barcode';
             END IF;
 
@@ -82,6 +105,9 @@ BEGIN
             );
 
         ELSIF p_action = 'RECEIVE' THEN
+            -- Lock the parent row in product_master to prevent concurrent batch/instance generation race conditions
+            PERFORM 1 FROM public.product_master WHERE barcode = v_item->>'barcode' FOR UPDATE;
+
             -- Check if we have an exact matching active batch by price
             SELECT batch_id INTO v_target_batch
             FROM public.inventory_batches
@@ -154,18 +180,14 @@ BEGIN
             v_target_batch := NULLIF(v_item->>'batch_id', '')::uuid;
             
             IF v_target_batch IS NULL THEN
-                SELECT batch_id INTO v_target_batch
-                FROM public.inventory_batches
-                WHERE barcode = v_item->>'barcode' AND is_active = true
-                ORDER BY created_at DESC LIMIT 1;
+                -- If no specific batch was provided, raise an exception to prevent blind deductions
+                RAISE EXCEPTION 'A specific batch must be selected when transferring stock from Warehouse to Store.';
             END IF;
 
-            IF v_target_batch IS NOT NULL THEN
-                UPDATE public.inventory_batches
-                SET stock_warehouse = stock_warehouse - v_actual_qty,
-                    stock_store = stock_store + v_actual_qty
-                WHERE batch_id = v_target_batch;
-            END IF;
+            UPDATE public.inventory_batches
+            SET stock_warehouse = stock_warehouse - v_actual_qty,
+                stock_store = stock_store + v_actual_qty
+            WHERE batch_id = v_target_batch;
             
             IF (v_item->>'instance_barcode') IS NOT NULL AND (v_item->>'instance_barcode') != '' THEN
                 UPDATE public.stock_instances
@@ -180,18 +202,16 @@ BEGIN
                 json_build_object('quantity', v_actual_qty, 'location', 'Store', 'instance', v_item->>'instance_barcode')::text, 
                 p_cashier_name
             );
+
         END IF;
+
     END LOOP;
 
     -- Update Bill Totals
-    IF p_action = 'SALE' THEN
-        UPDATE public.bills
-        SET total_amount = v_total_amount,
-            total_profit = v_total_profit
-        WHERE id = v_bill_id;
-    END IF;
+    UPDATE public.bills 
+    SET total_amount = v_total_amount, total_profit = v_total_profit
+    WHERE id = v_bill_id;
 
-    -- Return the short bill ID format for the UI receipt number
-    RETURN json_build_object('bill_id', 'BILL-' || upper(substr(md5(v_bill_id::text), 1, 6)), 'status', 'SUCCESS', 'uuid', v_bill_id);
+    RETURN json_build_object('success', true, 'bill_id', v_bill_id);
 END;
 $$ LANGUAGE plpgsql;

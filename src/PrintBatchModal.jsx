@@ -96,6 +96,12 @@ export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }
          currentBarcodeValue = `${item.barcode}-01`;
       }
 
+      // Cuttable items are received by their generic parent barcode. Their specific instances have a 10-char format.
+      // Printing a dash-suffixed barcode for a cuttable item won't work in the scanner.
+      if (item.is_cuttable) {
+        currentBarcodeValue = item.barcode;
+      }
+
       setPrintBarcodeValue(currentBarcodeValue);
 
       // Give React a tick to render the portal before calling print
@@ -150,39 +156,43 @@ export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1 uppercase tracking-wider">Cost (₹)</label>
-                <input 
-                  type="number" 
-                  value={cost} 
-                  onChange={e => setCost(e.target.value)}
-                  className="w-full h-10 px-3 rounded-md bg-[var(--bg-input)] border border-[var(--border-medium)] text-sm focus:outline-none focus:border-[var(--color-accent)]"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1 uppercase tracking-wider">MSP (₹)</label>
-                <input 
-                  type="number" 
-                  value={msp} 
-                  onChange={e => setMsp(e.target.value)}
-                  className="w-full h-10 px-3 rounded-md bg-[var(--bg-input)] border border-[var(--border-medium)] text-sm focus:outline-none focus:border-[var(--color-accent)]"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1 uppercase tracking-wider">MRP (₹)</label>
-                <input 
-                  type="number" 
-                  value={mrp} 
-                  onChange={e => setMrp(e.target.value)}
-                  className="w-full h-10 px-3 rounded-md bg-[var(--bg-input)] border border-[var(--border-medium)] text-sm font-bold focus:outline-none focus:border-[var(--color-accent)]"
-                />
-              </div>
-            </div>
+            {!selectedBatch && (
+              <>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1 uppercase tracking-wider">Cost (₹)</label>
+                    <input 
+                      type="number" 
+                      value={cost} 
+                      onChange={e => setCost(e.target.value)}
+                      className="w-full h-10 px-3 rounded-md bg-[var(--bg-input)] border border-[var(--border-medium)] text-sm focus:outline-none focus:border-[var(--color-accent)]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1 uppercase tracking-wider">MSP (₹)</label>
+                    <input 
+                      type="number" 
+                      value={msp} 
+                      onChange={e => setMsp(e.target.value)}
+                      className="w-full h-10 px-3 rounded-md bg-[var(--bg-input)] border border-[var(--border-medium)] text-sm focus:outline-none focus:border-[var(--color-accent)]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1 uppercase tracking-wider">MRP (₹)</label>
+                    <input 
+                      type="number" 
+                      value={mrp} 
+                      onChange={e => setMrp(e.target.value)}
+                      className="w-full h-10 px-3 rounded-md bg-[var(--bg-input)] border border-[var(--border-medium)] text-sm font-bold focus:outline-none focus:border-[var(--color-accent)]"
+                    />
+                  </div>
+                </div>
 
-            <div className="mt-2 text-xs text-[var(--text-secondary)] bg-[var(--bg-tertiary)] p-3 rounded-md border border-[var(--border-light)]">
-              <p><strong>Note:</strong> If you change the prices above, a new batch will automatically be created and unique labels will be printed.</p>
-            </div>
+                <div className="mt-2 text-xs text-[var(--text-secondary)] bg-[var(--bg-tertiary)] p-3 rounded-md border border-[var(--border-light)]">
+                  <p><strong>Note:</strong> If you change the prices above, a new batch will automatically be created and unique labels will be printed.</p>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="px-5 py-4 border-t border-[var(--border-light)] bg-[var(--bg-tertiary)] flex justify-end gap-3">
