@@ -105,8 +105,8 @@ export default function BarcodePrinter() {
          const updatedQueue = [...printQueue];
          const qItem = updatedQueue[existingIndex];
          qItem.printQty += 1;
-         if (item.is_cuttable) {
-           qItem.instanceBarcodes = Array.from({ length: qItem.printQty }).map((_, i) => `${item.barcode}${String(qItem.nextSeq + i).padStart(6, '0')}`);
+          if (item.is_cuttable) {
+           qItem.instanceBarcodes = Array.from({ length: qItem.printQty }).map((_, i) => `${item.barcode}-${String(qItem.nextSeq + i).padStart(2, '0')}`);
          }
          setPrintQueue(updatedQueue);
       } else {
@@ -141,7 +141,7 @@ export default function BarcodePrinter() {
 
         const newQueueItem = { ...item, printQty: 1, nextSeq };
         if (item.is_cuttable) {
-          newQueueItem.instanceBarcodes = [`${item.barcode}${String(nextSeq).padStart(6, '0')}`];
+          newQueueItem.instanceBarcodes = [`${item.barcode}-${String(nextSeq).padStart(2, '0')}`];
         }
         setPrintQueue([...printQueue, newQueueItem]);
       }
@@ -157,7 +157,7 @@ export default function BarcodePrinter() {
         const updatedItem = { ...item, printQty: qty };
         if (item.is_cuttable && qty !== '') {
           const targetLength = Number(qty);
-          updatedItem.instanceBarcodes = Array.from({ length: targetLength }).map((_, i) => `${item.barcode}${String(item.nextSeq + i).padStart(6, '0')}`);
+          updatedItem.instanceBarcodes = Array.from({ length: targetLength }).map((_, i) => `${item.barcode}-${String(item.nextSeq + i).padStart(2, '0')}`);
         }
         return updatedItem;
       }

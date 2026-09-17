@@ -53,11 +53,15 @@ const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQ
           <div className="flex gap-4 mt-4 pt-4" style={{ borderTop: '2px dashed var(--border-light)' }}>
             <div className="flex-1">
               <span className="text-xs font-bold uppercase tracking-wider block mb-1" style={{ color: 'var(--text-secondary)' }}>Purchase Cost</span>
-              <input type="number" step="0.01" value={item.purchase_cost !== undefined ? item.purchase_cost : Number(item.price || 0).toFixed(2)} onChange={(e) => onUpdateDimensions(item.id, 'purchase_cost', e.target.value)} placeholder="0.00" className="w-full h-12 px-2 text-lg font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)' }} />
+              <div className="w-full h-12 flex items-center justify-center text-lg font-semibold text-center rounded-md bg-[var(--bg-tertiary)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}>
+                ₹{Number(item.purchase_cost !== undefined ? item.purchase_cost : item.price || 0).toFixed(2)}
+              </div>
             </div>
             <div className="flex-1">
               <span className="text-xs font-bold uppercase tracking-wider block mb-1" style={{ color: 'var(--text-secondary)' }}>MRP</span>
-              <input type="number" step="0.01" value={item.selling_price !== undefined ? item.selling_price : Number(item.price || 0).toFixed(2)} onChange={(e) => onUpdateDimensions(item.id, 'selling_price', e.target.value)} placeholder="0.00" className="w-full h-12 px-2 text-lg font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)' }} />
+              <div className="w-full h-12 flex items-center justify-center text-lg font-semibold text-center rounded-md bg-[var(--bg-tertiary)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}>
+                ₹{Number(item.selling_price !== undefined ? item.selling_price : item.price || 0).toFixed(2)}
+              </div>
             </div>
           </div>
         )}
@@ -184,7 +188,7 @@ const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQ
             {item.pieceLength && (
               <p className="text-[10px] uppercase font-bold mt-1" style={{ color: 'var(--text-tertiary)' }}>Length per piece: {item.pieceLength} {item.unit}</p>
             )}
-            <p className="text-xs mt-1 mb-1" style={{ color: 'var(--color-accent)' }}>#{item.instance_barcode || item.barcode}</p>
+            <p className="text-xs mt-1 mb-1" style={{ color: 'var(--color-accent)' }}>#{item.scanned_barcode || item.instance_barcode || item.barcode}</p>
             {activeTab === 'checkout' && (
               <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>
                 MRP: ₹{Number(item.price || 0).toFixed(2)} • MSP: ₹{Number(item.msp || 0).toFixed(2)}

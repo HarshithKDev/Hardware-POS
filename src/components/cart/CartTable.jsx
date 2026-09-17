@@ -167,7 +167,7 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                     <p className="text-[10px] uppercase font-bold mt-1" style={{ color: 'var(--text-tertiary)' }}>Length per piece: {item.pieceLength} {item.unit}</p>
                   )}
                   <div className="flex items-center justify-center gap-3 mt-1">
-                    <p className="text-xs font-mono" style={{ color: 'var(--color-accent)' }}>#{item.instance_barcode || item.barcode}</p>
+                    <p className="text-xs font-mono" style={{ color: 'var(--color-accent)' }}>#{item.scanned_barcode || item.instance_barcode || item.barcode}</p>
                     {activeTab === 'checkout' && (
                       <div className="flex justify-center gap-2">
                         <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
@@ -253,14 +253,14 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                   </td>
                 </>)}
                 {activeTab === 'receive' && (<>
-                  <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }}>
-                    <input type="number" step="0.01" value={item.purchase_cost !== undefined ? item.purchase_cost : Number(item.price || 0).toFixed(2)} onChange={(e) => onUpdateDimensions(item.id, 'purchase_cost', e.target.value)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} purchase cost`} />
+                  <td className="p-2 text-center text-sm font-semibold bg-[var(--bg-tertiary)]" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>
+                    ₹{Number(item.purchase_cost !== undefined ? item.purchase_cost : item.price || 0).toFixed(2)}
                   </td>
-                  <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }}>
-                    <input type="number" step="0.01" value={item.selling_price !== undefined ? item.selling_price : Number(item.price || 0).toFixed(2)} onChange={(e) => onUpdateDimensions(item.id, 'selling_price', e.target.value)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} selling price`} />
+                  <td className="p-2 text-center text-sm font-semibold bg-[var(--bg-tertiary)]" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>
+                    ₹{Number(item.selling_price !== undefined ? item.selling_price : item.price || 0).toFixed(2)}
                   </td>
-                  <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }}>
-                    <input type="number" step="0.01" value={item.msp_price !== undefined ? item.msp_price : Number(item.msp || 0).toFixed(2)} onChange={(e) => onUpdateDimensions(item.id, 'msp_price', e.target.value)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} minimum selling price`} />
+                  <td className="p-2 text-center text-sm font-semibold bg-[var(--bg-tertiary)]" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>
+                    ₹{Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}
                   </td>
                 </>)}
                 <td className="p-2 text-center align-middle">

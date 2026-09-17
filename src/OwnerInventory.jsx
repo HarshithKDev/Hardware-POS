@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, forwardRef } from 're
 import { Virtuoso } from 'react-virtuoso';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import PrintBatchModal from './PrintBatchModal';
+import CreateBatchModal from './CreateBatchModal';
 import { supabase } from './supabaseClient';
 import { getInventoryByQuery, saveInventoryBatch, getInventoryItemByBarcode } from './services/db';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -24,9 +25,16 @@ export default function OwnerInventory({ viewType }) {
   const [isGlobalEditMode, setIsGlobalEditMode] = useState(false);
   const [bulkEditData, setBulkEditData] = useState({});
   const [printModal, setPrintModal] = useState({ isOpen: false, item: null, batch: null });
+  const [createBatchModal, setCreateBatchModal] = useState({ isOpen: false, item: null });
   const [batchToDelete, setBatchToDelete] = useState(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+
+  useEffect(() => {
+    const handleOpenCreateBatchModal = (e) => setCreateBatchModal({ isOpen: true, item: e.detail });
+    window.addEventListener('openCreateBatchModal', handleOpenCreateBatchModal);
+    return () => window.removeEventListener('openCreateBatchModal', handleOpenCreateBatchModal);
+  }, []);
 
   const queryClient = useQueryClient();
 
@@ -509,9 +517,7 @@ export default function OwnerInventory({ viewType }) {
                       <th className="p-3 min-w-[160px]" style={{ borderRight: '1px solid var(--border-light)' }}>Item Details</th>
                       <th className="p-3 w-36" style={{ borderRight: '1px solid var(--border-light)' }}>Category</th>
                       <th className="p-3 w-36" style={{ borderRight: '1px solid var(--border-light)' }}>SUBCAT</th>
-                      <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Cost</th>
-                      <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>MSP</th>
-                      <th className="p-3 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>MRP</th>
+                      {/* Pricing removed from parent row */}
                       <th className="p-3 w-24 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Whse Qty</th>
                       <th className="p-3 w-24 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Store Qty</th>
                       <th className="p-3 w-16 text-center">Actions</th>
@@ -551,6 +557,13 @@ export default function OwnerInventory({ viewType }) {
           onClose={() => setPrintModal({ isOpen: false, item: null, batch: null })} 
           item={printModal.item} 
           selectedBatch={printModal.batch}
+        />
+      )}
+
+      {createBatchModal.isOpen && createBatchModal.item && (
+        <CreateBatchModal 
+          item={createBatchModal.item} 
+          onClose={() => setCreateBatchModal({ isOpen: false, item: null })} 
         />
       )}
 

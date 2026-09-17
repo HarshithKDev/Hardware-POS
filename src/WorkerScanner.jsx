@@ -106,25 +106,38 @@ export default function WorkerScanner({ cashierName }) {
       let isInstance = false;
       let searchBarcode = barcode;
       let instanceBarcodeSuffix = "";
-
-      if (barcode.includes('-')) {
-        isInstance = true;
-        searchBarcode = barcode.split('-')[0];
-        instanceBarcodeSuffix = barcode.split('-')[1];
-      }
+      let instanceBatchId = null; // Will extract later if needed
+      let scannedBatchNumber = null;
       
+      // Try exactly first
       let item = await getInventoryItemByBarcode(searchBarcode);
       
-      if (!item && !isInstance && barcode.length > 6) {
-        const possibleParent = barcode.slice(0, -6);
-        const possibleSuffix = barcode.slice(-6);
-        if (!isNaN(possibleSuffix)) {
-          const parentItem = await getInventoryItemByBarcode(possibleParent);
+      if (!item && barcode.includes('-')) {
+        const parts = barcode.split('-');
+        if (parts.length === 3 && !isNaN(parts[1]) && !isNaN(parts[2])) {
+          // Cuttable item: [Barcode]-[BatchNumber]-[SequenceNumber]
+          const parentItem = await getInventoryItemByBarcode(parts[0]);
           if (parentItem && parentItem.is_cuttable) {
             item = parentItem;
-            searchBarcode = possibleParent;
+            searchBarcode = parts[0];
+            scannedBatchNumber = Number(parts[1]);
             isInstance = true;
-            instanceBarcodeSuffix = possibleSuffix;
+            // The batch is part[1], the piece is part[2], the full instance barcode is the original barcode
+            instanceBarcodeSuffix = parts[2];
+          }
+        } else if (parts.length === 2 && !isNaN(parts[1])) {
+          // Standard item with batch: [Barcode]-[BatchNumber]
+          const parentItem = await getInventoryItemByBarcode(parts[0]);
+          if (parentItem) {
+            item = parentItem;
+            searchBarcode = parts[0];
+            scannedBatchNumber = Number(parts[1]);
+            // If it's cuttable, they shouldn't just scan the batch code, but we pass it as not-an-instance so it gets rejected below
+            if (parentItem.is_cuttable) {
+              isInstance = false;
+            } else {
+              isInstance = false;
+            }
           }
         }
       }
@@ -150,22 +163,41 @@ export default function WorkerScanner({ cashierName }) {
 
       // Check Stock Limits
       let maxStock = 0;
+      instanceBatchId = null;
       if (item.is_cuttable) {
         if (!isInstance) {
           showAlert(`Please scan the specific piece sticker for ${item.name}, not the generic barcode.`, "Error");
           return;
         }
         try {
-          const { data, error } = await supabase.from('stock_instances').select('current_length').eq('instance_barcode', barcode).single();
-          if (error || !data) throw new Error("Piece not found");
-          maxStock = Number(data.current_length);
+          const { data, error } = await supabase.from('stock_instances').select('current_length, batch_id').eq('instance_barcode', barcode).single();
+          if (error || !data) {
+            // If the piece doesn't exist, it might be a newly printed label being scanned to RECEIVE into stock.
+            maxStock = Number(item.default_length) || 1;
+            if (scannedBatchNumber !== null && item.batches) {
+               const b = item.batches.find(bx => bx.batch_number === scannedBatchNumber);
+               if (b) instanceBatchId = b.batch_id;
+            }
+          } else {
+            maxStock = Number(data.current_length);
+            instanceBatchId = data.batch_id;
+          }
         } catch (err) {
           console.error(err);
-          showAlert(`Could not verify stock for piece #${instanceBarcodeSuffix}`, "Error");
-          return;
+          maxStock = Number(item.default_length) || 1;
         }
       } else {
-        maxStock = Number(item.stock_store || 0);
+        let batch = null;
+        if (scannedBatchNumber !== null && item.batches) {
+          batch = item.batches.find(b => b.batch_number === scannedBatchNumber);
+        }
+        
+        if (batch) {
+          maxStock = Number(batch.stock_store || 0);
+          instanceBatchId = batch.batch_id;
+        } else {
+          maxStock = item.batches ? item.batches.reduce((acc, b) => acc + Number(b.stock_store || 0), 0) : Number(item.stock_store || 0);
+        }
       }
 
       if (maxStock <= 0) {
@@ -198,6 +230,11 @@ export default function WorkerScanner({ cashierName }) {
             quantity: 1,
             maxStock: maxStock,
             instance_barcode: isInstance ? barcode : null,
+            scanned_barcode: searchBarcode + (scannedBatchNumber ? '-' + String(scannedBatchNumber).padStart(2, '0') : '') + (isInstance ? '-' + instanceBarcodeSuffix : ''),
+            batch_id: instanceBatchId,
+            purchase_cost: batch ? batch.purchase_cost : (item.cost_price || 0),
+            selling_price: batch ? batch.selling_price : (item.price || 0),
+            msp_price: batch ? batch.msp : (item.msp || 0),
             name: isInstance ? `${item.name} (Piece #${instanceBarcodeSuffix})` : item.name
           }, ...prev];
         }

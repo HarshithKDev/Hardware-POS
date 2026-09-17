@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import StockInstancesModal from './StockInstancesModal';
@@ -6,6 +6,7 @@ import { Trash2 } from 'lucide-react';
 
 export default function InventoryRow({ item, viewType, categories, subcategories, isGlobalEditMode, editData, onEditChange, isSelected, onSelect, onRestore, isSelectionMode, expandedBarcode, onToggleExpand, onPrint, onDeleteBatch }) {
   const isExpanded = expandedBarcode === item.barcode;
+  const [expandedBatchId, setExpandedBatchId] = useState(null);
 
   const { data: pieceCounts } = useQuery({
     queryKey: ['piece_counts', item.barcode],
@@ -31,9 +32,6 @@ export default function InventoryRow({ item, viewType, categories, subcategories
 
   const availableSubcategories = subcategories?.filter(sub => sub.category_name === (editData?.category || item.category)) || [];
   
-  const displayCost = item.batches && item.batches.length > 0 ? item.batches[0].purchase_cost : item.cost_price;
-  const displayMsp = item.batches && item.batches.length > 0 ? item.batches[0].msp : item.msp;
-  const displayPrice = item.batches && item.batches.length > 0 ? item.batches[0].selling_price : item.price;
   const totalWhse = item.batches ? item.batches.reduce((sum, b) => sum + Number(b.stock_warehouse), 0) : Number(item.stock_warehouse || 0);
   const totalStore = item.batches ? item.batches.reduce((sum, b) => sum + Number(b.stock_store), 0) : Number(item.stock_store || 0);
 
@@ -75,9 +73,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
           </div>
         </td>
 
-        <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}><input type="number" step="1" min="0" value={data.cost_price ?? ''} onChange={e=>onEditChange(item.barcode, 'cost_price', e.target.value)} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} /></td>
-        <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}><input type="number" step="1" min="0" value={data.msp ?? ''} onChange={e=>onEditChange(item.barcode, 'msp', e.target.value)} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} /></td>
-        <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}><input type="number" step="1" min="0" value={data.price ?? ''} onChange={e=>onEditChange(item.barcode, 'price', e.target.value)} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} /></td>
+        {/* Pricing inputs removed from edit mode. Pricing is now batch-level only. */}
         <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}>
           {item.is_cuttable ? (
             <div className="h-8 px-2 w-full text-sm flex justify-center items-center" title="Cannot edit warehouse aggregate directly" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-tertiary)', cursor: 'not-allowed' }}>
@@ -126,12 +122,12 @@ export default function InventoryRow({ item, viewType, categories, subcategories
                 )}
                 {item.is_cuttable ? (
                   <span onClick={(e) => { e.stopPropagation(); onToggleExpand(item.barcode); }} className="px-2.5 py-0.5 text-[9px] font-bold uppercase rounded-full cursor-pointer transition-all active:scale-95 shadow-sm flex items-center gap-1 w-max" style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                    {isExpanded ? 'Hide Pieces' : 'Cuttable'}
+                    {isExpanded ? 'Hide Details' : 'Manage Batches/Pieces'}
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                     </svg>
                   </span>
-                ) : (item.batches && item.batches.length > 1) ? (
+                ) : (item.batches && item.batches.length > 0) ? (
                   <span onClick={(e) => { e.stopPropagation(); onToggleExpand(item.barcode); }} className="px-2.5 py-0.5 text-[9px] font-bold uppercase rounded-full cursor-pointer transition-all active:scale-95 shadow-sm flex items-center gap-1 w-max" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: 'var(--color-success)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
                     {isExpanded ? 'Hide Batches' : `${item.batches.length} Batches`}
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}>
@@ -141,18 +137,16 @@ export default function InventoryRow({ item, viewType, categories, subcategories
                 ) : null}
              </div>
              
-             {/* Print Button for Mobile */}
-             {!item.is_cuttable && (
-               <div className="absolute top-4 right-4">
-                 <button onClick={(e) => { e.stopPropagation(); onPrint(); }} className="p-1.5 rounded-full" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)' }}>
-                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0v-2.94a2.25 2.25 0 012.25-2.25h6a2.25 2.25 0 012.25 2.25v2.94z" /></svg>
-                 </button>
-               </div>
-             )}
+             {/* Create Batch Button for Mobile */}
+             <div className="absolute top-4 right-4">
+               <button onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('openCreateBatchModal', { detail: item })); }} className="p-1.5 rounded-full" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)' }}>
+                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+               </button>
+             </div>
              
            </div>
            
-             <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-[var(--border-medium)]">
+             <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-[var(--border-medium)]">
                <div>
                  <div className="text-[10px] uppercase text-[var(--text-secondary)] font-semibold mb-0.5">Whse Qty</div>
                  <div className="text-sm font-bold text-[var(--text-primary)]">
@@ -164,10 +158,6 @@ export default function InventoryRow({ item, viewType, categories, subcategories
                  <div className="text-sm font-bold text-[var(--text-primary)]">
                    {item.is_cuttable ? (pieceCounts ? pieceCounts.store : '...') : totalStore} <span className="text-[10px] font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
                  </div>
-               </div>
-               <div className="text-right">
-                 <div className="text-[10px] uppercase text-[var(--text-secondary)] font-semibold mb-0.5">Price</div>
-                 <div className="text-sm font-bold text-[var(--text-primary)]">₹{Number(displayPrice||0).toFixed(2)}</div>
                </div>
              </div>
         </td>
@@ -187,13 +177,13 @@ export default function InventoryRow({ item, viewType, categories, subcategories
               <span className="px-2.5 py-0.5 text-[9px] font-bold uppercase rounded-full whitespace-nowrap" style={{ backgroundColor: 'rgba(234, 179, 8, 0.1)', color: 'var(--color-warning)', border: '1px solid rgba(234, 179, 8, 0.2)' }}>Loose</span>
             )}
             {item.is_cuttable ? (
-              <span onClick={(e) => { e.stopPropagation(); onToggleExpand(item.barcode); }} className="px-2.5 py-0.5 text-[9px] font-bold uppercase rounded-full whitespace-nowrap cursor-pointer transition-all active:scale-95 shadow-sm flex items-center justify-center gap-1 min-w-[75px]" style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', border: '1px solid rgba(59, 130, 246, 0.2)' }} title="View Pieces">
-                {isExpanded ? 'Hide Pieces' : 'Cuttable'}
+              <span onClick={(e) => { e.stopPropagation(); onToggleExpand(item.barcode); }} className="px-2.5 py-0.5 text-[9px] font-bold uppercase rounded-full whitespace-nowrap cursor-pointer transition-all active:scale-95 shadow-sm flex items-center justify-center gap-1 min-w-[75px]" style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', border: '1px solid rgba(59, 130, 246, 0.2)' }} title="View Batches/Pieces">
+                {isExpanded ? 'Hide Details' : 'Manage Batches/Pieces'}
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                 </svg>
               </span>
-            ) : (item.batches && item.batches.length > 1) ? (
+            ) : (item.batches && item.batches.length > 0) ? (
               <span onClick={(e) => { e.stopPropagation(); onToggleExpand(item.barcode); }} className="px-2.5 py-0.5 text-[9px] font-bold uppercase rounded-full whitespace-nowrap cursor-pointer transition-all active:scale-95 shadow-sm flex items-center justify-center gap-1 min-w-[75px]" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: 'var(--color-success)', border: '1px solid rgba(16, 185, 129, 0.2)' }} title="View Batches">
                 {isExpanded ? 'Hide Batches' : `${item.batches.length} Batches`}
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}>
@@ -206,9 +196,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
       </td>
       <td className="hidden md:table-cell p-3 w-36 text-sm whitespace-nowrap" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{item.category || '-'}</td>
       <td className="hidden md:table-cell p-3 w-36 text-sm whitespace-nowrap" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{item.sub_category || '-'}</td>
-      <td className="hidden md:table-cell p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(displayCost||0).toFixed(2)}</td>
-      <td className="hidden md:table-cell p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(displayMsp||0).toFixed(2)}</td>
-      <td className="hidden md:table-cell p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{Number(displayPrice||0).toFixed(2)}</td>
+      {/* Pricing removed from parent row */}
       <td className="hidden md:table-cell p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
         {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : totalWhse} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
       </td>
@@ -217,70 +205,83 @@ export default function InventoryRow({ item, viewType, categories, subcategories
       </td>
       <td className="hidden md:table-cell p-3 text-center">
         <button 
-          onClick={(e) => { e.stopPropagation(); onPrint(); }}
-          className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
-          title="Print Barcode"
+          onClick={(e) => { 
+            e.stopPropagation(); 
+            window.dispatchEvent(new CustomEvent('openCreateBatchModal', { detail: item }));
+          }}
+          className="px-3 py-1.5 rounded-md transition-all active:scale-95 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1 mx-auto shadow-sm hover:opacity-90"
+          title="Create New Batch"
+          style={{ backgroundColor: 'var(--color-accent)' }}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-[var(--color-accent)]">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0v-2.94a2.25 2.25 0 012.25-2.25h6a2.25 2.25 0 012.25 2.25v2.94z" />
-          </svg>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+          Batch
         </button>
       </td>
       </tr>
-      {isExpanded && item.is_cuttable && (
+
+      {isExpanded && item.batches && item.batches.length > 0 && (
         <tr className="block md:table-row" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-          <td colSpan="11" className="block md:table-cell p-0" style={{ borderBottom: '2px solid var(--color-accent)' }}>
-            <StockInstancesModal isOpen={true} onClose={() => onToggleExpand(item.barcode)} item={item} />
-          </td>
-        </tr>
-      )}
-      {isExpanded && !item.is_cuttable && item.batches && item.batches.length > 1 && (
-        <tr className="block md:table-row" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-          <td colSpan="11" className="block md:table-cell p-0" style={{ borderBottom: '2px solid var(--color-success)' }}>
-            <div className="p-6 px-8 animate-fade-in shadow-inner overflow-x-auto w-full">
+          <td colSpan="11" className="block md:table-cell p-0" style={{ borderBottom: item.is_cuttable ? 'none' : '2px solid var(--color-success)' }}>
+            <div className={`p-6 px-8 animate-fade-in shadow-inner overflow-x-auto w-full ${item.is_cuttable ? 'pb-2' : ''}`}>
               <div className="flex justify-between items-center mb-3">
                 <p className="text-xs font-bold uppercase tracking-widest text-[var(--text-tertiary)] pb-2 border-b border-[var(--border-light)] flex-1">
-                  Available Batches for {item.name}
+                  Available Batches for {item.name} {item.is_cuttable && <span className="ml-2 text-[10px] font-normal lowercase opacity-70">(click a batch to view its pieces)</span>}
                 </p>
                 <button onClick={() => onToggleExpand(item.barcode)} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] font-bold ml-4">✕</button>
               </div>
               <div className="rounded-lg border border-[var(--border-light)] overflow-hidden bg-[var(--bg-secondary)] shadow-sm min-w-[600px]">
-                <table className="w-full text-left text-sm border-collapse">
+                <table className="w-full text-center text-sm border-collapse">
                   <thead className="bg-[var(--bg-hover)] border-b border-[var(--border-light)]">
                     <tr className="text-[10px] uppercase font-bold text-[var(--text-secondary)]">
-                      <th className="p-3 pl-4 border-r border-[var(--border-light)]">Batch Number</th>
-                      <th className="p-3 text-right border-r border-[var(--border-light)]">Cost (₹)</th>
-                      <th className="p-3 text-right border-r border-[var(--border-light)]">MSP (₹)</th>
-                      <th className="p-3 text-right border-r border-[var(--border-light)]">MRP (₹)</th>
-                      <th className="p-3 text-center border-r border-[var(--border-light)]">Whse Qty</th>
-                      <th className="p-3 text-center pr-4">Store Qty</th>
-                      <th className="p-3 text-center w-20"></th>
+                      <th className="p-3 border-r border-[var(--border-light)]">Batch Number</th>
+                      <th className="p-3 border-r border-[var(--border-light)]">Cost (₹)</th>
+                      <th className="p-3 border-r border-[var(--border-light)]">MSP (₹)</th>
+                      <th className="p-3 border-r border-[var(--border-light)]">MRP (₹)</th>
+                      <th className="p-3 border-r border-[var(--border-light)]">Whse Qty</th>
+                      <th className="p-3 border-r border-[var(--border-light)]">Store Qty</th>
+                      <th className="p-3"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {item.batches.map(batch => (
-                      <tr key={batch.batch_id} className="border-b border-[var(--border-light)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors">
-                        <td className="p-3 pl-4 text-xs font-medium text-[var(--text-secondary)] border-r border-[var(--border-light)]">
-                          {item.barcode}-{String(batch.batch_number || 1).padStart(2, '0')}
+                      <React.Fragment key={batch.batch_id}>
+                      <tr 
+                        onClick={() => {
+                          if (item.is_cuttable) {
+                            setExpandedBatchId(expandedBatchId === batch.batch_id ? null : batch.batch_id);
+                          }
+                        }}
+                        className={`border-b border-[var(--border-light)] last:border-0 transition-colors ${item.is_cuttable ? 'cursor-pointer hover:bg-[var(--bg-hover)]' : ''}`}
+                      >
+                        <td className="p-3 text-xs font-medium text-[var(--text-secondary)] border-r border-[var(--border-light)] relative">
+                          {item.is_cuttable && (
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={`w-3 h-3 transition-transform duration-200 text-[var(--color-accent)] ${expandedBatchId === batch.batch_id ? 'rotate-90' : 'rotate-0'}`}>
+                                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                               </svg>
+                            </div>
+                          )}
+                          <span className={item.is_cuttable ? "ml-4" : ""}>{item.barcode}-{String(batch.batch_number || 1).padStart(2, '0')}</span>
                         </td>
-                        <td className="p-3 text-right font-medium text-[var(--text-primary)] border-r border-[var(--border-light)]">{Number(batch.purchase_cost).toFixed(2)}</td>
-                        <td className="p-3 text-right font-medium text-[var(--text-primary)] border-r border-[var(--border-light)]">{Number(batch.msp).toFixed(2)}</td>
-                        <td className="p-3 text-right font-medium text-[var(--text-primary)] border-r border-[var(--border-light)]">{Number(batch.selling_price).toFixed(2)}</td>
-                        <td className="p-3 text-center font-bold text-[var(--color-accent)] border-r border-[var(--border-light)]">{batch.stock_warehouse}</td>
-                        <td className="p-3 text-center font-bold text-[var(--color-success)] pr-4">{batch.stock_store}</td>
-                        <td className="p-3 text-center flex items-center justify-center gap-1">
+                        <td className="p-3 font-medium text-[var(--text-primary)] border-r border-[var(--border-light)]">{Number(batch.purchase_cost).toFixed(2)}</td>
+                        <td className="p-3 font-medium text-[var(--text-primary)] border-r border-[var(--border-light)]">{Number(batch.msp).toFixed(2)}</td>
+                        <td className="p-3 font-medium text-[var(--text-primary)] border-r border-[var(--border-light)]">{Number(batch.selling_price).toFixed(2)}</td>
+                        <td className="p-3 font-bold text-[var(--color-accent)] border-r border-[var(--border-light)]">{batch.stock_warehouse}</td>
+                        <td className="p-3 font-bold text-[var(--color-success)] border-r border-[var(--border-light)]">{batch.stock_store}</td>
+                        <td className="p-3 flex items-center justify-center gap-2">
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
                               e.preventDefault();
                               onPrint && onPrint(batch);
                             }}
-                            className="p-1.5 rounded-md hover:bg-[var(--color-accent-bg)] transition-colors text-[var(--color-accent)] cursor-pointer"
+                            className="px-3 py-1.5 rounded-md hover:bg-[var(--color-accent-bg)] transition-colors text-[var(--color-accent)] font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 border border-[var(--color-accent)] cursor-pointer"
                             title="Print this batch"
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
                               <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0v-2.94a2.25 2.25 0 012.25-2.25h6a2.25 2.25 0 012.25 2.25v2.94z" />
                             </svg>
+                            Print
                           </button>
                           <button 
                             onClick={(e) => {
@@ -290,10 +291,10 @@ export default function InventoryRow({ item, viewType, categories, subcategories
                                 onDeleteBatch && onDeleteBatch(batch.batch_id);
                               }
                             }}
-                            className={`p-1.5 rounded-md transition-colors ${
+                            className={`px-3 py-1.5 rounded-md transition-colors font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 border ${
                               Number(batch.stock_warehouse) === 0 && Number(batch.stock_store) === 0
-                                ? 'hover:bg-red-50 text-red-500 cursor-pointer'
-                                : 'text-[var(--text-tertiary)] opacity-50 cursor-not-allowed'
+                                ? 'border-red-500 text-red-500 hover:bg-red-50 cursor-pointer'
+                                : 'border-[var(--border-medium)] text-[var(--text-tertiary)] opacity-50 cursor-not-allowed'
                             }`}
                             title={
                               Number(batch.stock_warehouse) === 0 && Number(batch.stock_store) === 0
@@ -302,12 +303,21 @@ export default function InventoryRow({ item, viewType, categories, subcategories
                             }
                             disabled={!(Number(batch.stock_warehouse) === 0 && Number(batch.stock_store) === 0)}
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
                               <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                             </svg>
+                            Delete
                           </button>
                         </td>
                       </tr>
+                      {item.is_cuttable && expandedBatchId === batch.batch_id && (
+                        <tr className="bg-[var(--bg-primary)] border-b border-[var(--border-light)]">
+                          <td colSpan="7" className="p-0">
+                            <StockInstancesModal isOpen={true} onClose={() => setExpandedBatchId(null)} item={item} inline={true} filterBatchId={batch.batch_id} />
+                          </td>
+                        </tr>
+                      )}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>

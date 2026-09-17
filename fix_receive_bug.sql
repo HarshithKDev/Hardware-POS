@@ -82,63 +82,42 @@ BEGIN
             );
 
         ELSIF p_action = 'RECEIVE' THEN
-            -- Check if we have an exact matching active batch by price
-            SELECT batch_id INTO v_target_batch
-            FROM public.inventory_batches
-            WHERE barcode = v_item->>'barcode' 
-              AND purchase_cost = (v_item->>'purchase_cost')::numeric 
-              AND selling_price = (v_item->>'selling_price')::numeric
-              AND is_active = true
-            ORDER BY created_at DESC LIMIT 1;
-
+            v_target_batch := NULLIF(v_item->>'batch_id', '')::uuid;
+            
             IF v_target_batch IS NOT NULL THEN
-                -- Exact price match found, add stock to it and update MSP if needed
+                -- Exact batch found, add stock to it
                 UPDATE public.inventory_batches
-                SET stock_warehouse = stock_warehouse + v_actual_qty,
-                    msp = COALESCE((v_item->>'msp')::numeric, msp)
+                SET stock_warehouse = stock_warehouse + v_actual_qty
                 WHERE batch_id = v_target_batch;
             ELSE
-                -- No exact match, create a new batch
-                v_target_batch := gen_random_uuid();
-                INSERT INTO public.inventory_batches (
-                    batch_id, barcode, purchase_cost, selling_price, msp, 
-                    stock_warehouse, stock_store, is_active, batch_number
-                ) VALUES (
-                    v_target_batch,
-                    v_item->>'barcode',
-                    COALESCE((v_item->>'purchase_cost')::numeric, 0),
-                    COALESCE((v_item->>'selling_price')::numeric, 0),
-                    COALESCE((v_item->>'msp')::numeric, 0),
-                    v_actual_qty,
-                    0,
-                    true,
-                    (SELECT COALESCE(MAX(batch_number), 0) + 1 FROM public.inventory_batches WHERE barcode = v_item->>'barcode')
-                );
+                -- For some reason batch_id was not provided, fallback to finding active batch or fail gracefully
+                SELECT batch_id INTO v_target_batch
+                FROM public.inventory_batches
+                WHERE barcode = v_item->>'barcode' 
+                  AND is_active = true
+                ORDER BY created_at DESC LIMIT 1;
+                
+                IF v_target_batch IS NOT NULL THEN
+                    UPDATE public.inventory_batches
+                    SET stock_warehouse = stock_warehouse + v_actual_qty
+                    WHERE batch_id = v_target_batch;
+                END IF;
             END IF;
             
             -- If it is cuttable, we must generate new stock instances
-            IF (v_item->>'num_rolls') IS NOT NULL AND (v_item->>'num_rolls')::numeric > 0 THEN
-                v_rolls := (v_item->>'num_rolls')::integer;
-                
-                -- Find max sequence
-                SELECT COALESCE(MAX(RIGHT(instance_barcode, 6)::integer), 1000) INTO v_seq
-                FROM public.stock_instances
-                WHERE parent_barcode = v_item->>'barcode';
-                
-                FOR i_roll IN 1..v_rolls LOOP
-                    v_seq := v_seq + 1;
-                    v_inst_barcode := (v_item->>'barcode') || LPAD(v_seq::text, 6, '0');
-                    
+            IF (v_item->>'instance_barcode') IS NOT NULL AND (v_item->>'instance_barcode') != '' THEN
+                -- They scanned a pre-printed specific piece label to receive it!
+                IF NOT EXISTS (SELECT 1 FROM public.stock_instances WHERE instance_barcode = v_item->>'instance_barcode') THEN
                     INSERT INTO public.stock_instances (
                         instance_barcode, parent_barcode, 
                         original_length, current_length,
-                        location, is_active
+                        location, is_active, batch_id
                     ) VALUES (
-                        v_inst_barcode, v_item->>'barcode',
+                        v_item->>'instance_barcode', v_item->>'barcode',
                         (v_item->>'default_length')::numeric, (v_item->>'default_length')::numeric,
-                        'Warehouse', true
+                        'Warehouse', true, v_target_batch
                     );
-                END LOOP;
+                END IF;
             END IF;
 
             -- Log to Audit Logs

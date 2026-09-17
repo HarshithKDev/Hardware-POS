@@ -140,42 +140,21 @@ export default function OwnerCatalog() {
           default_width: (itemData.item_type === 'cuttable' && itemData.unit === 'SQFT') ? (Number(itemData.default_width) || null) : null,
           billing_increment: Number(itemData.billing_increment) || 0.01,
           billing_method: itemData.billing_method || 'exact',
-          price: Number(itemData.price) || 0,
-          msp: Number(itemData.msp) || 0,
-          cost_price: Number(itemData.cost_price) || 0,
+          price: 0,
+          msp: 0,
+          cost_price: 0,
           is_active: true
         }]);
 
         if (!error) {
-          // Insert initial batch
-          const batchId = generateId();
-          const { error: batchError } = await supabase.from('inventory_batches').insert([{
-            batch_id: batchId,
-            barcode: currentBarcode,
-            purchase_cost: Number(itemData.cost_price),
-            selling_price: Number(itemData.price),
-            msp: Number(itemData.msp),
-            stock_warehouse: 0,
-            stock_store: 0,
-            is_active: true
-          }]);
-          
-          if (batchError) throw batchError;
+          // Do not insert an initial batch. Batches will be created explicitly from the Inventory tab.
           
           return {
             ...itemData,
             barcode: currentBarcode,
             is_cuttable: itemData.item_type === 'cuttable',
             is_loose_item: itemData.item_type === 'loose',
-            batches: [{
-              batch_id: batchId,
-              purchase_cost: Number(itemData.cost_price),
-              selling_price: Number(itemData.price),
-              msp: Number(itemData.msp),
-              stock_warehouse: 0,
-              stock_store: 0,
-              is_active: true
-            }]
+            batches: [] // Don't create an initial batch here; wait for them to click "Create Batch"
           };
         }
 
@@ -204,7 +183,7 @@ export default function OwnerCatalog() {
         setBarcodePreview({ isOpen: true, previewHtml, printHtml });
       }
 
-      setForm({ name: '', category: '', sub_category: '', cost_price: '', msp: '', price: '', unit: 'PCS', min_quantity_warehouse: '', min_quantity_store: '', item_type: 'standard', default_length: '', default_width: '', billing_increment: '0.01', billing_method: 'exact' });
+      setForm({ name: '', category: '', sub_category: '', unit: 'PCS', min_quantity_warehouse: '', min_quantity_store: '', item_type: 'standard', default_length: '', default_width: '', billing_increment: '0.01', billing_method: 'exact' });
       setPrintLabelCount(0);
       showAlert(`Added "${savedItem.name}" with Barcode ${savedItem.barcode}.`, "Success");
 
@@ -216,7 +195,7 @@ export default function OwnerCatalog() {
           barcode: savedItem.barcode,
           item_name: savedItem.name,
           performed_by: 'Owner',
-          changes: `Item: ${savedItem.name} | Category: ${savedItem.category || 'N/A'} | Sub-Category: ${savedItem.sub_category || 'N/A'} | Cost: ₹${savedItem.cost_price} | MSP: ₹${savedItem.msp} | MRP: ₹${savedItem.price} | Type: ${savedItem.is_cuttable ? 'Cuttable' : (savedItem.is_loose_item ? 'Loose' : 'Standard')}`
+          changes: `Item: ${savedItem.name} | Category: ${savedItem.category || 'N/A'} | Sub-Category: ${savedItem.sub_category || 'N/A'} | Type: ${savedItem.is_cuttable ? 'Cuttable' : (savedItem.is_loose_item ? 'Loose' : 'Standard')}`
         }]);
       } catch (err) {
         console.error("Failed to log item creation", err);
@@ -422,7 +401,6 @@ export default function OwnerCatalog() {
       let conflictCount = 0;
       let generatedCount = 0;
       const productMasterData = [];
-      const batchesData = [];
       
       formattedData.forEach(row => {
         if (!row.barcode || existingBarcodes.has(row.barcode)) {
@@ -451,24 +429,10 @@ export default function OwnerCatalog() {
           billing_increment: 0.01,
           billing_method: 'exact'
         });
-        
-        batchesData.push({
-          batch_id: generateId(),
-          barcode: row.barcode,
-          purchase_cost: row.cost_price,
-          selling_price: row.price,
-          msp: row.msp,
-          stock_warehouse: 0,
-          stock_store: 0,
-          is_active: row.is_active
-        });
       });
-
+        
       const { error } = await supabase.from('product_master').insert(productMasterData);
       if (error) throw error;
-      
-      const { error: batchError } = await supabase.from('inventory_batches').insert(batchesData);
-      if (batchError) throw batchError;
 
       if (conflictCount > 0 || generatedCount > 0) {
         let msg = `Imported ${formattedData.length} items. `;
@@ -569,7 +533,14 @@ export default function OwnerCatalog() {
           <div className="lg:col-span-2">
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-type">Item Type</label>
             <div className="relative">
-              <select id="item-type" required value={form.item_type} onChange={(e) => setForm({ ...form, item_type: e.target.value })} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
+              <select id="item-type" required value={form.item_type} onChange={(e) => {
+                const newType = e.target.value;
+                setForm(prev => ({ 
+                  ...prev, 
+                  item_type: newType,
+                  unit: newType === 'cuttable' && prev.unit === 'PCS' ? 'FOOT' : prev.unit
+                }));
+              }} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
                 <option value="standard">Standard Item</option>
                 <option value="loose">Loose / Bulk Box (Prompt Qty)</option>
                 <option value="cuttable">Cuttable Stock (Pipes/Mesh)</option>
@@ -608,19 +579,7 @@ export default function OwnerCatalog() {
             </>
           )}
 
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-cost">Cost Price (₹){form.item_type === 'cuttable' ? ` (per ${form.unit.toLowerCase()})` : ''}</label>
-            <input id="item-cost" type="number" step="any" min="0" required value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-msp">Min Selling Price (₹){form.item_type === 'cuttable' ? ` (per ${form.unit.toLowerCase()})` : ''}</label>
-            <input id="item-msp" type="number" step="any" min="0" required value={form.msp} onChange={(e) => setForm({ ...form, msp: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-mrp">Max Retail Price (₹){form.item_type === 'cuttable' ? ` (per ${form.unit.toLowerCase()})` : ''}</label>
-            <input id="item-mrp" type="number" step="any" min="0" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0.00" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-          </div>
-          <div></div>
+          {/* Pricing fields removed. Pricing is now exclusively handled at the batch level in the Inventory tab. */}
 
           <div className="flex gap-4 lg:col-span-2">
             <div className="flex-1">

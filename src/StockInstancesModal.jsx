@@ -6,7 +6,7 @@ import { useApp } from './AppContext';
 import { Spinner } from './SharedUI';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-export default function StockInstancesModal({ isOpen, onClose, item }) {
+export default function StockInstancesModal({ isOpen, onClose, item, inline, filterBatchId }) {
   const { showAlert, showConfirm } = useApp();
   const [discardModal, setDiscardModal] = useState({ isOpen: false, group: null, inputBarcode: '' });
   const [printModal, setPrintModal] = useState({ isOpen: false, group: null, qty: 1 });
@@ -88,15 +88,17 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
   return (
     <>
       <div className={`w-full overflow-hidden transition-all duration-300 ease-in-out origin-top ${isMounting ? 'max-h-0 opacity-0 scale-y-95' : 'max-h-[1000px] opacity-100 scale-y-100'}`}>
-      <div className="p-6 flex flex-col shadow-inner" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-sm font-bold tracking-wider" style={{ color: 'var(--text-primary)' }}>
-            MANAGE PIECES: <span style={{ color: 'var(--color-accent)' }}>{item.name.toUpperCase()}</span>
-          </h3>
-          <button onClick={onClose} className="p-2 leading-none text-lg text-[var(--text-secondary)] hover:text-[var(--color-error)] transition-colors rounded-md focus:outline-none hover:bg-[var(--bg-secondary)]">
-            ✕
-          </button>
-        </div>
+      <div className={`${inline ? 'p-4 bg-[var(--bg-secondary)]' : 'p-6 flex flex-col shadow-inner'}`} style={{ backgroundColor: inline ? 'var(--bg-secondary)' : 'var(--bg-tertiary)', borderTop: inline ? 'none' : '1px solid var(--border-light)' }}>
+        {!inline && (
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-sm font-bold tracking-wider" style={{ color: 'var(--text-primary)' }}>
+              MANAGE PIECES: <span style={{ color: 'var(--color-accent)' }}>{item.name.toUpperCase()}</span>
+            </h3>
+            <button onClick={onClose} className="p-2 leading-none text-lg text-[var(--text-secondary)] hover:text-[var(--color-error)] transition-colors rounded-md focus:outline-none hover:bg-[var(--bg-secondary)]">
+              ✕
+            </button>
+          </div>
+        )}
 
         <div className="w-full flex flex-col">
           
@@ -124,7 +126,7 @@ export default function StockInstancesModal({ isOpen, onClose, item }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.values(instances.filter(i => i.is_active).reduce((acc, inst) => {
+                  {Object.values(instances.filter(i => i.is_active && (!filterBatchId || i.batch_id === filterBatchId)).reduce((acc, inst) => {
                     const key = `${inst.original_length}_${inst.current_length}_${inst.location}`;
                     if (!acc[key]) acc[key] = { ...inst, instances: [], count: 0 };
                     acc[key].instances.push(inst);
