@@ -43,6 +43,19 @@ export default function StockInstancesModal({ isOpen, onClose, item, inline, fil
             p_is_active: !instance.is_active 
           });
         if (error) throw error;
+
+        try {
+          await supabase.from('audit_logs').insert([{
+            action_type: 'UPDATE',
+            barcode: item.barcode,
+            item_name: item.name,
+            changes: `Piece #${instance.instance_barcode} was ${action}ed (Length: ${instance.current_length} ${item.unit === 'SQFT' ? 'ft' : (item.unit || 'PCS')})`,
+            performed_by: 'Owner'
+          }]);
+        } catch (err) {
+          console.error("Failed to log piece toggle", err);
+        }
+
         showAlert(`Piece ${action}ed successfully.`, "Success");
         queryClient.invalidateQueries({ queryKey: ['stock_instances', item.barcode] });
         queryClient.invalidateQueries({ queryKey: ['piece_counts', item.barcode] });

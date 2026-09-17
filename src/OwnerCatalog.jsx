@@ -434,6 +434,19 @@ export default function OwnerCatalog() {
       const { error } = await supabase.from('product_master').insert(productMasterData);
       if (error) throw error;
 
+      try {
+        const auditLogs = productMasterData.map(item => ({
+          action_type: 'CREATE',
+          barcode: item.barcode,
+          item_name: item.name,
+          changes: `Bulk Imported CSV Item: ${item.name} | Category: ${item.category || 'N/A'} | Type: ${item.is_cuttable ? 'Cuttable' : (item.is_loose_item ? 'Loose' : 'Standard')}`,
+          performed_by: 'Owner'
+        }));
+        await supabase.from('audit_logs').insert(auditLogs);
+      } catch (err) {
+        console.error("Failed to log bulk import", err);
+      }
+
       if (conflictCount > 0 || generatedCount > 0) {
         let msg = `Imported ${formattedData.length} items. `;
         if (generatedCount > 0) msg += `Auto-generated ${generatedCount} barcodes. `;

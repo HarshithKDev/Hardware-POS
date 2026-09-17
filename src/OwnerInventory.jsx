@@ -251,6 +251,20 @@ export default function OwnerInventory({ viewType }) {
     try {
       const { error } = await supabase.from('inventory_batches').update({ is_active: false }).eq('batch_id', batchToDelete);
       if (error) throw error;
+
+      try {
+        const itemToLog = inventory.find(i => i.batches && i.batches.some(b => b.batch_id === batchToDelete));
+        const batchNum = itemToLog?.batches?.find(b => b.batch_id === batchToDelete)?.batch_number || 'Unknown';
+        await supabase.from('audit_logs').insert([{
+          action_type: 'DELETE',
+          barcode: itemToLog ? itemToLog.barcode : 'Unknown',
+          item_name: itemToLog ? itemToLog.name : 'Unknown Item',
+          changes: `Deleted Batch #${batchNum}`,
+          performed_by: 'Owner'
+        }]);
+      } catch (err) {
+        console.error("Failed to log batch deletion", err);
+      }
       
       // Instantly update IndexedDB cache
       const { initDB, saveInventoryBatch } = await import('./services/db.js');
@@ -509,17 +523,18 @@ export default function OwnerInventory({ viewType }) {
                   <thead className="hidden md:table-header-group sticky top-0 z-10 glass-header" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                     <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                       {isSelectionMode && (
-                        <th className="p-3 w-12 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+                        <th className="p-3 w-12 text-center" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>
                           <input type="checkbox" checked={items.length > 0 && selectedBarcodes.length === items.length} onChange={toggleSelectAll} className="w-4 h-4 rounded text-accent focus:ring-accent cursor-pointer" />
                         </th>
                       )}
-                      <th className="p-3 w-20" style={{ borderRight: '1px solid var(--border-light)' }}>Barcode</th>
-                      <th className="p-3 min-w-[160px]" style={{ borderRight: '1px solid var(--border-light)' }}>Item Details</th>
-                      <th className="p-3 w-36" style={{ borderRight: '1px solid var(--border-light)' }}>Category</th>
-                      <th className="p-3 w-36" style={{ borderRight: '1px solid var(--border-light)' }}>SUBCAT</th>
+                      <th className="p-3 w-20" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>Barcode</th>
+                      <th className="p-3 min-w-[160px]" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>Item Details</th>
+                      <th className="p-3 w-36" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>Category</th>
+                      <th className="p-3 w-36" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>SUBCAT</th>
+                      <th className="p-3 w-28 text-center" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>Batches</th>
                       {/* Pricing removed from parent row */}
-                      <th className="p-3 w-24 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Whse Qty</th>
-                      <th className="p-3 w-24 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Store Qty</th>
+                      <th className="p-3 w-28 text-center whitespace-nowrap" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>Whse Qty</th>
+                      <th className="p-3 w-28 text-center whitespace-nowrap" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>Store Qty</th>
                       <th className="p-3 w-16 text-center">Actions</th>
                     </tr>
                   </thead>

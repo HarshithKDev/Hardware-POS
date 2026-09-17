@@ -37,6 +37,18 @@ export default function CreateBatchModal({ item, onClose }) {
 
       const { error } = await supabase.from('inventory_batches').insert([insertPayload]);
       if (error) throw error;
+
+      try {
+        await supabase.from('audit_logs').insert([{
+          action_type: 'CREATE',
+          barcode: item.barcode,
+          item_name: item.name,
+          changes: `Created Batch #${nextBatchNum} | Cost: ₹${insertPayload.purchase_cost} | MSP: ₹${insertPayload.msp} | MRP: ₹${insertPayload.selling_price}`,
+          performed_by: 'Owner'
+        }]);
+      } catch (err) {
+        console.error("Failed to log batch creation", err);
+      }
       
       // Update local IDB cache
       try {

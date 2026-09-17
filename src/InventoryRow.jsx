@@ -122,19 +122,19 @@ export default function InventoryRow({ item, viewType, categories, subcategories
                 )}
                 {item.is_cuttable ? (
                   <span onClick={(e) => { e.stopPropagation(); onToggleExpand(item.barcode); }} className="px-2.5 py-0.5 text-[9px] font-bold uppercase rounded-full cursor-pointer transition-all active:scale-95 shadow-sm flex items-center gap-1 w-max" style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                    {isExpanded ? 'Hide Details' : 'Manage Batches/Pieces'}
+                    {isExpanded ? 'Hide Details' : `${item.batches?.length || 0} Batches`}
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                     </svg>
                   </span>
-                ) : (item.batches && item.batches.length > 0) ? (
+                ) : (
                   <span onClick={(e) => { e.stopPropagation(); onToggleExpand(item.barcode); }} className="px-2.5 py-0.5 text-[9px] font-bold uppercase rounded-full cursor-pointer transition-all active:scale-95 shadow-sm flex items-center gap-1 w-max" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: 'var(--color-success)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                    {isExpanded ? 'Hide Batches' : `${item.batches.length} Batches`}
+                    {isExpanded ? 'Hide Batches' : `${item.batches?.length || 0} Batches`}
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                     </svg>
                   </span>
-                ) : null}
+                )}
              </div>
              
              {/* Create Batch Button for Mobile */}
@@ -176,26 +176,28 @@ export default function InventoryRow({ item, viewType, categories, subcategories
             {item.is_loose_item && (
               <span className="px-2.5 py-0.5 text-[9px] font-bold uppercase rounded-full whitespace-nowrap" style={{ backgroundColor: 'rgba(234, 179, 8, 0.1)', color: 'var(--color-warning)', border: '1px solid rgba(234, 179, 8, 0.2)' }}>Loose</span>
             )}
-            {item.is_cuttable ? (
-              <span onClick={(e) => { e.stopPropagation(); onToggleExpand(item.barcode); }} className="px-2.5 py-0.5 text-[9px] font-bold uppercase rounded-full whitespace-nowrap cursor-pointer transition-all active:scale-95 shadow-sm flex items-center justify-center gap-1 min-w-[75px]" style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', border: '1px solid rgba(59, 130, 246, 0.2)' }} title="View Batches/Pieces">
-                {isExpanded ? 'Hide Details' : 'Manage Batches/Pieces'}
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                </svg>
-              </span>
-            ) : (item.batches && item.batches.length > 0) ? (
-              <span onClick={(e) => { e.stopPropagation(); onToggleExpand(item.barcode); }} className="px-2.5 py-0.5 text-[9px] font-bold uppercase rounded-full whitespace-nowrap cursor-pointer transition-all active:scale-95 shadow-sm flex items-center justify-center gap-1 min-w-[75px]" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: 'var(--color-success)', border: '1px solid rgba(16, 185, 129, 0.2)' }} title="View Batches">
-                {isExpanded ? 'Hide Batches' : `${item.batches.length} Batches`}
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                </svg>
-              </span>
-            ) : null}
           </div>
         </div>
       </td>
       <td className="hidden md:table-cell p-3 w-36 text-sm whitespace-nowrap" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{item.category || '-'}</td>
       <td className="hidden md:table-cell p-3 w-36 text-sm whitespace-nowrap" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{item.sub_category || '-'}</td>
+      <td className="hidden md:table-cell p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+        {item.is_cuttable ? (
+          <span onClick={(e) => { e.stopPropagation(); onToggleExpand(item.barcode); }} className="inline-flex px-2.5 py-0.5 text-[9px] font-bold uppercase rounded-full whitespace-nowrap cursor-pointer transition-all active:scale-95 shadow-sm items-center justify-center gap-1 min-w-[75px]" style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', border: '1px solid rgba(59, 130, 246, 0.2)' }} title="View Batches/Pieces">
+            {isExpanded ? 'Hide Details' : `${item.batches?.length || 0} Batches`}
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </span>
+        ) : (
+          <span onClick={(e) => { e.stopPropagation(); onToggleExpand(item.barcode); }} className="inline-flex px-2.5 py-0.5 text-[9px] font-bold uppercase rounded-full whitespace-nowrap cursor-pointer transition-all active:scale-95 shadow-sm items-center justify-center gap-1 min-w-[75px]" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: 'var(--color-success)', border: '1px solid rgba(16, 185, 129, 0.2)' }} title="View Batches">
+            {isExpanded ? 'Hide Batches' : `${item.batches?.length || 0} Batches`}
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </span>
+        )}
+      </td>
       {/* Pricing removed from parent row */}
       <td className="hidden md:table-cell p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
         {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : totalWhse} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
@@ -219,7 +221,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
       </td>
       </tr>
 
-      {isExpanded && item.batches && item.batches.length > 0 && (
+      {isExpanded && item.batches && (
         <tr className="block md:table-row" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
           <td colSpan="11" className="block md:table-cell p-0" style={{ borderBottom: item.is_cuttable ? 'none' : '2px solid var(--color-success)' }}>
             <div className={`p-6 px-8 animate-fade-in shadow-inner overflow-x-auto w-full ${item.is_cuttable ? 'pb-2' : ''}`}>
@@ -239,11 +241,17 @@ export default function InventoryRow({ item, viewType, categories, subcategories
                       <th className="p-3 border-r border-[var(--border-light)]">MRP (₹)</th>
                       <th className="p-3 border-r border-[var(--border-light)]">Whse Qty</th>
                       <th className="p-3 border-r border-[var(--border-light)]">Store Qty</th>
-                      <th className="p-3"></th>
+                      <th className="p-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {item.batches.map(batch => (
+                    {item.batches.length === 0 ? (
+                      <tr>
+                        <td colSpan="7" className="p-8 text-center text-[var(--text-tertiary)] text-xs font-semibold">
+                          No batches found. Click the + BATCH button to create one.
+                        </td>
+                      </tr>
+                    ) : item.batches.map(batch => (
                       <React.Fragment key={batch.batch_id}>
                       <tr 
                         onClick={() => {
