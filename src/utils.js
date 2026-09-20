@@ -60,11 +60,11 @@ export function formatDateTime(input) {
   if (!input) return { datePart: '', timePart: '', full: '' };
 
   const d = input instanceof Date ? input : new Date(input);
-  const datePart = d.toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
+  const day = String(d.getDate()).padStart(2, '0');
+  const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const month = monthNames[d.getMonth()];
+  const year = d.getFullYear();
+  const datePart = `${day} ${month} ${year}`;
 
   let hours = d.getHours();
   const ampm = hours >= 12 ? 'PM' : 'AM';

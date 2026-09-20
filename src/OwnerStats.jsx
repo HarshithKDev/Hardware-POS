@@ -124,7 +124,7 @@ function SalesTrendChart() {
           const dt = new Date(monday);
           dt.setDate(dt.getDate() + i);
           const key = dt.toLocaleDateString('en-CA');
-          trendData[key] = { label: dt.toLocaleDateString('en-US', { weekday: 'short' }), rev: 0 };
+          trendData[key] = { label: dt.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(), rev: 0 };
         }
       } else if (timeframe === '1_month') {
         const d = new Date(now);
@@ -144,7 +144,7 @@ function SalesTrendChart() {
         for (let i = 5; i >= 0; i--) {
           const dt = new Date(now.getFullYear(), now.getMonth() - i, 1);
           const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
-          trendData[key] = { label: dt.toLocaleDateString('en-US', { month: 'short' }), rev: 0 };
+          trendData[key] = { label: dt.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(), rev: 0 };
         }
       }
 

@@ -198,6 +198,14 @@ input[type="search"]::-webkit-search-results-decoration {
   display: none;
 }
 
+/* Force date input text (DD/MM/YYYY) to uppercase */
+input[type="date"] {
+  text-transform: uppercase;
+}
+input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+  text-transform: uppercase;
+}
+
 /* ---------------------------------------------------------------
    SCROLLBAR — Minimal
    --------------------------------------------------------------- */

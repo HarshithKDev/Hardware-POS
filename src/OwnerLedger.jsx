@@ -143,7 +143,7 @@ export default function OwnerLedger({ isActive }) {
               <select
                 value={dateFilter}
                 onChange={(e) => { setDateFilter(e.target.value); setSalesPage(0); setExpandedBillId(null); }}
-                className="h-11 md:h-9 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer shadow-sm"
+                className="py-2 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer shadow-sm leading-normal"
                 style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
                 aria-label="Date filter"
               >

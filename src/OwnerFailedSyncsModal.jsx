@@ -2,6 +2,7 @@ import React from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { deleteOfflineTransaction, requeueTransaction } from './services/db';
+import { formatDateTime } from './utils';
 
 export default function OwnerFailedSyncsModal({ failedSyncs, onClose }) {
   const { showAlert, showConfirm } = useApp();
@@ -55,7 +56,7 @@ export default function OwnerFailedSyncsModal({ failedSyncs, onClose }) {
             failedSyncs.map(tx => (
               <tr key={tx.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
                 <td className="p-3 text-xs font-mono" style={{ color: 'var(--text-secondary)', borderRight: '1px solid var(--border-light)' }}>
-                  {new Date(tx.queued_at).toLocaleString()}
+                  {formatDateTime(tx.queued_at).full}
                 </td>
                 <td className="p-3 text-sm" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>
                   <div className="font-bold mb-1" style={{ color: 'var(--color-accent)' }}>{tx.p_action} ({tx.p_location})</div>

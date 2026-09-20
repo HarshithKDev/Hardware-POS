@@ -250,7 +250,7 @@ const formatChanges = (changes) => {
             <div className="flex-1">
               <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Action Type</label>
               <div className="relative">
-                <select value={activeFilter} onChange={e => setActiveFilter(e.target.value)} className="w-full h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
+                <select value={activeFilter} onChange={e => setActiveFilter(e.target.value)} className="w-full py-2.5 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer leading-normal" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
                   {FILTERS.map(f => <option key={f} value={f}>{f === 'ALL' ? 'All Actions' : f}</option>)}
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
@@ -260,7 +260,7 @@ const formatChanges = (changes) => {
             <div className="flex-1">
               <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Performed By</label>
               <div className="relative">
-                <select value={selectedUser} onChange={e => setSelectedUser(e.target.value)} className="w-full h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
+                <select value={selectedUser} onChange={e => setSelectedUser(e.target.value)} className="w-full py-2.5 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer leading-normal" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
                   <option value="ALL">All Users</option>
                   {uniqueUsers.map(u => <option key={u} value={u} className="capitalize">{u}</option>)}
                 </select>
@@ -271,7 +271,7 @@ const formatChanges = (changes) => {
             <div className="flex-1">
               <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Sort Order</label>
               <div className="relative">
-                <select value={sortOrder} onChange={e => setSortOrder(e.target.value)} className="w-full h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
+                <select value={sortOrder} onChange={e => setSortOrder(e.target.value)} className="w-full py-2.5 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer leading-normal" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
                   <option value="newest">Newest First</option>
                   <option value="oldest">Oldest First</option>
                 </select>

@@ -228,7 +228,7 @@ export default function OwnerReports() {
             <select
               value={dateRange}
               onChange={(e) => setDateRange(e.target.value)}
-              className="h-10 pl-4 pr-10 text-sm font-semibold focus:outline-none rounded-md appearance-none cursor-pointer"
+              className="py-2.5 pl-4 pr-10 text-sm font-semibold focus:outline-none rounded-md appearance-none cursor-pointer leading-normal"
               style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-medium)', color: 'var(--text-input)' }}
             >
               {DATE_OPTIONS.map(opt => <option key={opt.key} value={opt.key}>{opt.label}</option>)}
