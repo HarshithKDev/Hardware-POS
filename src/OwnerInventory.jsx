@@ -159,7 +159,7 @@ export default function OwnerInventory({ viewType }) {
             action_type: 'DELETE',
             barcode: barcode,
             item_name: itemToDelete.name,
-            changes: `Item deactivated (Whse Stock: ${itemToDelete.stock_warehouse}, Store Stock: ${itemToDelete.stock_store})`,
+            changes: `${itemToDelete.name} was moved to Recycle Bin (Whse Stock: ${itemToDelete.stock_warehouse}, Store Stock: ${itemToDelete.stock_store})`,
             performed_by: 'Owner'
           }]);
         }
@@ -190,7 +190,7 @@ export default function OwnerInventory({ viewType }) {
             action_type: 'RESTORE',
             barcode: barcode,
             item_name: itemToRestore.name,
-            changes: `Item restored from Recycle Bin`,
+            changes: `${itemToRestore.name} was restored from Recycle Bin`,
             performed_by: 'Owner'
           }]);
         }
@@ -340,7 +340,7 @@ export default function OwnerInventory({ viewType }) {
               action_type: isRecycle ? 'RESTORE' : 'DELETE',
               barcode: item.barcode,
               item_name: item.name,
-              changes: `Item ${isRecycle ? 'restored from' : 'moved to'} Recycle Bin`,
+              changes: `${item.name} was ${isRecycle ? 'restored from' : 'moved to'} Recycle Bin`,
               performed_by: 'Owner'
             }));
             await supabase.from('audit_logs').insert(auditLogs);

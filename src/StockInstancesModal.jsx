@@ -120,76 +120,68 @@ export default function StockInstancesModal({ isOpen, onClose, item, inline, fil
           ) : instances.length === 0 ? (
             <div className="text-center p-8 text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>No pieces recorded yet.</div>
           ) : (
-            <div className="overflow-x-auto shadow-sm rounded-lg" style={{ border: '1px solid var(--border-light)' }}>
-              <table className="w-full text-center whitespace-nowrap" style={{ backgroundColor: 'var(--bg-primary)' }}>
-                <thead style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-light)' }}>
-                  <tr className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                    <th className="p-2 border-r border-[var(--border-light)]">{item.unit === 'SQFT' ? 'Orig Length' : 'Original'}</th>
-                    <th className="p-2 border-r border-[var(--border-light)]">{item.unit === 'SQFT' ? 'Curr Length' : 'Current'}</th>
+            <div className="flex flex-col gap-2">
+              {Object.values(instances.filter(i => i.is_active && (!filterBatchId || i.batch_id === filterBatchId)).reduce((acc, inst) => {
+                const key = `${inst.original_length}_${inst.current_length}_${inst.location}`;
+                if (!acc[key]) acc[key] = { ...inst, instances: [], count: 0 };
+                acc[key].instances.push(inst);
+                acc[key].count += 1;
+                return acc;
+              }, {})).sort((a, b) => Number(b.current_length) - Number(a.current_length)).map(group => (
+                <div key={`${group.original_length}_${group.current_length}_${group.location}`} className="flex flex-wrap md:flex-nowrap items-center justify-between p-3 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-light)] shadow-sm">
+                  <div className="flex items-center gap-6 w-full md:w-auto overflow-x-auto hide-x-scrollbar">
+                    <div>
+                      <div className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] mb-0.5">{item.unit === 'SQFT' ? 'Orig Length' : 'Original'}</div>
+                      <div className="text-xs text-[var(--text-secondary)]">{group.original_length} {item.unit === 'SQFT' ? 'ft' : item.unit}</div>
+                    </div>
+                    <div>
+                      <div className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] mb-0.5">{item.unit === 'SQFT' ? 'Curr Length' : 'Current'}</div>
+                      <div className="text-xs font-bold text-[var(--text-primary)]">{group.current_length} {item.unit === 'SQFT' ? 'ft' : item.unit}</div>
+                    </div>
                     {item.unit === 'SQFT' && (
                       <>
-                        <th className="p-2 border-r border-[var(--border-light)]">Height</th>
-                        <th className="p-2 border-r border-[var(--border-light)]">Area/Piece</th>
+                        <div>
+                          <div className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] mb-0.5">Width</div>
+                          <div className="text-xs text-[var(--text-secondary)]">{item.default_width || 0} ft</div>
+                        </div>
+                        <div>
+                          <div className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] mb-0.5">Area/Piece</div>
+                          <div className="text-xs font-bold text-[var(--text-primary)]">{(Number(group.current_length) * Number(item.default_width || 0)).toFixed(2)} SQFT</div>
+                        </div>
                       </>
                     )}
-                    <th className="p-2 border-r border-[var(--border-light)]">Location</th>
-                    <th className="p-2 border-r border-[var(--border-light)]">Quantity</th>
-                    <th className="p-2 border-r border-[var(--border-light)]">Total {item.unit === 'SQFT' ? 'Area' : 'Length'}</th>
-                    <th className="p-2">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.values(instances.filter(i => i.is_active && (!filterBatchId || i.batch_id === filterBatchId)).reduce((acc, inst) => {
-                    const key = `${inst.original_length}_${inst.current_length}_${inst.location}`;
-                    if (!acc[key]) acc[key] = { ...inst, instances: [], count: 0 };
-                    acc[key].instances.push(inst);
-                    acc[key].count += 1;
-                    return acc;
-                  }, {})).sort((a, b) => Number(b.current_length) - Number(a.current_length)).map(group => (
-                    <tr key={`${group.original_length}_${group.current_length}_${group.location}`} style={{ borderBottom: '1px solid var(--border-light)', backgroundColor: 'transparent' }}>
-                      <td className="p-2 text-xs" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{group.original_length} {item.unit === 'SQFT' ? 'ft' : item.unit}</td>
-                      <td className="p-2 text-xs font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{group.current_length} {item.unit === 'SQFT' ? 'ft' : item.unit}</td>
-                      {item.unit === 'SQFT' && (
-                        <>
-                          <td className="p-2 text-xs" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{item.default_width || 0} ft</td>
-                          <td className="p-2 text-xs font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>{(Number(group.current_length) * Number(item.default_width || 0)).toFixed(2)} SQFT</td>
-                        </>
-                      )}
-                      <td className="p-2 text-xs font-semibold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>
-                        {group.location || 'Warehouse'}
-                      </td>
-                      <td className="p-2 text-xs font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--color-accent)' }}>
-                        {group.count} PCS
-                      </td>
-                      <td className="p-2 text-xs font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
+                    <div>
+                      <div className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] mb-0.5">Quantity</div>
+                      <div className="text-xs font-bold text-[var(--color-accent)]">{group.count} PCS</div>
+                    </div>
+                    <div className="pl-4 border-l border-[var(--border-light)]">
+                      <div className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] mb-0.5">Total {item.unit === 'SQFT' ? 'Area' : 'Length'}</div>
+                      <div className="text-xs font-bold text-[var(--text-primary)]">
                         {item.unit === 'SQFT' 
                           ? (Number(group.current_length) * Number(item.default_width || 0) * group.count).toFixed(2) + ' SQFT'
                           : (Number(group.current_length) * group.count).toFixed(2) + ' ' + (item.unit || '')}
-                      </td>
-                      <td className="p-2 flex gap-1 justify-center">
-                        <button 
-                          onClick={() => handlePrintClick(group)} 
-                          className="p-1.5 rounded-md transition-colors hover:bg-[var(--color-accent-bg)] cursor-pointer text-[var(--color-accent)]"
-                          title="Print Barcode"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0v-2.94a2.25 2.25 0 012.25-2.25h6a2.25 2.25 0 012.25 2.25v2.94z" />
-                          </svg>
-                        </button>
-                        <button 
-                          onClick={() => handleDiscardClick(group)} 
-                          className="p-1.5 rounded-md transition-colors hover:bg-red-50 text-red-500 cursor-pointer"
-                          title="Discard Piece"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                          </svg>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-1 justify-end shrink-0 mt-3 md:mt-0">
+                    <button 
+                      onClick={() => handlePrintClick(group)} 
+                      className="p-2 rounded-md transition-colors hover:bg-[var(--color-accent-bg)] text-[var(--color-accent)]"
+                      title="Print Barcode"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0v-2.94a2.25 2.25 0 012.25-2.25h6a2.25 2.25 0 012.25 2.25v2.94z" /></svg>
+                    </button>
+                    <button 
+                      onClick={() => handleDiscardClick(group)} 
+                      className="p-2 rounded-md transition-colors hover:bg-red-50 text-red-500"
+                      title="Discard Piece"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

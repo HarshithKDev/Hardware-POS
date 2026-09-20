@@ -237,65 +237,81 @@ export default function InventoryRow({ item, viewType, categories, subcategories
       </tr>
 
       {isExpanded && item.batches && (
-        <tr className="block md:table-row" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+        <tr className="block md:table-row bg-[var(--bg-tertiary)] border-t-0">
           <td colSpan="11" className="block md:table-cell p-0" style={{ borderBottom: item.is_cuttable ? 'none' : '2px solid var(--color-success)' }}>
-            <div className={`p-6 px-8 animate-fade-in shadow-inner overflow-x-auto w-full ${item.is_cuttable ? 'pb-2' : ''}`}>
-              <div className="flex justify-between items-center mb-3">
-                <p className="text-xs font-bold uppercase tracking-widest text-[var(--text-tertiary)] pb-2 border-b border-[var(--border-light)] flex-1">
-                  Available Batches for {item.name} {item.is_cuttable && <span className="ml-2 text-[10px] font-normal lowercase opacity-70">(click a batch to view its pieces)</span>}
-                </p>
-                <button onClick={() => onToggleExpand(item.barcode)} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] font-bold ml-4">✕</button>
-              </div>
-              <div className="rounded-lg border border-[var(--border-light)] overflow-hidden bg-[var(--bg-secondary)] shadow-sm min-w-[600px]">
-                <table className="w-full text-center text-sm border-collapse">
-                  <thead className="bg-[var(--bg-hover)] border-b border-[var(--border-light)]">
-                    <tr className="text-[10px] uppercase font-bold text-[var(--text-secondary)]">
-                      <th className="p-3 border-r border-[var(--border-light)]">Batch Number</th>
-                      <th className="p-3 border-r border-[var(--border-light)]">Cost (₹)</th>
-                      <th className="p-3 border-r border-[var(--border-light)]">MSP (₹)</th>
-                      <th className="p-3 border-r border-[var(--border-light)]">MRP (₹)</th>
-                      <th className="p-3 border-r border-[var(--border-light)]">Whse Qty</th>
-                      <th className="p-3 border-r border-[var(--border-light)]">Store Qty</th>
-                      <th className="p-3">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {item.batches.length === 0 ? (
-                      <tr>
-                        <td colSpan="7" className="p-8 text-center text-[var(--text-tertiary)] text-xs font-semibold">
-                          No batches found. Click the + BATCH button to create one.
-                        </td>
-                      </tr>
-                    ) : item.batches.map(batch => (
-                      <React.Fragment key={batch.batch_id}>
-                      <tr 
+            <div className="w-full overflow-hidden animate-fade-in shadow-inner">
+              <div className={`flex-1 p-6 ${item.is_cuttable ? 'pb-2' : ''}`}>
+                <div className="flex justify-between items-center mb-4">
+                  <p className="text-xs font-bold uppercase tracking-widest text-[var(--text-tertiary)] flex-1">
+                    Available Batches
+                    {item.is_cuttable && <span className="ml-2 text-[10px] font-normal lowercase opacity-70">(click a batch to view pieces)</span>}
+                  </p>
+                  <button onClick={() => onToggleExpand(item.barcode)} className="px-3 py-1.5 rounded-md text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors hover:opacity-90" style={{ backgroundColor: 'var(--color-error)' }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    Close
+                  </button>
+                </div>
+                
+                <div className="flex flex-col gap-3 min-w-0">
+                  {item.batches.length === 0 ? (
+                    <div className="p-8 text-center text-[var(--text-tertiary)] text-xs font-semibold rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)]">
+                      {viewType === 'recycle' ? 'No batches found. Restore item to manage batches.' : 'No batches found. Click the + BATCH button to create one.'}
+                    </div>
+                  ) : item.batches.map(batch => (
+                    <React.Fragment key={batch.batch_id}>
+                      <div 
                         onClick={() => {
                           if (item.is_cuttable) {
                             setExpandedBatchId(expandedBatchId === batch.batch_id ? null : batch.batch_id);
                           }
                         }}
-                        className={`border-b border-[var(--border-light)] last:border-0 transition-colors ${item.is_cuttable ? 'cursor-pointer hover:bg-[var(--bg-hover)]' : ''}`}
+                        className={`flex flex-col md:flex-row md:items-center justify-between p-4 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)] shadow-sm transition-all ${item.is_cuttable ? 'cursor-pointer hover:border-[var(--border-heavy)] hover:-translate-y-px' : ''}`}
                       >
-                        <td className="p-3 text-xs font-medium text-[var(--text-secondary)] border-r border-[var(--border-light)] relative">
+                        <div className="flex items-center gap-4 mb-3 md:mb-0 md:w-1/4">
                           {item.is_cuttable && (
-                            <div className="absolute left-3 top-1/2 -translate-y-1/2">
-                               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={`w-3 h-3 transition-transform duration-200 text-[var(--color-accent)] ${expandedBatchId === batch.batch_id ? 'rotate-90' : 'rotate-0'}`}>
-                                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                               </svg>
+                            <div className={`transition-transform duration-200 text-[var(--text-tertiary)] ${expandedBatchId === batch.batch_id ? 'rotate-90 text-[var(--color-accent)]' : ''}`}>
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
                             </div>
                           )}
-                          <span className={item.is_cuttable ? "ml-4" : ""}>{item.barcode}-{String(batch.batch_number || 1).padStart(2, '0')}</span>
-                        </td>
-                        <td className="p-3 font-medium text-[var(--text-primary)] border-r border-[var(--border-light)]">{Number(batch.purchase_cost).toFixed(2)}</td>
-                        <td className="p-3 font-medium text-[var(--text-primary)] border-r border-[var(--border-light)]">{Number(batch.msp).toFixed(2)}</td>
-                        <td className="p-3 font-medium text-[var(--text-primary)] border-r border-[var(--border-light)]">{Number(batch.selling_price).toFixed(2)}</td>
-                        <td className="p-3 font-bold text-[var(--color-accent)] border-r border-[var(--border-light)]">{batch.stock_warehouse}</td>
-                        <td className="p-3 font-bold text-[var(--color-success)] border-r border-[var(--border-light)]">{batch.stock_store}</td>
-                        <td className="p-3 flex items-center justify-center gap-2">
+                          <div>
+                            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">Batch ID</div>
+                            <div className="text-sm font-semibold font-mono text-[var(--text-primary)]">{item.barcode}-{String(batch.batch_number || 1).padStart(2, '0')}</div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-wrap md:flex-nowrap items-center gap-6 md:w-1/2">
+                          <div>
+                            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">Cost</div>
+                            <div className="text-sm font-medium text-[var(--text-primary)]">₹{Number(batch.purchase_cost).toFixed(2)}</div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">MSP</div>
+                            <div className="text-sm font-medium text-[var(--text-primary)]">₹{Number(batch.msp).toFixed(2)}</div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">MRP</div>
+                            <div className="text-sm font-medium text-[var(--text-primary)]">₹{Number(batch.selling_price).toFixed(2)}</div>
+                          </div>
+                          <div className="pl-0 md:pl-6 border-l-0 md:border-l border-[var(--border-light)]">
+                            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">Whse / Store</div>
+                            <div className="text-sm font-bold flex gap-2">
+                              <span>
+                                <span className="text-[var(--color-accent)]">{batch.stock_warehouse}</span>
+                                <span className="text-[10px] ml-1 font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
+                              </span>
+                              <span className="text-[var(--text-tertiary)]">/</span>
+                              <span>
+                                <span className="text-[var(--color-success)]">{batch.stock_store}</span>
+                                <span className="text-[10px] ml-1 font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 mt-4 md:mt-0 md:w-1/4 md:justify-end">
                           <button 
                             onClick={(e) => {
-                              e.stopPropagation();
-                              e.preventDefault();
+                              e.stopPropagation(); e.preventDefault();
                               if (viewType !== 'recycle') onPrint && onPrint(batch);
                             }}
                             className={`px-3 py-1.5 rounded-md transition-colors font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 border ${
@@ -303,54 +319,37 @@ export default function InventoryRow({ item, viewType, categories, subcategories
                                 ? 'border-[var(--border-medium)] text-[var(--text-tertiary)] opacity-50 cursor-not-allowed'
                                 : 'hover:bg-[var(--color-accent-bg)] text-[var(--color-accent)] border-[var(--color-accent)] cursor-pointer'
                             }`}
-                            title={viewType === 'recycle' ? "Cannot print from recycle bin" : "Print this batch"}
-                            disabled={viewType === 'recycle'}
+                            title="Print this batch" disabled={viewType === 'recycle'}
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0v-2.94a2.25 2.25 0 012.25-2.25h6a2.25 2.25 0 012.25 2.25v2.94z" />
-                            </svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0v-2.94a2.25 2.25 0 012.25-2.25h6a2.25 2.25 0 012.25 2.25v2.94z" /></svg>
                             Print
                           </button>
                           <button 
                             onClick={(e) => {
-                              e.stopPropagation();
-                              e.preventDefault();
-                              if (viewType !== 'recycle' && Number(batch.stock_warehouse) === 0 && Number(batch.stock_store) === 0) {
-                                onDeleteBatch && onDeleteBatch(batch.batch_id);
-                              }
+                              e.stopPropagation(); e.preventDefault();
+                              if (viewType !== 'recycle' && Number(batch.stock_warehouse) === 0 && Number(batch.stock_store) === 0) onDeleteBatch && onDeleteBatch(batch.batch_id);
                             }}
                             className={`px-3 py-1.5 rounded-md transition-colors font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 border ${
                               viewType !== 'recycle' && Number(batch.stock_warehouse) === 0 && Number(batch.stock_store) === 0
-                                ? 'border-red-500 text-red-500 hover:bg-red-50 cursor-pointer'
+                                ? 'border-red-500 text-red-500 hover:bg-red-500/10 cursor-pointer'
                                 : 'border-[var(--border-medium)] text-[var(--text-tertiary)] opacity-50 cursor-not-allowed'
                             }`}
-                            title={
-                              viewType === 'recycle'
-                                ? "Cannot delete from recycle bin"
-                                : Number(batch.stock_warehouse) === 0 && Number(batch.stock_store) === 0
-                                ? "Delete empty batch"
-                                : "Cannot delete batch with stock"
-                            }
+                            title={Number(batch.stock_warehouse) === 0 && Number(batch.stock_store) === 0 ? 'Delete empty batch' : 'Cannot delete batch with stock'}
                             disabled={viewType === 'recycle' || !(Number(batch.stock_warehouse) === 0 && Number(batch.stock_store) === 0)}
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                            </svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
                             Delete
                           </button>
-                        </td>
-                      </tr>
+                        </div>
+                      </div>
                       {item.is_cuttable && expandedBatchId === batch.batch_id && (
-                        <tr className="bg-[var(--bg-primary)] border-b border-[var(--border-light)]">
-                          <td colSpan="7" className="p-0">
-                            <StockInstancesModal isOpen={true} onClose={() => setExpandedBatchId(null)} item={item} inline={true} filterBatchId={batch.batch_id} />
-                          </td>
-                        </tr>
+                        <div className="ml-4 md:ml-12 pl-4 border-l-2 border-[var(--border-light)] pb-4 mt-2">
+                          <StockInstancesModal isOpen={true} onClose={() => setExpandedBatchId(null)} item={item} inline={true} filterBatchId={batch.batch_id} />
+                        </div>
                       )}
-                      </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
+                    </React.Fragment>
+                  ))}
+                </div>
               </div>
             </div>
           </td>

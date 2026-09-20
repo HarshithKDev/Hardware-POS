@@ -51,10 +51,10 @@
   --text-input: var(--linear-text);
   --text-input-disabled: var(--linear-text-muted);
 
-  --border-light: var(--linear-border);
-  --border-medium: var(--linear-border);
-  --border-heavy: var(--linear-border-hover);
-  --border-input: var(--linear-border);
+  --border-light: rgba(255, 255, 255, 0.08);
+  --border-medium: rgba(255, 255, 255, 0.12);
+  --border-heavy: rgba(255, 255, 255, 0.2);
+  --border-input: rgba(255, 255, 255, 0.12);
   --border-input-focus: var(--linear-accent);
 
   --color-accent: var(--linear-accent);
@@ -149,14 +149,13 @@ select,
 textarea {
   background-color: var(--bg-input);
   color: var(--text-input);
-  border: 1px solid var(--border-input);
-  border-radius: 6px;
-  /* Linear uses subtle rounding */
-  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-medium);
+  border-radius: 8px;
+  padding: 0.625rem 0.875rem;
   font-size: 0.875rem;
   line-height: 1.5;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) inset;
 }
 
 input:focus,
@@ -164,7 +163,7 @@ select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 1px var(--color-accent), inset 0 1px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 0 0 3px var(--color-accent-bg), 0 1px 2px rgba(0, 0, 0, 0.1) inset;
 }
 
 input:hover:not(:disabled, :focus),
@@ -245,6 +244,15 @@ input[type="search"]::-webkit-search-results-decoration {
   background-color: var(--color-error-bg);
   border: 1px solid rgba(239, 68, 68, 0.2);
   border-radius: 8px;
+}
+
+/* ---------------------------------------------------------------
+   CUSTOM UTILITIES
+   --------------------------------------------------------------- */
+.backdrop-blur-modal {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background-color: rgba(0, 0, 0, 0.4);
 }
 
 /* ---------------------------------------------------------------

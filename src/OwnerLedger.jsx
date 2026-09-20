@@ -186,10 +186,10 @@ export default function OwnerLedger({ isActive }) {
               <table className={`w-full max-w-full text-left border-collapse block md:table min-w-0 md:min-w-[700px] ${(isLoadingBills && bills.length === 0 || bills.length === 0) ? 'h-full' : ''}`}>
             <thead className="hidden md:table-header-group sticky top-0 z-10 glass-header" style={{ borderBottom: '1px solid var(--border-medium)' }}>
               <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                <th className="p-3 w-48 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Date & Time</th>
-                <th className="p-3 w-32 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Cashier</th>
-                <th className="p-3 w-32 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Total (₹)</th>
-                <th className="p-3 text-center w-16">Details</th>
+                <th className="py-4 px-3 w-48 text-left border-none">Date & Time</th>
+                <th className="py-4 px-3 w-32 text-left border-none">Cashier</th>
+                <th className="py-4 px-3 w-32 text-right border-none">Total (₹)</th>
+                <th className="py-4 px-3 text-center w-16 border-none">Details</th>
               </tr>
             </thead>
             <tbody className="block md:table-row-group p-2 md:p-0">
@@ -222,16 +222,16 @@ export default function OwnerLedger({ isActive }) {
                         </div>
                       </td>
 
-                      <td className="hidden md:table-cell p-3 text-sm text-center" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>
+                      <td className="hidden md:table-cell py-4 px-3 text-sm text-left border-none" style={{ color: 'var(--text-primary)' }}>
                         {formatDateTime(bill.created_at).full}
                       </td>
-                      <td className="hidden md:table-cell p-3 text-sm text-center capitalize" style={{ color: 'var(--text-secondary)', borderRight: '1px solid var(--border-light)' }}>
+                      <td className="hidden md:table-cell py-4 px-3 text-sm text-left capitalize border-none" style={{ color: 'var(--text-secondary)' }}>
                         {bill.cashier_name}
                       </td>
-                      <td className="hidden md:table-cell p-3 text-center text-sm font-bold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>
+                      <td className="hidden md:table-cell py-4 px-3 text-right text-sm font-bold border-none" style={{ color: 'var(--text-primary)' }}>
                         ₹{Number(bill.total_amount).toFixed(2)}
                       </td>
-                      <td className="hidden md:table-cell p-3 text-center h-full">
+                      <td className="hidden md:table-cell py-4 px-3 text-center h-full border-none">
                         <div className="flex justify-center items-center">
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={`w-5 h-5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`} style={{ color: isExpanded ? 'var(--color-accent)' : 'var(--text-secondary)' }}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -253,13 +253,13 @@ export default function OwnerLedger({ isActive }) {
                                 <table className="w-full text-left border-collapse block md:table" style={{ backgroundColor: 'var(--bg-secondary)' }}>
                                   <thead className="hidden md:table-header-group" style={{ backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-light)' }}>
                                     <tr className="text-xs font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>
-                                      <th className="px-4 py-2 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Item Name</th>
-                                      <th className="px-4 py-2 text-center w-24" style={{ borderRight: '1px solid var(--border-light)' }}>Qty (Billed)</th>
-                                      <th className="px-4 py-2 text-center w-24" style={{ borderRight: '1px solid var(--border-light)' }}>MRP (System)</th>
-                                      <th className="px-4 py-2 text-center w-24" style={{ borderRight: '1px solid var(--border-light)' }}>Sold At</th>
-                                      <th className="px-4 py-2 text-center w-24" style={{ borderRight: '1px solid var(--border-light)' }}>Disc %</th>
-                                      <th className="px-4 py-2 text-center w-24" style={{ borderRight: '1px solid var(--border-light)' }}>Total</th>
-                                      <th className="px-4 py-2 text-center w-24" style={{ color: 'var(--color-success)' }}>Profit</th>
+                                      <th className="py-3 px-4 text-left border-none">Item Name</th>
+                                      <th className="py-3 px-4 text-center w-24 border-none">Qty (Billed)</th>
+                                      <th className="py-3 px-4 text-center w-24 border-none">MRP (System)</th>
+                                      <th className="py-3 px-4 text-center w-24 border-none">Sold At</th>
+                                      <th className="py-3 px-4 text-center w-24 border-none">Disc %</th>
+                                      <th className="py-3 px-4 text-center w-24 border-none">Total</th>
+                                      <th className="py-3 px-4 text-right w-24 border-none" style={{ color: 'var(--color-success)' }}>Profit</th>
                                     </tr>
                                   </thead>
                                   <tbody className="block md:table-row-group">
@@ -274,24 +274,24 @@ export default function OwnerLedger({ isActive }) {
                                             {item.quantity} {item.unit} × ₹{Number(item.price_at_sale).toFixed(2)} <span className="opacity-70">(MRP: ₹{Number(item.selling_price || item.system_price || item.price_at_sale).toFixed(2)})</span>
                                           </div>
                                         </td>
-                                        <td className="hidden md:table-cell px-4 py-2 text-sm font-medium text-center" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
-                                        <td className="hidden md:table-cell px-4 py-2 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+                                        <td className="hidden md:table-cell py-3 px-4 text-sm font-medium text-left border-none" style={{ color: 'var(--text-primary)' }}>{item.name}</td>
+                                        <td className="hidden md:table-cell py-3 px-4 text-sm text-center border-none">
                                           {Number(item.actual_quantity) !== Number(item.billable_quantity) && (
                                              <div className="text-[10px] text-[var(--text-tertiary)]">Act: {item.actual_quantity}</div>
                                           )}
                                           {item.billable_quantity || item.quantity} {item.unit}
                                         </td>
-                                        <td className="hidden md:table-cell px-4 py-2 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+                                        <td className="hidden md:table-cell py-3 px-4 text-sm text-center border-none">
                                           ₹{Number(item.selling_price || item.system_price || item.price_at_sale).toFixed(2)}
                                         </td>
-                                        <td className="hidden md:table-cell px-4 py-2 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: Number(item.price_at_sale) < Number(item.selling_price || item.system_price || item.price_at_sale) ? 'var(--color-accent)' : 'inherit' }}>
+                                        <td className="hidden md:table-cell py-3 px-4 text-sm text-center border-none" style={{ color: Number(item.price_at_sale) < Number(item.selling_price || item.system_price || item.price_at_sale) ? 'var(--color-accent)' : 'inherit' }}>
                                           ₹{Number(item.price_at_sale).toFixed(2)}
                                         </td>
-                                        <td className="hidden md:table-cell px-4 py-2 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+                                        <td className="hidden md:table-cell py-3 px-4 text-sm text-center border-none">
                                           {Number(item.negotiated_discount || 0).toFixed(1)}%
                                         </td>
-                                        <td className="hidden md:table-cell px-4 py-2 text-sm text-center font-bold" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>₹{(item.price_at_sale * (item.billable_quantity || item.quantity)).toFixed(2)}</td>
-                                        <td className="hidden md:table-cell px-4 py-2 text-sm text-center font-bold" style={{ color: 'var(--color-success)' }}>₹{Number(item.profit || 0).toFixed(2)}</td>
+                                        <td className="hidden md:table-cell py-3 px-4 text-sm text-center font-bold border-none" style={{ color: 'var(--text-primary)' }}>₹{(item.price_at_sale * (item.billable_quantity || item.quantity)).toFixed(2)}</td>
+                                        <td className="hidden md:table-cell py-3 px-4 text-sm text-right font-bold border-none" style={{ color: 'var(--color-success)' }}>₹{Number(item.profit || 0).toFixed(2)}</td>
                                       </tr>
                                     ))}
                                   </tbody>
