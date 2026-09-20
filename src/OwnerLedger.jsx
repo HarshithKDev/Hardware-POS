@@ -255,7 +255,8 @@ export default function OwnerLedger({ isActive }) {
                                     <tr className="text-xs font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>
                                       <th className="px-4 py-2 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Item Name</th>
                                       <th className="px-4 py-2 text-center w-24" style={{ borderRight: '1px solid var(--border-light)' }}>Qty (Billed)</th>
-                                      <th className="px-4 py-2 text-center w-24" style={{ borderRight: '1px solid var(--border-light)' }}>Price</th>
+                                      <th className="px-4 py-2 text-center w-24" style={{ borderRight: '1px solid var(--border-light)' }}>MRP (System)</th>
+                                      <th className="px-4 py-2 text-center w-24" style={{ borderRight: '1px solid var(--border-light)' }}>Sold At</th>
                                       <th className="px-4 py-2 text-center w-24" style={{ borderRight: '1px solid var(--border-light)' }}>Disc %</th>
                                       <th className="px-4 py-2 text-center w-24" style={{ borderRight: '1px solid var(--border-light)' }}>Total</th>
                                       <th className="px-4 py-2 text-center w-24" style={{ color: 'var(--color-success)' }}>Profit</th>
@@ -270,7 +271,7 @@ export default function OwnerLedger({ isActive }) {
                                             <div className="text-sm font-bold text-[var(--text-primary)]">₹{(item.price_at_sale * item.quantity).toFixed(2)}</div>
                                           </div>
                                           <div className="text-xs text-[var(--text-secondary)]">
-                                            {item.quantity} {item.unit} × ₹{Number(item.price_at_sale).toFixed(2)}
+                                            {item.quantity} {item.unit} × ₹{Number(item.price_at_sale).toFixed(2)} <span className="opacity-70">(MRP: ₹{Number(item.selling_price || item.system_price || item.price_at_sale).toFixed(2)})</span>
                                           </div>
                                         </td>
                                         <td className="hidden md:table-cell px-4 py-2 text-sm font-medium text-center" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
@@ -281,9 +282,9 @@ export default function OwnerLedger({ isActive }) {
                                           {item.billable_quantity || item.quantity} {item.unit}
                                         </td>
                                         <td className="hidden md:table-cell px-4 py-2 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
-                                          {Number(item.negotiated_discount) > 0 && (
-                                            <div className="text-[10px] text-[var(--text-tertiary)] line-through">₹{Number(item.system_price || item.price_at_sale).toFixed(2)}</div>
-                                          )}
+                                          ₹{Number(item.selling_price || item.system_price || item.price_at_sale).toFixed(2)}
+                                        </td>
+                                        <td className="hidden md:table-cell px-4 py-2 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)', color: Number(item.price_at_sale) < Number(item.selling_price || item.system_price || item.price_at_sale) ? 'var(--color-accent)' : 'inherit' }}>
                                           ₹{Number(item.price_at_sale).toFixed(2)}
                                         </td>
                                         <td className="hidden md:table-cell px-4 py-2 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)' }}>

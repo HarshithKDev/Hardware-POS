@@ -170,7 +170,7 @@ function SalesTrendChart() {
 
       return Object.values(trendData).map(item => ({
         ...item,
-        heightPct: maxRev === 0 ? 0 : (item.rev / maxRev) * 100
+        heightPct: maxRev === 0 ? 0 : (item.rev / maxRev) * 85
       }));
     },
     staleTime: STALE_TIME_5MIN
@@ -302,7 +302,7 @@ export default function OwnerStats({ isActive }) {
       // Fetch in sequential batches to prevent network stall
       for (const batch of chunks) {
         const res = await supabase.from('bill_items')
-          .select('name, quantity, price_at_sale, cost_at_sale, unit, bill_id, profit, cost_allocated, billable_quantity, system_price')
+          .select('name, quantity, price_at_sale, cost_at_sale, unit, bill_id, profit, cost_allocated, billable_quantity, system_price, selling_price')
           .in('bill_id', batch);
         batchResults.push(res);
       }
@@ -324,7 +324,7 @@ export default function OwnerStats({ isActive }) {
           // Use pre-calculated profit and cost_allocated from DB if available, else fallback
           const lineCost = item.cost_allocated !== undefined && item.cost_allocated !== null ? Number(item.cost_allocated) : (Number(item.cost_at_sale || 0) * Number(item.quantity || 0));
           const lineRev = price * qty;
-          const lineSystemRev = Number(item.system_price || price) * qty;
+          const lineSystemRev = Number(item.selling_price || item.system_price || price) * qty;
           const lineProfit = item.profit !== undefined && item.profit !== null ? Number(item.profit) : (lineRev - lineCost);
 
           if (productStats30Days[cleanName]) {
@@ -481,6 +481,7 @@ export default function OwnerStats({ isActive }) {
         <StatCard
           title="Today Profit"
           value={`₹${todaysGrossProfit.toFixed(2)}`}
+          accentColor="var(--color-success)"
           borderColor="var(--color-success)"
           onClick={() => setActiveModal('profit')}
           clickLabel="View today's profit details"

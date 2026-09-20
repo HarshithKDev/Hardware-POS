@@ -1,9 +1,11 @@
 import { openDB } from 'idb';
+import { supabase } from '../supabaseClient';
 
 const DB_NAME = 'HardwarePOSDB';
 const DB_VERSION = 3;
 
 let cachedInventory = null;
+let pieceCountCache = {};
 
 export const initDB = async () => {
   return openDB(DB_NAME, DB_VERSION, {
@@ -86,19 +88,47 @@ export const getInventoryByQuery = async ({ limit, offset, search, category, sub
     return String(a).localeCompare(String(b));
   };
 
+  if (sortOption?.startsWith('whsestock') || sortOption?.startsWith('storestock')) {
+    const cuttableItems = allItems.filter(i => i.is_cuttable);
+    const uncachedItems = cuttableItems.filter(i => !pieceCountCache[i.barcode]);
+    
+    if (uncachedItems.length > 0) {
+      const promises = uncachedItems.map(async (item) => {
+        try {
+          const { data } = await supabase.rpc('get_piece_counts', { p_barcode: String(item.barcode) });
+          pieceCountCache[item.barcode] = data || { warehouse: 0, store: 0 };
+        } catch (err) {
+          console.error("Failed to fetch piece count for sort:", err);
+          pieceCountCache[item.barcode] = { warehouse: 0, store: 0 };
+        }
+      });
+      await Promise.all(promises);
+    }
+  }
+
   if (sortOption === 'barcode-asc') allItems.sort((a, b) => compareBarcodes(a.barcode, b.barcode));
   else if (sortOption === 'barcode-desc') allItems.sort((a, b) => compareBarcodes(b.barcode, a.barcode));
   else if (sortOption === 'name-asc') allItems.sort((a, b) => a.name.localeCompare(b.name));
   else if (sortOption === 'name-desc') allItems.sort((a, b) => b.name.localeCompare(a.name));
-  else if (sortOption === 'stock-asc') allItems.sort((a, b) => {
-      const stockA = a.batches ? a.batches.reduce((sum, batch) => sum + Number(viewType === 'warehouse' ? batch.stock_warehouse : batch.stock_store), 0) : 0;
-      const stockB = b.batches ? b.batches.reduce((sum, batch) => sum + Number(viewType === 'warehouse' ? batch.stock_warehouse : batch.stock_store), 0) : 0;
-      return stockA - stockB;
+  else if (sortOption === 'category-asc') allItems.sort((a, b) => (a.category || '').localeCompare(b.category || ''));
+  else if (sortOption === 'category-desc') allItems.sort((a, b) => (b.category || '').localeCompare(a.category || ''));
+  else if (sortOption === 'subcategory-asc') allItems.sort((a, b) => (a.sub_category || '').localeCompare(b.sub_category || ''));
+  else if (sortOption === 'subcategory-desc') allItems.sort((a, b) => (b.sub_category || '').localeCompare(a.sub_category || ''));
+  else if (sortOption === 'whsestock-asc') allItems.sort((a, b) => {
+      const getWhse = (item) => item.is_cuttable ? (pieceCountCache[item.barcode]?.warehouse || 0) : (item.batches?.length ? item.batches.reduce((sum, batch) => sum + Number(batch.stock_warehouse), 0) : Number(item.stock_warehouse || 0));
+      return getWhse(a) - getWhse(b);
   });
-  else if (sortOption === 'stock-desc') allItems.sort((a, b) => {
-      const stockA = a.batches ? a.batches.reduce((sum, batch) => sum + Number(viewType === 'warehouse' ? batch.stock_warehouse : batch.stock_store), 0) : 0;
-      const stockB = b.batches ? b.batches.reduce((sum, batch) => sum + Number(viewType === 'warehouse' ? batch.stock_warehouse : batch.stock_store), 0) : 0;
-      return stockB - stockA;
+  else if (sortOption === 'whsestock-desc') allItems.sort((a, b) => {
+      const getWhse = (item) => item.is_cuttable ? (pieceCountCache[item.barcode]?.warehouse || 0) : (item.batches?.length ? item.batches.reduce((sum, batch) => sum + Number(batch.stock_warehouse), 0) : Number(item.stock_warehouse || 0));
+      return getWhse(b) - getWhse(a);
+  });
+  else if (sortOption === 'storestock-asc') allItems.sort((a, b) => {
+      const getStore = (item) => item.is_cuttable ? (pieceCountCache[item.barcode]?.store || 0) : (item.batches?.length ? item.batches.reduce((sum, batch) => sum + Number(batch.stock_store), 0) : Number(item.stock_store || 0));
+      return getStore(a) - getStore(b);
+  });
+  else if (sortOption === 'storestock-desc') allItems.sort((a, b) => {
+      const getStore = (item) => item.is_cuttable ? (pieceCountCache[item.barcode]?.store || 0) : (item.batches?.length ? item.batches.reduce((sum, batch) => sum + Number(batch.stock_store), 0) : Number(item.stock_store || 0));
+      return getStore(b) - getStore(a);
   });
   else allItems.sort((a, b) => a.barcode.localeCompare(b.barcode));
 

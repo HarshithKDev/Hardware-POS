@@ -52,7 +52,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   // Cuttable item states
   const [selectPieceModal, setSelectPieceModal] = useState({ isOpen: false, item: null, instances: [], isLoading: false, action: 'checkout' });
   const [cutLengthModal, setCutLengthModal] = useState({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false });
-  const [receiveLengthModal, setReceiveLengthModal] = useState({ isOpen: false, item: null, length: '' });
+  const [receiveLengthModal, setReceiveLengthModal] = useState({ isOpen: false, item: null, length: '', batch: null, instanceBarcode: null });
+  const [manualInstanceBarcodeModal, setManualInstanceBarcodeModal] = useState({ isOpen: false, item: null, batch: null, barcodeInput: '', prefix: '' });
   
   // Batch selection
   const [selectBatchModal, setSelectBatchModal] = useState({ isOpen: false, item: null, batches: [] });
@@ -232,7 +233,20 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
           setCart(prev => {
             const idx = prev.findIndex(c => c.instance_barcode === scannedInstanceBarcode);
-            if (idx >= 0) return prev;
+            if (idx >= 0) {
+              showAlertRef.current(`Piece #${scannedInstanceBarcode} is already in the cart!`, "Duplicate Scan");
+              return prev;
+            }
+            
+            // Check if it exists in the database
+            supabase.from('stock_instances').select('id').eq('instance_barcode', scannedInstanceBarcode).maybeSingle().then(({ data }) => {
+              if (data) {
+                showAlertRef.current(`Piece #${scannedInstanceBarcode} already exists in the warehouse!`, "Already Exists");
+                // Remove it from the cart since we just optimistically added it
+                setCart(current => current.filter(c => c.instance_barcode !== scannedInstanceBarcode));
+              }
+            });
+
             return [...prev, { 
               ...item, 
               id: generateId(), 
@@ -281,11 +295,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             return showAlertRef.current(`No batches exist for ${item.name}. Please create a batch first.`, "No Batches");
           }
 
-          setReceiveLengthModal({
+          setManualInstanceBarcodeModal({
             isOpen: true,
             item,
             batch: autoSelectedBatch,
-            length: ''
+            prefix: autoSelectedBatch ? `${item.barcode}-${String(autoSelectedBatch.batch_number).padStart(2, '0')}` : item.barcode,
+            barcodeInput: ''
           });
         }
         setManualBarcode('');
@@ -533,7 +548,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     setSelectBatchModal({ isOpen: false, item: null, batches: [] });
     
     if (item.is_cuttable && activeTabRef.current === 'receive') {
-      setReceiveLengthModal({ isOpen: true, item, length: '', batch });
+      setManualInstanceBarcodeModal({
+        isOpen: true,
+        item,
+        batch,
+        prefix: `${item.barcode}-${String(batch.batch_number).padStart(2, '0')}`,
+        barcodeInput: ''
+      });
       return;
     }
     
@@ -573,7 +594,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     }
 
     const currentLength = Number(instance.current_length);
-    const alreadyInCart = cart.filter(c => c.instance_barcode === instance.instance_barcode).reduce((tot, c) => tot + Number(c.length || 0), 0);
+    const alreadyInCart = cart.filter(c => c.instance_barcode === instance.instance_barcode).reduce((tot, c) => tot + ((Number(c.length) || 0) * (Number(c.rolls) || 1)), 0);
     const availableLength = currentLength - alreadyInCart;
     if (!isNaN(currentLength) && addQty > availableLength) {
       if (alreadyInCart > 0) {
@@ -585,11 +606,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     }
 
     setCart(prev => {
-      const idx = prev.findIndex(c => c.instance_barcode === instance.instance_barcode);
-      if (idx >= 0) {
-        return prev;
-      }
-      
       const batch = item.batches?.find(b => b.batch_id === instance.batch_id);
       const sellingPrice = batch ? batch.selling_price : (item.price || 0);
       const purchaseCost = batch ? batch.purchase_cost : (item.cost_price || 0);
@@ -619,32 +635,67 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     setCutLengthModal({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false });
   };
 
-  const handleReceiveLengthSubmit = (e) => {
-    if (e) e.preventDefault();
-    if (!receiveLengthModal.length) return;
-
-    const { item, length, batch } = receiveLengthModal;
+  const addReceivedCuttableItem = (item, length, batch, instanceBarcode = null) => {
     setCart(prev => {
-      const idx = prev.findIndex(c => c.barcode === item.barcode && c.pieceLength === length && c.batch_id === (batch?.batch_id || null));
-      if (idx >= 0) {
-        const up = [...prev];
-        up[idx] = { ...up[idx], quantity: (Number(up[idx].quantity) || 0) + 1, billableQuantity: (Number(up[idx].quantity) || 0) + 1 };
-        return up;
-      }
       return [{ 
         ...item, 
         id: generateId(),
+        instance_barcode: instanceBarcode,
+        scanned_barcode: instanceBarcode || (batch ? `${item.barcode}-${String(batch.batch_number).padStart(2, '0')}` : item.barcode),
         quantity: 1, 
         billableQuantity: 1,
         pieceLength: length, 
         batch_id: batch?.batch_id || null,
+        batch_number: batch?.batch_number || null,
         customPriceInput: Number(batch ? batch.selling_price : item.price || 0).toFixed(2),
         purchase_cost: Number(batch ? batch.purchase_cost : item.cost_price || 0).toFixed(2),
         selling_price: Number(batch ? batch.selling_price : item.price || 0).toFixed(2),
         msp_price: Number(batch ? batch.msp : item.msp || 0).toFixed(2)
       }, ...prev];
     });
-    setReceiveLengthModal({ isOpen: false, item: null, length: '', batch: null });
+  };
+
+  const handleReceiveLengthSubmit = (e) => {
+    if (e) e.preventDefault();
+    if (!receiveLengthModal.length) return;
+    addReceivedCuttableItem(receiveLengthModal.item, receiveLengthModal.length, receiveLengthModal.batch, receiveLengthModal.instanceBarcode);
+    setReceiveLengthModal({ isOpen: false, item: null, length: '', batch: null, instanceBarcode: null });
+  };
+
+  const handleManualInstanceBarcodeSubmit = async (e) => {
+    if (e) e.preventDefault();
+    const { item, batch, barcodeInput, prefix } = manualInstanceBarcodeModal;
+    if (!barcodeInput || !barcodeInput.trim()) return;
+
+    const fullBarcode = `${prefix}${barcodeInput.trim()}`;
+
+    if (cart.some(c => c.instance_barcode === fullBarcode)) {
+      showAlertRef.current(`Piece #${fullBarcode} is already in the cart!`, "Duplicate");
+      return;
+    }
+
+    try {
+      const { data: existing } = await supabase.from('stock_instances').select('id').eq('instance_barcode', fullBarcode).maybeSingle();
+      if (existing) {
+        showAlertRef.current(`Piece #${fullBarcode} already exists in the system!`, "Already Exists");
+        return;
+      }
+    } catch (err) {
+      console.error(err);
+    }
+
+    if (item.default_length) {
+      addReceivedCuttableItem(item, item.default_length, batch, fullBarcode);
+    } else {
+      setReceiveLengthModal({
+        isOpen: true,
+        item,
+        batch,
+        length: '',
+        instanceBarcode: fullBarcode
+      });
+    }
+    setManualInstanceBarcodeModal({ isOpen: false, item: null, batch: null, barcodeInput: '', prefix: '' });
   };
 
   const updateQuantity = (id, val) => {
@@ -672,7 +723,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             billableQty = Math.round(Number(newQty));
           }
           
-          return { ...i, quantity: newQty, billableQuantity: billableQty, pieceLength: (i.is_cuttable && i.unit !== 'SQFT') ? newQty : i.pieceLength };
+          return { ...i, quantity: newQty, billableQuantity: billableQty, pieceLength: (i.is_cuttable && i.unit !== 'SQFT') ? newQty : i.pieceLength, customTotalInput: undefined };
         }
         return i;
       }).filter(i => i.quantity !== 0);
@@ -698,18 +749,29 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           if (activeTab === 'checkout' && newQty > 0) {
             if (updated.is_cuttable && updated.instance_barcode) {
               const maxLength = Number(updated.max_available_length || 0);
-              if (l > maxLength) {
-                limitMsg = `You only have ${maxLength} ft left on this piece.`;
-                updated.length = maxLength;
-                l = maxLength;
-                newQty = parseFloat((maxLength * w * r).toFixed(2));
+              const otherLengths = prev.filter(cartItem => cartItem.id !== id && cartItem.instance_barcode === updated.instance_barcode).reduce((sum, cartItem) => sum + ((Number(cartItem.length) || 0) * (Number(cartItem.rolls) || 1)), 0);
+              const availableForThisRow = Math.max(0, maxLength - otherLengths);
+              
+              if ((l * r) > availableForThisRow) {
+                if (field === 'rolls') {
+                  r = Math.max(1, Math.floor(availableForThisRow / (l || 1)));
+                  updated.rolls = r;
+                  limitMsg = `You only have ${availableForThisRow} ft left on this piece. Clamped rolls to ${r}.`;
+                }
+                
+                if ((l * r) > availableForThisRow) {
+                  l = Number((availableForThisRow / r).toFixed(2));
+                  updated.length = l;
+                  limitMsg = `You only have ${availableForThisRow} ft left on this piece. Clamped length to ${l}.`;
+                }
+                newQty = parseFloat((l * w * r).toFixed(2));
               }
             } else {
               const maxStock = Number(i.stock_store || 0);
               if (newQty > maxStock) { limitMsg = `You only have ${maxStock} of ${i.name} in the store.`; newQty = maxStock; }
             }
           }
-          return { ...updated, quantity: newQty };
+          return { ...updated, quantity: newQty, customTotalInput: undefined };
         }
         return i;
       });
@@ -719,16 +781,42 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   };
 
 
-  const handleCustomPriceChange = (id, val) => setCart(prev => prev.map(i => i.id === id ? { ...i, customPriceInput: val } : i));
-  const handleCustomPriceChangeGroup = (barcode, val) => setCart(prev => prev.map(i => (i.barcode === barcode && i.is_cuttable) ? { ...i, customPriceInput: val } : i));
+  const handleCustomPriceChange = (id, val) => setCart(prev => prev.map(i => i.id === id ? { ...i, customPriceInput: val, customTotalInput: undefined } : i));
+  const handleCustomPriceChangeGroup = (barcode, val) => setCart(prev => prev.map(i => (i.barcode === barcode && i.is_cuttable) ? { ...i, customPriceInput: val, customTotalInput: undefined } : i));
+
+  const handleCustomTotalChange = (id, val, qty) => setCart(prev => prev.map(i => {
+    if (i.id === id) {
+      const numVal = Number(val);
+      if (!isNaN(numVal) && qty > 0) {
+        return { ...i, customTotalInput: val, customPriceInput: numVal / qty };
+      }
+      return { ...i, customTotalInput: val };
+    }
+    return i;
+  }));
+
+  const handleCustomTotalChangeGroup = (barcode, val, totalQty) => setCart(prev => prev.map(i => {
+    if (i.barcode === barcode && i.is_cuttable) {
+      const numVal = Number(val);
+      if (!isNaN(numVal) && totalQty > 0) {
+        return { ...i, customTotalInput: val, customPriceInput: numVal / totalQty };
+      }
+      return { ...i, customTotalInput: val };
+    }
+    return i;
+  }));
 
   const applyCustomPriceBlur = (id) => setCart(prev => prev.map(i => {
     if (i.id === id) {
+      const qty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : (i.quantity === '' ? 0 : Number(i.quantity));
       let val = Number(i.customPriceInput); if (isNaN(val)) val = Number(i.price || 0);
-      const msp = Number(i.msp || 0); const mrp = Number(i.price || 0);
-      if (val < msp) val = msp; if (val > mrp) val = mrp;
+      const msp = Number(i.msp_price) || Number(i.msp || 0); const mrp = Number(i.price || 0);
+      if (val < msp && cashierName !== 'admin') {
+        setTimeout(() => showAlertRef.current(`Cannot sell ${i.name} below MSP (₹${msp})`, "Price Error"), 0);
+        val = msp;
+      }
       const disc = mrp > 0 ? ((mrp - val) / mrp) * 100 : 0;
-      return { ...i, customPriceInput: val.toFixed(2), discountPct: disc };
+      return { ...i, customPriceInput: val, customTotalInput: (val * qty).toFixed(2), discountPct: disc };
     }
     return i;
   }));
@@ -737,7 +825,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     setCart(prev => {
       return prev.map(i => {
         if (i.barcode === barcode && i.is_cuttable) {
-          const msp = Number(i.msp || 0);
+          const msp = Number(i.msp_price) || Number(i.msp || 0);
           let val = Number(i.customPriceInput);
           if (isNaN(val) || val <= 0) val = Number(i.price);
           if (val < msp && cashierName !== 'admin') {
@@ -748,7 +836,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           if (val < Number(i.price)) {
             newDisc = ((Number(i.price) - val) / Number(i.price)) * 100;
           }
-          return { ...i, customPriceInput: val.toFixed(2), discountPct: newDisc };
+          const groupQty = cart.filter(c => c.barcode === barcode && c.is_cuttable).reduce((sum, c) => sum + (c.billableQuantity !== undefined && c.billableQuantity !== '' ? Number(c.billableQuantity) : (c.quantity === '' ? 0 : Number(c.quantity))), 0);
+          return { ...i, customPriceInput: val, customTotalInput: groupQty > 0 ? (val * groupQty).toFixed(2) : '', discountPct: newDisc };
         }
         return i;
       });
@@ -758,7 +847,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const calculateTotal = () => cart.reduce((tot, i) => {
     const qty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : (i.quantity === '' ? 0 : Number(i.quantity));
     const price = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0);
-    return tot + Math.round(price * 100) * qty;
+    return tot + Math.round(price * qty * 100);
   }, 0) / 100;
   
   const calculateTotalUnits = () => cart.reduce((tot, i) => tot + (i.quantity === '' ? 0 : Number(i.quantity)), 0);
@@ -926,13 +1015,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         let totalDiscountToGive = currentCartTotal - targetTotal;
 
         if (totalDiscountToGive > 0) {
-          let discountableItems = finalCart.map(item => {
+          let originalDiscountableItems = finalCart.map((item, index) => {
             const qty = item.billableQuantity !== undefined && item.billableQuantity !== '' ? Number(item.billableQuantity) : (item.quantity === '' ? 0 : Number(item.quantity));
             const price = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
-            const msp = Number(item.msp || 0);
+            const msp = Number(item.msp_price) || Number(item.msp || 0);
             return {
-              barcode: item.barcode,
-              instance_barcode: item.instance_barcode,
+              __cartIndex: index,
               calcQty: qty,
               currentPrice: price,
               maxDiscountableTotal: Math.max(0, (qty * price) - (qty * msp)),
@@ -940,29 +1028,30 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             };
           }).filter(i => i.maxDiscountableTotal > 0);
           
+          let activeDiscountableItems = [...originalDiscountableItems];
           let loopSafety = 0;
-          while (totalDiscountToGive > 0.005 && discountableItems.length > 0 && loopSafety < 10) {
+          while (totalDiscountToGive > 0.005 && activeDiscountableItems.length > 0 && loopSafety < 10) {
             loopSafety++;
-            const currentTotalDiscountable = discountableItems.reduce((sum, i) => sum + (i.maxDiscountableTotal - i.allocatedDiscount), 0);
+            const currentTotalDiscountable = activeDiscountableItems.reduce((sum, i) => sum + (i.maxDiscountableTotal - i.allocatedDiscount), 0);
             let iterationDiscountToGive = totalDiscountToGive;
-            for (let i = 0; i < discountableItems.length; i++) {
-              const item = discountableItems[i];
+            for (let i = 0; i < activeDiscountableItems.length; i++) {
+              const item = activeDiscountableItems[i];
               const itemRemDiscountable = item.maxDiscountableTotal - item.allocatedDiscount;
               if (itemRemDiscountable <= 0) continue;
               const discountForThisItem = Math.min(itemRemDiscountable, iterationDiscountToGive * (itemRemDiscountable / currentTotalDiscountable));
               item.allocatedDiscount += discountForThisItem;
               totalDiscountToGive -= discountForThisItem;
             }
-            discountableItems = discountableItems.filter(i => (i.maxDiscountableTotal - i.allocatedDiscount) > 0.005);
+            activeDiscountableItems = activeDiscountableItems.filter(i => (i.maxDiscountableTotal - i.allocatedDiscount) > 0.005);
           }
 
-          finalCart = finalCart.map(cartItem => {
-            const discItem = discountableItems.find(i => i.barcode === cartItem.barcode && i.instance_barcode === cartItem.instance_barcode);
+          finalCart = finalCart.map((cartItem, index) => {
+            const discItem = originalDiscountableItems.find(i => i.__cartIndex === index);
             if (discItem && discItem.allocatedDiscount > 0) {
               const newPrice = discItem.currentPrice - (discItem.allocatedDiscount / discItem.calcQty);
               return {
                 ...cartItem,
-                customPriceInput: newPrice.toFixed(2),
+                customPriceInput: newPrice,
                 discountPct: ((Number(cartItem.price) - newPrice) / Number(cartItem.price)) * 100
               };
             }
@@ -1004,12 +1093,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             batch_id: i.batch_id || null,
             actual_quantity: calcQuantity,
             billable_quantity: i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : calcQuantity,
-            system_price: Number(i.price || 0),
+            system_price: i.selling_price !== undefined ? Number(i.selling_price) : Number(i.price || 0),
             final_price: finalPrice,
             negotiated_discount: i.discountPct || 0,
             unit: i.unit,
             instance_barcode: i.instance_barcode || null,
-            cut_length: i.is_cuttable ? (Number(i.length) || Number(i.pieceLength) || 0) : null,
+            cut_length: i.is_cuttable ? ((Number(i.length) || Number(i.pieceLength) || 0) * (Number(i.rolls) || 1)) : null,
             discard_scrap: i.discard_scrap || false,
             num_rolls: (activeTab === 'receive' && i.is_cuttable) ? Number(i.quantity) : null,
             default_length: i.default_length ? Number(i.default_length) : null,
@@ -1060,23 +1149,28 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       // Also invalidate piece_counts for cuttable items so WHSE/STORE QTY refreshes
       queryClient.invalidateQueries({ queryKey: ['piece_counts'] });
+      queryClient.invalidateQueries({ queryKey: ['stock_instances'] });
 
       if (navigator.onLine) {
         // Trigger background sync to ensure true consistency with server
         syncInventoryToLocal().then(() => {
           queryClient.invalidateQueries({ queryKey: ['inventory'] });
           queryClient.invalidateQueries({ queryKey: ['piece_counts'] });
+          queryClient.invalidateQueries({ queryKey: ['stock_instances'] });
         });
       }
 
+      const finalItemsList = finalCart.map(i => {
+        const finalRate = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0);
+        const bQty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : Number(i.quantity);
+        return { ...i, quantity: bQty, actual_quantity: Number(i.quantity), finalRate, mrp: Number(i.price || 0), lineTotal: finalRate * bQty };
+      });
+      const finalTotalAmount = finalItemsList.reduce((sum, i) => sum + i.lineTotal, 0);
+
       setLastReceipt({
         id: successData.bill_id.split('-')[0],
-        items: finalCart.map(i => {
-          const finalRate = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0);
-          const bQty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : Number(i.quantity);
-          return { ...i, quantity: bQty, actual_quantity: Number(i.quantity), finalRate, mrp: Number(i.price || 0), lineTotal: finalRate * bQty };
-        }),
-        total: calculateTotal(),
+        items: finalItemsList,
+        total: finalTotalAmount,
         date: new Date(),
         type: activeTab,
       });
@@ -1117,7 +1211,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
   const cartTotal = calculateTotal();
   const cartUnits = calculateTotalUnits();
-  const cartTotalCents = Math.round(cartTotal * 100);
+  
+  const minPossibleTotal = cart.reduce((tot, i) => {
+    const qty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : (i.quantity === '' ? 0 : Number(i.quantity));
+    const msp = Number(i.msp_price) || Number(i.msp || 0);
+    return tot + Math.round(msp * qty * 100);
+  }, 0) / 100;
+
   const activeTotal = checkoutModal.negotiatedTotal !== '' ? Number(checkoutModal.negotiatedTotal) : cartTotal;
   const activeTotalCents = Math.round(activeTotal * 100);
   
@@ -1155,6 +1255,11 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   <span className="opacity-70 font-normal">System: ₹{cartTotal.toFixed(2)}</span>
                 </label>
                 <input id="negotiated-total" type="number" step="any" autoFocus value={checkoutModal.negotiatedTotal} onChange={(e) => setCheckoutModal({ ...checkoutModal, negotiatedTotal: e.target.value })} placeholder={`e.g. ${Math.floor(cartTotal)}`} className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                {checkoutModal.negotiatedTotal !== '' && Number(checkoutModal.negotiatedTotal) < minPossibleTotal && cashierName !== 'admin' && (
+                  <p className="text-xs font-bold mt-2" style={{ color: 'var(--color-error)' }}>
+                    Warning: Cannot discount below minimum selling limit (₹{minPossibleTotal.toFixed(2)}). The final bill will automatically be clamped.
+                  </p>
+                )}
               </div>
               
               <div className="mb-6">
@@ -1275,7 +1380,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   {selectPieceModal.instances.map(inst => {
                     let availableLength = Number(inst.current_length);
                     if (selectPieceModal.action === 'checkout') {
-                      const inCartQty = cart.filter(c => c.instance_barcode === inst.instance_barcode).reduce((sum, c) => sum + Number(c.quantity || 0), 0);
+                      const inCartQty = cart.filter(c => c.instance_barcode === inst.instance_barcode).reduce((sum, c) => sum + ((Number(c.length) || 0) * (Number(c.rolls) || 1)), 0);
                       availableLength -= inCartQty;
                     }
                     
@@ -1325,7 +1430,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                           setManualBarcode('');
                         } else {
                           // Checkout mode: proceed to cutting
-                          setCutLengthModal({ isOpen: true, item: selectPieceModal.item, instance: { ...inst, current_length: availableLength }, cutQty: '', discardScrap: false });
+                          setCutLengthModal({ isOpen: true, item: selectPieceModal.item, instance: inst, cutQty: '', discardScrap: false });
                         }
                       }}
                       className={`p-3 text-left border border-[var(--border-medium)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] transition-colors flex justify-between items-center focus:outline-none rounded-md focus:border-[var(--color-accent)] ${isAlreadyInCartTransfer ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
@@ -1353,7 +1458,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           <div className="w-full max-w-sm flex flex-col shadow-2xl" style={{ backgroundColor: 'var(--bg-primary)', borderTop: '4px solid var(--color-accent)' }}>
             <div className="flex justify-between items-center p-4" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
               <h3 className="font-bold tracking-wider text-sm" style={{ color: 'var(--text-primary)' }}>ENTER PIECE LENGTH</h3>
-              <button type="button" onClick={() => setReceiveLengthModal({ isOpen: false, item: null, length: '' })} className="px-3 py-1.5 leading-none focus:outline-none rounded-md text-lg">✕</button>
+              <button type="button" onClick={() => setReceiveLengthModal({ isOpen: false, item: null, length: '', batch: null, instanceBarcode: null })} className="px-3 py-1.5 leading-none focus:outline-none rounded-md text-lg">✕</button>
             </div>
             <form onSubmit={handleReceiveLengthSubmit} className="p-6">
               <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>What is the standard length of each <strong>{receiveLengthModal.item?.name}</strong> piece?</p>
@@ -1362,6 +1467,44 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               </div>
               <div className="flex justify-end gap-3">
                 <button type="submit" disabled={!receiveLengthModal.length} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 transition-colors hover:brightness-110" style={{ backgroundColor: 'var(--color-accent)' }}>Add to Cart</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Instance Barcode Modal */}
+      {manualInstanceBarcodeModal.isOpen && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="w-full max-w-sm flex flex-col shadow-2xl" style={{ backgroundColor: 'var(--bg-primary)', borderTop: '4px solid var(--color-accent)' }}>
+            <div className="flex justify-between items-center p-4" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
+              <h3 className="font-bold tracking-wider text-sm" style={{ color: 'var(--text-primary)' }}>ENTER INSTANCE BARCODE</h3>
+              <button type="button" onClick={() => setManualInstanceBarcodeModal({ isOpen: false, item: null, batch: null, barcodeInput: '', prefix: '' })} className="px-3 py-1.5 leading-none focus:outline-none rounded-md text-lg">✕</button>
+            </div>
+            <form onSubmit={handleManualInstanceBarcodeSubmit} className="p-6">
+              <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>Enter the specific instance barcode for this piece of <strong>{manualInstanceBarcodeModal.item?.name}</strong>.</p>
+              <div 
+                className="mb-6 flex items-baseline bg-[var(--bg-input)] rounded-md px-4 py-3 cursor-text transition-colors" 
+                style={{ border: '2px solid var(--color-accent)' }}
+                onClick={() => document.getElementById('instance_barcode_input')?.focus()}
+              >
+                <span className="text-xl font-mono text-[var(--text-tertiary)] select-none whitespace-nowrap mr-1">
+                  {manualInstanceBarcodeModal.prefix}
+                </span>
+                <input 
+                  id="instance_barcode_input"
+                  type="text" 
+                  autoFocus 
+                  value={manualInstanceBarcodeModal.barcodeInput} 
+                  onChange={e => setManualInstanceBarcodeModal({ ...manualInstanceBarcodeModal, barcodeInput: e.target.value })} 
+                  placeholder="01" 
+                  maxLength={2} 
+                  className="flex-1 bg-transparent text-xl font-mono outline-none uppercase p-0 m-0 border-none" 
+                  style={{ color: 'var(--text-input)', boxShadow: 'none' }}
+                />
+              </div>
+              <div className="flex justify-end gap-3">
+                <button type="submit" disabled={!manualInstanceBarcodeModal.barcodeInput} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 transition-colors hover:brightness-110" style={{ backgroundColor: 'var(--color-accent)' }}>Next</button>
               </div>
             </form>
           </div>
@@ -1381,7 +1524,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               <div className="p-6">
                 <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>How much of <strong style={{ color: 'var(--color-accent)' }}>{cutLengthModal.item?.name}</strong> are you cutting from piece <strong className="font-mono text-[var(--text-primary)]">#{cutLengthModal.instance?.instance_barcode.includes('-') ? cutLengthModal.instance?.instance_barcode.split('-')[1] : cutLengthModal.instance?.instance_barcode.slice(-6)}</strong>?</p>
 
-                <p className="text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Current Piece: {cutLengthModal.instance?.current_length} {cutLengthModal.item?.unit === 'SQFT' ? 'ft' : cutLengthModal.item?.unit}</p>
+                <p className="text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                  Current Piece: {(() => {
+                    const dbLen = Number(cutLengthModal.instance?.current_length) || 0;
+                    const already = cart.filter(c => c.instance_barcode === cutLengthModal.instance?.instance_barcode).reduce((tot, c) => tot + Number(c.length || 0), 0);
+                    return Math.max(0, dbLen - already).toFixed(2);
+                  })()} {cutLengthModal.item?.unit === 'SQFT' ? 'ft' : cutLengthModal.item?.unit}
+                </p>
 
                 <div className="relative mb-4">
                   <input type="number" autoFocus step="0.01" min="0.01" value={cutLengthModal.cutQty} onChange={e => {
@@ -1575,8 +1724,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             onUpdateQuantity={updateQuantity}
             onUpdateDimensions={updateDimensions}
             onCustomPriceChange={handleCustomPriceChange}
+            onCustomTotalChange={handleCustomTotalChange}
             onCustomPriceBlur={applyCustomPriceBlur}
             onCustomPriceChangeGroup={handleCustomPriceChangeGroup}
+            onCustomTotalChangeGroup={handleCustomTotalChangeGroup}
             onCustomPriceBlurGroup={handleCustomPriceBlurGroup}
             onRemoveItem={handleRemoveItem}
           />
@@ -1589,6 +1740,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             activeTab={activeTab}
             onUpdateQuantity={updateQuantity}
             onUpdateDimensions={updateDimensions}
+            onCustomPriceChange={handleCustomPriceChange}
+            onCustomTotalChange={handleCustomTotalChange}
+            onCustomPriceBlur={applyCustomPriceBlur}
             onRemoveItem={handleRemoveItem}
           />
         </div>

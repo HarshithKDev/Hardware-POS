@@ -5,7 +5,7 @@ import PrintBatchModal from './PrintBatchModal';
 import CreateBatchModal from './CreateBatchModal';
 import { supabase } from './supabaseClient';
 import { getInventoryByQuery, saveInventoryBatch, getInventoryItemByBarcode } from './services/db';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { ConfirmDialog } from './Dialog';
 import { useApp } from './AppContext';
 import { escapeIlike, debounce } from './utils';
@@ -17,8 +17,6 @@ export default function OwnerInventory({ viewType }) {
 
   const [inventorySearch, setInventorySearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedSubcategory, setSelectedSubcategory] = useState('');
   const [sortOption, setSortOption] = useState('barcode-desc');
   const [selectedBarcodes, setSelectedBarcodes] = useState([]);
   const [expandedBarcode, setExpandedBarcode] = useState(null);
@@ -27,7 +25,6 @@ export default function OwnerInventory({ viewType }) {
   const [printModal, setPrintModal] = useState({ isOpen: false, item: null, batch: null });
   const [createBatchModal, setCreateBatchModal] = useState({ isOpen: false, item: null });
   const [batchToDelete, setBatchToDelete] = useState(null);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   useEffect(() => {
@@ -70,7 +67,7 @@ export default function OwnerInventory({ viewType }) {
   });
 
   const { data: inventoryData, isLoading } = useQuery({
-    queryKey: ['inventory', viewType, debouncedSearch, sortOption, selectedCategory, selectedSubcategory],
+    queryKey: ['inventory', viewType, debouncedSearch, sortOption],
     queryFn: async () => {
       if (!navigator.onLine) {
         // Fallback or primarily use local IDB
@@ -80,8 +77,6 @@ export default function OwnerInventory({ viewType }) {
         limit: 1000000,
         offset: 0,
         search: debouncedSearch,
-        category: selectedCategory,
-        subcategory: selectedSubcategory,
         sortOption: sortOption,
         viewType: viewType === 'recycle' ? 'warehouse' : viewType,
         status: viewType === 'recycle' ? 'deactivated' : 'active'
@@ -89,6 +84,7 @@ export default function OwnerInventory({ viewType }) {
       return { items: data || [], total: totalCount || 0 };
     },
     staleTime: STALE_TIME_5MIN,
+    placeholderData: keepPreviousData,
   });
 
   const updateItemMutation = useMutation({
@@ -140,6 +136,14 @@ export default function OwnerInventory({ viewType }) {
     },
     onError: (e) => showAlert(e.message, "Update Failed"),
   });
+
+  const handleSortClick = (column) => {
+    if (sortOption.startsWith(column)) {
+      setSortOption(sortOption.endsWith('-asc') ? `${column}-desc` : `${column}-asc`);
+    } else {
+      setSortOption(`${column}-asc`);
+    }
+  };
 
   const handleRemove = (barcode) => {
     const itemToDelete = items.find(i => i.barcode === barcode);
@@ -296,14 +300,14 @@ export default function OwnerInventory({ viewType }) {
       // Then update local IDB
       await saveInventoryBatch(itemsToSave);
       
-      const changesList = itemsToSave.map(item => `${item.name} (${item.barcode})`);
-      await supabase.from('audit_logs').insert([{
+      const auditLogs = itemsToSave.map(item => ({
         action_type: 'UPDATE',
-        barcode: 'BULK',
-        item_name: 'Multiple Items',
-        changes: `Bulk updated items: ${changesList.join(', ')}`,
+        barcode: item.barcode,
+        item_name: item.name,
+        changes: `Item updated via Global Edit`,
         performed_by: 'Owner'
-      }]);
+      }));
+      await supabase.from('audit_logs').insert(auditLogs);
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       setIsGlobalEditMode(false);
       setBulkEditData({});
@@ -327,22 +331,25 @@ export default function OwnerInventory({ viewType }) {
       if (error) {
         showAlert(error.message, `Error ${isRecycle ? 'Restoring' : 'Removing'} Items`);
       } else {
-        await supabase.from('audit_logs').insert([{
-          action_type: isRecycle ? 'RESTORE' : 'DELETE',
-          barcode: 'BULK',
-          item_name: 'Multiple Items',
-          changes: `${isRecycle ? 'Restored' : 'Deleted'} ${selectedBarcodes.length} items`,
-          performed_by: 'Owner'
-        }]);
-        // Update local IDB so the UI reflects the change immediately
         try {
           const localItems = await Promise.all(selectedBarcodes.map(bc => getInventoryItemByBarcode(bc)));
-          const validLocalItems = localItems.filter(Boolean).map(item => ({ ...item, is_active: updateValue }));
+          const validLocalItems = localItems.filter(Boolean);
+          
           if (validLocalItems.length > 0) {
-            await saveInventoryBatch(validLocalItems);
+            const auditLogs = validLocalItems.map(item => ({
+              action_type: isRecycle ? 'RESTORE' : 'DELETE',
+              barcode: item.barcode,
+              item_name: item.name,
+              changes: `Item ${isRecycle ? 'restored from' : 'moved to'} Recycle Bin`,
+              performed_by: 'Owner'
+            }));
+            await supabase.from('audit_logs').insert(auditLogs);
+            
+            const updatedItemsToSave = validLocalItems.map(item => ({ ...item, is_active: updateValue }));
+            await saveInventoryBatch(updatedItemsToSave);
           }
         } catch (e) {
-          console.error("Local IDB bulk remove/restore failed", e);
+          console.error("Bulk remove/restore operations failed", e);
         }
         
         queryClient.invalidateQueries({ queryKey: ['inventory'] });
@@ -351,6 +358,26 @@ export default function OwnerInventory({ viewType }) {
         showAlert(`Successfully ${isRecycle ? 'restored' : 'removed'} ${selectedBarcodes.length} items!`, "Success");
       }
     }, title, confirmLabel, 'Cancel', !isRecycle);
+  };
+
+  const renderSortIcon = (column) => {
+    if (sortOption.startsWith(column)) {
+      const isAsc = sortOption.endsWith('-asc');
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" style={{ color: 'var(--color-accent)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          {isAsc ? (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" />
+          ) : (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+          )}
+        </svg>
+      );
+    }
+    return (
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-60 ml-1" style={{ color: 'var(--text-tertiary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+      </svg>
+    );
   };
 
   const items = inventoryData?.items || [];
@@ -400,23 +427,6 @@ export default function OwnerInventory({ viewType }) {
               aria-label="Search inventory"
             />
             <button
-              onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className="h-11 md:h-10 px-4 text-sm font-medium rounded-md flex items-center gap-2 transition-colors flex-shrink-0"
-              style={{ 
-                backgroundColor: isFilterOpen ? 'var(--color-accent-bg)' : 'var(--bg-secondary)', 
-                color: isFilterOpen ? 'var(--color-accent)' : 'var(--text-secondary)',
-                border: `1px solid ${isFilterOpen ? 'var(--color-accent)' : 'var(--border-input)'}`
-              }}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-              </svg>
-              Filters
-              {(selectedCategory || selectedSubcategory || sortOption !== 'barcode-desc') && (
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-accent)' }}></span>
-              )}
-            </button>
-            <button
               onClick={() => {
                 if (isSelectionMode) {
                   setSelectedBarcodes([]);
@@ -437,72 +447,6 @@ export default function OwnerInventory({ viewType }) {
               {isSelectionMode ? 'Cancel Selection' : 'Select Items'}
             </button>
           </div>
-
-          {isFilterOpen && (
-            <div className="flex flex-col md:flex-row gap-4 p-4 rounded-lg animate-fade-in" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
-              {/* Category Filter */}
-              <div className="relative w-full md:w-[200px] flex-shrink-0">
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => { setSelectedCategory(e.target.value); setSelectedSubcategory(''); }}
-                  className="h-11 md:h-10 w-full pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer font-medium rounded-md"
-                  style={{ border: '1px solid var(--border-input)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-input)' }}
-                  aria-label="Filter by category"
-                >
-                  <option value="">All Categories</option>
-                  {categories?.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}>
-                  <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-                </div>
-              </div>
-
-              {/* Sub-Category Filter */}
-              <div className="relative w-full md:w-[200px] flex-shrink-0">
-                <select
-                  value={selectedSubcategory}
-                  onChange={(e) => { setSelectedSubcategory(e.target.value); }}
-                  disabled={!selectedCategory}
-                  className="h-11 md:h-10 w-full pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer font-medium disabled:cursor-not-allowed rounded-md"
-                  style={{ border: '1px solid var(--border-input)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-input)' }}
-                  aria-label="Filter by sub-category"
-                >
-                  <option value="">All Sub-categories</option>
-                  {subcategories?.filter(sub => sub.category_name === selectedCategory).map(s => (
-                    <option key={s.name} value={s.name}>{s.name}</option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}>
-                  <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-                </div>
-              </div>
-
-              {/* Sort Filter */}
-              <div className="relative w-full md:w-[220px] flex-shrink-0">
-                <select
-                  value={sortOption}
-                  onChange={(e) => { setSortOption(e.target.value); }}
-                  className="h-11 md:h-10 w-full pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer font-medium rounded-md"
-                  style={{ border: '1px solid var(--border-input)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-input)' }}
-                  aria-label="Sort inventory"
-                >
-                  <option value="barcode-asc">Barcode (Low to High)</option>
-                  <option value="barcode-desc">Barcode (High to Low)</option>
-                  <option value="name-asc">Name (A-Z)</option>
-                  <option value="name-desc">Name (Z-A)</option>
-                  {viewType === 'warehouse' && (
-                    <>
-                      <option value="stock-asc">Quantity (Low-High)</option>
-                      <option value="stock-desc">Quantity (High-Low)</option>
-                    </>
-                  )}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}>
-                  <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -527,14 +471,68 @@ export default function OwnerInventory({ viewType }) {
                           <input type="checkbox" checked={items.length > 0 && selectedBarcodes.length === items.length} onChange={toggleSelectAll} className="w-4 h-4 rounded text-accent focus:ring-accent cursor-pointer" />
                         </th>
                       )}
-                      <th className="p-3 w-20" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>Barcode</th>
-                      <th className="p-3 min-w-[160px]" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>Item Details</th>
-                      <th className="p-3 w-36" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>Category</th>
-                      <th className="p-3 w-36" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>SUBCAT</th>
+                      <th 
+                        className="p-3 w-20 cursor-pointer select-none group" 
+                        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
+                        onClick={() => handleSortClick('barcode')}
+                      >
+                        <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
+                          Barcode
+                          {renderSortIcon('barcode')}
+                        </div>
+                      </th>
+                      <th 
+                        className="p-3 min-w-[160px] cursor-pointer select-none group" 
+                        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
+                        onClick={() => handleSortClick('name')}
+                      >
+                        <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
+                          Item Details
+                          {renderSortIcon('name')}
+                        </div>
+                      </th>
+                      <th 
+                        className="p-3 w-36 cursor-pointer select-none text-center group" 
+                        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
+                        onClick={() => handleSortClick('category')}
+                      >
+                        <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
+                          Category
+                          {renderSortIcon('category')}
+                        </div>
+                      </th>
+                      <th 
+                        className="p-3 w-36 cursor-pointer select-none text-center group" 
+                        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
+                        onClick={() => handleSortClick('subcategory')}
+                      >
+                        <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
+                          SUBCAT
+                          {renderSortIcon('subcategory')}
+                        </div>
+                      </th>
                       <th className="p-3 w-28 text-center" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>Batches</th>
                       {/* Pricing removed from parent row */}
-                      <th className="p-3 w-28 text-center whitespace-nowrap" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>Whse Qty</th>
-                      <th className="p-3 w-28 text-center whitespace-nowrap" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>Store Qty</th>
+                      <th 
+                        className="p-3 w-28 text-center whitespace-nowrap cursor-pointer select-none group" 
+                        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
+                        onClick={() => handleSortClick('whsestock')}
+                      >
+                        <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
+                          Whse Qty
+                          {renderSortIcon('whsestock')}
+                        </div>
+                      </th>
+                      <th 
+                        className="p-3 w-28 text-center whitespace-nowrap cursor-pointer select-none group" 
+                        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
+                        onClick={() => handleSortClick('storestock')}
+                      >
+                        <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
+                          Store Qty
+                          {renderSortIcon('storestock')}
+                        </div>
+                      </th>
                       <th className="p-3 w-16 text-center">Actions</th>
                     </tr>
                   </thead>

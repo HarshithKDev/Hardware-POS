@@ -3,7 +3,7 @@ import React from 'react';
 /** Desktop cart table */
 import { useCart } from '../../contexts/CartContext';
 
-const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, onUpdateDimensions, onCustomPriceChange, onCustomPriceBlur, onCustomPriceChangeGroup, onCustomPriceBlurGroup, onRemoveItem }) {
+const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, onUpdateDimensions, onCustomPriceChange, onCustomTotalChange, onCustomPriceBlur, onCustomPriceChangeGroup, onCustomTotalChangeGroup, onCustomPriceBlurGroup, onRemoveItem }) {
   const { cart } = useCart();
   const [expandedGroups, setExpandedGroups] = React.useState({});
 
@@ -76,6 +76,7 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
               const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
               group.totalPrice += sellPrice * billableQty;
               group.customPriceInput = item.customPriceInput !== undefined ? item.customPriceInput : item.price;
+              group.customTotalInput = item.customTotalInput;
               group.discountPct = item.discountPct;
             } else {
               groupedCart.push(item);
@@ -105,10 +106,12 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                         <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>{item.unit}</span>
                       </div>
                     </td>
-                    <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }} onClick={e => e.stopPropagation()}>
-                      <input type="number" step="0.01" value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChangeGroup(item.barcode, e.target.value)} onBlur={() => onCustomPriceBlurGroup(item.barcode)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} price`} />
+                    <td className="p-3 text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
+                      ₹{sellPrice.toFixed(2)}
                     </td>
-                    <td className="p-3 text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>₹{item.totalPrice.toFixed(2)}</td>
+                    <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }} onClick={e => e.stopPropagation()}>
+                      <input type="number" step="0.01" value={item.customTotalInput !== undefined ? item.customTotalInput : item.totalPrice.toFixed(2)} onChange={(e) => onCustomTotalChangeGroup(item.barcode, e.target.value, item.totalBillableQty)} onBlur={() => onCustomPriceBlurGroup(item.barcode)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} total`} />
+                    </td>
                     <td className="p-2 text-center align-middle" onClick={e => e.stopPropagation()}>
                       <button type="button" onClick={() => item.children.forEach(c => onRemoveItem(c.id))} className="w-8 h-8 mx-auto rounded flex items-center justify-center transition-colors focus:outline-none" style={{ color: 'var(--text-secondary)' }} onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-error)'; }} onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; }} aria-label={`Remove all ${item.name}`}>
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -198,14 +201,14 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                       ) : (
                         <>
                           <div className="relative inline-flex items-center">
-                            <input type="number" step="any" placeholder="L" disabled={activeTab === 'receive' && item.has_preset_length} value={activeTab === 'receive' ? (item.default_length || '') : (item.length !== undefined ? item.length : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_length', e.target.value) : onUpdateDimensions(item.id, 'length', e.target.value)} className={`w-24 h-10 pl-2 pr-12 text-sm font-semibold text-center focus:outline-none rounded-md ${activeTab === 'receive' && item.has_preset_length ? 'opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]' : ''}`} style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title={activeTab === 'receive' && item.has_preset_length ? "Length is preset by default" : "Length"} aria-label="Length" />
+                            <input type="number" step="any" placeholder="L" disabled={activeTab === 'receive'} value={activeTab === 'receive' ? (item.pieceLength || item.default_length || '') : (item.length !== undefined ? item.length : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_length', e.target.value) : onUpdateDimensions(item.id, 'length', e.target.value)} className={`w-24 h-10 pl-2 pr-12 text-sm font-semibold text-center focus:outline-none rounded-md ${activeTab === 'receive' ? 'opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]' : ''}`} style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title={activeTab === 'receive' ? "Length is locked during receive" : "Length"} aria-label="Length" />
                             <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>{item.unit === 'SQFT' ? 'ft' : item.unit}</span>
                           </div>
                           {item.unit === 'SQFT' && (
                             <>
                               <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
                               <div className="relative inline-flex items-center">
-                                <input type="number" step="any" placeholder="H" disabled={activeTab === 'receive' && item.has_preset_width} value={activeTab === 'receive' ? (item.default_width || '') : (item.width !== undefined ? item.width : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_width', e.target.value) : onUpdateDimensions(item.id, 'width', e.target.value)} className={`w-24 h-10 pl-2 pr-12 text-sm font-semibold text-center focus:outline-none rounded-md ${activeTab === 'receive' && item.has_preset_width ? 'opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]' : ''}`} style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title={activeTab === 'receive' && item.has_preset_width ? "Width is preset by default" : "Height"} aria-label="Height" />
+                                <input type="number" step="any" placeholder="H" disabled={activeTab === 'receive'} value={activeTab === 'receive' ? (item.default_width || '') : (item.width !== undefined ? item.width : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_width', e.target.value) : onUpdateDimensions(item.id, 'width', e.target.value)} className={`w-24 h-10 pl-2 pr-12 text-sm font-semibold text-center focus:outline-none rounded-md ${activeTab === 'receive' ? 'opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]' : ''}`} style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title={activeTab === 'receive' ? "Width is locked during receive" : "Height"} aria-label="Height" />
                                 <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>ft</span>
                               </div>
                             </>
@@ -213,8 +216,10 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                           <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
                           {item.instance_barcode && activeTab === 'receive' ? (
                             <div className="w-14 h-10 px-2 text-sm font-bold flex items-center justify-center bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-medium)] rounded" title="Quantity is locked to 1 for specific piece">1</div>
+                          ) : activeTab === 'receive' ? (
+                            <input type="number" step="any" min="1" placeholder="Qty" disabled value={item.quantity} className="w-14 h-10 px-2 text-sm font-semibold text-center focus:outline-none rounded-md opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title="Scan to increase quantity" aria-label="Quantity" />
                           ) : (
-                            <input type="number" step="any" min="1" placeholder="Qty" value={activeTab === 'receive' ? item.quantity : (item.rolls !== undefined ? item.rolls : '1')} onChange={(e) => activeTab === 'receive' ? onUpdateQuantity(item.id, e.target.value) : onUpdateDimensions(item.id, 'rolls', e.target.value)} className="w-14 h-10 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title={activeTab === 'receive' ? 'Pcs / Rolls' : 'Qty'} aria-label="Quantity" />
+                            <input type="number" step="any" min="1" placeholder="Qty" value={item.rolls !== undefined ? item.rolls : '1'} onChange={(e) => onUpdateDimensions(item.id, 'rolls', e.target.value)} className="w-14 h-10 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title="Qty" aria-label="Quantity" />
                           )}
                         </>
                       )}
@@ -243,13 +248,13 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                   )}
                 </td>
                 {activeTab === 'checkout' && (<>
-                  <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }}>
-                    <input type="number" step="0.01" value={item.customPriceInput !== undefined ? item.customPriceInput : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChange(item.id, e.target.value)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} price`} />
-                  </td>
                   <td className="p-3 text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
-                    ₹{(sellPrice * billableQty).toFixed(2)}
+                    ₹{sellPrice.toFixed(2)}
+                  </td>
+                  <td className="p-2" style={{ borderRight: '1px solid var(--border-light)' }}>
+                    <input type="number" step="0.01" value={item.customTotalInput !== undefined ? item.customTotalInput : (sellPrice * billableQty).toFixed(2)} onChange={(e) => onCustomTotalChange(item.id, e.target.value, billableQty)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} total`} />
                     {safeQty !== billableQty && (
-                      <div className="text-[10px] text-[var(--text-tertiary)] font-normal mt-1">Billed: {billableQty} {item.unit}</div>
+                      <div className="text-[10px] text-[var(--text-tertiary)] font-normal mt-1 text-center">Billed: {billableQty} {item.unit}</div>
                     )}
                   </td>
                 </>)}
