@@ -385,8 +385,8 @@ export default function OwnerStats({ isActive }) {
     let totalInventoryValue = 0, warehouseCapital = 0, storeCapital = 0, deadStockValue = 0;
 
     allStats.forEach(item => {
-      if (item.stock_store < (item.min_quantity_store || STORE_LOW_STOCK_THRESHOLD)) lowStoreItems.push(item);
-      if (item.stock_warehouse < (item.min_quantity_warehouse || WAREHOUSE_LOW_STOCK_THRESHOLD)) lowWarehouseItems.push(item);
+      if (item.stock_store < (item.min_quantity_store ?? STORE_LOW_STOCK_THRESHOLD)) lowStoreItems.push(item);
+      if (item.stock_warehouse < (item.min_quantity_warehouse ?? WAREHOUSE_LOW_STOCK_THRESHOLD)) lowWarehouseItems.push(item);
 
       const c = Number(item.cost_price || item.price * 0.7);
       const wQty = Number(item.stock_warehouse || 0);

@@ -34,7 +34,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     customPriceBlur: onCustomPriceBlur,
     customPriceChangeGroup: onCustomPriceChangeGroup,
     customPriceBlurGroup: onCustomPriceBlurGroup, 
-    activeCartTab,
+    activeCartTab, switchCartTab,
     cartSessions, setCartSessions, 
     heldCarts, setHeldCarts,
     clearCart
@@ -624,6 +624,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         customPriceInput: Number(sellingPrice).toFixed(2),
         discountPct: 0,
         quantity: item.unit === 'SQFT' ? parseFloat((addQty * (Number(item.default_width) || 1)).toFixed(2)) : addQty,
+        billableQuantity: (item.billing_method || 'exact') === 'round_up' ? Math.ceil(Number(item.unit === 'SQFT' ? parseFloat((addQty * (Number(item.default_width) || 1)).toFixed(2)) : addQty) * 2) / 2 : (item.unit === 'SQFT' ? parseFloat((addQty * (Number(item.default_width) || 1)).toFixed(2)) : addQty),
         unit: item.unit || 'PCS',
         length: addQty, 
         width: Number(item.default_width) || '',
@@ -720,7 +721,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           let billableQty = newQty;
           const method = i.billing_method || 'exact';
           if (method === 'round_up' && newQty !== '') {
-            billableQty = Math.round(Number(newQty));
+            billableQty = Math.ceil(Number(newQty) * 2) / 2;
           }
           
           return { ...i, quantity: newQty, billableQuantity: billableQty, pieceLength: (i.is_cuttable && i.unit !== 'SQFT') ? newQty : i.pieceLength, customTotalInput: undefined };
@@ -771,7 +772,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               if (newQty > maxStock) { limitMsg = `You only have ${maxStock} of ${i.name} in the store.`; newQty = maxStock; }
             }
           }
-          return { ...updated, quantity: newQty, customTotalInput: undefined };
+          let billableQty = newQty;
+          const method = updated.billing_method || 'exact';
+          if (method === 'round_up' && newQty !== '') {
+            billableQty = Math.ceil(Number(newQty) * 2) / 2;
+          }
+          return { ...updated, quantity: newQty, billableQuantity: billableQty, customTotalInput: undefined };
         }
         return i;
       });
@@ -860,8 +866,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         delete next[activeCartTab];
         return next;
       });
-      setActiveCartTab('local');
-      setCart(cartSessions['local'] || []);
+      switchCartTab('local');
     } else if (activeCartTab !== 'local') {
       supabase.from('pending_carts').delete().eq('id', activeCartTab).then();
       setCartSessions(prev => {
@@ -869,8 +874,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         delete next[activeCartTab];
         return next;
       });
-      setActiveCartTab('local');
-      setCart(cartSessions['local'] || []);
+      switchCartTab('local');
     } else {
       setCart([]);
     }

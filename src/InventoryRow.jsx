@@ -12,19 +12,31 @@ export default function InventoryRow({ item, viewType, categories, subcategories
     queryKey: ['piece_counts', item.barcode],
     queryFn: async () => {
       const { data, error } = await supabase
-        .rpc('get_piece_counts', { p_barcode: String(item.barcode) });
+        .from('stock_instances')
+        .select('location, batch_id')
+        .eq('parent_barcode', String(item.barcode))
+        .eq('is_active', true)
+        .gt('current_length', 0);
         
       if (error) {
         console.error("Piece counts error for", item.barcode, error);
         throw error;
       }
       
-      console.log("Piece counts fetched for", item.barcode, ":", data);
+      const counts = { warehouse: 0, store: 0, byBatch: {} };
+      data?.forEach(instance => {
+        const loc = (instance.location || 'store').toLowerCase();
+        if (loc === 'warehouse') counts.warehouse++;
+        else counts.store++;
+        
+        if (instance.batch_id) {
+          if (!counts.byBatch[instance.batch_id]) counts.byBatch[instance.batch_id] = { warehouse: 0, store: 0 };
+          if (loc === 'warehouse') counts.byBatch[instance.batch_id].warehouse++;
+          else counts.byBatch[instance.batch_id].store++;
+        }
+      });
       
-      return { 
-        warehouse: data?.warehouse || 0, 
-        store: data?.store || 0 
-      };
+      return counts;
     },
     enabled: !!item.is_cuttable,
     staleTime: 30 * 1000, // 30 seconds — cuttable piece counts must stay fresh
@@ -296,12 +308,12 @@ export default function InventoryRow({ item, viewType, categories, subcategories
                             <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">Whse / Store</div>
                             <div className="text-sm font-bold flex gap-2">
                               <span>
-                                <span className="text-[var(--color-accent)]">{batch.stock_warehouse}</span>
+                                <span className="text-[var(--color-accent)]">{item.is_cuttable ? (pieceCounts?.byBatch?.[batch.batch_id]?.warehouse || 0) : batch.stock_warehouse}</span>
                                 <span className="text-[10px] ml-1 font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
                               </span>
                               <span className="text-[var(--text-tertiary)]">/</span>
                               <span>
-                                <span className="text-[var(--color-success)]">{batch.stock_store}</span>
+                                <span className="text-[var(--color-success)]">{item.is_cuttable ? (pieceCounts?.byBatch?.[batch.batch_id]?.store || 0) : batch.stock_store}</span>
                                 <span className="text-[10px] ml-1 font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
                               </span>
                             </div>

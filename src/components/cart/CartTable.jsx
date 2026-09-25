@@ -93,24 +93,34 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                   <tr className="animate-fade-in cursor-pointer bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)]" onClick={() => toggleGroup(item.barcode)} style={{ borderBottom: isExpanded ? 'none' : '1px solid var(--border-light)' }}>
                     <td className="py-4 px-3 text-center" >
                       <div className="flex items-center justify-center gap-2">
-                        <span className="text-xl font-bold" style={{ color: 'var(--text-secondary)' }}>{isExpanded ? '▼' : '▶'}</span>
-                        <p className="text-xs font-mono font-bold" style={{ color: 'var(--color-accent)' }}>#{item.barcode}</p>
+                        <span className={`text-[var(--text-secondary)] transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                          </svg>
+                        </span>
+                        <p className="text-sm font-mono font-bold" style={{ color: 'var(--color-accent)' }}>{item.barcode}</p>
                       </div>
                     </td>
                     <td className="py-4 px-3 text-center" >
                       <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name} <span className="text-xs bg-[var(--color-accent-bg)] px-2 py-0.5 rounded-full" style={{ color: 'var(--color-accent)' }}>{item.children.length} Pieces</span></p>
                     </td>
                     <td className="p-2 text-center" >
-                      <div className="inline-flex items-center justify-center gap-1.5 bg-[var(--bg-tertiary)] px-3 py-1.5 rounded-md border border-[var(--border-medium)]">
-                        <span className="font-bold text-lg leading-none" style={{ color: 'var(--text-primary)' }}>{Number(item.totalQty).toFixed(2)}</span>
-                        <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>{item.unit}</span>
+                      <div className="inline-flex items-baseline justify-center gap-1">
+                        <span className="font-bold text-[15px]" style={{ color: 'var(--text-primary)' }}>{Number(item.totalQty).toFixed(2)}</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{item.unit}</span>
                       </div>
                     </td>
-                    <td className="py-4 px-3 text-center text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-                      ₹{sellPrice.toFixed(2)}
+                    <td className="p-2" onClick={e => e.stopPropagation()}>
+                      <div className="relative inline-flex items-center w-full max-w-[120px] mx-auto">
+                        <span className="absolute left-3 text-[11px] font-bold" style={{ color: 'var(--text-tertiary)' }}>₹</span>
+                        <input type="number" step="0.01" value={item.customPriceInput !== undefined ? (typeof item.customPriceInput === 'number' ? item.customPriceInput.toFixed(2) : item.customPriceInput) : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChangeGroup(item.barcode, e.target.value)} onBlur={() => onCustomPriceBlurGroup(item.barcode)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} MRP`} />
+                      </div>
                     </td>
                     <td className="p-2"  onClick={e => e.stopPropagation()}>
-                      <input type="number" step="0.01" value={item.customTotalInput !== undefined ? item.customTotalInput : item.totalPrice.toFixed(2)} onChange={(e) => onCustomTotalChangeGroup(item.barcode, e.target.value, item.totalBillableQty)} onBlur={() => onCustomPriceBlurGroup(item.barcode)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} total`} />
+                      <div className="relative inline-flex items-center w-full max-w-[120px] mx-auto">
+                        <span className="absolute left-3 text-[11px] font-bold" style={{ color: 'var(--text-tertiary)' }}>₹</span>
+                        <input type="number" step="0.01" value={item.customTotalInput !== undefined ? item.customTotalInput : item.totalPrice.toFixed(2)} onChange={(e) => onCustomTotalChangeGroup(item.barcode, e.target.value, item.totalBillableQty)} onBlur={() => onCustomPriceBlurGroup(item.barcode)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} total`} />
+                      </div>
                     </td>
                     <td className="p-2 text-center align-middle" onClick={e => e.stopPropagation()}>
                       <button type="button" onClick={() => item.children.forEach(c => onRemoveItem(c.id))} className="w-8 h-8 mx-auto rounded flex items-center justify-center transition-colors focus:outline-none" style={{ color: 'var(--text-secondary)' }} onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-error)'; }} onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; }} aria-label={`Remove all ${item.name}`}>
@@ -126,10 +136,13 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                     return (
                       <tr key={child.id} className="animate-fade-in bg-[var(--bg-primary)]" style={{ borderBottom: isLast ? '1px solid var(--border-light)' : '1px dashed var(--border-medium)' }}>
                         <td className="py-4 px-3 text-center" >
-                          <span className="text-xs font-mono font-bold" style={{ color: 'var(--text-tertiary)' }}>↳ #{child.instance_barcode ? (child.instance_barcode.includes('-') ? child.instance_barcode.split('-')[1] : child.instance_barcode.slice(-6)) : 'Unknown'}</span>
+                          <div className="flex items-center justify-center gap-2">
+                            <svg className="w-4 h-4" style={{ color: 'var(--border-medium)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                            <span className="text-xs font-mono font-bold" style={{ color: 'var(--text-tertiary)' }}>{child.instance_barcode ? (child.instance_barcode.includes('-') ? child.instance_barcode.split('-')[1] : child.instance_barcode.slice(-6)) : 'Unknown'}</span>
+                          </div>
                         </td>
                         <td className="py-4 px-3 text-center" >
-                           <p className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Cut Piece</p>
+                           <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>Cut Piece</span>
                         </td>
                         <td className="p-2 text-center" >
                           {child.unit === 'SQFT' ? (
@@ -140,7 +153,10 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                                 <span className="text-[10px] font-bold ml-2 text-[var(--color-accent)]">{safeQty} sqft</span>
                               </div>
                           ) : (
-                              <span className="font-bold text-sm bg-[var(--bg-tertiary)] px-3 py-1 rounded-sm border border-[var(--border-medium)] text-[var(--text-primary)]">{safeQty} {child.unit}</span>
+                              <div className="inline-flex items-baseline justify-center gap-1">
+                                <span className="font-bold text-[15px]" style={{ color: 'var(--text-primary)' }}>{safeQty}</span>
+                                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{child.unit}</span>
+                              </div>
                           )}
                         </td>
                         <td className="p-2" ></td>
@@ -165,8 +181,8 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
             const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
             return (
               <tr key={item.id} className="animate-fade-in" style={{ borderBottom: '1px solid var(--border-light)' }}>
-                <td className="py-4 px-3 text-center font-mono text-xs font-bold" style={{ color: 'var(--color-accent)' }}>
-                  #{item.scanned_barcode && item.scanned_barcode.includes('-') ? item.scanned_barcode : (item.batch_number ? `${item.barcode}-${String(item.batch_number).padStart(2, '0')}` : item.scanned_barcode || item.instance_barcode || item.barcode)}
+                <td className="py-4 px-3 text-center font-mono text-sm font-bold" style={{ color: 'var(--color-accent)' }}>
+                  {item.scanned_barcode && item.scanned_barcode.includes('-') ? item.scanned_barcode : (item.batch_number ? `${item.barcode}-${String(item.batch_number).padStart(2, '0')}` : item.scanned_barcode || item.instance_barcode || item.barcode)}
                 </td>
                 <td className="py-4 px-3 text-center" >
                   <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name}</p>
@@ -248,11 +264,17 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                   )}
                 </td>
                 {activeTab === 'checkout' && (<>
-                  <td className="py-4 px-3 text-center text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-                    ₹{sellPrice.toFixed(2)}
+                  <td className="p-2">
+                    <div className="relative inline-flex items-center w-full max-w-[120px] mx-auto">
+                      <span className="absolute left-3 text-[11px] font-bold" style={{ color: 'var(--text-tertiary)' }}>₹</span>
+                      <input type="number" step="0.01" value={item.customPriceInput !== undefined ? (typeof item.customPriceInput === 'number' ? item.customPriceInput.toFixed(2) : item.customPriceInput) : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChange(item.id, e.target.value)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} MRP`} />
+                    </div>
                   </td>
                   <td className="p-2" >
-                    <input type="number" step="0.01" value={item.customTotalInput !== undefined ? item.customTotalInput : (sellPrice * billableQty).toFixed(2)} onChange={(e) => onCustomTotalChange(item.id, e.target.value, billableQty)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-light)' }} aria-label={`${item.name} total`} />
+                    <div className="relative inline-flex items-center w-full max-w-[120px] mx-auto">
+                      <span className="absolute left-3 text-[11px] font-bold" style={{ color: 'var(--text-tertiary)' }}>₹</span>
+                      <input type="number" step="0.01" value={item.customTotalInput !== undefined ? item.customTotalInput : (sellPrice * billableQty).toFixed(2)} onChange={(e) => onCustomTotalChange(item.id, e.target.value, billableQty)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} total`} />
+                    </div>
                     {safeQty !== billableQty && (
                       <div className="text-[10px] text-[var(--text-tertiary)] font-normal mt-1 text-center">Billed: {billableQty} {item.unit}</div>
                     )}

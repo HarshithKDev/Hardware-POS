@@ -234,6 +234,8 @@ export default function OwnerCatalog() {
     e.preventDefault();
     if (addItemMutation.isPending) return; // prevent double-submit
     if (!form.name.trim()) return showAlert("Item name is required.", "Validation Error");
+    if (!form.category.trim()) return showAlert("Category is required.", "Validation Error");
+    if (!form.sub_category.trim()) return showAlert("Sub-category is required.", "Validation Error");
     if (Number(form.msp) < Number(form.cost_price)) return showAlert("MSP cannot be lower than Cost Price.", "Validation Error");
     if (Number(form.price) < Number(form.msp)) return showAlert("Selling Price cannot be lower than MSP.", "Validation Error");
     if (!nextBarcode) return showAlert("System is generating the next barcode, please wait.", "Notice");
@@ -358,6 +360,11 @@ export default function OwnerCatalog() {
 
       if (formattedData.length === 0) {
         throw new Error('No valid rows found. Ensure the "name" column exists and is filled.');
+      }
+      
+      const missingCatSubcat = formattedData.some(r => !r.category || !r.sub_category);
+      if (missingCatSubcat) {
+        throw new Error('All products must have a Category and a Sub-category specified.');
       }
 
       // Auto-create missing categories and sub-categories
@@ -623,7 +630,7 @@ export default function OwnerCatalog() {
                  style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
                >
                  <option value="exact">Exact (No rounding)</option>
-                 <option value="round_up">Standard Rounding (e.g. 8.4 → 8, 8.5 → 9)</option>
+                 <option value="round_up">Round Up to 0.5 (e.g. 4.2 → 4.5, 4.6 → 5.0)</option>
                </select>
                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
              </div>
