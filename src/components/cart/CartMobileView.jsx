@@ -234,17 +234,19 @@ const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQ
             </div>
           ) : (
             <div className="flex items-center">
-              <div className="flex" style={{ border: '1px solid var(--border-medium)', borderRadius: '2px' }}>
+              <div className="inline-flex items-center h-9 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-medium)] overflow-hidden shadow-sm">
                 {item.instance_barcode ? (
-                  <div className="w-30 h-8 px-4 flex items-center justify-center text-sm font-semibold text-center bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">1</div>
+                  <div className="px-4 text-sm font-bold text-[var(--text-primary)]">1</div>
                 ) : (
                   <>
-                    <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-10 h-8 font-bold text-lg focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }} aria-label={`Decrease ${item.name} quantity`}>-</button>
-                    <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-12 h-8 px-1 text-sm font-semibold text-center focus:outline-none rounded-md" aria-label={`${item.name} quantity`} />
-                    <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-10 h-8 font-bold text-lg focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', borderLeft: '1px solid var(--border-medium)' }} aria-label={`Increase ${item.name} quantity`}>+</button>
+                    <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-10 h-full flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border-r border-[var(--border-medium)]" aria-label={`Decrease ${item.name} quantity`}>-</button>
+                    <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-12 h-full text-sm font-bold text-center bg-transparent text-[var(--text-primary)] focus:outline-none focus:bg-[var(--bg-secondary)] transition-colors m-0" aria-label={`${item.name} quantity`} />
+                    <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-10 h-full flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border-l border-[var(--border-medium)]" aria-label={`Increase ${item.name} quantity`}>+</button>
                   </>
                 )}
-                <div className="h-8 px-3 flex items-center justify-center text-[10px] font-bold uppercase tracking-wider" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', borderLeft: '1px solid var(--border-medium)' }}>{item.unit === 'SQFT' && activeTab !== 'checkout' ? 'ROLLS' : item.unit}</div>
+                <div className="px-3 h-full flex items-center justify-center text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] bg-[var(--bg-secondary)] border-l border-[var(--border-medium)]">
+                  {item.unit === 'SQFT' && activeTab !== 'checkout' ? 'ROLLS' : item.unit}
+                </div>
               </div>
             </div>
           )}
