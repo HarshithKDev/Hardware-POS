@@ -29,7 +29,7 @@ export const UNIT_TYPES = [
   { value: 'GRAMS', label: 'Grams' },
   { value: 'SQFT', label: 'Sq Ft' },
   { value: 'METER', label: 'Meters (m)' },
-  { value: 'FOOT', label: 'Feet (ft)' },
+  { value: 'FT', label: 'Feet (FT)' },
 ];
 
 // --- React Query Cache ---

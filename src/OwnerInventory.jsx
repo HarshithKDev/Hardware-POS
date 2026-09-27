@@ -459,11 +459,13 @@ export default function OwnerInventory({ viewType }) {
           <Virtuoso
             data={items}
             useWindowScroll={false}
-            style={{ height: '100%', width: '100%' }}
+            style={{ height: '100%', width: '100%', overflowAnchor: 'none' }}
             className="hide-x-scrollbar"
             components={{
-              List: forwardRef((props, ref) => (
-                <table ref={ref} {...props} className="w-full max-w-full text-center border-collapse block md:table min-w-0 md:min-w-[1100px]" style={{...props.style}}>
+              List: forwardRef((props, ref) => {
+                const { paddingTop, paddingBottom, ...tableStyle } = props.style || {};
+                return (
+                <table ref={ref} {...props} style={tableStyle} className="w-full max-w-full text-center border-collapse block md:table min-w-0 md:min-w-[1100px]">
                   <thead className="hidden md:table-header-group sticky top-0 z-10 glass-header" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                     <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                       {isSelectionMode && (
@@ -536,9 +538,12 @@ export default function OwnerInventory({ viewType }) {
                       <th className="p-3 w-16 text-center">Actions</th>
                     </tr>
                   </thead>
+                  <tbody className="block md:table-row-group"><tr className="block md:table-row" style={{ height: paddingTop }}><td colSpan={11} className="block md:table-cell p-0 border-none"></td></tr></tbody>
                   {props.children}
+                  <tbody className="block md:table-row-group"><tr className="block md:table-row" style={{ height: paddingBottom }}><td colSpan={11} className="block md:table-cell p-0 border-none"></td></tr></tbody>
                 </table>
-              )),
+                );
+              }),
               Item: forwardRef((props, ref) => <tbody ref={ref} {...props} className="block md:table-row-group" />)
             }}
             itemContent={(index, item) => (

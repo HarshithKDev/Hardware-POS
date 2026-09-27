@@ -558,7 +558,7 @@ export default function OwnerCatalog() {
                 setForm(prev => ({ 
                   ...prev, 
                   item_type: newType,
-                  unit: newType === 'cuttable' && prev.unit === 'PCS' ? 'FOOT' : prev.unit
+                  unit: newType === 'cuttable' && prev.unit === 'PCS' ? 'FT' : prev.unit
                 }));
               }} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
                 <option value="standard">Standard Item</option>

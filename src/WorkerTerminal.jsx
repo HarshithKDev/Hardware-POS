@@ -744,7 +744,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           }
           let l = Number(updated.length) || 0;
           const w = Number(updated.width) || 0;
-          const r = updated.rolls === '' ? 1 : (Number(updated.rolls) || 1);
+          let r = updated.rolls === '' ? 1 : (Number(updated.rolls) || 1);
           let newQty = parseFloat((l * w * r).toFixed(2));
           
           if (activeTab === 'checkout' && newQty > 0) {
@@ -1164,10 +1164,31 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         });
       }
 
-      const finalItemsList = finalCart.map(i => {
+      const rawFinalItemsList = finalCart.map(i => {
         const finalRate = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0);
         const bQty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : Number(i.quantity);
-        return { ...i, quantity: bQty, actual_quantity: Number(i.quantity), finalRate, mrp: Number(i.price || 0), lineTotal: finalRate * bQty };
+        return { ...i, quantity: bQty, actual_quantity: Number(i.quantity), finalRate, mrp: Number(i.price || 0), lineTotal: finalRate * bQty, pieceCount: 1 };
+      });
+
+      const groupedItemsMap = new Map();
+      rawFinalItemsList.forEach(item => {
+        const key = `${item.barcode}_${item.finalRate.toFixed(2)}_${item.quantity}_${item.unit}_${item.length || ''}_${item.width || ''}`;
+        if (groupedItemsMap.has(key)) {
+           const existing = groupedItemsMap.get(key);
+           existing.quantity += item.quantity;
+           existing.actual_quantity += item.actual_quantity;
+           existing.lineTotal += item.lineTotal;
+           existing.pieceCount += 1;
+        } else {
+           groupedItemsMap.set(key, { ...item });
+        }
+      });
+      
+      const finalItemsList = Array.from(groupedItemsMap.values()).map(item => {
+         if (item.pieceCount > 1) {
+            return { ...item, name: `${item.name} (${item.pieceCount} Pieces)` };
+         }
+         return item;
       });
       const finalTotalAmount = finalItemsList.reduce((sum, i) => sum + i.lineTotal, 0);
 
@@ -1526,7 +1547,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
             <form onSubmit={handleCutLengthSubmit}>
               <div className="p-6">
-                <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>How much of <strong style={{ color: 'var(--color-accent)' }}>{cutLengthModal.item?.name}</strong> are you cutting from piece <strong className="font-mono text-[var(--text-primary)]">#{cutLengthModal.instance?.instance_barcode.includes('-') ? cutLengthModal.instance?.instance_barcode.split('-')[1] : cutLengthModal.instance?.instance_barcode.slice(-6)}</strong>?</p>
+                <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>How much of <strong style={{ color: 'var(--color-accent)' }}>{cutLengthModal.item?.name}</strong> are you cutting from piece <strong className="font-mono text-[var(--text-primary)]">#{cutLengthModal.instance?.instance_barcode}</strong>?</p>
 
                 <p className="text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                   Current Piece: {(() => {

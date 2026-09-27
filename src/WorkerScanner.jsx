@@ -394,7 +394,7 @@ export default function WorkerScanner({ cashierName }) {
               <div className="flex justify-between items-start mb-4 gap-4">
                 <div className="flex flex-col flex-1">
                   <span className="font-bold text-xl leading-tight" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
-                  {item.instance_barcode && <span className="font-mono text-sm mt-1" style={{ color: 'var(--color-accent)' }}>Piece #{item.instance_barcode.includes('-') ? item.instance_barcode.split('-')[1] : item.instance_barcode.slice(-6)}</span>}
+                  {item.instance_barcode && <span className="font-mono text-sm mt-1" style={{ color: 'var(--color-accent)' }}>Piece #{item.instance_barcode}</span>}
                 </div>
                 <button 
                   onClick={() => updateQuantity(item.id, 0)} 
