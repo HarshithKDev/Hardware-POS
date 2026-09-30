@@ -101,9 +101,8 @@ function StatCard({ title, value, accentColor, borderColor, onClick, clickLabel,
   );
 }
 
-/** Sales trend bar chart with timeframe selector */
-function SalesTrendChart() {
-  const [timeframe, setTimeframe] = useState('7_days');
+/** Sales trend bar chart */
+function SalesTrendChart({ timeframe }) {
   const [isAnimated, setIsAnimated] = useState(false);
 
   const { data: trend, isLoading } = useQuery({
@@ -113,7 +112,7 @@ function SalesTrendChart() {
       let startDate;
       let trendData = {};
 
-      if (timeframe === '7_days') {
+      if (timeframe === '7_days' || timeframe === 'today') {
         const dayOfWeek = now.getDay(); // 0 is Sunday, 1 is Monday
         const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
         const monday = new Date(now);
@@ -146,6 +145,15 @@ function SalesTrendChart() {
           const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
           trendData[key] = { label: dt.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(), rev: 0 };
         }
+      } else if (timeframe === '1_year') {
+        const d = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+        startDate = `${d.toLocaleDateString('en-CA')}T00:00:00`;
+
+        for (let i = 11; i >= 0; i--) {
+          const dt = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`;
+          trendData[key] = { label: dt.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(), rev: 0 };
+        }
       }
 
       const { data: billsData } = await supabase
@@ -159,7 +167,7 @@ function SalesTrendChart() {
       if (billsData) {
         billsData.forEach(bill => {
           const dateStr = bill.created_at.split('T')[0];
-          let key = timeframe === '6_months' ? dateStr.substring(0, 7) : dateStr;
+          let key = (timeframe === '6_months' || timeframe === '1_year') ? dateStr.substring(0, 7) : dateStr;
 
           if (trendData[key]) {
             trendData[key].rev += Number(bill.total_amount || 0);
@@ -188,21 +196,6 @@ function SalesTrendChart() {
     <div className="p-5 rounded-lg border border-[var(--border-light)] flex flex-col h-full lg:col-span-2" style={{ backgroundColor: 'var(--bg-secondary)' }}>
       <div className="flex justify-between items-center mb-4">
         <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Sales Trend</p>
-        <div className="relative inline-flex items-center rounded-md transition-colors hover:bg-[var(--bg-tertiary)]" style={{ border: '1px solid var(--border-medium)' }}>
-          <select 
-            value={timeframe} 
-            onChange={(e) => setTimeframe(e.target.value)}
-            className="text-[10px] font-bold uppercase focus:outline-none bg-transparent cursor-pointer appearance-none pl-4 pr-10 py-2 w-32"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            <option value="7_days">7 Days</option>
-            <option value="1_month">1 Month</option>
-            <option value="6_months">6 Months</option>
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4" style={{ color: 'var(--text-secondary)' }}>
-             <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-          </div>
-        </div>
       </div>
 
       <div className="flex flex-1 items-end min-h-[8rem] gap-1 md:gap-3 w-full px-2 mb-4" role="img" aria-label="sales trend chart">
@@ -237,11 +230,11 @@ function SalesTrendChart() {
 }
 
 /** Top products list */
-function TopProductsList({ products }) {
+function TopProductsList({ products, timeframeLabel }) {
   return (
     <div className="p-5 rounded-lg border border-[var(--border-light)] flex flex-col h-full" style={{ backgroundColor: 'var(--bg-secondary)' }}>
       <p className="text-xs font-semibold uppercase tracking-wider mb-4 pb-2 shrink-0" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-light)' }}>
-        Top 5 Profit Makers (30 Days)
+        Top 5 Profit Makers ({timeframeLabel})
       </p>
       <ul className="flex-1 overflow-y-auto">
         {products.length === 0 ? (
@@ -267,28 +260,42 @@ function TopProductsList({ products }) {
 // ---------------------------------------------------------------
 export default function OwnerStats({ isActive }) {
   const { showAlert } = useApp();
+  const [globalTimeframe, setGlobalTimeframe] = useState('today');
 
   const fetchDashboardStats = useCallback(async () => {
     const now = new Date();
-    const todayStr = now.toLocaleDateString('en-CA');
-    const todayStart = `${todayStr}T00:00:00`;
-    const todayEnd = `${todayStr}T23:59:59.999`;
-    const thirtyDaysAgo = new Date(now);
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const monthStart = `${thirtyDaysAgo.toLocaleDateString('en-CA')}T00:00:00`;
+    let fetchStart;
+    let fetchStartMs;
+    
+    if (globalTimeframe === 'today') {
+      fetchStart = `${now.toLocaleDateString('en-CA')}T00:00:00`;
+    } else if (globalTimeframe === '7_days') {
+      const d = new Date(now); d.setDate(d.getDate() - 7);
+      fetchStart = `${d.toLocaleDateString('en-CA')}T00:00:00`;
+    } else if (globalTimeframe === '1_month') {
+      const d = new Date(now); d.setDate(d.getDate() - 30);
+      fetchStart = `${d.toLocaleDateString('en-CA')}T00:00:00`;
+    } else if (globalTimeframe === '6_months') {
+      const d = new Date(now); d.setMonth(d.getMonth() - 6);
+      fetchStart = `${d.toLocaleDateString('en-CA')}T00:00:00`;
+    } else if (globalTimeframe === '1_year') {
+      const d = new Date(now); d.setFullYear(d.getFullYear() - 1);
+      fetchStart = `${d.toLocaleDateString('en-CA')}T00:00:00`;
+    }
+    fetchStartMs = new Date(fetchStart).getTime();
 
     // --- Sales data ---
     const { data: billsData } = await supabase
       .from('bills')
       .select('id, total_amount, created_at')
-      .gte('created_at', monthStart)
+      .gte('created_at', fetchStart)
       .eq('location', 'Store');
 
-    let soldNames30Days = new Set();
-    let productStats30Days = {};
+    let soldNames = new Set();
+    let productStats = {};
 
-    let todaysTrueRevenue = 0, todaysGrossProfit = 0, todaysTotalCost = 0, todaysTotalDiscount = 0;
-    let todaysSalesDetails = [];
+    let tfTrueRevenue = 0, tfGrossProfit = 0, tfTotalCost = 0, tfTotalDiscount = 0;
+    let tfSalesDetails = [];
     let topProducts = [];
 
     if (billsData && billsData.length > 0) {
@@ -299,7 +306,6 @@ export default function OwnerStats({ isActive }) {
         chunks.push(billIds.slice(i, i + chunkSize));
       }
       const batchResults = [];
-      // Fetch in sequential batches to prevent network stall
       for (const batch of chunks) {
         const res = await supabase.from('bill_items')
           .select('name, quantity, price_at_sale, cost_at_sale, unit, bill_id, profit, cost_allocated, billable_quantity, system_price, selling_price')
@@ -310,56 +316,51 @@ export default function OwnerStats({ isActive }) {
 
       if (itemsData.length > 0) {
         let tProfitCents = 0, tCostCents = 0, tSystemRevCents = 0, tFinalRevCents = 0;
-        const todaySalesMap = {};
-        const todayBillIds = new Set(
-          billsData.filter(b => b.created_at >= todayStart && b.created_at <= todayEnd).map(b => b.id)
-        );
+        const salesMap = {};
+        const tfBillIds = new Set(billsData.map(b => b.id));
 
         itemsData.forEach(item => {
           const cleanName = item.name.split(' (Cut from ')[0];
-          soldNames30Days.add(cleanName);
+          soldNames.add(cleanName);
           const qty = Number(item.billable_quantity || item.quantity || 0);
           const price = Number(item.price_at_sale || 0);
           
-          // Use pre-calculated profit and cost_allocated from DB if available, else fallback
           const lineCost = item.cost_allocated !== undefined && item.cost_allocated !== null ? Number(item.cost_allocated) : (Number(item.cost_at_sale || 0) * Number(item.quantity || 0));
           const lineRev = price * qty;
           const lineSystemRev = Number(item.selling_price || item.system_price || price) * qty;
           const lineProfit = item.profit !== undefined && item.profit !== null ? Number(item.profit) : (lineRev - lineCost);
 
-          if (productStats30Days[cleanName]) {
-            productStats30Days[cleanName].profit += lineProfit;
-            productStats30Days[cleanName].qty += qty;
+          if (productStats[cleanName]) {
+            productStats[cleanName].profit += lineProfit;
+            productStats[cleanName].qty += qty;
           } else {
-            productStats30Days[cleanName] = { name: cleanName, profit: lineProfit, qty, unit: item.unit };
+            productStats[cleanName] = { name: cleanName, profit: lineProfit, qty, unit: item.unit };
           }
 
-          if (todayBillIds.has(item.bill_id)) {
+          if (tfBillIds.has(item.bill_id)) {
             tProfitCents += Math.round(lineProfit * 100);
             tCostCents += Math.round(lineCost * 100);
             tSystemRevCents += Math.round(lineSystemRev * 100);
             tFinalRevCents += Math.round(lineRev * 100);
-            if (todaySalesMap[cleanName]) {
-              todaySalesMap[cleanName].qty += qty;
-              todaySalesMap[cleanName].lineCost += lineCost;
-              todaySalesMap[cleanName].lineRev += lineRev;
-              todaySalesMap[cleanName].lineProfit += lineProfit;
+            if (salesMap[cleanName]) {
+              salesMap[cleanName].qty += qty;
+              salesMap[cleanName].lineCost += lineCost;
+              salesMap[cleanName].lineRev += lineRev;
+              salesMap[cleanName].lineProfit += lineProfit;
             } else {
-              todaySalesMap[cleanName] = { name: cleanName, unit: item.unit, qty, lineCost, lineRev, lineProfit };
+              salesMap[cleanName] = { name: cleanName, unit: item.unit, qty, lineCost, lineRev, lineProfit };
             }
           }
         });
 
-        const todayTotalRevCents = billsData
-          .filter(b => todayBillIds.has(b.id))
-          .reduce((sum, bill) => sum + Math.round(Number(bill.total_amount || 0) * 100), 0);
+        const tfTotalRevCents = billsData.reduce((sum, bill) => sum + Math.round(Number(bill.total_amount || 0) * 100), 0);
 
-        todaysTrueRevenue = todayTotalRevCents / 100;
-        todaysTotalDiscount = (tSystemRevCents - tFinalRevCents) / 100;
-        todaysGrossProfit = tProfitCents / 100;
-        todaysTotalCost = tCostCents / 100;
-        todaysSalesDetails = Object.values(todaySalesMap).sort((a, b) => b.lineProfit - a.lineProfit);
-        topProducts = Object.values(productStats30Days).sort((a, b) => b.profit - a.profit).slice(0, 5);
+        tfTrueRevenue = tfTotalRevCents / 100;
+        tfTotalDiscount = (tSystemRevCents - tFinalRevCents) / 100;
+        tfGrossProfit = tProfitCents / 100;
+        tfTotalCost = tCostCents / 100;
+        tfSalesDetails = Object.values(salesMap).sort((a, b) => b.lineProfit - a.lineProfit);
+        topProducts = Object.values(productStats).sort((a, b) => b.profit - a.profit).slice(0, 5);
       }
     }
 
@@ -374,7 +375,7 @@ export default function OwnerStats({ isActive }) {
     const invPages = [];
     for (let i = 0; i < pageCount; i++) {
        const res = await supabase.from('product_master')
-          .select('barcode, name, price, cost_price, stock_warehouse, stock_store, min_quantity_warehouse, min_quantity_store')
+          .select('barcode, name, price, cost_price, stock_warehouse, stock_store, min_quantity_warehouse, min_quantity_store, inventory_batches(stock_warehouse, stock_store, purchase_cost, is_active)')
           .eq('is_active', true)
           .range(i * pageSize, (i + 1) * pageSize - 1);
        invPages.push(res);
@@ -385,31 +386,58 @@ export default function OwnerStats({ isActive }) {
     let totalInventoryValue = 0, warehouseCapital = 0, storeCapital = 0, deadStockValue = 0;
 
     allStats.forEach(item => {
-      if (item.stock_store < (item.min_quantity_store ?? STORE_LOW_STOCK_THRESHOLD)) lowStoreItems.push(item);
-      if (item.stock_warehouse < (item.min_quantity_warehouse ?? WAREHOUSE_LOW_STOCK_THRESHOLD)) lowWarehouseItems.push(item);
-
-      const c = Number(item.cost_price || item.price * 0.7);
-      const wQty = Number(item.stock_warehouse || 0);
-      const sQty = Number(item.stock_store || 0);
+      let wQty = 0;
+      let sQty = 0;
+      let wCap = 0;
+      let sCap = 0;
+      
+      if (item.inventory_batches && item.inventory_batches.length > 0) {
+        item.inventory_batches.forEach(b => {
+          if (b.is_active) {
+            const bWQty = Number(b.stock_warehouse || 0);
+            const bSQty = Number(b.stock_store || 0);
+            const bCost = Number(b.purchase_cost || item.cost_price || item.price * 0.7);
+            
+            wQty += bWQty;
+            sQty += bSQty;
+            wCap += bCost * bWQty;
+            sCap += bCost * bSQty;
+          }
+        });
+      } else {
+        wQty = Number(item.stock_warehouse || 0);
+        sQty = Number(item.stock_store || 0);
+        const legacyCost = Number(item.cost_price || item.price * 0.7);
+        wCap = legacyCost * wQty;
+        sCap = legacyCost * sQty;
+      }
+      
       const totalQty = wQty + sQty;
+      
+      // Update item object so the UI modal renders the aggregated values correctly
+      item.stock_store = sQty;
+      item.stock_warehouse = wQty;
 
-      totalInventoryValue += c * totalQty;
-      warehouseCapital += c * wQty;
-      storeCapital += c * sQty;
+      if (sQty < (item.min_quantity_store ?? STORE_LOW_STOCK_THRESHOLD)) lowStoreItems.push(item);
+      if (wQty < (item.min_quantity_warehouse ?? WAREHOUSE_LOW_STOCK_THRESHOLD)) lowWarehouseItems.push(item);
 
-      if (totalQty > 0 && !soldNames30Days.has(item.name)) {
-        const itemDeadValue = c * totalQty;
+      totalInventoryValue += (wCap + sCap);
+      warehouseCapital += wCap;
+      storeCapital += sCap;
+
+      if (totalQty > 0 && !soldNames.has(item.name)) {
+        const itemDeadValue = wCap + sCap;
         deadStockValue += itemDeadValue;
         deadStockItems.push({ ...item, totalQty, deadValue: itemDeadValue });
       }
     });
 
     return {
-      todaysTrueRevenue,
-      todaysGrossProfit,
-      todaysTotalCost,
-      todaysTotalDiscount,
-      todaysSalesDetails,
+      tfTrueRevenue,
+      tfGrossProfit,
+      tfTotalCost,
+      tfTotalDiscount,
+      tfSalesDetails,
       lowStoreItems: lowStoreItems.sort((a, b) => a.name.localeCompare(b.name)),
       lowWarehouseItems: lowWarehouseItems.sort((a, b) => a.name.localeCompare(b.name)),
       deadStockItems: deadStockItems.sort((a, b) => b.deadValue - a.deadValue),
@@ -420,7 +448,7 @@ export default function OwnerStats({ isActive }) {
       topProducts,
       failedSyncs: await getFailedTransactions(),
     };
-  }, []);
+  }, [globalTimeframe]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['dashboard-stats', isActive],
@@ -450,15 +478,47 @@ export default function OwnerStats({ isActive }) {
   }
 
   const {
-    todaysTrueRevenue, todaysGrossProfit, todaysTotalCost, todaysTotalDiscount, todaysSalesDetails,
-    lowStoreItems, deadStockItems, deadStockValue,
+    tfTrueRevenue, tfGrossProfit, tfTotalCost, tfTotalDiscount, tfSalesDetails,
+    lowStoreItems, lowWarehouseItems, deadStockItems, deadStockValue,
     totalInventoryValue, warehouseCapital, storeCapital,
     topProducts, failedSyncs
   } = data;
 
+  const getTimeframeLabel = () => {
+    switch (globalTimeframe) {
+      case 'today': return 'Today';
+      case '7_days': return '1 Week';
+      case '1_month': return '1 Month';
+      case '6_months': return '6 Months';
+      case '1_year': return '1 Year';
+      default: return '';
+    }
+  };
+
+  const timeframeLabel = getTimeframeLabel();
+
   return (
     <div className="flex flex-col h-full relative">
-      <h1 className="text-2xl font-medium mb-6 shrink-0" style={{ color: 'var(--text-primary)' }}>Business Overview</h1>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 shrink-0 gap-4">
+        <h1 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>Business Overview</h1>
+        <div className="relative inline-flex items-center rounded-md transition-colors hover:bg-[var(--bg-tertiary)]" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}>
+          <select 
+            value={globalTimeframe} 
+            onChange={(e) => setGlobalTimeframe(e.target.value)}
+            className="text-[12px] font-bold uppercase focus:outline-none bg-transparent cursor-pointer appearance-none pl-4 pr-10 py-2 w-40"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            <option value="today">Today</option>
+            <option value="7_days">1 Week</option>
+            <option value="1_month">1 Month</option>
+            <option value="6_months">6 Months</option>
+            <option value="1_year">1 Year</option>
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4" style={{ color: 'var(--text-secondary)' }}>
+             <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
+          </div>
+        </div>
+      </div>
 
       {failedSyncs && failedSyncs.length > 0 && (
         <div className="mb-6 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm" style={{ backgroundColor: 'rgba(239, 68, 68, 0.05)', border: '1px solid var(--color-error)' }}>
@@ -476,19 +536,19 @@ export default function OwnerStats({ isActive }) {
       )}
 
       {/* ROW 1: TODAY'S VITALS */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-4 shrink-0">
-        <StatCard title="Today Revenue" value={`₹${todaysTrueRevenue.toFixed(2)}`} borderColor="var(--color-success)" />
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4 shrink-0">
+        <StatCard title={`${timeframeLabel} Revenue`} value={`₹${tfTrueRevenue.toFixed(2)}`} borderColor="var(--color-success)" />
         <StatCard
-          title="Today Profit"
-          value={`₹${todaysGrossProfit.toFixed(2)}`}
+          title={`${timeframeLabel} Profit`}
+          value={`₹${tfGrossProfit.toFixed(2)}`}
           accentColor="var(--color-success)"
           borderColor="var(--color-success)"
           onClick={() => setActiveModal('profit')}
-          clickLabel="View today's profit details"
+          clickLabel={`View ${timeframeLabel} profit details`}
         />
         <StatCard
           title="Discount Given"
-          value={`₹${(todaysTotalDiscount || 0).toFixed(2)}`}
+          value={`₹${(tfTotalDiscount || 0).toFixed(2)}`}
           borderColor="var(--color-warning)"
         />
         <StatCard
@@ -498,6 +558,14 @@ export default function OwnerStats({ isActive }) {
           borderColor={lowStoreItems.length > 0 ? 'var(--color-error)' : 'var(--color-accent)'}
           onClick={() => setActiveModal('low-store')}
           clickLabel="View low stock items"
+        />
+        <StatCard
+          title="Warehouse Low Stock"
+          value={lowWarehouseItems.length}
+          accentColor={lowWarehouseItems.length > 0 ? 'var(--color-error)' : undefined}
+          borderColor={lowWarehouseItems.length > 0 ? 'var(--color-error)' : 'var(--color-accent)'}
+          onClick={() => setActiveModal('low-warehouse')}
+          clickLabel="View warehouse low stock"
         />
         <StatCard
           title="Dead Stock Value"
@@ -511,8 +579,8 @@ export default function OwnerStats({ isActive }) {
 
       {/* ROW 2: TRENDS & LEADERBOARD */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4 flex-1 min-h-0">
-        <SalesTrendChart />
-        <TopProductsList products={topProducts} />
+        <SalesTrendChart timeframe={globalTimeframe} />
+        <TopProductsList products={topProducts} timeframeLabel={timeframeLabel} />
       </div>
 
       {/* ROW 3: CAPITAL */}
@@ -536,9 +604,10 @@ export default function OwnerStats({ isActive }) {
           <div className="w-full max-w-4xl flex flex-col max-h-[85vh] rounded-xl overflow-hidden shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
             <div className="flex justify-between items-center pr-1 pl-4 py-2 shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-light)' }}>
               <span id="stats-modal-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
-                {activeModal === 'profit' && "Today's Profit & Sales Breakdown"}
-                {activeModal === 'low-store' && `Items Running Low in Store Front (< ${STORE_LOW_STOCK_THRESHOLD})`}
-                {activeModal === 'dead-stock' && 'Dead Stock (0 Sales in Last 30 Days)'}
+                {activeModal === 'profit' && `${timeframeLabel} Profit & Sales Breakdown`}
+                {activeModal === 'low-store' && `Items Running Low in Store Front (Below Min Qty)`}
+                {activeModal === 'low-warehouse' && `Items Running Low in Warehouse (Below Min Qty)`}
+                {activeModal === 'dead-stock' && `Dead Stock (0 Sales in ${timeframeLabel})`}
                 {activeModal === 'failed-syncs' && 'Failed Offline Transactions'}
               </span>
               <button onClick={() => setActiveModal(null)} className="px-3 py-1.5 focus:outline-none" aria-label="Close details" style={{ color: 'var(--text-secondary)' }}>✕</button>
@@ -550,15 +619,15 @@ export default function OwnerStats({ isActive }) {
                   <div className="grid grid-cols-3 p-4" style={{ backgroundColor: 'var(--color-success-bg)', borderBottom: '1px solid var(--border-light)' }}>
                     <div className="text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
                       <p className="text-xs font-bold uppercase mb-1" style={{ color: 'var(--text-secondary)' }}>Total Cost of Goods</p>
-                      <p className="text-xl font-medium" style={{ color: 'var(--text-primary)' }}>₹{todaysTotalCost.toFixed(2)}</p>
+                      <p className="text-xl font-medium" style={{ color: 'var(--text-primary)' }}>₹{tfTotalCost.toFixed(2)}</p>
                     </div>
                     <div className="text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
                       <p className="text-xs font-bold uppercase mb-1" style={{ color: 'var(--text-secondary)' }}>Total Sold For</p>
-                      <p className="text-xl font-medium" style={{ color: 'var(--text-primary)' }}>₹{todaysTrueRevenue.toFixed(2)}</p>
+                      <p className="text-xl font-medium" style={{ color: 'var(--text-primary)' }}>₹{tfTrueRevenue.toFixed(2)}</p>
                     </div>
                     <div className="text-center">
                       <p className="text-xs font-bold uppercase mb-1" style={{ color: 'var(--color-success)' }}>Net Profit Generated</p>
-                      <p className="text-xl font-bold" style={{ color: 'var(--color-success)' }}>₹{todaysGrossProfit.toFixed(2)}</p>
+                      <p className="text-xl font-bold" style={{ color: 'var(--color-success)' }}>₹{tfGrossProfit.toFixed(2)}</p>
                     </div>
                   </div>
                   <div className="overflow-x-auto w-full shadow-sm rounded-lg" style={{ border: '1px solid var(--border-light)' }}>
@@ -573,9 +642,9 @@ export default function OwnerStats({ isActive }) {
                         </tr>
                       </thead>
                       <tbody>
-                        {todaysSalesDetails.length === 0 ? (
-                          <tr><td colSpan="5" className="h-[50vh] align-middle text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No sales recorded today.</td></tr>
-                        ) : todaysSalesDetails.map((item, idx) => (
+                        {tfSalesDetails.length === 0 ? (
+                          <tr><td colSpan="5" className="h-[50vh] align-middle text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No sales recorded.</td></tr>
+                        ) : tfSalesDetails.map((item, idx) => (
                           <tr key={idx} style={{ borderBottom: '1px solid var(--border-light)' }}>
                             <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
                             <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)' }}>{item.qty} {item.unit}</td>
@@ -590,7 +659,7 @@ export default function OwnerStats({ isActive }) {
                 </div>
               )}
 
-              {(activeModal === 'low-store' || activeModal === 'dead-stock') && (
+              {(activeModal === 'low-store' || activeModal === 'low-warehouse' || activeModal === 'dead-stock') && (
                 <div className="overflow-x-auto w-full shadow-sm rounded-lg" style={{ border: '1px solid var(--border-light)' }}>
                   <table className="w-full text-left border-collapse">
                     <thead className="sticky top-0 shadow-sm" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-light)' }}>
@@ -603,7 +672,10 @@ export default function OwnerStats({ isActive }) {
                             <th className="p-3 text-right w-32">Capital Tied Up</th>
                           </>
                         ) : (
-                          <th className="p-3 text-center w-32">Current Qty</th>
+                          <>
+                            <th className="p-3 text-center w-32" style={{ borderRight: '1px solid var(--border-light)' }}>Min Qty</th>
+                            <th className="p-3 text-center w-32">Current Qty</th>
+                          </>
                         )}
                       </tr>
                     </thead>
@@ -612,7 +684,16 @@ export default function OwnerStats({ isActive }) {
                         <tr key={item.barcode} style={{ borderBottom: '1px solid var(--border-light)' }}>
                           <td className="p-3 text-sm font-mono" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{item.barcode}</td>
                           <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
+                          <td className="p-3 text-sm text-center font-bold" style={{ color: 'var(--text-tertiary)', borderRight: '1px solid var(--border-light)' }}>{item.min_quantity_store ?? 10}</td>
                           <td className="p-3 text-sm text-center font-bold" style={{ color: 'var(--color-error)' }}>{item.stock_store}</td>
+                        </tr>
+                      ))}
+                      {activeModal === 'low-warehouse' && lowWarehouseItems.map(item => (
+                        <tr key={item.barcode} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                          <td className="p-3 text-sm font-mono" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{item.barcode}</td>
+                          <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
+                          <td className="p-3 text-sm text-center font-bold" style={{ color: 'var(--text-tertiary)', borderRight: '1px solid var(--border-light)' }}>{item.min_quantity_warehouse ?? 50}</td>
+                          <td className="p-3 text-sm text-center font-bold" style={{ color: 'var(--color-error)' }}>{item.stock_warehouse}</td>
                         </tr>
                       ))}
                       {activeModal === 'dead-stock' && deadStockItems.length === 0 && (
