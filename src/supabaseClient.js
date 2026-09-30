@@ -12,5 +12,9 @@ export const supabase = createClient(supabaseUrl, supabaseKey)
 
 // Secondary client specifically for the owner to provision workers without logging out
 export const provisioningClient = createClient(supabaseUrl, supabaseKey, {
-  auth: { persistSession: false, autoRefreshToken: false }
+  auth: { 
+    persistSession: false, 
+    autoRefreshToken: false,
+    storageKey: 'supabase.provisioning.auth.token'
+  }
 });

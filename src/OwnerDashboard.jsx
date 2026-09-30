@@ -107,9 +107,16 @@ export default function OwnerDashboard() {
               <button
                 key={key}
                 onClick={() => changeTab(key)}
-                className={`text-left px-3 py-2 text-sm flex items-center gap-3 transition-colors border-l-2 ${isActive ? 'border-[var(--color-accent)] bg-[var(--bg-tertiary)] text-[var(--color-accent)] font-medium' : 'border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'}`}
+                className={`relative overflow-hidden text-left pl-4 pr-3 py-2.5 my-0.5 rounded-lg text-sm flex items-center gap-3 transition-all duration-200 ${
+                  isActive 
+                    ? 'bg-[var(--bg-tertiary)] text-[var(--color-accent)] font-semibold shadow-sm' 
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+                }`}
                 aria-current={isActive ? 'page' : undefined}
               >
+                {isActive && (
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-[var(--color-accent)]" />
+                )}
                 <Icon size={18} className={isActive ? 'text-[var(--color-accent)]' : 'text-[var(--text-tertiary)]'} />
                 {label}
               </button>

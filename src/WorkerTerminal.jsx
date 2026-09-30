@@ -231,23 +231,29 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             batch = item.batches[0]; // fallback
           }
 
-          setCart(prev => {
-            const idx = prev.findIndex(c => c.instance_barcode === scannedInstanceBarcode);
-            if (idx >= 0) {
-              showAlertRef.current(`Piece #${scannedInstanceBarcode} is already in the cart!`, "Duplicate Scan");
-              return prev;
-            }
-            
-            // Check if it exists in the database
-            supabase.from('stock_instances').select('id').eq('instance_barcode', scannedInstanceBarcode).maybeSingle().then(({ data }) => {
-              if (data) {
-                showAlertRef.current(`Piece #${scannedInstanceBarcode} already exists in the warehouse!`, "Already Exists");
-                // Remove it from the cart since we just optimistically added it
-                setCart(current => current.filter(c => c.instance_barcode !== scannedInstanceBarcode));
-              }
-            });
+          // 1. Initial synchronous check (fast path)
+          if (cartRef.current.some(c => c.instance_barcode === scannedInstanceBarcode)) {
+            showAlertRef.current(`Piece #${scannedInstanceBarcode} is already in the cart!`, "Duplicate Scan");
+            return;
+          }
 
-            return [...prev, { 
+          // 2. Asynchronous check against database
+          const { data: existingInstance } = await supabase.from('stock_instances')
+            .select('id')
+            .eq('instance_barcode', scannedInstanceBarcode)
+            .maybeSingle();
+
+          if (existingInstance) {
+            showAlertRef.current(`Piece #${scannedInstanceBarcode} already exists in the warehouse!`, "Already Exists");
+            return;
+          }
+
+          // 3. Pure state update with race-condition fallback
+          setCart(prev => {
+            if (prev.some(c => c.instance_barcode === scannedInstanceBarcode)) {
+              return prev; // Silently ignore duplicates to maintain purity
+            }
+            return [...prev, {
               ...item, 
               id: generateId(), 
               instance_barcode: scannedInstanceBarcode,
@@ -699,7 +705,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     setManualInstanceBarcodeModal({ isOpen: false, item: null, batch: null, barcodeInput: '', prefix: '' });
   };
 
-  const updateQuantity = (id, val) => {
+  const updateQuantity = useCallback((id, val) => {
     setCart(prev => {
       let limitMsg = '';
       const newCart = prev.map(i => {
@@ -731,9 +737,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       if (limitMsg) setTimeout(() => showAlert(limitMsg, "Stock Limit"), 0);
       return newCart;
     });
-  };
+  }, [activeTab, showAlert, setCart]);
 
-  const updateDimensions = (id, field, val) => {
+  const updateDimensions = useCallback((id, field, val) => {
     setCart(prev => {
       let limitMsg = '';
       const newCart = prev.map(i => {
@@ -784,13 +790,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       if (limitMsg) setTimeout(() => showAlert(limitMsg, "Stock Limit"), 0);
       return newCart;
     });
-  };
+  }, [activeTab, showAlert, setCart]);
 
 
-  const handleCustomPriceChange = (id, val) => setCart(prev => prev.map(i => i.id === id ? { ...i, customPriceInput: val, customTotalInput: undefined } : i));
-  const handleCustomPriceChangeGroup = (barcode, val) => setCart(prev => prev.map(i => (i.barcode === barcode && i.is_cuttable) ? { ...i, customPriceInput: val, customTotalInput: undefined } : i));
+  const handleCustomPriceChange = useCallback((id, val) => setCart(prev => prev.map(i => i.id === id ? { ...i, customPriceInput: val, customTotalInput: undefined } : i)), [setCart]);
+  const handleCustomPriceChangeGroup = useCallback((barcode, val) => setCart(prev => prev.map(i => (i.barcode === barcode && i.is_cuttable) ? { ...i, customPriceInput: val, customTotalInput: undefined } : i)), [setCart]);
 
-  const handleCustomTotalChange = (id, val, qty) => setCart(prev => prev.map(i => {
+  const handleCustomTotalChange = useCallback((id, val, qty) => setCart(prev => prev.map(i => {
     if (i.id === id) {
       const numVal = Number(val);
       if (!isNaN(numVal) && qty > 0) {
@@ -799,9 +805,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       return { ...i, customTotalInput: val };
     }
     return i;
-  }));
+  })), [setCart]);
 
-  const handleCustomTotalChangeGroup = (barcode, val, totalQty) => setCart(prev => prev.map(i => {
+  const handleCustomTotalChangeGroup = useCallback((barcode, val, totalQty) => setCart(prev => prev.map(i => {
     if (i.barcode === barcode && i.is_cuttable) {
       const numVal = Number(val);
       if (!isNaN(numVal) && totalQty > 0) {
@@ -810,9 +816,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       return { ...i, customTotalInput: val };
     }
     return i;
-  }));
+  })), [setCart]);
 
-  const applyCustomPriceBlur = (id) => setCart(prev => prev.map(i => {
+  const applyCustomPriceBlur = useCallback((id) => setCart(prev => prev.map(i => {
     if (i.id === id) {
       const qty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : (i.quantity === '' ? 0 : Number(i.quantity));
       let val = Number(i.customPriceInput); if (isNaN(val)) val = Number(i.price || 0);
@@ -825,9 +831,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       return { ...i, customPriceInput: val, customTotalInput: (val * qty).toFixed(2), discountPct: disc };
     }
     return i;
-  }));
+  })), [cashierName, setCart]);
 
-  const handleCustomPriceBlurGroup = (barcode) => {
+  const handleCustomPriceBlurGroup = useCallback((barcode) => {
     setCart(prev => {
       return prev.map(i => {
         if (i.barcode === barcode && i.is_cuttable) {
@@ -848,15 +854,15 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         return i;
       });
     });
-  };
+  }, [cart, cashierName, setCart]);
 
-  const calculateTotal = () => cart.reduce((tot, i) => {
+  const calculateTotal = useCallback(() => cart.reduce((tot, i) => {
     const qty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : (i.quantity === '' ? 0 : Number(i.quantity));
     const price = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0);
     return tot + Math.round(price * qty * 100);
-  }, 0) / 100;
+  }, 0) / 100, [cart]);
   
-  const calculateTotalUnits = () => cart.reduce((tot, i) => tot + (i.quantity === '' ? 0 : Number(i.quantity)), 0);
+  const calculateTotalUnits = useCallback(() => cart.reduce((tot, i) => tot + (i.quantity === '' ? 0 : Number(i.quantity)), 0), [cart]);
 
   const handleCancelSale = () => {
     if (activeCartTab.startsWith('held_')) {

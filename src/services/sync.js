@@ -128,15 +128,17 @@ export const flushOfflineQueue = async () => {
 // Polling service to keep things in sync if the app stays open for long periods
 let syncInterval = null;
 
+const handleOnlineSync = () => {
+  console.log('Network is back online. Flushing queue...');
+  flushOfflineQueue();
+};
+
 export const startBackgroundSync = () => {
   // Initial syncs
   syncInventoryToLocal().then(() => flushOfflineQueue());
 
   // Setup listeners for online/offline events
-  window.addEventListener('online', () => {
-    console.log('Network is back online. Flushing queue...');
-    flushOfflineQueue();
-  });
+  window.addEventListener('online', handleOnlineSync);
 
   // Setup polling every 5 minutes to fetch new inventory changes
   // and flush the queue in case events are missed
@@ -154,4 +156,5 @@ export const stopBackgroundSync = () => {
     clearInterval(syncInterval);
     syncInterval = null;
   }
+  window.removeEventListener('online', handleOnlineSync);
 };
