@@ -201,7 +201,7 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                   )}
                 </td>
                 <td className="p-2" style={activeTab === 'checkout' ? { } : {}}>
-                  {(item.unit === 'SQFT' && activeTab === 'checkout') || (item.is_cuttable && activeTab === 'receive') ? (
+                  {(item.unit === 'SQFT' && item.is_cuttable && activeTab === 'checkout') || (item.is_cuttable && activeTab === 'receive') ? (
                     <div className="flex items-center justify-center gap-2">
                       {item.instance_barcode && activeTab !== 'receive' ? (
                         <div className="flex items-center gap-2 ml-4">

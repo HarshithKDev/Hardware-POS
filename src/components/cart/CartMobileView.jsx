@@ -200,7 +200,7 @@ const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQ
           )}
         </div>
         <div className="flex justify-between items-center mt-1 pt-3" style={{ borderTop: '1px solid var(--border-light)' }}>
-          {item.unit === 'SQFT' && activeTab === 'checkout' ? (
+          {item.unit === 'SQFT' && item.is_cuttable && activeTab === 'checkout' ? (
             <div className="flex items-center gap-2 w-full justify-between mt-1">
               <div className="flex items-center gap-2">
                 {item.instance_barcode ? (

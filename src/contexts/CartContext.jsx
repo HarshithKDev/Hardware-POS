@@ -25,15 +25,24 @@ export function CartProvider({ children, activeTab }) {
 
   // Save cart sessions to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem(`pos_cart_sessions_${activeTab}`, JSON.stringify(cartSessions));
+    const timer = setTimeout(() => {
+      localStorage.setItem(`pos_cart_sessions_${activeTab}`, JSON.stringify(cartSessions));
+    }, 300);
+    return () => clearTimeout(timer);
   }, [cartSessions, activeTab]);
 
   useEffect(() => {
-    localStorage.setItem(`pos_cart_${activeTab}`, JSON.stringify(cart));
+    const timer = setTimeout(() => {
+      localStorage.setItem(`pos_cart_${activeTab}`, JSON.stringify(cart));
+    }, 300);
+    return () => clearTimeout(timer);
   }, [cart, activeTab]);
 
   useEffect(() => {
-    localStorage.setItem(`pos_held_carts_${activeTab}`, JSON.stringify(heldCarts));
+    const timer = setTimeout(() => {
+      localStorage.setItem(`pos_held_carts_${activeTab}`, JSON.stringify(heldCarts));
+    }, 300);
+    return () => clearTimeout(timer);
   }, [heldCarts, activeTab]);
 
   // Sycing cart changes to active session

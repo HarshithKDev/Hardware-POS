@@ -461,8 +461,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           batch_id: batchId,
           batch_number: batch ? batch.batch_number : null,
           discountPct: 0, 
-          quantity: item.unit === 'SQFT' ? 0 : 1, 
-          billableQuantity: item.unit === 'SQFT' ? 0 : 1, 
+          quantity: (item.unit === 'SQFT' && item.is_cuttable) ? 0 : 1, 
+          billableQuantity: (item.unit === 'SQFT' && item.is_cuttable) ? 0 : 1, 
           unit: item.unit || 'PCS', 
           length: '', width: '', rolls: '1',
           purchase_cost: Number(batch ? batch.purchase_cost : item.cost_price || 0).toFixed(2), 
@@ -1126,7 +1126,15 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             successData = { bill_id: 'OFFL-' + generateId().substring(0, 5).toUpperCase() };
             setTimeout(() => showAlertRef.current("Transaction queued offline. It will sync automatically when internet returns.", "Offline Mode"), 100);
           } else {
-            throw new Error(error.message);
+            let msg = error.message;
+            if (msg.includes('chk_current_length_nonnegative')) {
+              msg = `One or more cut pieces in your cart do not have enough remaining length in the warehouse. Another checkout may have already cut them.`;
+            } else if (msg.includes('chk_stock_store_nonnegative')) {
+              msg = `Store stock limit exceeded. Another checkout may have already sold this item.`;
+            } else if (msg.includes('chk_stock_warehouse_nonnegative')) {
+              msg = `Warehouse stock limit exceeded. Another transaction may have already moved this item.`;
+            }
+            throw new Error(msg);
           }
         }
       } else {

@@ -16,7 +16,7 @@ export const SALES_PER_PAGE = 20;
 // --- Barcode ---
 export const BARCODE_START_VALUE = '1001';
 export const BARCODE_RETRY_ATTEMPTS = 5;
-export const SCAN_TIMEOUT_MS = 200;
+export const SCAN_TIMEOUT_MS = 400;
 
 // --- Auth ---
 export const ADMIN_EMAIL = 'admin@hardwarepos.com';

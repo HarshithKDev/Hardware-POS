@@ -7,20 +7,25 @@ const DB_VERSION = 3;
 let cachedInventory = null;
 let pieceCountCache = {};
 
+let dbPromise = null;
+
 export const initDB = async () => {
-  return openDB(DB_NAME, DB_VERSION, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains('product_master')) {
-        db.createObjectStore('product_master', { keyPath: 'barcode' });
-      }
-      if (!db.objectStoreNames.contains('offline_queue')) {
-        db.createObjectStore('offline_queue', { keyPath: 'id', autoIncrement: true });
-      }
-      if (!db.objectStoreNames.contains('sync_status')) {
-        db.createObjectStore('sync_status', { keyPath: 'key' });
-      }
-    },
-  });
+  if (!dbPromise) {
+    dbPromise = openDB(DB_NAME, DB_VERSION, {
+      upgrade(db) {
+        if (!db.objectStoreNames.contains('product_master')) {
+          db.createObjectStore('product_master', { keyPath: 'barcode' });
+        }
+        if (!db.objectStoreNames.contains('offline_queue')) {
+          db.createObjectStore('offline_queue', { keyPath: 'id', autoIncrement: true });
+        }
+        if (!db.objectStoreNames.contains('sync_status')) {
+          db.createObjectStore('sync_status', { keyPath: 'key' });
+        }
+      },
+    });
+  }
+  return dbPromise;
 };
 
 export const clearInventoryCache = async () => {

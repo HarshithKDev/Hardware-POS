@@ -63,7 +63,7 @@ export default function WorkerScanner({ cashierName }) {
             await handleScan(decodedText);
             setTimeout(() => {
               isProcessing = false;
-            }, 1000);
+            }, 300);
           }
         },
         (errorMessage) => {
@@ -227,7 +227,8 @@ export default function WorkerScanner({ cashierName }) {
           return [{ 
             ...item, 
             id: generateId(), 
-            quantity: 1,
+            quantity: item.unit === 'SQFT' ? (isInstance ? parseFloat((instLength * (Number(item.default_width) || 1)).toFixed(2)) : 0) : 1,
+            billableQuantity: item.unit === 'SQFT' ? (isInstance ? parseFloat((instLength * (Number(item.default_width) || 1)).toFixed(2)) : 0) : 1,
             maxStock: maxStock,
             instance_barcode: isInstance ? barcode : null,
             scanned_barcode: searchBarcode + (scannedBatchNumber ? '-' + String(scannedBatchNumber).padStart(2, '0') : '') + (isInstance ? '-' + instanceBarcodeSuffix : ''),
@@ -235,7 +236,11 @@ export default function WorkerScanner({ cashierName }) {
             purchase_cost: batch ? batch.purchase_cost : (item.cost_price || 0),
             selling_price: batch ? batch.selling_price : (item.price || 0),
             msp_price: batch ? batch.msp : (item.msp || 0),
-            name: isInstance ? `${item.name} (Piece #${instanceBarcodeSuffix})` : item.name
+            name: isInstance ? `${item.name} (Piece #${instanceBarcodeSuffix})` : item.name,
+            length: isInstance ? instLength : '', 
+            width: isInstance ? (item.default_width || '') : '', 
+            rolls: '1',
+            pieceLength: instLength
           }, ...prev];
         }
       });
