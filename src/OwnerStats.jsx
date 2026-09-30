@@ -308,7 +308,7 @@ export default function OwnerStats({ isActive }) {
       const batchResults = [];
       for (const batch of chunks) {
         const res = await supabase.from('bill_items')
-          .select('name, quantity, price_at_sale, cost_at_sale, unit, bill_id, profit, cost_allocated, billable_quantity, system_price, selling_price')
+          .select('name, quantity, price_at_sale, cost_at_sale, unit, bill_id, profit, cost_allocated, billable_quantity, system_price')
           .in('bill_id', batch);
         batchResults.push(res);
       }
