@@ -199,7 +199,7 @@ export default function WorkerDashboardView() {
               <span className="text-sm font-bold tracking-wide" style={{ color: 'var(--text-primary)' }}>
                 {lowStockModal.type === 'store' ? 'Low Store Stock Items' : 'Low Warehouse Stock Items'}
               </span>
-              <button type="button" onClick={() => setLowStockModal({ isOpen: false, type: null })} className="px-3 py-1.5 leading-none focus:outline-none text-lg" style={{ color: 'var(--text-secondary)' }}>✕</button>
+              
             </div>
             
             <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">

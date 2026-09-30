@@ -87,9 +87,6 @@ export default function CreateBatchModal({ item, onClose }) {
             <h2 className="text-lg font-bold text-[var(--text-primary)] leading-tight">Create New Batch</h2>
             <p className="text-xs text-[var(--text-tertiary)] font-medium mt-1 uppercase tracking-wider">{item.name} ({item.barcode})</p>
           </div>
-          <button onClick={onClose} className="p-2 bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]">
-            ✕
-          </button>
         </div>
 
         <div className="p-4 md:p-6 overflow-y-auto custom-scrollbar">

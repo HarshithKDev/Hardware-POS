@@ -1274,7 +1274,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           <div className="w-[85%] max-w-[450px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
             <div className="flex justify-between items-center pr-1 pl-4 py-1" style={{ borderBottom: '1px solid var(--border-light)' }}>
               <span id="checkout-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Checkout Payment</span>
-              <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} className="px-3 py-1.5 leading-none focus:outline-none rounded-md" aria-label="Close checkout">✕</button>
             </div>
             <div className="p-6">
               <div className="flex justify-between items-end mb-6 pb-4" style={{ borderBottom: '1px solid var(--border-light)' }}>
@@ -1312,7 +1311,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               <button onClick={handleCompleteTransaction} disabled={isCheckingOut || isShortfall} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 flex justify-center items-center min-w-[120px]" style={{ backgroundColor: 'var(--color-accent)' }}>
                 {isCheckingOut ? <Spinner className="w-4 h-4 text-white" /> : 'Complete Sale'}
               </button>
-              <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} disabled={isCheckingOut} className="h-9 px-8 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}>Cancel</button>
+              <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} disabled={isCheckingOut} className="h-9 px-8 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md text-white transition-opacity hover:opacity-90" style={{ backgroundColor: 'var(--color-error)' }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -1330,7 +1329,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           <div className="w-[85%] max-w-[450px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
             <div className="flex justify-between items-center pr-1 pl-4 py-1" style={{ borderBottom: '1px solid var(--border-light)' }}>
               <span id="select-batch-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Select Batch for {selectBatchModal.item.name}</span>
-              <button onClick={() => setSelectBatchModal({ isOpen: false, item: null, batches: [] })} className="px-3 py-1.5 leading-none focus:outline-none rounded-md" aria-label="Close batch selection">✕</button>
             </div>
             
             <div className="p-4 max-h-[60vh] overflow-y-auto">
@@ -1377,7 +1375,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           <div className="w-[85%] max-w-[400px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
             <div className="flex justify-between items-center pr-1 pl-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
               <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Loose Item Quantity</span>
-              <button type="button" onClick={() => setLooseItemModal({ isOpen: false, item: null, qty: '' })} className="px-3 py-1.5 leading-none focus:outline-none rounded-md text-lg">✕</button>
+              
             </div>
             <form onSubmit={handleLooseItemSubmit}>
               <div className="p-6">
@@ -1399,7 +1397,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           <div className="w-[85%] max-w-[400px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
             <div className="flex justify-between items-center pr-1 pl-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
               <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Select Piece</span>
-              <button type="button" onClick={() => setSelectPieceModal({ isOpen: false, item: null, instances: [], isLoading: false, action: 'checkout' })} className="px-3 py-1.5 leading-none focus:outline-none rounded-md text-lg">✕</button>
+              
             </div>
             <div className="p-6 flex flex-col">
               <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>Which piece of <strong style={{ color: 'var(--color-accent)' }}>{selectPieceModal.item?.name}</strong> are you {selectPieceModal.action === 'transfer' ? 'transferring' : 'cutting from'}?</p>
@@ -1491,7 +1489,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           <div className="w-full max-w-sm flex flex-col shadow-2xl" style={{ backgroundColor: 'var(--bg-primary)', borderTop: '4px solid var(--color-accent)' }}>
             <div className="flex justify-between items-center p-4" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
               <h3 className="font-bold tracking-wider text-sm" style={{ color: 'var(--text-primary)' }}>ENTER PIECE LENGTH</h3>
-              <button type="button" onClick={() => setReceiveLengthModal({ isOpen: false, item: null, length: '', batch: null, instanceBarcode: null })} className="px-3 py-1.5 leading-none focus:outline-none rounded-md text-lg">✕</button>
+              
             </div>
             <form onSubmit={handleReceiveLengthSubmit} className="p-6">
               <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>What is the standard length of each <strong>{receiveLengthModal.item?.name}</strong> piece?</p>
@@ -1512,7 +1510,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           <div className="w-full max-w-sm flex flex-col shadow-2xl" style={{ backgroundColor: 'var(--bg-primary)', borderTop: '4px solid var(--color-accent)' }}>
             <div className="flex justify-between items-center p-4" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
               <h3 className="font-bold tracking-wider text-sm" style={{ color: 'var(--text-primary)' }}>ENTER INSTANCE BARCODE</h3>
-              <button type="button" onClick={() => setManualInstanceBarcodeModal({ isOpen: false, item: null, batch: null, barcodeInput: '', prefix: '' })} className="px-3 py-1.5 leading-none focus:outline-none rounded-md text-lg">✕</button>
+              
             </div>
             <form onSubmit={handleManualInstanceBarcodeSubmit} className="p-6">
               <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>Enter the specific instance barcode for this piece of <strong>{manualInstanceBarcodeModal.item?.name}</strong>.</p>
@@ -1550,7 +1548,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           <div className="w-[85%] max-w-[400px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
             <div className="flex justify-between items-center pr-1 pl-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
               <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Cut Length</span>
-              <button type="button" onClick={() => setCutLengthModal({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false })} className="px-3 py-1.5 leading-none focus:outline-none rounded-md text-lg">✕</button>
+              
             </div>
 
             <form onSubmit={handleCutLengthSubmit}>

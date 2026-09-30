@@ -58,7 +58,7 @@ export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }
         <div className="w-[90%] max-w-[450px] rounded-xl overflow-hidden flex flex-col shadow-2xl bg-[var(--bg-secondary)] border border-[var(--border-light)]">
           <div className="flex justify-between items-center px-5 py-3 border-b border-[var(--border-light)]">
             <h2 className="text-sm font-bold text-[var(--text-primary)]">Print Labels: {item.name}</h2>
-            <button onClick={onClose} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">✕</button>
+            
           </div>
           
           <div className="p-5 flex flex-col gap-5">

@@ -201,7 +201,7 @@ export default function StockInstancesModal({ isOpen, onClose, item, inline, fil
           <div className="w-[85%] max-w-[420px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
             <div className="flex justify-between items-center pr-2 pl-5 py-4" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-light)' }}>
               <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Discard Piece</span>
-              <button type="button" onClick={() => setDiscardModal({ isOpen: false, group: null, inputBarcode: '' })} className="p-2 leading-none focus:outline-none rounded-md text-[var(--text-secondary)] hover:text-[var(--color-error)] transition-colors">✕</button>
+              
             </div>
             <div className="p-6">
               <p className="text-sm mb-5 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>You are discarding one piece of <strong style={{ color: 'var(--text-primary)' }}>{discardModal.group?.current_length} {item.unit === 'SQFT' ? 'ft' : item.unit}</strong>.</p>
@@ -232,7 +232,7 @@ export default function StockInstancesModal({ isOpen, onClose, item, inline, fil
           <div className="w-[90%] max-w-[450px] rounded-xl overflow-hidden flex flex-col shadow-2xl bg-[var(--bg-secondary)] border border-[var(--border-light)]">
             <div className="flex justify-between items-center px-5 py-3 border-b border-[var(--border-light)]">
               <h2 className="text-sm font-bold text-[var(--text-primary)]">Print Labels: {item.name}</h2>
-              <button onClick={() => setPrintModal({ isOpen: false, group: null, qty: 1 })} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">✕</button>
+              
             </div>
             
             <div className="p-5 flex flex-col gap-5">

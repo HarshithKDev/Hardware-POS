@@ -605,12 +605,11 @@ export default function OwnerStats({ isActive }) {
             <div className="flex justify-between items-center pr-1 pl-4 py-2 shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-light)' }}>
               <span id="stats-modal-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
                 {activeModal === 'profit' && `${timeframeLabel} Profit & Sales Breakdown`}
-                {activeModal === 'low-store' && `Items Running Low in Store Front (Below Min Qty)`}
-                {activeModal === 'low-warehouse' && `Items Running Low in Warehouse (Below Min Qty)`}
-                {activeModal === 'dead-stock' && `Dead Stock (0 Sales ${timeframeLabel === 'Today' ? 'Today' : `in ${timeframeLabel}`})`}
+                {activeModal === 'low-store' && `Items Running Low in Store Front`}
+                {activeModal === 'low-warehouse' && `Items Running Low in Warehouse`}
+                {activeModal === 'dead-stock' && `Dead Stock`}
                 {activeModal === 'failed-syncs' && 'Failed Offline Transactions'}
               </span>
-              <button onClick={() => setActiveModal(null)} className="px-3 py-1.5 focus:outline-none" aria-label="Close details" style={{ color: 'var(--text-secondary)' }}>✕</button>
             </div>
 
             <div className="overflow-y-auto flex-1 p-0">
@@ -630,7 +629,7 @@ export default function OwnerStats({ isActive }) {
                       <p className="text-xl font-bold" style={{ color: 'var(--color-success)' }}>₹{tfGrossProfit.toFixed(2)}</p>
                     </div>
                   </div>
-                  <div className="overflow-x-auto w-full shadow-sm rounded-lg" style={{ border: '1px solid var(--border-light)' }}>
+                  <div className="overflow-x-auto w-full shadow-sm rounded-none" style={{ border: '1px solid var(--border-light)' }}>
                     <table className="w-full text-left border-collapse">
                       <thead className="sticky top-0 shadow-sm" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-light)' }}>
                         <tr className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
@@ -660,7 +659,7 @@ export default function OwnerStats({ isActive }) {
               )}
 
               {(activeModal === 'low-store' || activeModal === 'low-warehouse' || activeModal === 'dead-stock') && (
-                <div className="overflow-x-auto w-full shadow-sm rounded-lg" style={{ border: '1px solid var(--border-light)' }}>
+                <div className="overflow-x-auto w-full shadow-sm rounded-none" style={{ border: '1px solid var(--border-light)' }}>
                   <table className="w-full text-left border-collapse">
                     <thead className="sticky top-0 shadow-sm" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-light)' }}>
                       <tr className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
@@ -718,7 +717,7 @@ export default function OwnerStats({ isActive }) {
             </div>
 
             <div className="p-3 flex justify-end shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-              <button onClick={() => setActiveModal(null)} className="h-9 px-8 text-white rounded-md text-sm font-semibold focus:outline-none transition-opacity hover:opacity-90" style={{ backgroundColor: 'var(--color-accent)' }}>Close Window</button>
+              <button onClick={() => setActiveModal(null)} className="px-4 py-1.5 text-white rounded text-xs font-semibold focus:outline-none transition-opacity hover:opacity-90" style={{ backgroundColor: 'var(--color-error)' }}>Close</button>
             </div>
           </div>
         </div>
