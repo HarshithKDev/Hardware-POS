@@ -602,7 +602,7 @@ export default function OwnerStats({ isActive }) {
           aria-labelledby="stats-modal-title"
         >
           <div className="w-full max-w-4xl flex flex-col max-h-[85vh] rounded-xl overflow-hidden shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
-            <div className="flex justify-between items-center pr-1 pl-4 py-2 shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-light)' }}>
+            <div className="flex justify-between items-center px-4 py-2 shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-light)' }}>
               <span id="stats-modal-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
                 {activeModal === 'profit' && `${timeframeLabel} Profit & Sales Breakdown`}
                 {activeModal === 'low-store' && `Items Running Low in Store Front`}
@@ -610,6 +610,7 @@ export default function OwnerStats({ isActive }) {
                 {activeModal === 'dead-stock' && `Dead Stock`}
                 {activeModal === 'failed-syncs' && 'Failed Offline Transactions'}
               </span>
+              <button onClick={() => setActiveModal(null)} className="px-3 py-1 text-white rounded text-[10px] font-semibold focus:outline-none transition-opacity hover:opacity-90" style={{ backgroundColor: 'var(--color-error)' }}>Close</button>
             </div>
 
             <div className="overflow-y-auto flex-1 p-0">
@@ -716,9 +717,6 @@ export default function OwnerStats({ isActive }) {
               )}
             </div>
 
-            <div className="p-3 flex justify-end shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-              <button onClick={() => setActiveModal(null)} className="px-4 py-1.5 text-white rounded text-xs font-semibold focus:outline-none transition-opacity hover:opacity-90" style={{ backgroundColor: 'var(--color-error)' }}>Close</button>
-            </div>
           </div>
         </div>
       )}
