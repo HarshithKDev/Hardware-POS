@@ -250,7 +250,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
 
       {isExpanded && item.batches && (
         <tr className="block md:table-row bg-[var(--bg-tertiary)] border-t-0">
-          <td colSpan="11" className="block md:table-cell p-0" style={{ borderBottom: item.is_cuttable ? 'none' : '2px solid var(--color-success)' }}>
+          <td colSpan={9} className="block md:table-cell p-0" style={{ borderBottom: item.is_cuttable ? 'none' : '2px solid var(--color-success)' }}>
             <div className="w-full overflow-hidden shadow-inner">
               <div className={`flex-1 p-6 ${item.is_cuttable ? 'pb-2' : ''}`}>
                 <div className="flex justify-between items-center mb-4">

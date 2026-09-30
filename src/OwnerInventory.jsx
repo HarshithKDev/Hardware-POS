@@ -465,7 +465,7 @@ export default function OwnerInventory({ viewType }) {
               List: forwardRef((props, ref) => {
                 const { paddingTop, paddingBottom, ...tableStyle } = props.style || {};
                 return (
-                <table ref={ref} {...props} style={tableStyle} className="w-full max-w-full text-center border-collapse block md:table min-w-0 md:min-w-[1100px]">
+                <table ref={ref} {...props} style={tableStyle} className="w-full max-w-full text-center border-collapse block md:table table-fixed min-w-0 md:min-w-[1100px]">
                   <thead className="hidden md:table-header-group sticky top-0 z-10 glass-header" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                     <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                       {isSelectionMode && (
@@ -484,7 +484,7 @@ export default function OwnerInventory({ viewType }) {
                         </div>
                       </th>
                       <th 
-                        className="p-3 min-w-[160px] cursor-pointer select-none group" 
+                        className="p-3 w-full cursor-pointer select-none group" 
                         style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
                         onClick={() => handleSortClick('name')}
                       >
@@ -535,12 +535,12 @@ export default function OwnerInventory({ viewType }) {
                           {renderSortIcon('storestock')}
                         </div>
                       </th>
-                      <th className="p-3 w-16 text-center">Actions</th>
+                      <th className="p-3 w-24 text-center">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="block md:table-row-group"><tr className="block md:table-row" style={{ height: paddingTop }}><td colSpan={11} className="block md:table-cell p-0 border-none"></td></tr></tbody>
+                  <tbody className="block md:table-row-group"><tr className="block md:table-row" style={{ height: paddingTop }}><td colSpan={9} className="block md:table-cell p-0 border-none"></td></tr></tbody>
                   {props.children}
-                  <tbody className="block md:table-row-group"><tr className="block md:table-row" style={{ height: paddingBottom }}><td colSpan={11} className="block md:table-cell p-0 border-none"></td></tr></tbody>
+                  <tbody className="block md:table-row-group"><tr className="block md:table-row" style={{ height: paddingBottom }}><td colSpan={9} className="block md:table-cell p-0 border-none"></td></tr></tbody>
                 </table>
                 );
               }),
