@@ -53,7 +53,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const [selectPieceModal, setSelectPieceModal] = useState({ isOpen: false, item: null, instances: [], isLoading: false, action: 'checkout' });
   const [cutLengthModal, setCutLengthModal] = useState({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false });
   const [receiveLengthModal, setReceiveLengthModal] = useState({ isOpen: false, item: null, length: '', batch: null, instanceBarcode: null });
-  const [manualInstanceBarcodeModal, setManualInstanceBarcodeModal] = useState({ isOpen: false, item: null, batch: null, barcodeInput: '', prefix: '' });
+  const [manualInstanceBarcodeModal, setManualInstanceBarcodeModal] = useState({ isOpen: false, item: null, batch: null, barcodeInput: '', prefix: '', error: null });
   
   // Batch selection
   const [selectBatchModal, setSelectBatchModal] = useState({ isOpen: false, item: null, batches: [] });
@@ -677,14 +677,14 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     const fullBarcode = `${prefix}${barcodeInput.trim()}`;
 
     if (cart.some(c => c.instance_barcode === fullBarcode)) {
-      showAlertRef.current(`Piece #${fullBarcode} is already in the cart!`, "Duplicate");
+      setManualInstanceBarcodeModal(prev => ({ ...prev, error: `Piece #${fullBarcode} is already in the cart!` }));
       return;
     }
 
     try {
       const { data: existing } = await supabase.from('stock_instances').select('id').eq('instance_barcode', fullBarcode).maybeSingle();
       if (existing) {
-        showAlertRef.current(`Piece #${fullBarcode} already exists in the system!`, "Already Exists");
+        setManualInstanceBarcodeModal(prev => ({ ...prev, error: `Piece #${fullBarcode} already exists in the system!` }));
         return;
       }
     } catch (err) {
@@ -1533,14 +1533,18 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   type="text" 
                   autoFocus 
                   value={manualInstanceBarcodeModal.barcodeInput} 
-                  onChange={e => setManualInstanceBarcodeModal({ ...manualInstanceBarcodeModal, barcodeInput: e.target.value })} 
+                  onChange={e => setManualInstanceBarcodeModal({ ...manualInstanceBarcodeModal, barcodeInput: e.target.value, error: null })} 
                   placeholder="01" 
                   maxLength={2} 
                   className="flex-1 bg-transparent text-xl font-mono outline-none uppercase p-0 m-0 border-none" 
                   style={{ color: 'var(--text-input)', boxShadow: 'none' }}
                 />
               </div>
+              {manualInstanceBarcodeModal.error && (
+                <div className="text-[var(--color-error)] text-xs font-semibold mb-4 px-1">{manualInstanceBarcodeModal.error}</div>
+              )}
               <div className="flex justify-end gap-3">
+                <button type="button" onClick={() => setManualInstanceBarcodeModal({ isOpen: false, item: null, batch: null, barcodeInput: '', prefix: '', error: null })} className="h-9 px-6 text-sm font-semibold rounded-md transition-colors border" style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-medium)', backgroundColor: 'transparent' }}>Cancel</button>
                 <button type="submit" disabled={!manualInstanceBarcodeModal.barcodeInput} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 transition-colors hover:brightness-110" style={{ backgroundColor: 'var(--color-accent)' }}>Next</button>
               </div>
             </form>

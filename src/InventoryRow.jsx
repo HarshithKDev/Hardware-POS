@@ -356,10 +356,11 @@ export default function InventoryRow({ item, viewType, categories, subcategories
                                 type="number" 
                                 step="any" 
                                 value={batchEditForm.cost} 
-                                onChange={(e) => setBatchEditForm(prev => ({ ...prev, cost: e.target.value }))}
+                                readOnly
+                                disabled
                                 onClick={(e) => e.stopPropagation()}
-                                className="w-20 text-sm h-7 px-2 border rounded focus:outline-none" 
-                                style={{ borderColor: 'var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
+                                className="w-20 text-sm h-7 px-2 border rounded focus:outline-none opacity-60 cursor-not-allowed" 
+                                style={{ borderColor: 'var(--border-medium)', backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
                               />
                             ) : (
                               <div className="text-sm font-medium text-[var(--text-primary)]">₹{Number(batch.purchase_cost).toFixed(2)}</div>
@@ -388,10 +389,11 @@ export default function InventoryRow({ item, viewType, categories, subcategories
                                 type="number" 
                                 step="any" 
                                 value={batchEditForm.mrp} 
-                                onChange={(e) => setBatchEditForm(prev => ({ ...prev, mrp: e.target.value }))}
+                                readOnly
+                                disabled
                                 onClick={(e) => e.stopPropagation()}
-                                className="w-20 text-sm h-7 px-2 border rounded focus:outline-none" 
-                                style={{ borderColor: 'var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
+                                className="w-20 text-sm h-7 px-2 border rounded focus:outline-none opacity-60 cursor-not-allowed" 
+                                style={{ borderColor: 'var(--border-medium)', backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
                               />
                             ) : (
                               <div className="text-sm font-medium text-[var(--text-primary)]">₹{Number(batch.selling_price).toFixed(2)}</div>

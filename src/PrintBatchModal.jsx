@@ -18,14 +18,15 @@ export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }
           .from('stock_instances')
           .select('instance_barcode')
           .eq('parent_barcode', item.barcode)
-          .ilike('instance_barcode', `${batchPrefix}-%`);
+          .ilike('instance_barcode', `${batchPrefix}%`);
 
         let maxSeq = 0;
         if (data && data.length > 0) {
           data.forEach(row => {
-            const parts = row.instance_barcode.split('-');
-            if (parts.length === 3) {
-              const seq = parseInt(parts[2], 10);
+            const instanceBarcode = row.instance_barcode;
+            if (instanceBarcode.startsWith(batchPrefix)) {
+              const seqStr = instanceBarcode.slice(batchPrefix.length);
+              const seq = parseInt(seqStr, 10);
               if (!isNaN(seq) && seq > maxSeq) {
                 maxSeq = seq;
               }
@@ -66,7 +67,7 @@ export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }
             <div className="flex flex-col items-center justify-center p-4 bg-white border border-[var(--border-medium)] rounded-lg mx-auto w-[250px] shadow-sm">
               <p className="text-[10px] font-bold text-black mb-1 w-full text-center truncate">{item.name}</p>
               <Barcode 
-                value={item.is_cuttable ? `${printBarcodeValue}-${String(nextSeqForCuttable).padStart(2, '0')}` : printBarcodeValue} 
+                value={item.is_cuttable ? `${printBarcodeValue}${String(nextSeqForCuttable).padStart(2, '0')}` : printBarcodeValue} 
                 width={1.5} 
                 height={30} 
                 fontSize={12} 
@@ -128,7 +129,7 @@ export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }
             }
           `}} />
           {Array.from({ length: Number(qty) || 1 }).map((_, index) => {
-            const barcodeVal = item.is_cuttable ? `${printBarcodeValue}-${String(nextSeqForCuttable + index).padStart(2, '0')}` : printBarcodeValue;
+            const barcodeVal = item.is_cuttable ? `${printBarcodeValue}${String(nextSeqForCuttable + index).padStart(2, '0')}` : printBarcodeValue;
             return (
               <div key={`${barcodeVal}-${index}`} className="thermal-barcode" style={{ backgroundColor: '#ffffff', width: '50mm', height: '25mm', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', pageBreakAfter: 'always' }}>
                 <p style={{ color: '#000000', fontSize: '9px', fontWeight: 'bold', lineHeight: 1, margin: 0, marginBottom: '2px', textAlign: 'center', width: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</p>
