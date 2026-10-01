@@ -1591,8 +1591,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   </label>
                 )}
               </div>
-              <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-                <button type="submit" disabled={!cutLengthModal.cutQty} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50" style={{ backgroundColor: 'var(--color-accent)' }}>Add Cut</button>
+              <div className="p-4 flex justify-end gap-3" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
+                <button type="button" onClick={() => setCutLengthModal({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false })} className="h-9 px-6 text-sm font-semibold rounded-md transition-colors border border-red-500 text-red-500 hover:bg-red-500/10">Cancel</button>
+                <button type="submit" disabled={!cutLengthModal.cutQty} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 transition-colors hover:brightness-110" style={{ backgroundColor: 'var(--color-accent)' }}>Add Cut</button>
               </div>
             </form>
           </div>
