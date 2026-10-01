@@ -1,12 +1,68 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import StockInstancesModal from './StockInstancesModal';
 import { Trash2 } from 'lucide-react';
+import { getInventoryItemByBarcode, saveInventoryBatch } from './services/db';
 
 export default function InventoryRow({ item, viewType, categories, subcategories, isGlobalEditMode, editData, onEditChange, isSelected, onSelect, onRestore, isSelectionMode, expandedBarcode, onToggleExpand, onPrint, onDeleteBatch }) {
   const isExpanded = expandedBarcode === item.barcode;
   const [expandedBatchId, setExpandedBatchId] = useState(null);
+  const [editingBatchId, setEditingBatchId] = useState(null);
+  const [batchEditForm, setBatchEditForm] = useState({ cost: '', msp: '', mrp: '' });
+  
+  const queryClient = useQueryClient();
+
+  const updateBatchMutation = useMutation({
+    mutationFn: async (data) => {
+      const { error } = await supabase
+        .from('inventory_batches')
+        .update({
+          purchase_cost: Number(data.cost),
+          msp: Number(data.msp),
+          selling_price: Number(data.mrp)
+        })
+        .eq('batch_id', data.batch_id);
+      if (error) throw error;
+      
+      const oldBatch = item.batches.find(b => b.batch_id === data.batch_id);
+      const changes = [];
+      if (Number(oldBatch.purchase_cost) !== Number(data.cost)) changes.push(`Cost: ₹${oldBatch.purchase_cost} -> ₹${data.cost}`);
+      if (Number(oldBatch.msp) !== Number(data.msp)) changes.push(`MSP: ₹${oldBatch.msp} -> ₹${data.msp}`);
+      if (Number(oldBatch.selling_price) !== Number(data.mrp)) changes.push(`MRP: ₹${oldBatch.selling_price} -> ₹${data.mrp}`);
+      
+      if (changes.length > 0) {
+        await supabase.from('audit_logs').insert([{
+          action_type: 'UPDATE',
+          barcode: item.barcode,
+          item_name: item.name,
+          changes: `Updated Batch ${oldBatch.batch_number} Pricing: ${changes.join(', ')}`,
+          performed_by: 'Owner'
+        }]);
+      }
+    },
+    onSuccess: async (_, variables) => {
+      try {
+        const localItem = await getInventoryItemByBarcode(item.barcode);
+        if (localItem && localItem.batches) {
+          const bIndex = localItem.batches.findIndex(b => b.batch_id === variables.batch_id);
+          if (bIndex >= 0) {
+            localItem.batches[bIndex].purchase_cost = Number(variables.cost);
+            localItem.batches[bIndex].msp = Number(variables.msp);
+            localItem.batches[bIndex].selling_price = Number(variables.mrp);
+            await saveInventoryBatch([localItem]);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to update IDB for batch", e);
+      }
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      setEditingBatchId(null);
+    },
+    onError: (e) => {
+      alert("Failed to update batch: " + e.message);
+    }
+  });
 
   const { data: pieceCounts } = useQuery({
     queryKey: ['piece_counts', item.barcode],
@@ -39,9 +95,10 @@ export default function InventoryRow({ item, viewType, categories, subcategories
       return counts;
     },
     enabled: !!item.is_cuttable,
-    staleTime: 30 * 1000, // 30 seconds — cuttable piece counts must stay fresh
+    staleTime: 30 * 1000,
   });
 
+  const displayUnit = item.unit?.toLowerCase() === 'grams' ? 'g' : (item.unit || '');
   const availableSubcategories = subcategories?.filter(sub => sub.category_name === (editData?.category || item.category)) || [];
   
   const totalWhse = item.batches ? item.batches.reduce((sum, b) => sum + Number(b.stock_warehouse), 0) : Number(item.stock_warehouse || 0);
@@ -162,13 +219,13 @@ export default function InventoryRow({ item, viewType, categories, subcategories
                <div>
                  <div className="text-[10px] uppercase text-[var(--text-secondary)] font-semibold mb-0.5">Whse Qty</div>
                  <div className="text-sm font-bold text-[var(--text-primary)]">
-                   {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : totalWhse} <span className="text-[10px] font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
+                   {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : totalWhse} <span className="text-[10px] font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : displayUnit}</span>
                  </div>
                </div>
                <div>
                  <div className="text-[10px] uppercase text-[var(--text-secondary)] font-semibold mb-0.5">Store Qty</div>
                  <div className="text-sm font-bold text-[var(--text-primary)]">
-                   {item.is_cuttable ? (pieceCounts ? pieceCounts.store : '...') : totalStore} <span className="text-[10px] font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
+                   {item.is_cuttable ? (pieceCounts ? pieceCounts.store : '...') : totalStore} <span className="text-[10px] font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : displayUnit}</span>
                  </div>
                </div>
              </div>
@@ -180,7 +237,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
             <input type="checkbox" checked={isSelected} onChange={() => onSelect(item.barcode)} onClick={e => e.stopPropagation()} className="w-4 h-4 rounded text-accent focus:ring-accent" />
           </td>
         )}
-        <td className="hidden md:table-cell p-3 w-20 text-sm font-semibold tracking-wider font-mono" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--color-accent)' }}>{item.barcode}</td>
+        <td className="hidden md:table-cell p-3 w-28 text-sm font-semibold tracking-wider font-mono" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--color-accent)' }}>{item.barcode}</td>
       <td className="hidden md:table-cell p-3 text-sm font-medium" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
         <div className="relative flex justify-center items-center w-full min-h-[1.5rem]">
           <span className="text-center">{item.name}</span>
@@ -212,10 +269,10 @@ export default function InventoryRow({ item, viewType, categories, subcategories
       </td>
       {/* Pricing removed from parent row */}
       <td className="hidden md:table-cell p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
-        {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : totalWhse} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
+        {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : totalWhse} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : displayUnit}</span>
       </td>
       <td className="hidden md:table-cell p-3 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
-        {item.is_cuttable ? (pieceCounts ? pieceCounts.store : '...') : totalStore} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
+        {item.is_cuttable ? (pieceCounts ? pieceCounts.store : '...') : totalStore} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : displayUnit}</span>
       </td>
       <td className="hidden md:table-cell p-3 text-center">
         {viewType === 'recycle' ? (
@@ -294,64 +351,144 @@ export default function InventoryRow({ item, viewType, categories, subcategories
                         <div className="flex flex-wrap md:flex-nowrap items-center gap-6 md:w-1/2">
                           <div>
                             <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">Cost</div>
-                            <div className="text-sm font-medium text-[var(--text-primary)]">₹{Number(batch.purchase_cost).toFixed(2)}</div>
+                            {editingBatchId === batch.batch_id ? (
+                              <input 
+                                type="number" 
+                                step="any" 
+                                value={batchEditForm.cost} 
+                                onChange={(e) => setBatchEditForm(prev => ({ ...prev, cost: e.target.value }))}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-20 text-sm h-7 px-2 border rounded focus:outline-none" 
+                                style={{ borderColor: 'var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
+                              />
+                            ) : (
+                              <div className="text-sm font-medium text-[var(--text-primary)]">₹{Number(batch.purchase_cost).toFixed(2)}</div>
+                            )}
                           </div>
                           <div>
                             <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">MSP</div>
-                            <div className="text-sm font-medium text-[var(--text-primary)]">₹{Number(batch.msp).toFixed(2)}</div>
+                            {editingBatchId === batch.batch_id ? (
+                              <input 
+                                type="number" 
+                                step="any" 
+                                value={batchEditForm.msp} 
+                                onChange={(e) => setBatchEditForm(prev => ({ ...prev, msp: e.target.value }))}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-20 text-sm h-7 px-2 border rounded focus:outline-none" 
+                                style={{ borderColor: 'var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
+                              />
+                            ) : (
+                              <div className="text-sm font-medium text-[var(--text-primary)]">₹{Number(batch.msp).toFixed(2)}</div>
+                            )}
                           </div>
                           <div>
                             <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">MRP</div>
-                            <div className="text-sm font-medium text-[var(--text-primary)]">₹{Number(batch.selling_price).toFixed(2)}</div>
+                            {editingBatchId === batch.batch_id ? (
+                              <input 
+                                type="number" 
+                                step="any" 
+                                value={batchEditForm.mrp} 
+                                onChange={(e) => setBatchEditForm(prev => ({ ...prev, mrp: e.target.value }))}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-20 text-sm h-7 px-2 border rounded focus:outline-none" 
+                                style={{ borderColor: 'var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
+                              />
+                            ) : (
+                              <div className="text-sm font-medium text-[var(--text-primary)]">₹{Number(batch.selling_price).toFixed(2)}</div>
+                            )}
                           </div>
                           <div className="pl-0 md:pl-6 border-l-0 md:border-l border-[var(--border-light)]">
                             <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">Whse / Store</div>
                             <div className="text-sm font-bold flex gap-2">
                               <span>
                                 <span className="text-[var(--color-accent)]">{item.is_cuttable ? (pieceCounts?.byBatch?.[batch.batch_id]?.warehouse || 0) : batch.stock_warehouse}</span>
-                                <span className="text-[10px] ml-1 font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
+                                <span className="text-[10px] ml-1 font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : displayUnit}</span>
                               </span>
                               <span className="text-[var(--text-tertiary)]">/</span>
                               <span>
                                 <span className="text-[var(--color-success)]">{item.is_cuttable ? (pieceCounts?.byBatch?.[batch.batch_id]?.store || 0) : batch.stock_store}</span>
-                                <span className="text-[10px] ml-1 font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : (item.unit || '')}</span>
+                                <span className="text-[10px] ml-1 font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : displayUnit}</span>
                               </span>
                             </div>
                           </div>
                         </div>
                         
                         <div className="flex items-center gap-2 mt-4 md:mt-0 md:w-1/4 md:justify-end">
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation(); e.preventDefault();
-                              if (viewType !== 'recycle') onPrint && onPrint(batch);
-                            }}
-                            className={`px-3 py-1.5 rounded-md transition-colors font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 border ${
-                              viewType === 'recycle'
-                                ? 'border-[var(--border-medium)] text-[var(--text-tertiary)] opacity-50 cursor-not-allowed'
-                                : 'hover:bg-[var(--color-accent-bg)] text-[var(--color-accent)] border-[var(--color-accent)] cursor-pointer'
-                            }`}
-                            title="Print this batch" disabled={viewType === 'recycle'}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0v-2.94a2.25 2.25 0 012.25-2.25h6a2.25 2.25 0 012.25 2.25v2.94z" /></svg>
-                            Print
-                          </button>
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation(); e.preventDefault();
-                              if (viewType !== 'recycle' && Number(batch.stock_warehouse) === 0 && Number(batch.stock_store) === 0) onDeleteBatch && onDeleteBatch(batch.batch_id);
-                            }}
-                            className={`px-3 py-1.5 rounded-md transition-colors font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 border ${
-                              viewType !== 'recycle' && Number(batch.stock_warehouse) === 0 && Number(batch.stock_store) === 0
-                                ? 'border-red-500 text-red-500 hover:bg-red-500/10 cursor-pointer'
-                                : 'border-[var(--border-medium)] text-[var(--text-tertiary)] opacity-50 cursor-not-allowed'
-                            }`}
-                            title={Number(batch.stock_warehouse) === 0 && Number(batch.stock_store) === 0 ? 'Delete empty batch' : 'Cannot delete batch with stock'}
-                            disabled={viewType === 'recycle' || !(Number(batch.stock_warehouse) === 0 && Number(batch.stock_store) === 0)}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
-                            Delete
-                          </button>
+                          {editingBatchId === batch.batch_id ? (
+                            <>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation(); e.preventDefault();
+                                  updateBatchMutation.mutate({ batch_id: batch.batch_id, ...batchEditForm });
+                                }}
+                                disabled={updateBatchMutation.isPending}
+                                className="h-[28px] min-w-[76px] px-3 flex items-center justify-center gap-1.5 rounded-md transition-colors font-bold text-[10px] uppercase tracking-wider border hover:bg-[rgba(34,197,94,0.1)] text-[var(--color-success)] border-[var(--color-success)] cursor-pointer"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                {updateBatchMutation.isPending ? 'Saving' : 'Save'}
+                              </button>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation(); e.preventDefault();
+                                  setEditingBatchId(null);
+                                }}
+                                className="h-[28px] min-w-[76px] px-3 flex items-center justify-center gap-1.5 rounded-md transition-colors font-bold text-[10px] uppercase tracking-wider border border-red-500 text-red-500 hover:bg-red-500/10 cursor-pointer"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation(); e.preventDefault();
+                                  setEditingBatchId(batch.batch_id);
+                                  setBatchEditForm({ cost: batch.purchase_cost || 0, msp: batch.msp || 0, mrp: batch.selling_price || 0 });
+                                }}
+                                className={`h-[28px] px-3 flex items-center justify-center gap-1.5 rounded-md transition-colors font-bold text-[10px] uppercase tracking-wider border ${
+                                  viewType === 'recycle'
+                                    ? 'border-[var(--border-medium)] text-[var(--text-tertiary)] opacity-50 cursor-not-allowed'
+                                    : 'border-white/40 text-white hover:bg-white/10 cursor-pointer'
+                                }`}
+                                title="Edit batch pricing" disabled={viewType === 'recycle'}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 3.487a2.625 2.625 0 113.712 3.712L8.683 19.091l-3.921 1.05 1.05-3.921L17.72 4.332c-.287-.286-.563-.562-.858-.845z" /><path strokeLinecap="round" strokeLinejoin="round" d="M14.7 5.7L18.3 9.3" /></svg>
+                                Edit
+                              </button>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation(); e.preventDefault();
+                                  if (viewType !== 'recycle') onPrint && onPrint(batch);
+                                }}
+                                className={`h-[28px] px-3 flex items-center justify-center gap-1.5 rounded-md transition-colors font-bold text-[10px] uppercase tracking-wider border ${
+                                  viewType === 'recycle'
+                                    ? 'border-[var(--border-medium)] text-[var(--text-tertiary)] opacity-50 cursor-not-allowed'
+                                    : 'hover:bg-[var(--color-accent-bg)] text-[var(--color-accent)] border-[var(--color-accent)] cursor-pointer'
+                                }`}
+                                title="Print this batch" disabled={viewType === 'recycle'}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0v-2.94a2.25 2.25 0 012.25-2.25h6a2.25 2.25 0 012.25 2.25v2.94z" /></svg>
+                                Print
+                              </button>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation(); e.preventDefault();
+                                  if (viewType !== 'recycle' && Number(batch.stock_warehouse) === 0 && Number(batch.stock_store) === 0) onDeleteBatch && onDeleteBatch(batch.batch_id);
+                                }}
+                                className={`h-[28px] px-3 flex items-center justify-center gap-1.5 rounded-md transition-colors font-bold text-[10px] uppercase tracking-wider border ${
+                                  viewType !== 'recycle' && Number(batch.stock_warehouse) === 0 && Number(batch.stock_store) === 0
+                                    ? 'border-red-500 text-red-500 hover:bg-red-500/10 cursor-pointer'
+                                    : 'border-[var(--border-medium)] text-[var(--text-tertiary)] opacity-50 cursor-not-allowed'
+                                }`}
+                                title={Number(batch.stock_warehouse) === 0 && Number(batch.stock_store) === 0 ? 'Delete empty batch' : 'Cannot delete batch with stock'}
+                                disabled={viewType === 'recycle' || !(Number(batch.stock_warehouse) === 0 && Number(batch.stock_store) === 0)}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                                Delete
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                       {item.is_cuttable && expandedBatchId === batch.batch_id && (

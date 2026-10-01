@@ -17,7 +17,7 @@ export default function OwnerInventory({ viewType }) {
 
   const [inventorySearch, setInventorySearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [sortOption, setSortOption] = useState('barcode-desc');
+  const [sortOption, setSortOption] = useState('barcode-asc');
   const [selectedBarcodes, setSelectedBarcodes] = useState([]);
   const [expandedBarcode, setExpandedBarcode] = useState(null);
   const [isGlobalEditMode, setIsGlobalEditMode] = useState(false);
@@ -364,7 +364,7 @@ export default function OwnerInventory({ viewType }) {
     if (sortOption.startsWith(column)) {
       const isAsc = sortOption.endsWith('-asc');
       return (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" style={{ color: 'var(--color-accent)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0 ml-1" style={{ color: 'var(--color-accent)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
           {isAsc ? (
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" />
           ) : (
@@ -374,7 +374,7 @@ export default function OwnerInventory({ viewType }) {
       );
     }
     return (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-60 ml-1" style={{ color: 'var(--text-tertiary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0 opacity-60 ml-1" style={{ color: 'var(--text-tertiary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
       </svg>
     );
@@ -474,7 +474,7 @@ export default function OwnerInventory({ viewType }) {
                         </th>
                       )}
                       <th 
-                        className="p-3 w-20 cursor-pointer select-none group" 
+                        className="p-3 w-28 cursor-pointer select-none group" 
                         style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
                         onClick={() => handleSortClick('barcode')}
                       >
