@@ -358,18 +358,23 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       if (item.is_cuttable && currentTab === 'checkout') {
         if (scannedInstanceBarcode) {
           // They scanned a specific piece directly
-          let instData = null;
-          if (navigator.onLine) {
-            const { data } = await supabase.from('stock_instances').select('*').eq('instance_barcode', scannedInstanceBarcode).single();
-            instData = data;
-          }
           setCutLengthModal({
             isOpen: true,
             item,
-            instance: instData || { instance_barcode: scannedInstanceBarcode, current_length: '?' },
+            instance: { instance_barcode: scannedInstanceBarcode, current_length: '...' },
             cutQty: '',
             discardScrap: false
           });
+          
+          if (navigator.onLine) {
+            supabase.from('stock_instances').select('*').eq('instance_barcode', scannedInstanceBarcode).single().then(({ data }) => {
+              if (data) {
+                setCutLengthModal(prev => prev.instance?.instance_barcode === scannedInstanceBarcode ? { ...prev, instance: data } : prev);
+              } else {
+                setCutLengthModal(prev => prev.instance?.instance_barcode === scannedInstanceBarcode ? { ...prev, instance: { instance_barcode: scannedInstanceBarcode, current_length: '?' } } : prev);
+              }
+            });
+          }
         } else {
           // They searched the generic parent name
           setSelectPieceModal({ isOpen: true, item, instances: [], isLoading: true, action: 'checkout' });
