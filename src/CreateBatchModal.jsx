@@ -80,7 +80,7 @@ export default function CreateBatchModal({ item, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in" onClick={() => { if (!createBatchMutation.isPending) onClose(); }}>
       <div className="bg-[var(--bg-primary)] rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
         <div className="p-4 md:p-6 border-b border-[var(--border-light)] flex justify-between items-center glass-header sticky top-0 z-10">
           <div>

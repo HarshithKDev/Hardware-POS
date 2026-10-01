@@ -19,7 +19,7 @@ function App() {
     userRole, setUserRole,
     cashierName, setCashierName,
     isDarkMode, toggleDarkMode, setDarkMode,
-    alertConfig, closeAlert,
+    alertConfig, showAlert, closeAlert,
     confirmConfig, handleConfirm, closeConfirm,
   } = useApp();
 
@@ -33,15 +33,29 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { data: workerData } = useQuery({
+  const { data: workerData, error: workerError } = useQuery({
     queryKey: ['workerPermissions', cashierName],
     queryFn: async () => {
       if (!cashierName || userRole === 'owner') return null;
-      const { data } = await supabase.from('workers').select('password').eq('name', cashierName).single();
+      const { data, error } = await supabase.from('workers').select('password').eq('name', cashierName).single();
+      if (error) throw error;
       return data;
     },
     enabled: !!cashierName && userRole !== 'owner',
+    retry: false, // Do not retry if the worker was deleted
   });
+
+  useEffect(() => {
+    // PGRST116 means 0 rows returned for a .single() query, meaning the worker was deleted
+    if (workerError && workerError.code === 'PGRST116') {
+      setUserRole(null);
+      setCashierName('');
+      sessionStorage.removeItem('posUserRole');
+      localStorage.removeItem('posUserRole');
+      navigate('/');
+      setTimeout(() => showAlert("Your worker account was deleted or modified. You have been logged out.", "Session Expired"), 100);
+    }
+  }, [workerError, navigate, setUserRole, setCashierName, showAlert]);
 
   const isBillable = userRole === 'owner' || (workerData && !workerData.password?.includes('NON_BILLABLE'));
 
@@ -129,6 +143,7 @@ function App() {
 
   useEffect(() => { fetchInitialData(); }, [fetchInitialData]);
 
+  const closeMobileScanner = useCallback(() => setIsMobileScannerOpen(false), []);
 
   const handleLoginSuccess = (role, rememberMe = false) => {
     setUserRole(role);
@@ -213,7 +228,7 @@ function App() {
 
       {isMobileScannerOpen && (
         <MobileScannerModal
-          onClose={() => setIsMobileScannerOpen(false)}
+          onClose={closeMobileScanner}
           setScannedProduct={setScannedProduct}
         />
       )}

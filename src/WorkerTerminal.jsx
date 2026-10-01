@@ -64,6 +64,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   // Offline status
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
+  const isScanningRef = useRef(false);
   const barcodeBuffer = useRef('');
   const lastKeyTime = useRef(Date.now());
   const cartRef = useRef(cart);
@@ -75,6 +76,16 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
 
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
+  
+  useEffect(() => {
+    // Prevent state desync ("COMMAREA Loss") by resetting modals when navigating between tabs
+    setCutLengthModal({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false });
+    setLooseItemModal({ isOpen: false, item: null, qty: '' });
+    setManualBarcode('');
+    setSuggestions([]);
+    setShowSuggestions(false);
+  }, [activeTab]);
+
   useEffect(() => { showAlertRef.current = showAlert; }, [showAlert]);
 
   useEffect(() => {
@@ -173,11 +184,14 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   }, [manualBarcode]);
 
   const processScan = useCallback(async (scannedCode) => {
-    const cleanBarcode = scannedCode.trim();
-    if (!cleanBarcode) return;
+    if (isScanningRef.current) return;
+    isScanningRef.current = true;
+    try {
+      const cleanBarcode = scannedCode.trim();
+      if (!cleanBarcode) return;
 
-    let scannedInstanceBarcode = null;
-    let scannedBatchNumber = null;
+      let scannedInstanceBarcode = null;
+      let scannedBatchNumber = null;
     let searchBarcode = cleanBarcode;
 
     // First try exact match in inventory
@@ -482,6 +496,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         }];
       });
     }
+    } catch (error) {
+      console.error("Scan Error:", error);
+      showAlertRef.current(error.message || "An error occurred while looking up the barcode.", "Scanner Error");
+    } finally {
+      isScanningRef.current = false;
+    }
   }, []);
 
   useEffect(() => {
@@ -630,7 +650,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         purchase_cost: Number(purchaseCost).toFixed(2),
         selling_price: Number(sellingPrice).toFixed(2),
         msp_price: Number(mspPrice).toFixed(2),
-        discard_scrap: discardScrap,
+        discard_scrap: discardScrap && (availableLength - addQty < 1) && (availableLength - addQty > 0),
         name: item.name,
         customPriceInput: Number(sellingPrice).toFixed(2),
         discountPct: 0,
@@ -832,7 +852,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         setTimeout(() => showAlertRef.current(`Cannot sell ${i.name} below MSP (₹${msp})`, "Price Error"), 0);
         val = msp;
       }
-      const disc = mrp > 0 ? ((mrp - val) / mrp) * 100 : 0;
+      const disc = (mrp > 0 && val < mrp) ? ((mrp - val) / mrp) * 100 : 0;
       return { ...i, customPriceInput: val, customTotalInput: (val * qty).toFixed(2), discountPct: disc };
     }
     return i;
@@ -850,7 +870,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             val = msp;
           }
           let newDisc = 0;
-          if (val < Number(i.price)) {
+          if (Number(i.price) > 0 && val < Number(i.price)) {
             newDisc = ((Number(i.price) - val) / Number(i.price)) * 100;
           }
           const groupQty = cart.filter(c => c.barcode === barcode && c.is_cuttable).reduce((sum, c) => sum + (c.billableQuantity !== undefined && c.billableQuantity !== '' ? Number(c.billableQuantity) : (c.quantity === '' ? 0 : Number(c.quantity))), 0);
@@ -868,6 +888,46 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   }, 0) / 100, [cart]);
   
   const calculateTotalUnits = useCallback(() => cart.reduce((tot, i) => tot + (i.quantity === '' ? 0 : Number(i.quantity)), 0), [cart]);
+
+  const handleRestoreCart = useCallback(async (tabId, overrideItems = null) => {
+    let itemsToRestore = overrideItems;
+    if (!itemsToRestore) {
+      if (tabId === 'local') {
+        itemsToRestore = cartSessions['local'] || [];
+      } else {
+        const hc = heldCarts.find(c => c.id === tabId);
+        itemsToRestore = cartSessions[tabId] || (hc ? hc.items : []);
+      }
+    }
+
+    if (itemsToRestore.length > 0) {
+      let priceChanged = false;
+      const updatedItems = await Promise.all(itemsToRestore.map(async (item) => {
+        const liveItem = await getInventoryItemByBarcode(item.barcode);
+        if (liveItem) {
+          const oldPrice = Number(item.price || 0);
+          const livePrice = Number(liveItem.price || 0);
+          if (oldPrice !== livePrice) {
+            priceChanged = true;
+            return {
+              ...item,
+              price: livePrice,
+              selling_price: livePrice,
+              customPriceInput: livePrice,
+            };
+          }
+        }
+        return item;
+      }));
+
+      if (priceChanged) {
+        showAlertRef.current("Some item prices changed while this cart was on hold. Prices have been updated.", "Price Update");
+      }
+      switchCartTab(tabId, updatedItems);
+    } else {
+      switchCartTab(tabId);
+    }
+  }, [cartSessions, heldCarts, switchCartTab]);
 
   const handleCancelSale = () => {
     if (activeCartTab.startsWith('held_')) {
@@ -995,31 +1055,31 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     setIsCheckingOut(true);
     try {
       if (activeTab === 'checkout' && navigator.onLine) {
-        try {
-          const barcodes = [...new Set(finalCart.map(item => item.barcode))];
-          // Query live stock from inventory_batches (the real source of truth after the batch migration)
-          const { data: liveBatches, error: stockError } = await supabase
-            .from('inventory_batches')
-            .select('barcode, batch_id, stock_store')
-            .in('barcode', barcodes)
-            .eq('is_active', true);
+        const barcodes = [...new Set(finalCart.map(item => item.barcode))];
+        // Query live stock from inventory_batches (the real source of truth after the batch migration)
+        const { data: liveBatches, error: stockError } = await supabase
+          .from('inventory_batches')
+          .select('barcode, batch_id, stock_store')
+          .in('barcode', barcodes)
+          .eq('is_active', true);
 
-          if (!stockError && liveBatches) {
-            // Sum stock per barcode across all active batches
-            const stockByBarcode = {};
-            liveBatches.forEach(b => {
-              stockByBarcode[b.barcode] = (stockByBarcode[b.barcode] || 0) + Number(b.stock_store || 0);
-            });
+        if (stockError) {
+          if (stockError.message !== 'Failed to fetch' && stockError.code !== '503') {
+            throw stockError;
+          }
+        } else if (liveBatches) {
+          // Sum stock per barcode across all active batches
+          const stockByBarcode = {};
+          liveBatches.forEach(b => {
+            stockByBarcode[b.barcode] = (stockByBarcode[b.barcode] || 0) + Number(b.stock_store || 0);
+          });
 
-            for (const cartItem of finalCart) {
-              const available = stockByBarcode[cartItem.barcode] ?? 0;
-              if (available < cartItem.quantity) {
-                throw new Error(`Someone just bought ${cartItem.name}! There are only ${available} left in the shop.`);
-              }
+          for (const cartItem of finalCart) {
+            const available = stockByBarcode[cartItem.barcode] ?? 0;
+            if (available < cartItem.quantity) {
+              throw new Error(`Someone just bought ${cartItem.name}! There are only ${available} left in the shop.`);
             }
           }
-        } catch (e) {
-          if (e.message.includes('left in the shop')) throw e;
         }
       }
       
@@ -1063,11 +1123,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           finalCart = finalCart.map((cartItem, index) => {
             const discItem = originalDiscountableItems.find(i => i.__cartIndex === index);
             if (discItem && discItem.allocatedDiscount > 0) {
-              const newPrice = discItem.currentPrice - (discItem.allocatedDiscount / discItem.calcQty);
+              const newPriceRaw = discItem.currentPrice - (discItem.allocatedDiscount / discItem.calcQty);
+              const newPrice = Math.round((newPriceRaw + Number.EPSILON) * 100) / 100;
               return {
                 ...cartItem,
                 customPriceInput: newPrice,
-                discountPct: ((Number(cartItem.price) - newPrice) / Number(cartItem.price)) * 100
+                discountPct: Number(cartItem.price) > 0 ? ((Number(cartItem.price) - newPrice) / Number(cartItem.price)) * 100 : 0
               };
             }
             return cartItem;
@@ -1248,6 +1309,14 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       }
     } catch (e) {
       showAlert(e.message, "Notice");
+      if (navigator.onLine) {
+        // Force a sync to fix local IDB drift if transaction failed due to stock mismatch
+        syncInventoryToLocal().then(() => {
+          queryClient.invalidateQueries({ queryKey: ['inventory'] });
+          queryClient.invalidateQueries({ queryKey: ['piece_counts'] });
+          queryClient.invalidateQueries({ queryKey: ['stock_instances'] });
+        });
+      }
     } finally {
       setIsCheckingOut(false);
     }
@@ -1319,10 +1388,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               )}
             </div>
             <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
+              <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} disabled={isCheckingOut} className="h-9 px-8 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md text-white transition-colors bg-[var(--color-error)] hover:bg-red-600">Cancel</button>
               <button onClick={handleCompleteTransaction} disabled={isCheckingOut || isShortfall} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 flex justify-center items-center min-w-[120px]" style={{ backgroundColor: 'var(--color-accent)' }}>
                 {isCheckingOut ? <Spinner className="w-4 h-4 text-white" /> : 'Complete Sale'}
               </button>
-              <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} disabled={isCheckingOut} className="h-9 px-8 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md text-white transition-opacity hover:opacity-90" style={{ backgroundColor: 'var(--color-error)' }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -1598,7 +1667,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               </div>
               <div className="p-4 flex justify-end gap-3" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
                 <button type="button" onClick={() => setCutLengthModal({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false })} className="h-9 px-6 text-sm font-semibold rounded-md transition-colors border border-red-500 text-red-500 hover:bg-red-500/10">Cancel</button>
-                <button type="submit" disabled={!cutLengthModal.cutQty} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 transition-colors hover:brightness-110" style={{ backgroundColor: 'var(--color-accent)' }}>Add Cut</button>
+                <button type="submit" disabled={!cutLengthModal.cutQty || isNaN(Number(cutLengthModal.instance?.current_length))} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 transition-colors hover:brightness-110" style={{ backgroundColor: 'var(--color-accent)' }}>Add Cut</button>
               </div>
             </form>
           </div>
@@ -1675,7 +1744,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           {activeTab === 'checkout' && (pendingCarts.length > 0 || heldCarts.length > 0) && (
           <div className="flex gap-1 p-2 bg-[var(--bg-tertiary)] border-b border-[var(--border-medium)] overflow-x-auto whitespace-nowrap scrollbar-hide">
             <button 
-              onClick={() => switchCartTab('local')}
+              onClick={() => handleRestoreCart('local')}
               className="px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors"
               style={{
                 backgroundColor: activeCartTab === 'local' ? 'var(--color-accent)' : 'var(--bg-primary)',
@@ -1688,7 +1757,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             {heldCarts.map(hc => (
               <button 
                 key={hc.id}
-                onClick={() => switchCartTab(hc.id)}
+                onClick={() => handleRestoreCart(hc.id)}
                 className="px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors flex gap-2 items-center"
                 style={{
                   backgroundColor: activeCartTab === hc.id ? 'var(--color-accent)' : 'var(--bg-primary)',
@@ -1703,7 +1772,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             {pendingCarts.map(pc => (
               <button 
                 key={pc.id}
-                onClick={() => switchCartTab(pc.id, pc.items)}
+                onClick={() => handleRestoreCart(pc.id, pc.items)}
                 className="px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors flex gap-2 items-center"
                 style={{
                   backgroundColor: activeCartTab === pc.id ? 'var(--color-accent)' : 'var(--bg-primary)',
@@ -1764,7 +1833,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         </div>
 
         {/* Desktop View */}
-        <div className="hidden md:block flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+        <div className="hidden md:block flex-1 overflow-y-auto overflow-x-auto" style={{ backgroundColor: 'var(--bg-secondary)' }}>
           <CartTable
             cart={cart}
             activeTab={activeTab}

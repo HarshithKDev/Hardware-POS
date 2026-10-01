@@ -6,6 +6,12 @@ import { supabase } from './supabaseClient';
 
 export function MobileScannerModal({ onClose, setScannedProduct, onScan }) {
   const scannerRef = useRef(null);
+  const callbacksRef = useRef({ onClose, setScannedProduct, onScan });
+
+  // Always keep callbacks fresh without triggering a re-render of the scanner hardware
+  useEffect(() => {
+    callbacksRef.current = { onClose, setScannedProduct, onScan };
+  }, [onClose, setScannedProduct, onScan]);
 
   useEffect(() => {
     let isVerifying = false;
@@ -20,10 +26,12 @@ export function MobileScannerModal({ onClose, setScannedProduct, onScan }) {
       if (isVerifying) return;
       isVerifying = true;
 
-      if (onScan) {
-        onScan(decodedText);
+      const { onClose: latestOnClose, setScannedProduct: latestSetScannedProduct, onScan: latestOnScan } = callbacksRef.current;
+
+      if (latestOnScan) {
+        latestOnScan(decodedText);
         scannerRef.current?.clear().catch(() => { });
-        onClose();
+        latestOnClose();
         return;
       }
 
@@ -35,9 +43,9 @@ export function MobileScannerModal({ onClose, setScannedProduct, onScan }) {
         .single();
 
       if (data) {
-        setScannedProduct(data);
+        if (latestSetScannedProduct) latestSetScannedProduct(data);
         scannerRef.current?.clear().catch(() => { });
-        onClose();
+        latestOnClose();
       } else {
         console.warn('Product not found:', decodedText);
         isVerifying = false;
@@ -47,7 +55,7 @@ export function MobileScannerModal({ onClose, setScannedProduct, onScan }) {
     return () => {
       scannerRef.current?.clear().catch(() => { });
     };
-  }, [onClose, setScannedProduct, onScan]);
+  }, []);
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[500] px-4 print:hidden animate-fade-in">

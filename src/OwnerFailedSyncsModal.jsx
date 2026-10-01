@@ -15,6 +15,9 @@ export default function OwnerFailedSyncsModal({ failedSyncs, onClose }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       showAlert('Transaction requeued. It will attempt to sync shortly.', 'Success');
+    },
+    onError: (error) => {
+      showAlert(`Failed to requeue transaction: ${error.message}`, 'Retry Error');
     }
   });
 
@@ -25,6 +28,9 @@ export default function OwnerFailedSyncsModal({ failedSyncs, onClose }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       showAlert('Transaction permanently discarded.', 'Info');
+    },
+    onError: (error) => {
+      showAlert(`Failed to discard transaction: ${error.message}`, 'Discard Error');
     }
   });
 

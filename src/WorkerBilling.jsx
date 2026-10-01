@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
@@ -7,6 +7,7 @@ import WorkerDashboardView from './WorkerDashboardView';
 import WorkerTerminal from './WorkerTerminal';
 import WorkerScanner from './WorkerScanner';
 import { CartProvider } from './contexts/CartContext';
+import { PageLoader } from './SharedUI';
 
 export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = false }) {
   const { tab } = useParams();
@@ -24,12 +25,30 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
     enabled: userRole !== 'owner',
   });
 
-  // Default to true while loading so we don't flash hiding the tab
-  const isBillable = userRole === 'owner' || isLoading || !workerData?.password?.includes('NON_BILLABLE');
+  const isBillable = userRole === 'owner' || !workerData?.password?.includes('NON_BILLABLE');
+
+  // Automatically redirect if a worker lands on a tab they don't have access to
+  useEffect(() => {
+    if (!isLoading && !hideNav) {
+      if (!isBillable && activeTab === 'checkout') {
+        navigate('/terminal/dashboard', { replace: true });
+      } else if (isBillable && ['receive', 'transfer', 'scanner'].includes(activeTab)) {
+        navigate('/terminal/dashboard', { replace: true });
+      }
+    }
+  }, [isLoading, isBillable, activeTab, navigate, hideNav]);
 
   const handleTabSwitch = (newTab) => {
     if (!hideNav) navigate(`/terminal/${newTab}`);
   };
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center bg-[var(--bg-primary)]">
+        <PageLoader text="Loading Workspace..." />
+      </div>
+    );
+  }
 
   const tabs = [
     { key: 'dashboard', label: 'Dashboard' },
