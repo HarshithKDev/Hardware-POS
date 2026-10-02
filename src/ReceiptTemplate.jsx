@@ -1,4 +1,5 @@
 import { createPortal } from 'react-dom';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateTime, isPreview = false }) {
   if (!lastReceipt || lastReceipt.type !== 'checkout') return null;
@@ -58,6 +59,18 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
       {totalSavings > 0 && (
         <div className="text-center mt-2 pb-2 border-b border-black border-dashed text-black" style={{ color: '#000' }}>
           <p className="font-bold text-sm">You saved {totalSavings.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} Rs</p>
+        </div>
+      )}
+      
+      {shopSettings?.upi_id && (
+        <div className="flex flex-col items-center justify-center mt-3 pb-3 border-b border-black border-dashed text-black" style={{ color: '#000' }}>
+          <p className="text-[11px] font-bold mb-1">Scan to Pay via UPI</p>
+          <QRCodeSVG 
+            value={`upi://pay?pa=${shopSettings.upi_id}&pn=${encodeURIComponent(shopSettings.shop_name || 'Store')}&am=${lastReceipt.total.toFixed(2)}&cu=INR`} 
+            size={100}
+            level="L"
+            includeMargin={false}
+          />
         </div>
       )}
       

@@ -1,11 +1,13 @@
 import { useState, useMemo, useCallback } from 'react';
 import { supabase } from './supabaseClient';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import { escapeIlike, debounce } from './utils';
 import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD, INV_PER_PAGE, STALE_TIME_5MIN } from './constants';
 
 export default function WorkerDashboardView() {
+  const navigate = useNavigate();
   const [inventorySearch, setInventorySearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortOption, setSortOption] = useState('barcode-asc');
@@ -86,6 +88,45 @@ export default function WorkerDashboardView() {
   return (
     <div className="flex flex-col h-full p-4 animate-fade-in flex-1 m-0 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
       <h2 className="text-xl md:text-2xl font-medium mb-4 hidden md:block" style={{ color: 'var(--text-primary)' }}>Staff Dashboard</h2>
+      
+      {/* Big Action Buttons */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
+        <button 
+          onClick={() => navigate('/terminal/receive')}
+          className="p-4 md:p-8 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
+          style={{ backgroundColor: '#3b82f6', color: 'white' }}
+        >
+          <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+          <span className="font-bold text-sm md:text-base leading-tight">Receiving Stock<br/>From Wholesaler</span>
+        </button>
+        
+        <button 
+          onClick={() => navigate('/terminal/transfer')}
+          className="p-4 md:p-8 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
+          style={{ backgroundColor: '#f59e0b', color: 'white' }}
+        >
+          <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+          <span className="font-bold text-sm md:text-base leading-tight">Sending Stock<br/>Warehouse to Shop</span>
+        </button>
+
+        <button 
+          onClick={() => navigate('/terminal/checkout')}
+          className="p-4 md:p-8 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
+          style={{ backgroundColor: '#10b981', color: 'white' }}
+        >
+          <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+          <span className="font-bold text-sm md:text-base leading-tight">Checkout<br/>Customer</span>
+        </button>
+
+        <button 
+          onClick={() => navigate('/terminal/scanner')}
+          className="p-4 md:p-8 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
+          style={{ backgroundColor: '#8b5cf6', color: 'white' }}
+        >
+          <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
+          <span className="font-bold text-sm md:text-base leading-tight">Check Price<br/>& Scanner</span>
+        </button>
+      </div>
       
       <div className="grid grid-cols-2 gap-3 md:gap-4 mb-3 md:mb-6">
         <button onClick={() => setLowStockModal({ isOpen: true, type: 'store' })} className="p-4 md:p-6 rounded-lg border border-[var(--border-light)] text-left cursor-pointer flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>

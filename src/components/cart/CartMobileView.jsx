@@ -191,7 +191,7 @@ const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQ
             <p className="text-xs mt-1 mb-1" style={{ color: 'var(--color-accent)' }}>#{item.scanned_barcode || item.instance_barcode || item.barcode}</p>
             {activeTab === 'checkout' && (
               <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>
-                MRP: ₹{Number(item.price || 0).toFixed(2)} • MSP: ₹{Number(item.msp || 0).toFixed(2)}
+                MRP: ₹{Number(item.price || 0).toFixed(2)} • <span className="group/msp cursor-help">MSP: <span className="blur-[4px] group-hover/msp:blur-none transition-all duration-300">₹{Number(item.msp || 0).toFixed(2)}</span></span>
               </p>
             )}
           </div>

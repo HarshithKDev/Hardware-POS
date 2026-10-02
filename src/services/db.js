@@ -2,7 +2,7 @@ import { openDB } from 'idb';
 import { supabase } from '../supabaseClient';
 
 const DB_NAME = 'HardwarePOSDB';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 let cachedInventory = null;
 let pieceCountCache = {};
@@ -12,9 +12,15 @@ let dbPromise = null;
 export const initDB = async () => {
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
+      upgrade(db, oldVersion) {
+        if (oldVersion < 4) {
+          if (db.objectStoreNames.contains('product_master')) {
+            db.deleteObjectStore('product_master');
+          }
+        }
+        
         if (!db.objectStoreNames.contains('product_master')) {
-          db.createObjectStore('product_master', { keyPath: 'barcode' });
+          db.createObjectStore('product_master', { keyPath: ['shop_id', 'barcode'] });
         }
         if (!db.objectStoreNames.contains('offline_queue')) {
           db.createObjectStore('offline_queue', { keyPath: 'id', autoIncrement: true });
@@ -46,7 +52,8 @@ export const saveInventoryBatch = async (items) => {
 
 export const getInventoryItemByBarcode = async (barcode) => {
   const db = await initDB();
-  return db.get('product_master', barcode);
+  const shopId = localStorage.getItem('shop_id');
+  return db.get('product_master', [shopId, barcode]);
 };
 
 export const getInventoryByQuery = async ({ limit, offset, search, category, subcategory, sortOption, viewType, status = 'active' }) => {
@@ -59,6 +66,9 @@ export const getInventoryByQuery = async ({ limit, offset, search, category, sub
     cachedInventory = await tx.store.getAll();
     allItems = [...cachedInventory];
   }
+  
+  const currentShopId = localStorage.getItem('shop_id');
+  allItems = allItems.filter(i => i.shop_id === currentShopId);
   
   if (status === 'deactivated') {
     allItems = allItems.filter(i => i.is_active === false);
@@ -195,8 +205,9 @@ export const deleteOrphanedInventory = async (syncedBarcodes) => {
   const db = await initDB();
   const tx = db.transaction('product_master', 'readwrite');
   let cursor = await tx.store.openCursor();
+  const shopId = localStorage.getItem('shop_id');
   while (cursor) {
-    if (!syncedBarcodes.has(cursor.key)) {
+    if (cursor.value.shop_id === shopId && !syncedBarcodes.has(cursor.value.barcode)) {
       cursor.delete();
     }
     cursor = await cursor.continue();

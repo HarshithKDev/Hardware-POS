@@ -400,6 +400,14 @@ export default function WorkerScanner({ cashierName }) {
                 <div className="flex flex-col flex-1">
                   <span className="font-bold text-xl leading-tight" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
                   {item.instance_barcode && <span className="font-mono text-sm mt-1" style={{ color: 'var(--color-accent)' }}>Piece #{item.instance_barcode}</span>}
+                  <div className="flex gap-2 mt-2">
+                    <span className="text-[12px] font-semibold px-2 py-1 uppercase tracking-wider rounded-md" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border-medium)' }}>
+                      MRP: ₹{Number(item.price || 0).toFixed(2)}
+                    </span>
+                    <span className="text-[12px] font-semibold px-2 py-1 uppercase tracking-wider rounded-md group/msp cursor-help" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border-medium)' }}>
+                      MSP: <span className="blur-[4px] group-hover/msp:blur-none transition-all duration-300">₹{Number(item.msp || 0).toFixed(2)}</span>
+                    </span>
+                  </div>
                 </div>
                 <button 
                   onClick={() => updateQuantity(item.id, 0)} 

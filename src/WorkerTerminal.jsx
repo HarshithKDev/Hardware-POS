@@ -43,7 +43,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const [isMobileScannerOpen, setIsMobileScannerOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [lastReceipt, setLastReceipt] = useState(null);
-  const [checkoutModal, setCheckoutModal] = useState({ isOpen: false, cashGiven: '', negotiatedTotal: '' });
+  const [checkoutModal, setCheckoutModal] = useState({ isOpen: false, cashGiven: '', negotiatedTotal: '', paymentMethod: 'CASH', splitUpi: '', splitCash: '' });
   const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -153,7 +153,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         
         // Check if search matches any active stock instances
         const { data: instData } = await supabase.from('stock_instances')
-          .select('instance_barcode, current_length, parent_barcode, inventory:parent_barcode(name, unit)')
+          .select('instance_barcode, current_length, parent_barcode, inventory:product_master(name, unit)')
           .ilike('instance_barcode', `%${searchStr}%`)
           .eq('is_active', true)
           .limit(5);
@@ -1352,9 +1352,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const activeTotal = checkoutModal.negotiatedTotal !== '' ? Number(checkoutModal.negotiatedTotal) : cartTotal;
   const activeTotalCents = Math.round(activeTotal * 100);
   
-  const cashGivenCents = Math.round(Number(checkoutModal.cashGiven || 0) * 100);
+  const cashGivenCents = checkoutModal.paymentMethod === 'CASH' ? Math.round(Number(checkoutModal.cashGiven || 0) * 100) : 0;
+  const splitTotalCents = Math.round((Number(checkoutModal.splitUpi || 0) + Number(checkoutModal.splitCash || 0)) * 100);
   const differenceCents = Math.abs(cashGivenCents - activeTotalCents);
-  const isShortfall = cashGivenCents > 0 && cashGivenCents < activeTotalCents;
+  const isShortfall = checkoutModal.paymentMethod === 'SPLIT' 
+    ? splitTotalCents !== activeTotalCents
+    : (checkoutModal.paymentMethod === 'CASH' && cashGivenCents > 0 && cashGivenCents < activeTotalCents);
 
   const isMobileScannerTab = window.innerWidth < 768 && (activeTab === 'receive' || activeTab === 'transfer');
 
@@ -1381,7 +1384,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               
               <div className="mb-4">
                 <label htmlFor="negotiated-total" className="block text-xs font-bold uppercase tracking-wider mb-2 flex justify-between" style={{ color: 'var(--text-secondary)' }}>
-                  <span>Negotiated Total (₹)</span>
+                  <span>Final Negotiated Amount (₹)</span>
                   <span className="opacity-70 font-normal">System: ₹{cartTotal.toFixed(2)}</span>
                 </label>
                 <input id="negotiated-total" type="number" step="any" autoFocus value={checkoutModal.negotiatedTotal} onChange={(e) => setCheckoutModal({ ...checkoutModal, negotiatedTotal: e.target.value })} placeholder={`e.g. ${Math.floor(cartTotal)}`} className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
@@ -1393,10 +1396,46 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               </div>
               
               <div className="mb-6">
-                <label htmlFor="cash-given" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Cash Given (₹)</label>
-                <input id="cash-given" type="number" step="any" value={checkoutModal.cashGiven} onChange={(e) => setCheckoutModal({ ...checkoutModal, cashGiven: e.target.value })} placeholder="0.00" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Payment Method</label>
+                <div className="flex gap-2 mb-4">
+                  {['CASH', 'UPI', 'SPLIT'].map((method) => (
+                    <button
+                      key={method}
+                      onClick={() => setCheckoutModal({ ...checkoutModal, paymentMethod: method })}
+                      className={`flex-1 h-10 text-sm font-bold uppercase tracking-wider rounded-md transition-colors ${checkoutModal.paymentMethod === method ? 'text-white' : ''}`}
+                      style={{ 
+                        backgroundColor: checkoutModal.paymentMethod === method ? 'var(--color-accent)' : 'var(--bg-tertiary)',
+                        color: checkoutModal.paymentMethod === method ? '#fff' : 'var(--text-primary)',
+                        border: `1px solid ${checkoutModal.paymentMethod === method ? 'var(--color-accent)' : 'var(--border-medium)'}`
+                      }}
+                    >
+                      {method === 'SPLIT' ? 'UPI + Cash' : method}
+                    </button>
+                  ))}
+                </div>
+
+                {checkoutModal.paymentMethod === 'CASH' && (
+                  <div>
+                    <label htmlFor="cash-given" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Cash Given (₹)</label>
+                    <input id="cash-given" type="number" step="any" value={checkoutModal.cashGiven} onChange={(e) => setCheckoutModal({ ...checkoutModal, cashGiven: e.target.value })} placeholder="0.00" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                  </div>
+                )}
+                
+                {checkoutModal.paymentMethod === 'SPLIT' && (
+                  <div className="flex gap-4">
+                    <div className="flex-1">
+                      <label htmlFor="split-upi" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>UPI (₹)</label>
+                      <input id="split-upi" type="number" step="any" value={checkoutModal.splitUpi} onChange={(e) => setCheckoutModal({ ...checkoutModal, splitUpi: e.target.value })} placeholder="0.00" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                    </div>
+                    <div className="flex-1">
+                      <label htmlFor="split-cash" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Cash (₹)</label>
+                      <input id="split-cash" type="number" step="any" value={checkoutModal.splitCash} onChange={(e) => setCheckoutModal({ ...checkoutModal, splitCash: e.target.value })} placeholder="0.00" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                    </div>
+                  </div>
+                )}
               </div>
-              {cashGivenCents > 0 && (
+              
+              {checkoutModal.paymentMethod === 'CASH' && cashGivenCents > 0 && (
                 <div className={`p-4 ${!isShortfall ? 'pos-success-box' : 'pos-error-box'}`} aria-live="polite">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>{!isShortfall ? 'Give Change' : 'Missing Amount'}</span>
@@ -1443,7 +1482,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                  >
                    <div>
                      <div className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>₹{Number(batch.selling_price).toFixed(2)}</div>
-                     <div className="text-xs uppercase tracking-wider mt-1" style={{ color: 'var(--text-tertiary)' }}>MSP: ₹{Number(batch.msp).toFixed(2)}</div>
+                     <div className="text-xs uppercase tracking-wider mt-1 group/msp cursor-help" style={{ color: 'var(--text-tertiary)' }}>MSP: <span className="blur-[4px] group-hover/msp:blur-none transition-all duration-300">₹{Number(batch.msp).toFixed(2)}</span></div>
                    </div>
                    <div className="text-right">
                      <div className="flex items-center justify-end gap-3">

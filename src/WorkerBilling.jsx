@@ -64,32 +64,14 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
   return (
     <div style={{ fontFamily: "var(--font-family)" }} className="h-full">
       <div className="flex flex-col h-full w-full">
-        {!hideNav && (
-          <div
-            className="flex gap-1 mb-6 pb-0 overflow-x-auto whitespace-nowrap overflow-y-hidden print:hidden"
-            style={{ borderBottom: '1px solid var(--border-light)' }}
-            role="tablist"
-            aria-label="Terminal tabs"
-          >
-            {tabs.map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => handleTabSwitch(key)}
-                className="px-6 py-2 text-sm uppercase tracking-wider focus:outline-none"
-                style={{
-                  backgroundColor: activeTab === key ? 'var(--color-accent-bg)' : 'var(--bg-secondary)',
-                  color: activeTab === key ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  fontWeight: activeTab === key ? '600' : '500',
-                  borderBottom: activeTab === key
-                    ? '2px solid var(--color-accent)'
-                    : '2px solid transparent',
-                }}
-                role="tab"
-                aria-selected={activeTab === key}
-              >
-                {label}
-              </button>
-            ))}
+        {!hideNav && activeTab !== 'dashboard' && (
+          <div className="mb-4">
+            <button
+              onClick={() => handleTabSwitch('dashboard')}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-bold uppercase tracking-wider rounded-md text-[var(--color-accent)] bg-[var(--color-accent-bg)] hover:opacity-80 transition-opacity"
+            >
+              ← Back to Dashboard
+            </button>
           </div>
         )}
 

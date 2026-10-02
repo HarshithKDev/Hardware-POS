@@ -37,7 +37,7 @@ export default function BarcodePrinter() {
       let instData = [];
       if (searchTerm.includes('-') || !isNaN(searchTerm)) {
         const { data: instResults } = await supabase.from('stock_instances')
-          .select('*, inventory:parent_barcode (name, price, unit)')
+          .select('*, inventory:product_master (name, price, unit)')
           .eq('is_active', true)
           .ilike('instance_barcode', `%${searchTerm}%`)
           .limit(10);

@@ -102,7 +102,25 @@ function App() {
     } else {
       document.title = 'Hardware POS System';
     }
-  }, [shopSettings?.shop_name]);
+    const logoSrc = shopSettings?.logo_url || '/logo.png';
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const size = 64;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(img, 0, 0, size, size);
+      const link = document.getElementById('app-favicon');
+      if (link) link.href = canvas.toDataURL('image/png');
+    };
+    img.src = logoSrc;
+  }, [shopSettings?.shop_name, shopSettings?.logo_url]);
 
   const fetchInitialData = useCallback(async () => {
     try {
@@ -117,6 +135,7 @@ function App() {
       if (!settingsData || settingsData.length === 0) {
         setIsSetupNeeded(true);
       } else {
+        localStorage.setItem('shop_id', settingsData[0].id);
         setShopSettings(settingsData[0]);
       }
 

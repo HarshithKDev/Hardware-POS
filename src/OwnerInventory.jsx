@@ -18,6 +18,7 @@ export default function OwnerInventory({ viewType }) {
   const [inventorySearch, setInventorySearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortOption, setSortOption] = useState('barcode-asc');
+  const [filterCategory, setFilterCategory] = useState('');
   const [selectedBarcodes, setSelectedBarcodes] = useState([]);
   const [expandedBarcode, setExpandedBarcode] = useState(null);
   const [isGlobalEditMode, setIsGlobalEditMode] = useState(false);
@@ -67,7 +68,7 @@ export default function OwnerInventory({ viewType }) {
   });
 
   const { data: inventoryData, isLoading } = useQuery({
-    queryKey: ['inventory', viewType, debouncedSearch, sortOption],
+    queryKey: ['inventory', viewType, debouncedSearch, sortOption, filterCategory],
     queryFn: async () => {
       if (!navigator.onLine) {
         // Fallback or primarily use local IDB
@@ -77,6 +78,7 @@ export default function OwnerInventory({ viewType }) {
         limit: 1000000,
         offset: 0,
         search: debouncedSearch,
+        category: filterCategory,
         sortOption: sortOption,
         viewType: viewType === 'recycle' ? 'warehouse' : viewType,
         status: viewType === 'recycle' ? 'deactivated' : 'active'
@@ -294,7 +296,7 @@ export default function OwnerInventory({ viewType }) {
     if (itemsToSave.length === 0) return;
     try {
       // First update Supabase
-      const { error } = await supabase.from('product_master').upsert(itemsToSave, { onConflict: 'barcode' });
+      const { error } = await supabase.from('product_master').upsert(itemsToSave, { onConflict: 'shop_id, barcode' });
       if (error) throw error;
       
       // Then update local IDB
@@ -416,7 +418,7 @@ export default function OwnerInventory({ viewType }) {
         </div>
       ) : (
         <div className="flex flex-col gap-4 mb-4">
-          <div className="flex gap-2">
+          <div className="flex flex-col md:flex-row gap-2">
             <input
               type="text"
               placeholder="Search Barcode or Name..."
@@ -426,6 +428,31 @@ export default function OwnerInventory({ viewType }) {
               style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)' }}
               aria-label="Search inventory"
             />
+            
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="h-11 md:h-10 px-3 text-sm focus:outline-none rounded-md cursor-pointer"
+              style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
+            >
+              <option value="">All Categories</option>
+              {categories?.map((c) => (
+                <option key={c.name} value={c.name}>{c.name}</option>
+              ))}
+            </select>
+
+            <select
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value)}
+              className="h-11 md:h-10 px-3 text-sm focus:outline-none rounded-md cursor-pointer"
+              style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
+            >
+              <option value="barcode-asc">Sort: Barcode</option>
+              <option value="name-asc">Sort: Name (A-Z)</option>
+              <option value="storestock-asc">Low Stock (Store)</option>
+              <option value="whsestock-asc">Low Stock (Whse)</option>
+            </select>
+
             <button
               onClick={() => {
                 if (isSelectionMode) {

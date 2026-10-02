@@ -108,8 +108,8 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                           <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider rounded-sm" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
                             MRP: ₹{Number(item.price || 0).toFixed(2)}
                           </span>
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider rounded-sm" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
-                            MSP: ₹{Number(item.msp || 0).toFixed(2)}
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider rounded-sm group/msp cursor-help" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
+                            MSP: <span className="blur-[4px] group-hover/msp:blur-none transition-all duration-300">₹{Number(item.msp || 0).toFixed(2)}</span>
                           </span>
                         </div>
                       )}
@@ -206,8 +206,8 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                       <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
                         MRP: ₹{Number(item.price || 0).toFixed(2)}
                       </span>
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
-                        MSP: ₹{Number(item.msp || 0).toFixed(2)}
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider group/msp cursor-help rounded-sm" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
+                        MSP: <span className="blur-[4px] group-hover/msp:blur-none transition-all duration-300">₹{Number(item.msp || 0).toFixed(2)}</span>
                       </span>
                     </div>
                   )}

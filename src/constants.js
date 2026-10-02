@@ -19,7 +19,7 @@ export const BARCODE_RETRY_ATTEMPTS = 5;
 export const SCAN_TIMEOUT_MS = 400;
 
 // --- Auth ---
-export const ADMIN_EMAIL = 'admin@hardwarepos.com';
+export const getAdminEmail = () => localStorage.getItem('owner_email') || 'admin@hardwarepos.com';
 export const getWorkerEmail = (name) =>
   `${name.trim().toLowerCase().replace(/[^a-z0-9]/g, '')}@hardwarepos.com`;
 

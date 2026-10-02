@@ -127,6 +127,7 @@ export default function OwnerCatalog() {
       for (let attempt = 0; attempt < BARCODE_RETRY_ATTEMPTS; attempt++) {
         const { error } = await supabase.from('product_master').insert([{
           id: generateId(),
+          shop_id: localStorage.getItem('shop_id'),
           barcode: currentBarcode,
           name: itemData.name,
           category: itemData.category || null,
@@ -151,10 +152,11 @@ export default function OwnerCatalog() {
           
           return {
             ...itemData,
+            shop_id: localStorage.getItem('shop_id'),
             barcode: currentBarcode,
             is_cuttable: itemData.item_type === 'cuttable',
             is_loose_item: itemData.item_type === 'loose',
-            batches: [] // Don't create an initial batch here; wait for them to click "Create Batch"
+            batches: []
           };
         }
 

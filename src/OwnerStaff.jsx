@@ -3,7 +3,7 @@ import { supabase, provisioningClient } from './supabaseClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { generateId } from './utils';
-import { getWorkerEmail } from './constants';
+import { getWorkerEmail, getAdminEmail } from './constants';
 import { Spinner, PageLoader } from './SharedUI';
 
 export default function OwnerStaff() {
@@ -91,11 +91,28 @@ export default function OwnerStaff() {
     onError: (e) => showAlert(e.message, 'Failed to remove staff'),
   });
 
-  const handleAddStaff = (e) => {
+  const handleAddStaff = async (e) => {
     e.preventDefault();
     if (!newStaffName.trim()) return showAlert("Name cannot be empty.", "Validation");
     if (newStaffPassword.length < 6) return showAlert("Password must be at least 6 characters.", "Validation");
-    addStaffMutation.mutate({ name: newStaffName, password: newStaffPassword, isBillable: newStaffIsBillable === "true" });
+    
+    const masterPin = window.prompt("Enter Owner Password to confirm adding this staff member:");
+    if (!masterPin) return;
+
+    try {
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: getAdminEmail(),
+        password: masterPin
+      });
+      
+      if (authError) {
+        return showAlert("Invalid Owner Password. Cannot add staff.", "Authentication Failed");
+      }
+
+      addStaffMutation.mutate({ name: newStaffName, password: newStaffPassword, isBillable: newStaffIsBillable === "true" });
+    } catch (err) {
+      showAlert(err.message, "Error");
+    }
   };
 
   const handleRemove = (id, name) => {
@@ -129,7 +146,17 @@ export default function OwnerStaff() {
             />
           </div>
           <div className="w-full md:flex-1">
-            <label className="block text-xs font-semibold uppercase mb-1" style={{ color: 'var(--text-tertiary)' }} htmlFor="staff-pwd">Login Password</label>
+            <div className="flex justify-between items-end mb-1">
+              <label className="block text-xs font-semibold uppercase" style={{ color: 'var(--text-tertiary)' }} htmlFor="staff-pwd">Login Password</label>
+              <button 
+                type="button" 
+                onClick={() => setNewStaffPassword(Math.floor(100000 + Math.random() * 900000).toString())}
+                className="text-[10px] font-bold uppercase hover:underline" 
+                style={{ color: 'var(--color-accent)' }}
+              >
+                Generate
+              </button>
+            </div>
             <input
               id="staff-pwd"
               type="text"
