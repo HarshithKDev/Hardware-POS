@@ -125,18 +125,29 @@ function App() {
   const fetchInitialData = useCallback(async () => {
     try {
       setIsInitialLoad(true);
-      const { data: settingsData, error: settingsError } = await supabase
-        .from('shop_settings')
-        .select('*')
-        .limit(1);
+      const savedShopId = localStorage.getItem('shop_id');
+      let currentShop = null;
 
-      if (settingsError && settingsError.code !== 'PGRST116') throw settingsError;
-
-      if (!settingsData || settingsData.length === 0) {
+      if (!savedShopId) {
         setIsSetupNeeded(true);
       } else {
-        localStorage.setItem('shop_id', settingsData[0].id);
-        setShopSettings(settingsData[0]);
+        const { data: settingsData, error: settingsError } = await supabase
+          .from('shop_settings')
+          .select('*')
+          .eq('id', savedShopId)
+          .single();
+
+        if (settingsError && settingsError.code !== 'PGRST116') {
+          throw settingsError;
+        }
+
+        if (!settingsData) {
+          setIsSetupNeeded(true);
+          localStorage.removeItem('shop_id');
+        } else {
+          currentShop = settingsData;
+          setShopSettings(settingsData);
+        }
       }
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -145,7 +156,7 @@ function App() {
         if (savedRole) {
           setUserRole(savedRole);
           const displayName = savedRole === 'owner'
-            ? (settingsData?.[0]?.owner_name || 'Administrator')
+            ? (currentShop?.owner_name || 'Administrator')
             : savedRole;
           setCashierName(displayName);
         }

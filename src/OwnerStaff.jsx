@@ -13,6 +13,9 @@ export default function OwnerStaff() {
   const [newStaffName, setNewStaffName] = useState('');
   const [newStaffPassword, setNewStaffPassword] = useState('');
   const [newStaffIsBillable, setNewStaffIsBillable] = useState("true");
+  const [showPromptModal, setShowPromptModal] = useState(false);
+  const [promptPassword, setPromptPassword] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const { data: staffList = [], isLoading } = useQuery({
     queryKey: ['staff'],
@@ -91,27 +94,37 @@ export default function OwnerStaff() {
     onError: (e) => showAlert(e.message, 'Failed to remove staff'),
   });
 
-  const handleAddStaff = async (e) => {
+  const handleAddStaff = (e) => {
     e.preventDefault();
     if (!newStaffName.trim()) return showAlert("Name cannot be empty.", "Validation");
     if (newStaffPassword.length < 6) return showAlert("Password must be at least 6 characters.", "Validation");
     
-    const masterPin = window.prompt("Enter Owner Password to confirm adding this staff member:");
-    if (!masterPin) return;
+    setPromptPassword('');
+    setShowPromptModal(true);
+  };
 
+  const confirmAddStaff = async (e) => {
+    e.preventDefault();
+    if (!promptPassword) return;
+
+    setIsVerifying(true);
     try {
       const { error: authError } = await supabase.auth.signInWithPassword({
         email: getAdminEmail(),
-        password: masterPin
+        password: promptPassword
       });
       
       if (authError) {
+        setIsVerifying(false);
         return showAlert("Invalid Owner Password. Cannot add staff.", "Authentication Failed");
       }
 
       addStaffMutation.mutate({ name: newStaffName, password: newStaffPassword, isBillable: newStaffIsBillable === "true" });
+      setShowPromptModal(false);
     } catch (err) {
       showAlert(err.message, "Error");
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -180,9 +193,6 @@ export default function OwnerStaff() {
                 <option value="true">Billable</option>
                 <option value="false">Non-Billable</option>
               </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}>
-                <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-              </div>
             </div>
           </div>
           <div className="w-full md:w-auto">
@@ -254,6 +264,46 @@ export default function OwnerStaff() {
           </tbody>
         </table>
       </div>
+      {/* Owner Password Prompt Modal */}
+      {showPromptModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md p-6 rounded-xl shadow-2xl border border-[var(--border-light)] transform scale-100 transition-all" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+            <h3 className="text-lg font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Confirm Staff Addition</h3>
+            <p className="text-sm mb-5" style={{ color: 'var(--text-secondary)' }}>
+              Enter Owner Password to confirm adding this staff member:
+            </p>
+            <form onSubmit={confirmAddStaff} className="space-y-4">
+              <input
+                type="password"
+                autoFocus
+                value={promptPassword}
+                onChange={(e) => setPromptPassword(e.target.value)}
+                className="w-full h-11 px-3 text-sm focus:outline-none rounded-md"
+                style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
+                placeholder="Owner Password"
+              />
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPromptModal(false)}
+                  className="px-5 py-2 text-sm font-semibold rounded-md transition-colors"
+                  style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isVerifying || !promptPassword}
+                  className="px-5 py-2 text-white text-sm font-semibold rounded-md transition-opacity disabled:opacity-50 flex items-center justify-center min-w-[80px]"
+                  style={{ backgroundColor: 'var(--color-accent)' }}
+                >
+                  {isVerifying ? <Spinner className="w-4 h-4 text-white" /> : 'Confirm'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

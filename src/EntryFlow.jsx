@@ -127,6 +127,8 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
         if (!uploadError) {
           const { data: urlData } = supabase.storage.from('shop-logos').getPublicUrl(fileName);
           logoUrl = urlData.publicUrl;
+        } else {
+          console.error("Logo upload failed:", uploadError);
         }
       }
 
@@ -145,7 +147,13 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
         .insert([shopRecord])
         .select();
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        if (dbError.message?.includes('shop_settings_admin_email_key') || dbError.code === '23505') {
+          throw new Error('This email is already registered. Please log in instead.');
+        }
+        throw dbError;
+      }
+      
       if (data && data.length > 0) {
         localStorage.setItem('owner_email', cleanEmail);
         localStorage.setItem('shop_id', data[0].id);
@@ -153,7 +161,13 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
         onSetupComplete(data[0]);
       }
     } catch (err) {
-      setError(err.message);
+      // Sometimes Postgres errors come as objects with a message or details property
+      const msg = err.details || err.message || JSON.stringify(err);
+      if (msg.includes('shop_settings_admin_email_key')) {
+        setError('This email is already registered. Please log in instead.');
+      } else {
+        setError(msg);
+      }
     } finally {
       setIsSettingUp(false);
     }
@@ -369,7 +383,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
       <div className="w-full max-w-md p-8 md:p-10 rounded-xl overflow-hidden border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
 
         <div className="text-center mb-8 pb-4" style={{ borderBottom: '1px solid var(--border-medium)' }}>
-          <img src="/logo.png" alt="Shop Logo" className="mx-auto mb-4 object-cover h-24 w-24 rounded-full border border-[var(--border-light)] shadow-sm" />
+          <img src={shopSettings?.logo_url || "/logo.png"} alt="Shop Logo" className="mx-auto mb-4 object-cover h-24 w-24 rounded-full border border-[var(--border-light)] shadow-sm" />
           <h1 className="text-xl font-bold uppercase tracking-widest leading-snug w-[85%] max-w-[320px] mx-auto" style={{ color: 'var(--text-primary)' }}>
             {shopSettings?.shop_name}
           </h1>
@@ -394,6 +408,17 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
                 Owner Login
               </button>
             </div>
+            
+            <button
+              onClick={() => {
+                localStorage.removeItem('shop_id');
+                window.location.reload();
+              }}
+              className="mt-6 text-xs text-center mx-auto hover:underline opacity-70 transition-opacity hover:opacity-100 w-full"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              Not your shop? Change or Register
+            </button>
           </div>
         )}
 

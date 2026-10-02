@@ -4,9 +4,9 @@ import React, { useState, useRef, useEffect } from 'react';
 
 export const Spinner = ({ className = "" }) => (
   <div className={`premium-wave-loader !h-auto !gap-[2px] ${className}`}>
-    <span className="!w-[3px] !h-[12px] bg-current"></span>
-    <span className="!w-[3px] !h-[12px] bg-current"></span>
-    <span className="!w-[3px] !h-[12px] bg-current"></span>
+    <span className="!w-[3px] !h-[12px] !bg-current"></span>
+    <span className="!w-[3px] !h-[12px] !bg-current"></span>
+    <span className="!w-[3px] !h-[12px] !bg-current"></span>
   </div>
 );
 

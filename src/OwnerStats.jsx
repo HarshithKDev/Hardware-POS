@@ -83,19 +83,22 @@ function StatCard({ title, value, accentColor, borderColor, onClick, clickLabel,
       }}
       aria-label={onClick ? clickLabel : undefined}
     >
-      <div className="flex justify-between items-start mb-2">
-        <p className="text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>
+      <div className="mb-2">
+        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
           {title}
         </p>
+      </div>
+      <div className="flex justify-between items-end mt-auto">
+        <p className="text-2xl md:text-3xl font-semibold break-all" style={{ color: accentColor || 'var(--text-primary)' }} title={value}>
+          <AnimatedNumber valueStr={value} duration={1200} />
+        </p>
         {onClick && (
-          <span className="text-[10px] uppercase font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap ml-2" style={{ color: 'var(--color-accent)' }}>
-            View Details ↗
-          </span>
+          <div className="flex flex-col items-end opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2 pb-1 text-right" style={{ color: 'var(--color-accent)' }}>
+            <span className="text-[10px] font-bold uppercase leading-none mb-[2px]">View ↗</span>
+            <span className="text-[10px] font-bold uppercase leading-none">Details</span>
+          </div>
         )}
       </div>
-      <p className="text-2xl md:text-3xl font-semibold truncate mt-auto" style={{ color: accentColor || 'var(--text-primary)' }} title={value}>
-        <AnimatedNumber valueStr={value} duration={1200} />
-      </p>
       {children}
     </Tag>
   );
@@ -514,9 +517,6 @@ export default function OwnerStats({ isActive }) {
             <option value="6_months">6 Months</option>
             <option value="1_year">1 Year</option>
           </select>
-          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4" style={{ color: 'var(--text-secondary)' }}>
-             <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-          </div>
         </div>
       </div>
 
