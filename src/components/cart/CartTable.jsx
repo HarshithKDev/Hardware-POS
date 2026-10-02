@@ -103,6 +103,16 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                     </td>
                     <td className="py-4 px-3 text-center" >
                       <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name} <span className="text-xs bg-[var(--color-accent-bg)] px-2 py-0.5 rounded-full" style={{ color: 'var(--color-accent)' }}>{item.children.length} Pieces</span></p>
+                      {activeTab === 'checkout' && (
+                        <div className="flex justify-center gap-2 mt-1.5">
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider rounded-sm" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
+                            MRP: ₹{Number(item.price || 0).toFixed(2)}
+                          </span>
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider rounded-sm" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
+                            MSP: ₹{Number(item.msp || 0).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td className="p-2 text-center" >
                       <div className="inline-flex items-baseline justify-center gap-1">

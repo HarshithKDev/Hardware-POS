@@ -658,6 +658,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         purchase_cost: Number(purchaseCost).toFixed(2),
         selling_price: Number(sellingPrice).toFixed(2),
         msp_price: Number(mspPrice).toFixed(2),
+        price: Number(sellingPrice).toFixed(2),
+        msp: Number(mspPrice).toFixed(2),
         discard_scrap: discardScrap && (availableLength - addQty < 1) && (availableLength - addQty > 0),
         name: item.name,
         customPriceInput: Number(sellingPrice).toFixed(2),
@@ -690,7 +692,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         customPriceInput: Number(batch ? batch.selling_price : item.price || 0).toFixed(2),
         purchase_cost: Number(batch ? batch.purchase_cost : item.cost_price || 0).toFixed(2),
         selling_price: Number(batch ? batch.selling_price : item.price || 0).toFixed(2),
-        msp_price: Number(batch ? batch.msp : item.msp || 0).toFixed(2)
+        msp_price: Number(batch ? batch.msp : item.msp || 0).toFixed(2),
+        price: Number(batch ? batch.selling_price : item.price || 0).toFixed(2),
+        msp: Number(batch ? batch.msp : item.msp || 0).toFixed(2)
       }, ...prev];
     });
   };
