@@ -192,7 +192,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
       let scannedInstanceBarcode = null;
       let scannedBatchNumber = null;
-    let searchBarcode = cleanBarcode;
+    let searchBarcode = cleanBarcode.replace(/\s+/g, '-'); // Scanner keyboard mapping issues sometimes turn hyphens into spaces
 
     // First try exact match in inventory
     let item = cartRef.current.find(i => i.barcode === searchBarcode && !i.is_cuttable);
@@ -201,14 +201,14 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     }
 
     // If exact match fails, check if it's a hyphenated instance barcode for cuttables or batches
-    if (!item && cleanBarcode.includes('-')) {
-      const parts = cleanBarcode.split('-');
+    if (!item && searchBarcode.includes('-')) {
+      const parts = searchBarcode.split('-');
       if (parts.length === 3 && !isNaN(parts[1]) && !isNaN(parts[2])) {
         const parentItem = await getInventoryItemByBarcode(parts[0]);
         if (parentItem && parentItem.is_cuttable) {
           searchBarcode = parts[0];
           scannedBatchNumber = Number(parts[1]);
-          scannedInstanceBarcode = cleanBarcode;
+          scannedInstanceBarcode = searchBarcode + '-' + parts[1] + parts[2];
           item = parentItem;
         }
       } else if (parts.length === 2 && !isNaN(parts[1])) {
@@ -216,8 +216,11 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         if (parentItem) {
           if (parentItem.is_cuttable) {
             searchBarcode = parts[0];
-            scannedBatchNumber = Number(parts[1]);
-            // Not setting scannedInstanceBarcode so it fails validation below
+            // Cuttable instance barcodes are printed as [parent]-[batch][piece] (e.g. 1002-0104)
+            // Batch is always the first 2 digits of the second part, since batch is padded to 2 chars.
+            const batchStr = parts[1].length > 2 ? parts[1].slice(0, 2) : parts[1];
+            scannedBatchNumber = Number(batchStr);
+            scannedInstanceBarcode = searchBarcode + '-' + parts[1];
             item = parentItem;
           } else {
             searchBarcode = parts[0];
