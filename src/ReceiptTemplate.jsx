@@ -30,10 +30,11 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
       <table className="w-full mb-3 text-[12px] text-black" style={{ color: '#000' }}>
         <thead>
           <tr className="border-b border-black border-dashed">
-            <th className="text-left font-semibold pb-1 w-1/2 text-black" style={{ color: '#000' }}>Item</th>
-            <th className="text-center font-semibold pb-1 w-1/6 text-black" style={{ color: '#000' }}>Qty</th>
-            <th className="text-right font-semibold pb-1 w-1/6 text-black" style={{ color: '#000' }}>Rate</th>
-            <th className="text-right font-semibold pb-1 w-1/6 text-black" style={{ color: '#000' }}>Amt</th>
+            <th className="text-left font-semibold pb-1 w-[35%] text-black" style={{ color: '#000' }}>Item</th>
+            <th className="text-center font-semibold pb-1 w-[15%] text-black" style={{ color: '#000' }}>Qty</th>
+            <th className="text-right font-semibold pb-1 w-[15%] text-black" style={{ color: '#000' }}>MRP</th>
+            <th className="text-right font-semibold pb-1 w-[15%] text-black" style={{ color: '#000' }}>Rate</th>
+            <th className="text-right font-semibold pb-1 w-[20%] text-black" style={{ color: '#000' }}>Amt</th>
           </tr>
         </thead>
         <tbody className="align-top">
@@ -41,6 +42,7 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
             <tr key={i} className="hover:!bg-transparent">
               <td className="py-1 pr-1 text-wrap text-black" style={{ color: '#000' }}>{item.name}</td>
               <td className="py-1 text-center text-black" style={{ color: '#000' }}>{item.quantity} {item.unit}</td>
+              <td className="py-1 text-right text-black" style={{ color: '#000' }}>{item.mrp.toFixed(2)}</td>
               <td className="py-1 text-right text-black" style={{ color: '#000' }}>{item.finalRate.toFixed(2)}</td>
               <td className="py-1 text-right text-black" style={{ color: '#000' }}>{item.lineTotal.toFixed(2)}</td>
             </tr>
@@ -55,7 +57,7 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
       
       {totalSavings > 0 && (
         <div className="text-center mt-2 pb-2 border-b border-black border-dashed text-black" style={{ color: '#000' }}>
-          <p className="font-bold text-sm">You saved ₹{totalSavings.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}!</p>
+          <p className="font-bold text-sm">You saved {totalSavings.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} Rs</p>
         </div>
       )}
       

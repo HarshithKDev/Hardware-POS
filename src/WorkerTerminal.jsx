@@ -1255,9 +1255,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       }
 
       const rawFinalItemsList = finalCart.map(i => {
-        const finalRate = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0);
+        const itemMrp = Number(i.selling_price !== undefined ? i.selling_price : (i.price || 0));
+        const finalRate = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : itemMrp;
         const bQty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : Number(i.quantity);
-        return { ...i, quantity: bQty, actual_quantity: Number(i.quantity), finalRate, mrp: Number(i.price || 0), lineTotal: finalRate * bQty, pieceCount: 1 };
+        return { ...i, quantity: bQty, actual_quantity: Number(i.quantity), finalRate, mrp: itemMrp, lineTotal: finalRate * bQty, pieceCount: 1 };
       });
 
       const groupedItemsMap = new Map();
