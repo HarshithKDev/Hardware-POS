@@ -64,7 +64,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   // Offline status
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  const isScanningRef = useRef(false);
+
+  const [isInputFocused, setIsInputFocused] = useState(false);
   const barcodeBuffer = useRef('');
   const lastKeyTime = useRef(Date.now());
   const cartRef = useRef(cart);
@@ -184,8 +185,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   }, [manualBarcode]);
 
   const processScan = useCallback(async (scannedCode) => {
-    if (isScanningRef.current) return;
-    isScanningRef.current = true;
     try {
       const cleanBarcode = scannedCode.trim();
       if (!cleanBarcode) return;
@@ -502,8 +501,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     } catch (error) {
       console.error("Scan Error:", error);
       showAlertRef.current(error.message || "An error occurred while looking up the barcode.", "Scanner Error");
-    } finally {
-      isScanningRef.current = false;
     }
   }, []);
 
@@ -907,6 +904,14 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const calculateTotalUnits = useCallback(() => cart.reduce((tot, i) => tot + (i.quantity === '' ? 0 : Number(i.quantity)), 0), [cart]);
 
   const handleRestoreCart = useCallback(async (tabId, overrideItems = null) => {
+    if (tabId !== 'local' && !tabId.startsWith('held_')) {
+      const { data: lockSuccess, error } = await supabase.rpc('lock_pending_cart', { p_cart_id: tabId });
+      if (error || !lockSuccess) {
+        showAlertRef.current("Another cashier is already processing this cart.", "Cart Locked");
+        return;
+      }
+    }
+
     let itemsToRestore = overrideItems;
     if (!itemsToRestore) {
       if (tabId === 'local') {
@@ -919,25 +924,42 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
     if (itemsToRestore.length > 0) {
       let priceChanged = false;
-      const updatedItems = await Promise.all(itemsToRestore.map(async (item) => {
+      let itemRemoved = false;
+      const updatedItemsRaw = await Promise.all(itemsToRestore.map(async (item) => {
         const liveItem = await getInventoryItemByBarcode(item.barcode);
-        if (liveItem) {
-          const oldPrice = Number(item.price || 0);
-          const livePrice = Number(liveItem.price || 0);
-          if (oldPrice !== livePrice) {
-            priceChanged = true;
-            return {
-              ...item,
-              price: livePrice,
-              selling_price: livePrice,
-              customPriceInput: livePrice,
-            };
+        if (!liveItem) {
+          itemRemoved = true;
+          return null;
+        }
+        
+        let livePrice = Number(liveItem.price || 0);
+        if (item.batch_id && liveItem.batches) {
+          const liveBatch = liveItem.batches.find(b => b.batch_id === item.batch_id);
+          if (!liveBatch) {
+            itemRemoved = true;
+            return null;
           }
+          livePrice = Number(liveBatch.selling_price || 0);
+        }
+        
+        const oldPrice = Number(item.price || 0);
+        if (oldPrice !== livePrice) {
+          priceChanged = true;
+          return {
+            ...item,
+            price: livePrice,
+            selling_price: livePrice,
+            customPriceInput: Number(livePrice).toFixed(2),
+          };
         }
         return item;
       }));
+      
+      const updatedItems = updatedItemsRaw.filter(Boolean);
 
-      if (priceChanged) {
+      if (itemRemoved) {
+        showAlertRef.current("Some items were removed from the inventory and have been removed from your cart.", "Notice");
+      } else if (priceChanged) {
         showAlertRef.current("Some item prices changed while this cart was on hold. Prices have been updated.", "Price Update");
       }
       switchCartTab(tabId, updatedItems);
@@ -956,7 +978,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       });
       switchCartTab('local');
     } else if (activeCartTab !== 'local') {
-      supabase.from('pending_carts').delete().eq('id', activeCartTab).then();
+      supabase.from('pending_carts').delete().eq('id', activeCartTab).then().catch(console.error);
       setCartSessions(prev => {
         const next = { ...prev };
         delete next[activeCartTab];
@@ -1309,7 +1331,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         setCart(cartSessions['local'] || []);
       } else if (activeCartTab !== 'local') {
         // Delete the remote cart
-        supabase.from('pending_carts').delete().eq('id', activeCartTab).then();
+        supabase.from('pending_carts').delete().eq('id', activeCartTab).then().catch(console.error);
         // Clear local session for this tab and switch to local
         setCartSessions(prev => ({ ...prev, [activeCartTab]: [] }));
         setActiveCartTab('local');
@@ -1353,7 +1375,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const activeTotalCents = Math.round(activeTotal * 100);
   
   const cashGivenCents = checkoutModal.paymentMethod === 'CASH' ? Math.round(Number(checkoutModal.cashGiven || 0) * 100) : 0;
-  const splitTotalCents = Math.round((Number(checkoutModal.splitUpi || 0) + Number(checkoutModal.splitCash || 0)) * 100);
+  const splitTotalCents = Math.round(Number(checkoutModal.splitUpi || 0) * 100) + Math.round(Number(checkoutModal.splitCash || 0) * 100);
   const differenceCents = Math.abs(cashGivenCents - activeTotalCents);
   const isShortfall = checkoutModal.paymentMethod === 'SPLIT' 
     ? splitTotalCents !== activeTotalCents
@@ -1387,7 +1409,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   <span>Final Negotiated Amount (₹)</span>
                   <span className="opacity-70 font-normal">System: ₹{cartTotal.toFixed(2)}</span>
                 </label>
-                <input id="negotiated-total" type="number" step="any" autoFocus value={checkoutModal.negotiatedTotal} onChange={(e) => setCheckoutModal({ ...checkoutModal, negotiatedTotal: e.target.value })} placeholder={`e.g. ${Math.floor(cartTotal)}`} className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <input id="negotiated-total" type="number" step="any" min="0" autoFocus value={checkoutModal.negotiatedTotal} onChange={(e) => { const v = parseFloat(e.target.value); setCheckoutModal({ ...checkoutModal, negotiatedTotal: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder={`e.g. ${Math.floor(cartTotal)}`} className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                 {checkoutModal.negotiatedTotal !== '' && Number(checkoutModal.negotiatedTotal) < minPossibleTotal && cashierName !== 'admin' && (
                   <p className="text-xs font-bold mt-2" style={{ color: 'var(--color-error)' }}>
                     Warning: Cannot discount below minimum selling limit (₹{minPossibleTotal.toFixed(2)}). The final bill will automatically be clamped.
@@ -1417,7 +1439,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                 {checkoutModal.paymentMethod === 'CASH' && (
                   <div>
                     <label htmlFor="cash-given" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Cash Given (₹)</label>
-                    <input id="cash-given" type="number" step="any" value={checkoutModal.cashGiven} onChange={(e) => setCheckoutModal({ ...checkoutModal, cashGiven: e.target.value })} placeholder="0.00" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                    <input id="cash-given" type="number" step="any" min="0" value={checkoutModal.cashGiven} onChange={(e) => { const v = parseFloat(e.target.value); setCheckoutModal({ ...checkoutModal, cashGiven: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder="0.00" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                   </div>
                 )}
                 
@@ -1425,11 +1447,11 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   <div className="flex gap-4">
                     <div className="flex-1">
                       <label htmlFor="split-upi" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>UPI (₹)</label>
-                      <input id="split-upi" type="number" step="any" value={checkoutModal.splitUpi} onChange={(e) => setCheckoutModal({ ...checkoutModal, splitUpi: e.target.value })} placeholder="0.00" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                      <input id="split-upi" type="number" step="any" min="0" value={checkoutModal.splitUpi} onChange={(e) => { const v = parseFloat(e.target.value); setCheckoutModal({ ...checkoutModal, splitUpi: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder="0.00" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                     </div>
                     <div className="flex-1">
                       <label htmlFor="split-cash" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Cash (₹)</label>
-                      <input id="split-cash" type="number" step="any" value={checkoutModal.splitCash} onChange={(e) => setCheckoutModal({ ...checkoutModal, splitCash: e.target.value })} placeholder="0.00" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                      <input id="split-cash" type="number" step="any" min="0" value={checkoutModal.splitCash} onChange={(e) => { const v = parseFloat(e.target.value); setCheckoutModal({ ...checkoutModal, splitCash: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder="0.00" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                     </div>
                   </div>
                 )}
@@ -1518,7 +1540,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               <div className="p-6">
                 <p className="text-sm mb-4 font-semibold">{looseItemModal.item?.name}</p>
                 <label htmlFor="loose-qty" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Enter Quantity</label>
-                <input id="loose-qty" type="number" step="any" min="0.1" autoFocus value={looseItemModal.qty} onChange={(e) => setLooseItemModal({ ...looseItemModal, qty: e.target.value })} placeholder="0" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <input id="loose-qty" type="number" step="any" min="0" autoFocus value={looseItemModal.qty} onChange={(e) => { const v = parseFloat(e.target.value); setLooseItemModal({ ...looseItemModal, qty: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder="0" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
               </div>
               <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
                 <button type="submit" disabled={!looseItemModal.qty} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50" style={{ backgroundColor: 'var(--color-accent)' }}>Add to Cart</button>
@@ -1631,7 +1653,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             <form onSubmit={handleReceiveLengthSubmit} className="p-6">
               <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>What is the standard length of each <strong>{receiveLengthModal.item?.name}</strong> piece?</p>
               <div className="mb-6">
-                <input type="number" autoFocus step="any" min="0.1" value={receiveLengthModal.length} onChange={e => setReceiveLengthModal({ ...receiveLengthModal, length: e.target.value })} placeholder={`Length (${receiveLengthModal.item?.unit})`} className="w-full h-12 px-4 text-xl font-mono focus:outline-none rounded-md" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <input type="number" autoFocus step="any" min="0" value={receiveLengthModal.length} onChange={e => { const v = parseFloat(e.target.value); setReceiveLengthModal({ ...receiveLengthModal, length: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder={`Length (${receiveLengthModal.item?.unit})`} className="w-full h-12 px-4 text-xl font-mono focus:outline-none rounded-md" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
               </div>
               <div className="flex justify-end gap-3">
                 <button type="submit" disabled={!receiveLengthModal.length} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 transition-colors hover:brightness-110" style={{ backgroundColor: 'var(--color-accent)' }}>Add to Cart</button>
@@ -1711,9 +1733,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                 </p>
 
                 <div className="relative mb-4">
-                  <input type="number" autoFocus step="0.01" min="0.01" value={cutLengthModal.cutQty} onChange={e => {
+                  <input type="number" autoFocus step="0.01" min="0" value={cutLengthModal.cutQty} onChange={e => {
                     const val = e.target.value;
                     const numVal = Math.round((Number(val) || 0) * 100) / 100;
+                    if (numVal < 0 || isNaN(numVal)) {
+                      setCutLengthModal({ ...cutLengthModal, cutQty: '', discardScrap: false });
+                      return;
+                    }
                     const max = Number(cutLengthModal.instance?.current_length);
                     const isSmallScrap = !isNaN(numVal) && !isNaN(max) && (max - numVal < 1) && (max - numVal > 0);
                     setCutLengthModal({ ...cutLengthModal, cutQty: val, discardScrap: isSmallScrap });
@@ -1858,7 +1884,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             <form onSubmit={(e) => { e.preventDefault(); processScan(manualBarcode); setManualBarcode(''); setShowSuggestions(false); }} className="mt-3 relative w-full md:w-auto">
               <div className="flex items-center w-full md:w-72 h-10 md:h-9 rounded-md overflow-hidden transition-colors focus-within:border-[var(--color-accent)] focus-within:ring-1 focus-within:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)' }}>
                 <label htmlFor="manual-barcode" className="sr-only">Barcode</label>
-                <input id="manual-barcode" type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} onFocus={() => manualBarcode.trim().length >= 2 && setShowSuggestions(true)} onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} placeholder="Search barcode or name..." className="h-full w-full px-3 text-sm focus:outline-none flex-1 bg-transparent border-none outline-none rounded-none focus:ring-0 focus:border-transparent focus:shadow-none" style={{ color: 'var(--text-input)', outline: 'none', border: 'none', boxShadow: 'none' }} autoComplete="off" />
+                <input id="manual-barcode" type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} onFocus={() => { setIsInputFocused(true); manualBarcode.trim().length >= 2 && setShowSuggestions(true); }} onBlur={() => { setIsInputFocused(false); setTimeout(() => setShowSuggestions(false), 200); }} placeholder="Search barcode or name..." className="h-full w-full px-3 text-sm focus:outline-none flex-1 bg-transparent border-none outline-none rounded-none focus:ring-0 focus:border-transparent focus:shadow-none" style={{ color: 'var(--text-input)', outline: 'none', border: 'none', boxShadow: 'none' }} autoComplete="off" />
                 <button type="submit" className="h-full px-4 text-sm font-bold focus:outline-none transition-colors border-none rounded-none bg-transparent hover:bg-white/5 focus:ring-0 focus:outline-none" style={{ color: 'var(--color-accent)', outline: 'none', border: 'none' }}>ADD</button>
               </div>
                 {showSuggestions && suggestions.length > 0 && (
@@ -1926,7 +1952,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           />
         </div>
 
-        {cart.length > 0 && (
+        {cart.length > 0 && !isInputFocused && (
           <div className="p-4 flex flex-col md:flex-row justify-between gap-3" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
             <div className="flex w-full md:w-auto gap-3">
               <button

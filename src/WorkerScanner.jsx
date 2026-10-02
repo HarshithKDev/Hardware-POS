@@ -30,7 +30,14 @@ export default function WorkerScanner({ cashierName }) {
   };
 
   useEffect(() => {
-    if (isScanning) {
+    let active = true;
+    
+    const initScanner = async () => {
+      if (window._globalScannerCleanupPromise) {
+        await window._globalScannerCleanupPromise;
+      }
+      if (!active || !isScanning) return;
+
       const scanner = new Html5QrcodeScanner(
         "reader", 
         { 
@@ -70,13 +77,24 @@ export default function WorkerScanner({ cashierName }) {
           // ignore background scan errors
         }
       );
+    };
 
-      return () => {
-        if (scannerRef.current) {
-          scannerRef.current.clear().catch(console.error);
-        }
-      };
+    if (isScanning) {
+      initScanner();
     }
+
+    return () => {
+      active = false;
+      if (scannerRef.current) {
+        const cleanupPromise = scannerRef.current.clear().catch(console.error);
+        window._globalScannerCleanupPromise = cleanupPromise.finally(() => {
+          if (window._globalScannerCleanupPromise === cleanupPromise) {
+            window._globalScannerCleanupPromise = null;
+          }
+        });
+        scannerRef.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isScanning]);
 

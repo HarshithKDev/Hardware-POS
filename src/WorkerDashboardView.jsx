@@ -6,7 +6,7 @@ import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import { escapeIlike, debounce } from './utils';
 import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD, INV_PER_PAGE, STALE_TIME_5MIN } from './constants';
 
-export default function WorkerDashboardView() {
+export default function WorkerDashboardView({ isBillable = true }) {
   const navigate = useNavigate();
   const [inventorySearch, setInventorySearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -23,8 +23,8 @@ export default function WorkerDashboardView() {
   const { data: lowStockCounts } = useQuery({
     queryKey: ['lowStockCounts'],
     queryFn: async () => {
-      const { count: storeCount } = await supabase.from('product_master').select('*', { count: 'exact', head: true }).eq('is_active', true).lt('stock_store', STORE_LOW_STOCK_THRESHOLD);
-      const { count: whseCount } = await supabase.from('product_master').select('*', { count: 'exact', head: true }).eq('is_active', true).lt('stock_warehouse', WAREHOUSE_LOW_STOCK_THRESHOLD);
+      const { count: storeCount } = await supabase.from('product_master_public').select('*', { count: 'exact', head: true }).eq('is_active', true).lt('stock_store', STORE_LOW_STOCK_THRESHOLD);
+      const { count: whseCount } = await supabase.from('product_master_public').select('*', { count: 'exact', head: true }).eq('is_active', true).lt('stock_warehouse', WAREHOUSE_LOW_STOCK_THRESHOLD);
       return { store: storeCount || 0, warehouse: whseCount || 0 };
     },
     staleTime: STALE_TIME_5MIN,
@@ -36,7 +36,7 @@ export default function WorkerDashboardView() {
       if (!lowStockModal.type) return [];
       const threshold = lowStockModal.type === 'store' ? STORE_LOW_STOCK_THRESHOLD : WAREHOUSE_LOW_STOCK_THRESHOLD;
       const col = lowStockModal.type === 'store' ? 'stock_store' : 'stock_warehouse';
-      const { data, error } = await supabase.from('product_master').select('*').eq('is_active', true).lt(col, threshold).order(col, { ascending: true });
+      const { data, error } = await supabase.from('product_master_public').select('*').eq('is_active', true).lt(col, threshold).order(col, { ascending: true });
       if (error) throw error;
       return data || [];
     },
@@ -54,7 +54,7 @@ export default function WorkerDashboardView() {
     queryKey: ['workerInventory', debouncedSearch, sortOption],
     queryFn: async ({ pageParam = 0 }) => {
       const from = pageParam * INV_PER_PAGE;
-      let query = supabase.from('product_master').select('*', { count: 'exact' }).eq('is_active', true);
+      let query = supabase.from('product_master_public').select('*', { count: 'exact' }).eq('is_active', true);
       
       // Sanitized search (fixes #1)
       if (debouncedSearch.trim() !== '') {
@@ -90,7 +90,7 @@ export default function WorkerDashboardView() {
       <h2 className="text-xl md:text-2xl font-medium mb-4 hidden md:block" style={{ color: 'var(--text-primary)' }}>Staff Dashboard</h2>
       
       {/* Big Action Buttons */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
+      <div className={`grid grid-cols-2 ${isBillable ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-3 md:gap-4 mb-6`}>
         <button 
           onClick={() => navigate('/terminal/receive')}
           className="p-4 md:p-8 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
@@ -109,18 +109,20 @@ export default function WorkerDashboardView() {
           <span className="font-bold text-sm md:text-base leading-tight">Sending Stock<br/>Warehouse to Shop</span>
         </button>
 
-        <button 
-          onClick={() => navigate('/terminal/checkout')}
-          className="p-4 md:p-8 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
-          style={{ backgroundColor: '#10b981', color: 'white' }}
-        >
-          <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-          <span className="font-bold text-sm md:text-base leading-tight">Checkout<br/>Customer</span>
-        </button>
+        {isBillable && (
+          <button 
+            onClick={() => navigate('/terminal/checkout')}
+            className="p-4 md:p-8 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
+            style={{ backgroundColor: '#10b981', color: 'white' }}
+          >
+            <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+            <span className="font-bold text-sm md:text-base leading-tight">Checkout<br/>Customer</span>
+          </button>
+        )}
 
         <button 
           onClick={() => navigate('/terminal/scanner')}
-          className="p-4 md:p-8 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
+          className="md:hidden p-4 md:p-8 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
           style={{ backgroundColor: '#8b5cf6', color: 'white' }}
         >
           <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
@@ -235,12 +237,15 @@ export default function WorkerDashboardView() {
 
       {lowStockModal.isOpen && (
         <div className="fixed inset-0 flex items-center justify-center z-[150] px-4 animate-fade-in" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <div className="w-[85%] max-w-[360px] flex flex-col rounded-xl overflow-hidden animate-scale-in h-[400px] max-h-[85vh] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-light)' }}>
-            <div className="flex justify-between items-center pr-1 pl-4 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--border-light)' }}>
+          <div className="w-[90%] max-w-[360px] md:max-w-3xl flex flex-col rounded-xl overflow-hidden animate-scale-in h-[400px] md:h-[600px] max-h-[85vh] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-light)' }}>
+            <div className="flex justify-between items-center pr-4 pl-4 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--border-light)' }}>
               <span className="text-sm font-bold tracking-wide" style={{ color: 'var(--text-primary)' }}>
                 {lowStockModal.type === 'store' ? 'Low Store Stock Items' : 'Low Warehouse Stock Items'}
               </span>
-              
+              <button onClick={() => setLowStockModal({ isOpen: false, type: null })} className="px-3 py-1.5 rounded-lg border border-[var(--color-error)] text-[var(--color-error)] text-xs font-bold uppercase tracking-wider transition-colors hover:bg-[var(--color-error)] hover:text-white flex items-center justify-center gap-1.5 shadow-sm">
+                <span>Close</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
             </div>
             
             <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">

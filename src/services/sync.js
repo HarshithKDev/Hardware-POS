@@ -10,12 +10,13 @@ import {
 
 const PAGE_SIZE = 500;
 
-export const syncInventoryToLocal = async () => {
+export const syncInventoryToLocal = async (userRole = 'worker') => {
+  const tableName = userRole === 'owner' ? 'product_master' : 'product_master_public';
   try {
     await setSyncStatus('inventory_sync', { status: 'syncing', last_sync: null });
     
     // First, verify if we have network by doing a small ping
-    const { error: pingError } = await supabase.from('product_master').select('barcode').limit(1);
+    const { error: pingError } = await supabase.from(tableName).select('barcode').limit(1);
     if (pingError) throw pingError;
 
     let offset = 0;
@@ -25,7 +26,7 @@ export const syncInventoryToLocal = async () => {
     while (hasMore) {
       // Fetch product masters
       const { data: products, error: prodError } = await supabase
-        .from('product_master')
+        .from(tableName)
         .select('*')
         .eq('is_active', true)
         .range(offset, offset + PAGE_SIZE - 1);
@@ -80,10 +81,11 @@ export const syncInventoryToLocal = async () => {
   }
 };
 
-export const flushOfflineQueue = async () => {
+export const flushOfflineQueue = async (userRole = 'worker') => {
   try {
     // Check connection first
-    const { error: pingError } = await supabase.from('product_master').select('barcode').limit(1);
+    const tableName = userRole === 'owner' ? 'product_master' : 'product_master_public';
+    const { error: pingError } = await supabase.from(tableName).select('barcode').limit(1);
     if (pingError) return; // Offline, abort flush
 
     let queue = await getOfflineQueue();
@@ -91,6 +93,7 @@ export const flushOfflineQueue = async () => {
       queue = queue.filter(tx => tx.status !== 'failed');
       if (queue.length > 0) {
         console.log(`Attempting to flush ${queue.length} offline transactions...`);
+        window.dispatchEvent(new CustomEvent('queue_sync_start', { detail: { count: queue.length } }));
 
         for (const tx of queue) {
       try {
@@ -115,11 +118,12 @@ export const flushOfflineQueue = async () => {
           await markTransactionFailed(tx.id, e.message || 'Unknown exception');
         }
       }
+      window.dispatchEvent(new CustomEvent('queue_sync_end'));
     }
   }
     
     // Trigger one consolidated sync after flushing the queue (or if queue was empty but we are online)
-    await syncInventoryToLocal();
+    await syncInventoryToLocal(userRole);
   } catch (err) {
     console.error('Failed to flush offline queue:', err);
   }
@@ -127,15 +131,17 @@ export const flushOfflineQueue = async () => {
 
 // Polling service to keep things in sync if the app stays open for long periods
 let syncInterval = null;
+let currentRole = 'worker';
 
 const handleOnlineSync = () => {
   console.log('Network is back online. Flushing queue...');
-  flushOfflineQueue();
+  flushOfflineQueue(currentRole);
 };
 
-export const startBackgroundSync = () => {
+export const startBackgroundSync = (userRole = 'worker') => {
+  currentRole = userRole;
   // Initial syncs
-  syncInventoryToLocal().then(() => flushOfflineQueue());
+  syncInventoryToLocal(userRole).then(() => flushOfflineQueue(userRole));
 
   // Setup listeners for online/offline events
   window.addEventListener('online', handleOnlineSync);

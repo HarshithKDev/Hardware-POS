@@ -29,6 +29,8 @@ function App() {
   const [isMobileScannerOpen, setIsMobileScannerOpen] = useState(false);
   const [scannedProduct, setScannedProduct] = useState(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncCount, setSyncCount] = useState(0);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -82,16 +84,29 @@ function App() {
     window.addEventListener('resize', handleResize);
     handleResize(); // Initial scale
 
+    const handleSyncStart = (e) => {
+      setIsSyncing(true);
+      if (e.detail?.count) setSyncCount(e.detail.count);
+    };
+    const handleSyncEnd = () => {
+      setIsSyncing(false);
+      setSyncCount(0);
+    };
+    window.addEventListener('queue_sync_start', handleSyncStart);
+    window.addEventListener('queue_sync_end', handleSyncEnd);
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('queue_sync_start', handleSyncStart);
+      window.removeEventListener('queue_sync_end', handleSyncEnd);
     };
   }, []);
 
   useEffect(() => {
     if (userRole) {
-      startBackgroundSync();
+      startBackgroundSync(userRole);
     }
     return () => stopBackgroundSync();
   }, [userRole]);
@@ -226,9 +241,19 @@ function App() {
 
   return (
     <div
-      className="w-full h-screen flex flex-col overflow-hidden"
+      className="w-full h-screen flex flex-col overflow-hidden relative"
       style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
     >
+      {!isOnline && (
+        <div className="w-full bg-[var(--color-error)] text-white font-bold text-sm text-center py-1.5 shadow-sm z-[100] animate-pulse">
+          Offline Mode: Queuing transactions locally
+        </div>
+      )}
+      {isOnline && isSyncing && (
+        <div className="w-full bg-blue-500 text-white font-bold text-sm text-center py-1.5 shadow-sm z-[100]">
+          Syncing {syncCount} offline transaction{syncCount !== 1 ? 's' : ''} to server...
+        </div>
+      )}
       {/* SHARED DIALOGS — rendered from context state */}
       <AlertDialog
         isOpen={alertConfig.isOpen}
@@ -298,6 +323,8 @@ function App() {
                 <span className="hidden md:inline">OFFLINE MODE</span>
               </div>
             )}
+
+
             {isBillable && (
               <button
                 onClick={() => setIsMobileScannerOpen(true)}
@@ -335,10 +362,10 @@ function App() {
 
             <button
               onClick={() => setShowLogoutConfirm(true)}
-              className="h-11 w-11 md:h-9 md:w-auto rounded-md md:px-6 text-white text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none shrink-0 flex items-center justify-center gap-2 border bg-[var(--color-error)] border-[var(--color-error)] hover:bg-[#c90f1f] hover:border-[#c90f1f]"
+              className="h-10 w-auto md:h-9 md:w-auto rounded-md px-3 md:px-6 text-white text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none shrink-0 flex items-center justify-center gap-2 border bg-[var(--color-error)] border-[var(--color-error)] hover:bg-[#c90f1f] hover:border-[#c90f1f]"
             >
-              <span className="hidden md:inline">Sign Out</span>
-              <LogOut size={16} className="md:hidden" />
+              <span>Sign Out</span>
+              <LogOut size={16} />
             </button>
           </div>
         </div>

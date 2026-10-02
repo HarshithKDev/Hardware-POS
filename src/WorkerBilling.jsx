@@ -27,17 +27,6 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
 
   const isBillable = userRole === 'owner' || !workerData?.password?.includes('NON_BILLABLE');
 
-  // Automatically redirect if a worker lands on a tab they don't have access to
-  useEffect(() => {
-    if (!isLoading && !hideNav) {
-      if (!isBillable && activeTab === 'checkout') {
-        navigate('/terminal/dashboard', { replace: true });
-      } else if (isBillable && ['receive', 'transfer', 'scanner'].includes(activeTab)) {
-        navigate('/terminal/dashboard', { replace: true });
-      }
-    }
-  }, [isLoading, isBillable, activeTab, navigate, hideNav]);
-
   const handleTabSwitch = (newTab) => {
     if (!hideNav) navigate(`/terminal/${newTab}`);
   };
@@ -76,13 +65,13 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
         )}
 
         {activeTab === 'dashboard' ? (
-          <WorkerDashboardView />
+          <WorkerDashboardView isBillable={isBillable} />
         ) : activeTab === 'scanner' ? (
           <WorkerScanner cashierName={cashierName} />
         ) : activeTab === 'checkout' && !isBillable ? (
           <div className="flex flex-col items-center justify-center h-full flex-1">
             <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
-            <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Your account does not have billing permissions.</p>
+            <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Your account does not have checkout permissions.</p>
           </div>
         ) : (
           <CartProvider activeTab={activeTab}>
