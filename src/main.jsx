@@ -8,16 +8,28 @@ import { AppProvider } from './AppContext.jsx';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import { registerSW } from 'virtual:pwa-register';
 
-// Register the PWA service worker
-const updateSW = registerSW({
-  onNeedRefresh() {
-    // We can add a toast here later to ask user to refresh
-    console.log('New content available, refresh to update.');
-  },
-  onOfflineReady() {
-    console.log('App is ready to work offline.');
-  },
-});
+// Force unregister all service workers in development mode to prevent infinite reload loops
+if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      for (let registration of registrations) {
+        registration.unregister();
+        console.log('Unregistered dev service worker');
+      }
+    });
+  }
+} else {
+  // Register the PWA service worker for production
+  const updateSW = registerSW({
+    onNeedRefresh() {
+      // We can add a toast here later to ask user to refresh
+      console.log('New content available, refresh to update.');
+    },
+    onOfflineReady() {
+      console.log('App is ready to work offline.');
+    },
+  });
+}
 
 const queryClient = new QueryClient();
 

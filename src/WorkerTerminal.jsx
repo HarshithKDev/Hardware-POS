@@ -1093,12 +1093,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
     setIsCheckingOut(true);
     try {
-      if (activeTab === 'checkout' && navigator.onLine) {
+      if ((activeTab === 'checkout' || activeTab === 'transfer') && navigator.onLine) {
         const barcodes = [...new Set(finalCart.map(item => item.barcode))];
-        // Query live stock from inventory_batches (the real source of truth after the batch migration)
+        const stockField = activeTab === 'transfer' ? 'stock_warehouse' : 'stock_store';
+        // Query live stock AND prices from inventory_batches (the real source of truth)
         const { data: liveBatches, error: stockError } = await supabase
           .from('inventory_batches')
-          .select('barcode, batch_id, stock_store')
+          .select('barcode, batch_id, stock_store, stock_warehouse, selling_price, msp')
           .in('barcode', barcodes)
           .eq('is_active', true);
 
@@ -1110,13 +1111,50 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           // Sum stock per barcode across all active batches
           const stockByBarcode = {};
           liveBatches.forEach(b => {
-            stockByBarcode[b.barcode] = (stockByBarcode[b.barcode] || 0) + Number(b.stock_store || 0);
+            stockByBarcode[b.barcode] = (stockByBarcode[b.barcode] || 0) + Number(b[stockField] || 0);
           });
 
           for (const cartItem of finalCart) {
             const available = stockByBarcode[cartItem.barcode] ?? 0;
             if (available < cartItem.quantity) {
-              throw new Error(`Someone just bought ${cartItem.name}! There are only ${available} left in the shop.`);
+              const loc = activeTab === 'transfer' ? 'warehouse' : 'shop';
+              throw new Error(`Not enough stock for ${cartItem.name}! Only ${available} available in the ${loc}.`);
+            }
+          }
+
+          // P0 FIX: Live price verification (checkout only)
+          if (activeTab === 'checkout') {
+            const priceByBatch = {};
+            liveBatches.forEach(b => {
+              priceByBatch[`${b.barcode}_${b.batch_id}`] = {
+                selling_price: Number(b.selling_price || 0),
+                msp: Number(b.msp || 0)
+              };
+            });
+
+            let priceChanged = false;
+            const priceUpdatedCart = finalCart.map(cartItem => {
+              const key = `${cartItem.barcode}_${cartItem.batch_id}`;
+              const live = priceByBatch[key];
+              if (live && Math.abs(live.selling_price - Number(cartItem.selling_price || 0)) > 0.01) {
+                priceChanged = true;
+                const wasCustomized = cartItem.customPriceInput != cartItem.selling_price;
+                return {
+                  ...cartItem,
+                  selling_price: live.selling_price.toFixed(2),
+                  price: live.selling_price,
+                  msp: live.msp,
+                  msp_price: live.msp.toFixed(2),
+                  customPriceInput: wasCustomized ? cartItem.customPriceInput : live.selling_price.toFixed(2)
+                };
+              }
+              return cartItem;
+            });
+
+            if (priceChanged) {
+              setCart(priceUpdatedCart);
+              setIsCheckingOut(false);
+              throw new Error('Prices have been updated since items were scanned. The cart has been refreshed with current prices. Please review and try again.');
             }
           }
         }
@@ -1175,10 +1213,29 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         }
       }
 
+      // Compute payment amounts for the payload
+      const paymentMethod = activeTab === 'checkout' ? (checkoutModal.paymentMethod || 'CASH') : null;
+      let cashAmount = 0;
+      let upiAmount = 0;
+      if (activeTab === 'checkout') {
+        const totalForPayment = checkoutModal.negotiatedTotal !== '' ? Number(checkoutModal.negotiatedTotal) : calculateTotal();
+        if (paymentMethod === 'CASH') {
+          cashAmount = totalForPayment;
+        } else if (paymentMethod === 'UPI') {
+          upiAmount = totalForPayment;
+        } else if (paymentMethod === 'SPLIT') {
+          cashAmount = Math.round(Number(checkoutModal.splitCash || 0) * 100) / 100;
+          upiAmount = Math.round(Number(checkoutModal.splitUpi || 0) * 100) / 100;
+        }
+      }
+
       const payload = {
         p_action: activeTab === 'receive' ? 'RECEIVE' : activeTab === 'transfer' ? 'TRANSFER' : 'SALE',
         p_location: activeTab === 'receive' ? 'Warehouse-Inbound' : activeTab === 'transfer' ? 'Warehouse-Transfer' : 'Store',
         p_cashier_name: cashierName || 'System',
+        p_payment_method: paymentMethod,
+        p_cash_amount: cashAmount,
+        p_upi_amount: upiAmount,
         p_items: finalCart.map(i => {
           let calcQuantity = Number(i.quantity);
           if (i.is_cuttable) {
@@ -1318,6 +1375,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         total: finalTotalAmount,
         date: new Date(),
         type: activeTab,
+        paymentMethod: paymentMethod,
+        cashAmount: cashAmount,
+        upiAmount: upiAmount,
       });
 
       if (activeCartTab.startsWith('held_')) {

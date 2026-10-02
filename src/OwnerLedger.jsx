@@ -185,6 +185,7 @@ export default function OwnerLedger({ isActive }) {
               <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                 <th className="py-4 px-3 w-48 text-left border-none">Date & Time</th>
                 <th className="py-4 px-3 w-32 text-left border-none">Cashier</th>
+                <th className="py-4 px-3 w-24 text-center border-none">Payment</th>
                 <th className="py-4 px-3 w-32 text-right border-none">Total (₹)</th>
                 <th className="py-4 px-3 text-center w-16 border-none">Details</th>
               </tr>
@@ -212,7 +213,12 @@ export default function OwnerLedger({ isActive }) {
                           <div className="text-base font-bold text-[var(--color-accent)]">₹{Number(bill.total_amount).toFixed(2)}</div>
                         </div>
                         <div className="flex justify-between items-center">
-                          <div className="text-sm font-medium capitalize" style={{ color: 'var(--text-primary)' }}>Cashier: {bill.cashier_name}</div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm font-medium capitalize" style={{ color: 'var(--text-primary)' }}>Cashier: {bill.cashier_name}</div>
+                            {bill.payment_method && (
+                              <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded" style={{ backgroundColor: bill.payment_method === 'CASH' ? 'rgba(16, 185, 129, 0.15)' : bill.payment_method === 'UPI' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(234, 179, 8, 0.15)', color: bill.payment_method === 'CASH' ? 'var(--color-success)' : bill.payment_method === 'UPI' ? 'var(--color-accent)' : 'var(--color-warning)' }}>{bill.payment_method}</span>
+                            )}
+                          </div>
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={`w-5 h-5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`} style={{ color: isExpanded ? 'var(--color-accent)' : 'var(--text-secondary)' }}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                           </svg>
@@ -224,6 +230,13 @@ export default function OwnerLedger({ isActive }) {
                       </td>
                       <td className="hidden md:table-cell py-4 px-3 text-sm text-left capitalize border-none" style={{ color: 'var(--text-secondary)' }}>
                         {bill.cashier_name}
+                      </td>
+                      <td className="hidden md:table-cell py-4 px-3 text-center border-none">
+                        {bill.payment_method ? (
+                          <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded" style={{ backgroundColor: bill.payment_method === 'CASH' ? 'rgba(16, 185, 129, 0.15)' : bill.payment_method === 'UPI' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(234, 179, 8, 0.15)', color: bill.payment_method === 'CASH' ? 'var(--color-success)' : bill.payment_method === 'UPI' ? 'var(--color-accent)' : 'var(--color-warning)' }}>{bill.payment_method}</span>
+                        ) : (
+                          <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>--</span>
+                        )}
                       </td>
                       <td className="hidden md:table-cell py-4 px-3 text-right text-sm font-bold border-none" style={{ color: 'var(--text-primary)' }}>
                         ₹{Number(bill.total_amount).toFixed(2)}
@@ -238,7 +251,7 @@ export default function OwnerLedger({ isActive }) {
                     </tr>
                     {isExpanded && (
                       <tr className="block md:table-row" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-                        <td colSpan="4" className="block md:table-cell p-0" style={{ borderBottom: '2px solid var(--color-accent)' }}>
+                        <td colSpan="5" className="block md:table-cell p-0" style={{ borderBottom: '2px solid var(--color-accent)' }}>
                           {isLoadingItems ? (
                             <div className="p-6 flex justify-center"><PageLoader text="" /></div>
                           ) : (

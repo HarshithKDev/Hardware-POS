@@ -55,6 +55,17 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
         <span className="font-bold text-sm">NET DUE</span>
         <span className="font-bold text-lg">₹{lastReceipt.total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
       </div>
+
+      {lastReceipt.paymentMethod && (
+        <div className="flex justify-between items-center text-[12px] mb-2 text-black" style={{ color: '#000' }}>
+          <span className="font-semibold">PAID VIA</span>
+          <span className="font-bold">
+            {lastReceipt.paymentMethod === 'SPLIT' 
+              ? `Cash: ₹${Number(lastReceipt.cashAmount || 0).toFixed(2)} + UPI: ₹${Number(lastReceipt.upiAmount || 0).toFixed(2)}`
+              : lastReceipt.paymentMethod}
+          </span>
+        </div>
+      )}
       
       {totalSavings > 0 && (
         <div className="text-center mt-2 pb-2 border-b border-black border-dashed text-black" style={{ color: '#000' }}>
