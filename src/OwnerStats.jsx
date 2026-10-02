@@ -77,23 +77,23 @@ function StatCard({ title, value, accentColor, borderColor, onClick, clickLabel,
   return (
     <Tag
       onClick={onClick}
-      className={`p-5 rounded-lg border border-[var(--border-light)] text-left w-full ${onClick ? 'cursor-pointer group' : ''}`}
+      className={`p-5 rounded-lg border border-[var(--border-light)] text-left w-full flex flex-col h-full ${onClick ? 'cursor-pointer group' : ''}`}
       style={{
         backgroundColor: 'var(--bg-secondary)',
       }}
       aria-label={onClick ? clickLabel : undefined}
     >
-      <div className="flex justify-between items-start">
-        <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>
+      <div className="flex justify-between items-start mb-2">
+        <p className="text-xs font-semibold uppercase tracking-wider whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>
           {title}
         </p>
         {onClick && (
-          <span className="text-[10px] uppercase font-bold opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--color-accent)' }}>
+          <span className="text-[10px] uppercase font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap ml-2" style={{ color: 'var(--color-accent)' }}>
             View Details ↗
           </span>
         )}
       </div>
-      <p className="text-2xl md:text-3xl font-semibold truncate" style={{ color: accentColor || 'var(--text-primary)' }} title={value}>
+      <p className="text-2xl md:text-3xl font-semibold truncate mt-auto" style={{ color: accentColor || 'var(--text-primary)' }} title={value}>
         <AnimatedNumber valueStr={value} duration={1200} />
       </p>
       {children}

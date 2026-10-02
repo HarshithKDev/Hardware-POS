@@ -313,7 +313,6 @@ export default function InventoryRow({ item, viewType, categories, subcategories
                 <div className="flex justify-between items-center mb-4">
                   <p className="text-xs font-bold uppercase tracking-widest text-[var(--text-tertiary)] flex-1">
                     Available Batches
-                    {item.is_cuttable && <span className="ml-2 text-[10px] font-normal lowercase opacity-70">(click a batch to view pieces)</span>}
                   </p>
                   <button onClick={() => onToggleExpand(item.barcode)} className="px-3 py-1.5 rounded-md text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors hover:opacity-90" style={{ backgroundColor: 'var(--color-error)' }}>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>

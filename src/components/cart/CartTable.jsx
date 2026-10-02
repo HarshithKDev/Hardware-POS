@@ -35,8 +35,8 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
           {activeTab === 'receive' && (
             <>
               <th className="py-4 px-3 text-center w-32" >Cost (₹)</th>
-              <th className="py-4 px-3 text-center w-32" >MRP (₹)</th>
               <th className="py-4 px-3 text-center w-32" >MSP (₹)</th>
+              <th className="py-4 px-3 text-center w-32" >MRP (₹)</th>
             </>
           )}
           <th className="py-4 px-3 w-12"></th>
@@ -137,7 +137,9 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                       <tr key={child.id} className="animate-fade-in bg-[var(--bg-primary)]" style={{ borderBottom: isLast ? '1px solid var(--border-light)' : '1px dashed var(--border-medium)' }}>
                         <td className="py-4 px-3 text-center" >
                           <div className="flex items-center justify-center gap-2">
-                            <svg className="w-4 h-4" style={{ color: 'var(--border-medium)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                            <svg className="w-4 h-4" style={{ color: 'var(--border-heavy)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5v8a2 2 0 002 2h7M14 11l4 4-4 4" />
+                            </svg>
                             <span className="text-xs font-mono font-bold" style={{ color: 'var(--text-tertiary)' }}>{child.instance_barcode || 'Unknown'}</span>
                           </div>
                         </td>
@@ -294,10 +296,10 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                     ₹{Number(item.purchase_cost !== undefined ? item.purchase_cost : item.price || 0).toFixed(2)}
                   </td>
                   <td className="p-2 text-center text-sm font-semibold bg-[var(--bg-tertiary)]" style={{ color: 'var(--text-secondary)' }}>
-                    ₹{Number(item.selling_price !== undefined ? item.selling_price : item.price || 0).toFixed(2)}
+                    ₹{Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}
                   </td>
                   <td className="p-2 text-center text-sm font-semibold bg-[var(--bg-tertiary)]" style={{ color: 'var(--text-secondary)' }}>
-                    ₹{Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}
+                    ₹{Number(item.selling_price !== undefined ? item.selling_price : item.price || 0).toFixed(2)}
                   </td>
                 </>)}
                 <td className="p-2 text-center align-middle">

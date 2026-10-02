@@ -254,8 +254,8 @@ export default function OwnerLedger({ isActive }) {
                                   <thead className="hidden md:table-header-group" style={{ backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-light)' }}>
                                     <tr className="text-xs font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>
                                       <th className="py-3 px-4 text-left border-none">Item Name</th>
-                                      <th className="py-3 px-4 text-center w-24 border-none">Qty (Billed)</th>
-                                      <th className="py-3 px-4 text-center w-24 border-none">MRP (System)</th>
+                                      <th className="py-3 px-4 text-center w-24 border-none">Qty</th>
+                                      <th className="py-3 px-4 text-center w-24 border-none">MRP</th>
                                       <th className="py-3 px-4 text-center w-24 border-none">Sold At</th>
                                       <th className="py-3 px-4 text-center w-24 border-none">Disc %</th>
                                       <th className="py-3 px-4 text-center w-24 border-none">Total</th>
