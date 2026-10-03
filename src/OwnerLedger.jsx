@@ -174,7 +174,7 @@ export default function OwnerLedger({ isActive }) {
           barcode: item.barcode,
           action_type: 'VOID',
           changes: `Restored ${qtyToRestore} ${item.unit} (Bill #${bill.id.split('-')[0]})`,
-          performed_by: 'Owner'
+          performed_by: localStorage.getItem('owner_name') || 'Owner'
         }]);
       }
       
@@ -227,7 +227,7 @@ export default function OwnerLedger({ isActive }) {
         barcode: item.barcode,
         action_type: 'RETURN',
         changes: `Returned 1 ${item.name} (${qtyToRestore} ${item.unit}) from Bill #${bill.id.split('-')[0]}`,
-        performed_by: 'Owner'
+        performed_by: localStorage.getItem('owner_name') || 'Owner'
       }]);
 
       // 3. Deduct from bill total

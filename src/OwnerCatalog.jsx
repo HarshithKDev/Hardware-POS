@@ -195,7 +195,7 @@ export default function OwnerCatalog() {
           action_type: 'CREATE',
           barcode: savedItem.barcode,
           item_name: savedItem.name,
-          performed_by: 'Owner',
+          performed_by: localStorage.getItem('owner_name') || 'Owner',
           changes: `Item: ${savedItem.name} | Category: ${savedItem.category || 'N/A'} | Sub-Category: ${savedItem.sub_category || 'N/A'} | Type: ${savedItem.is_cuttable ? 'Cuttable' : (savedItem.is_loose_item ? 'Loose' : 'Standard')}`
         }]);
       } catch (err) {
@@ -448,7 +448,7 @@ export default function OwnerCatalog() {
           barcode: item.barcode,
           item_name: item.name,
           changes: `Bulk Imported CSV Item: ${item.name} | Category: ${item.category || 'N/A'} | Type: ${item.is_cuttable ? 'Cuttable' : (item.is_loose_item ? 'Loose' : 'Standard')}`,
-          performed_by: 'Owner'
+          performed_by: localStorage.getItem('owner_name') || 'Owner'
         }));
         await supabase.from('audit_logs').insert(auditLogs);
       } catch (err) {

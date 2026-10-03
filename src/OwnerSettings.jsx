@@ -114,6 +114,7 @@ export default function OwnerSettings() {
       if (error) throw error;
 
       setShopSettings(data);
+      localStorage.setItem('owner_name', data.owner_name);
       setPassword('');
       setConfirmPassword('');
       setIsEditing(false);

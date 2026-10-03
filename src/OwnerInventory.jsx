@@ -140,7 +140,7 @@ export default function OwnerInventory({ viewType }) {
             barcode: newItem.barcode,
             item_name: newItem.name,
             changes: metadataChanges.join(', '),
-            performed_by: 'Owner'
+            performed_by: localStorage.getItem('owner_name') || 'Owner'
           }]);
           if (logError) console.error("Failed to insert audit log", logError);
         }
@@ -185,7 +185,7 @@ export default function OwnerInventory({ viewType }) {
             barcode: barcode,
             item_name: itemToDelete.name,
             changes: `${itemToDelete.name} was moved to Recycle Bin (Whse Stock: ${itemToDelete.stock_warehouse}, Store Stock: ${itemToDelete.stock_store})`,
-            performed_by: 'Owner'
+            performed_by: localStorage.getItem('owner_name') || 'Owner'
           }]);
         }
         try {
@@ -216,7 +216,7 @@ export default function OwnerInventory({ viewType }) {
             barcode: barcode,
             item_name: itemToRestore.name,
             changes: `${itemToRestore.name} was restored from Recycle Bin`,
-            performed_by: 'Owner'
+            performed_by: localStorage.getItem('owner_name') || 'Owner'
           }]);
         }
         try {
@@ -289,7 +289,7 @@ export default function OwnerInventory({ viewType }) {
           barcode: itemToLog ? itemToLog.barcode : 'Unknown',
           item_name: itemToLog ? itemToLog.name : 'Unknown Item',
           changes: `Deleted Batch #${batchNum}`,
-          performed_by: 'Owner'
+          performed_by: localStorage.getItem('owner_name') || 'Owner'
         }]);
       } catch (err) {
         console.error("Failed to log batch deletion", err);
@@ -330,7 +330,7 @@ export default function OwnerInventory({ viewType }) {
         barcode: item.barcode,
         item_name: item.name,
         changes: `Item updated via Global Edit`,
-        performed_by: 'Owner'
+        performed_by: localStorage.getItem('owner_name') || 'Owner'
       }));
       await supabase.from('audit_logs').insert(auditLogs);
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
@@ -366,7 +366,7 @@ export default function OwnerInventory({ viewType }) {
               barcode: item.barcode,
               item_name: item.name,
               changes: `${item.name} was ${isRecycle ? 'restored from' : 'moved to'} Recycle Bin`,
-              performed_by: 'Owner'
+              performed_by: localStorage.getItem('owner_name') || 'Owner'
             }));
             await supabase.from('audit_logs').insert(auditLogs);
             

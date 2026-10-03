@@ -44,7 +44,7 @@ export default function CreateBatchModal({ item, onClose }) {
           barcode: item.barcode,
           item_name: item.name,
           changes: `Created Batch #${nextBatchNum} | Cost: ₹${insertPayload.purchase_cost} | MSP: ₹${insertPayload.msp} | MRP: ₹${insertPayload.selling_price}`,
-          performed_by: 'Owner'
+          performed_by: localStorage.getItem('owner_name') || 'Owner'
         }]);
       } catch (err) {
         console.error("Failed to log batch creation", err);

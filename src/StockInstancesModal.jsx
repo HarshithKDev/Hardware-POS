@@ -50,7 +50,7 @@ export default function StockInstancesModal({ isOpen, onClose, item, inline, fil
             barcode: item.barcode,
             item_name: item.name,
             changes: `Piece #${instance.instance_barcode} was ${action}ed (Length: ${instance.current_length} ${item.unit === 'SQFT' ? 'ft' : (item.unit || 'PCS')})`,
-            performed_by: 'Owner'
+            performed_by: localStorage.getItem('owner_name') || 'Owner'
           }]);
         } catch (err) {
           console.error("Failed to log piece toggle", err);

@@ -45,7 +45,7 @@ export default function OwnerCategories() {
         barcode: 'CATEGORY',
         item_name: name,
         changes: `Added Category: ${name}`,
-        performed_by: 'Owner'
+        performed_by: localStorage.getItem('owner_name') || 'Owner'
       }]);
     },
     onSuccess: () => {
@@ -75,7 +75,7 @@ export default function OwnerCategories() {
         barcode: 'SUB-CATEGORY',
         item_name: name,
         changes: `Added Sub-category: ${name} (under ${category_name})`,
-        performed_by: 'Owner'
+        performed_by: localStorage.getItem('owner_name') || 'Owner'
       }]);
 
       return category_name;
@@ -111,7 +111,7 @@ export default function OwnerCategories() {
         barcode: 'CATEGORY',
         item_name: name,
         changes: `Deleted Category: ${name}`,
-        performed_by: 'Owner'
+        performed_by: localStorage.getItem('owner_name') || 'Owner'
       }]);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['categories'] }),
@@ -139,7 +139,7 @@ export default function OwnerCategories() {
         barcode: 'SUB-CATEGORY',
         item_name: name,
         changes: `Deleted Sub-category: ${name} (from ${category_name || 'unknown'})`,
-        performed_by: 'Owner'
+        performed_by: localStorage.getItem('owner_name') || 'Owner'
       }]);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['subcategories'] }),

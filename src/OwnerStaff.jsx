@@ -58,7 +58,7 @@ export default function OwnerStaff() {
         barcode: 'STAFF',
         item_name: name.trim(),
         changes: `Created Staff Account: ${name.trim()} (${isBillable ? 'Billable' : 'Non-Billable'})`,
-        performed_by: 'Owner'
+        performed_by: localStorage.getItem('owner_name') || 'Owner'
       }]);
     },
     onSuccess: () => {
@@ -81,7 +81,7 @@ export default function OwnerStaff() {
         barcode: 'STAFF',
         item_name: name,
         changes: `Removed Staff Account: ${name}`,
-        performed_by: 'Owner'
+        performed_by: localStorage.getItem('owner_name') || 'Owner'
       }]);
     },
     onSuccess: () => {

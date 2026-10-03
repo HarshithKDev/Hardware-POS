@@ -37,7 +37,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
           barcode: item.barcode,
           item_name: item.name,
           changes: `Updated Batch ${oldBatch.batch_number} Pricing: ${changes.join(', ')}`,
-          performed_by: 'Owner'
+          performed_by: localStorage.getItem('owner_name') || 'Owner'
         }]);
       }
     },
