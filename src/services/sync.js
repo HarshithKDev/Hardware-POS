@@ -37,8 +37,9 @@ export const syncInventoryToLocal = async (userRole = 'worker') => {
         const barcodes = products.map(p => p.barcode);
         
         // Fetch batches for these products
+        const batchTable = userRole === 'owner' ? 'inventory_batches' : 'inventory_batches_public';
         const { data: batches, error: batchError } = await supabase
-          .from('inventory_batches')
+          .from(batchTable)
           .select('*')
           .in('barcode', barcodes)
           .eq('is_active', true);

@@ -129,6 +129,42 @@ export default function OwnerLedger({ isActive }) {
     }
   };
 
+  const handleVoidBill = async (bill) => {
+    if (!window.confirm(`Are you sure you want to VOID Bill #${bill.id.split('-')[0]}? This will refund ₹${bill.total_amount} and return items to stock.`)) return;
+    
+    try {
+      const items = billItemsCache[bill.id] || [];
+      if (items.length === 0) throw new Error("Bill items not loaded. Please expand the bill first.");
+      
+      const payload = {
+        original_bill_id: bill.id,
+        cashier_name: bill.cashier_name,
+        authorized_by: 'Owner',
+        reason: 'Full Bill Void',
+        refund_method: bill.payment_method || 'CASH',
+        items: items.map(i => ({
+          barcode: i.barcode,
+          batch_id: i.batch_id,
+          name: i.name,
+          quantity: i.quantity,
+          price_at_sale: i.price_at_sale,
+          instance_barcode: i.instance_barcode,
+          unit: i.unit
+        }))
+      };
+
+      const { error } = await supabase.rpc('process_return', payload);
+      if (error) throw error;
+      
+      showAlert("Bill successfully voided and items returned to stock.", "Success");
+      queryClient.invalidateQueries({ queryKey: ['bills'] });
+      setExpandedBillId(null);
+    } catch (e) {
+      console.error(e);
+      showAlert(e.message, "Void Failed");
+    }
+  };
+
   return (
     <div className="h-full flex flex-col relative w-full">
       <div className="flex justify-between items-end mb-6">
@@ -232,7 +268,9 @@ export default function OwnerLedger({ isActive }) {
                         {bill.cashier_name}
                       </td>
                       <td className="hidden md:table-cell py-4 px-3 text-center border-none">
-                        {bill.payment_method ? (
+                        {bill.status === 'voided' ? (
+                          <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded" style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}>VOIDED</span>
+                        ) : bill.payment_method ? (
                           <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded" style={{ backgroundColor: bill.payment_method === 'CASH' ? 'rgba(16, 185, 129, 0.15)' : bill.payment_method === 'UPI' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(234, 179, 8, 0.15)', color: bill.payment_method === 'CASH' ? 'var(--color-success)' : bill.payment_method === 'UPI' ? 'var(--color-accent)' : 'var(--color-warning)' }}>{bill.payment_method}</span>
                         ) : (
                           <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>--</span>
@@ -256,9 +294,16 @@ export default function OwnerLedger({ isActive }) {
                             <div className="p-6 flex justify-center"><PageLoader text="" /></div>
                           ) : (
                             <div className="p-6 px-8">
-                              <p className="text-xs font-bold uppercase tracking-widest mb-3 pb-2" style={{ color: 'var(--text-tertiary)', borderBottom: '1px solid var(--border-light)' }}>
-                                Bill #{bill.id.split('-')[0]} Items
-                              </p>
+                              <div className="flex justify-between items-center mb-3 pb-2" style={{ borderBottom: '1px solid var(--border-light)' }}>
+                                <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
+                                  Bill #{bill.id.split('-')[0]} Items
+                                </p>
+                                {bill.status !== 'voided' && (
+                                  <button onClick={(e) => { e.stopPropagation(); handleVoidBill(bill); }} className="px-4 py-1.5 text-xs font-bold uppercase rounded transition-colors" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
+                                    Void Bill
+                                  </button>
+                                )}
+                              </div>
                               <div className="overflow-x-auto overflow-y-hidden w-full rounded-lg shadow-sm" style={{ border: '1px solid var(--border-light)' }}>
                                 <table className="w-full text-left border-collapse block md:table" style={{ backgroundColor: 'var(--bg-secondary)' }}>
                                   <thead className="hidden md:table-header-group" style={{ backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-light)' }}>

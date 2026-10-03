@@ -82,6 +82,9 @@ export function CartProvider({ children, activeTab }) {
   }, []);
 
   const updateQuantity = useCallback((id, newQty) => {
+    // Basic validation to prevent negative values or NaN strings
+    if (newQty !== '' && (isNaN(newQty) || Number(newQty) < 0)) return;
+    
     setCart(prev => prev.map(item => {
       if (item.id === id) {
         const actualQty = newQty;
@@ -103,6 +106,7 @@ export function CartProvider({ children, activeTab }) {
   }, []);
 
   const customPriceChange = useCallback((id, val) => {
+    if (val !== '' && (isNaN(val) || Number(val) < 0)) return;
     setCart(prev => prev.map(i => i.id === id ? { ...i, customPriceInput: val } : i));
   }, []);
 
@@ -116,6 +120,7 @@ export function CartProvider({ children, activeTab }) {
   }, []);
 
   const customPriceChangeGroup = useCallback((barcode, val) => {
+    if (val !== '' && (isNaN(val) || Number(val) < 0)) return;
     setCart(prev => prev.map(i => (i.barcode === barcode && i.is_cuttable) ? { ...i, customPriceInput: val } : i));
   }, []);
 
@@ -132,6 +137,14 @@ export function CartProvider({ children, activeTab }) {
     setCart(prev => prev.filter(i => i.id !== id));
   }, []);
 
+  const calculateTotal = useCallback(() => cart.reduce((tot, i) => {
+    const qty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : (i.quantity === '' ? 0 : Number(i.quantity));
+    const price = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0);
+    return tot + Math.round(price * qty * 100);
+  }, 0) / 100, [cart]);
+  
+  const calculateTotalUnits = useCallback(() => cart.reduce((tot, i) => tot + (i.quantity === '' ? 0 : Number(i.quantity)), 0), [cart]);
+
   const value = {
     cart, setCart,
     activeCartTab, switchCartTab,
@@ -144,7 +157,9 @@ export function CartProvider({ children, activeTab }) {
     customPriceBlur,
     customPriceChangeGroup,
     customPriceBlurGroup,
-    removeItem
+    removeItem,
+    calculateTotal,
+    calculateTotalUnits
   };
 
   return (

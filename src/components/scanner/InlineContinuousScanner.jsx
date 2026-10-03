@@ -35,7 +35,10 @@ export default function InlineContinuousScanner({ onScan }) {
     onScanRef.current = onScan;
   }, [onScan]);
 
+  const isUnmountingRef = useRef(false);
+
   useEffect(() => {
+    isUnmountingRef.current = false;
     const scanner = new Html5QrcodeScanner(
       "receive-reader", 
       { 
@@ -63,7 +66,7 @@ export default function InlineContinuousScanner({ onScan }) {
     let isProcessing = false;
     scanner.render(
       async (decodedText) => {
-        if (scanner.getState() === 2 && !isProcessing) {
+        if (scanner.getState() === 2 && !isProcessing && !isUnmountingRef.current) {
           isProcessing = true;
           playBeep();
           await onScanRef.current(decodedText);
@@ -76,6 +79,7 @@ export default function InlineContinuousScanner({ onScan }) {
     );
 
     return () => {
+      isUnmountingRef.current = true;
       if (scannerRef.current) {
         scannerRef.current.clear().catch(console.error);
       }

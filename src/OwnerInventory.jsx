@@ -113,14 +113,37 @@ export default function OwnerInventory({ viewType }) {
       if (Number(oldItem.stock_store || 0) !== Number(newItem.stock_store || 0)) changes.push(`Store Stock: ${oldItem.stock_store} -> ${newItem.stock_store}`);
       
       if (changes.length > 0) {
-        const { error: logError } = await supabase.from('audit_logs').insert([{
-          action_type: 'UPDATE',
-          barcode: newItem.barcode,
-          item_name: newItem.name,
-          changes: changes.join(', '),
-          performed_by: 'Owner'
-        }]);
-        if (logError) console.error("Failed to insert audit log", logError);
+        // If stock changed, we must use the secure RPC to prevent race conditions
+        const stockStoreChanged = Number(oldItem.stock_store || 0) !== Number(newItem.stock_store || 0);
+        const stockWhseChanged = Number(oldItem.stock_warehouse || 0) !== Number(newItem.stock_warehouse || 0);
+        
+        if (stockStoreChanged || stockWhseChanged) {
+          // Find the primary batch for this item to adjust
+          const { data: batches } = await supabase.from('inventory_batches').select('batch_id').eq('barcode', newItem.barcode).order('created_at', { ascending: true }).limit(1);
+          if (batches && batches.length > 0) {
+            const { error: rpcError } = await supabase.rpc('adjust_batch_stock', {
+              p_batch_id: batches[0].batch_id,
+              p_new_store_stock: Number(newItem.stock_store || 0),
+              p_new_whse_stock: Number(newItem.stock_warehouse || 0),
+              p_user_id: (await supabase.auth.getUser()).data.user?.id
+            });
+            if (rpcError) throw new Error("Failed to adjust stock securely: " + rpcError.message);
+          }
+        }
+        
+        // Remove stock changes from the generic product_master update log since the RPC handles it
+        const metadataChanges = changes.filter(c => !c.includes('Stock'));
+        
+        if (metadataChanges.length > 0) {
+          const { error: logError } = await supabase.from('audit_logs').insert([{
+            action_type: 'UPDATE',
+            barcode: newItem.barcode,
+            item_name: newItem.name,
+            changes: metadataChanges.join(', '),
+            performed_by: 'Owner'
+          }]);
+          if (logError) console.error("Failed to insert audit log", logError);
+        }
       }
 
       return newItem;
