@@ -25,11 +25,11 @@ export const syncInventoryToLocal = async (userRole = 'worker') => {
 
     while (hasMore) {
       // Fetch product masters
-      const { data: products, error: prodError } = await supabase
-        .from(tableName)
-        .select('*')
-        .eq('is_active', true)
-        .range(offset, offset + PAGE_SIZE - 1);
+      let prodQuery = supabase.from(tableName).select('*');
+      if (userRole !== 'owner') {
+        prodQuery = prodQuery.eq('is_active', true);
+      }
+      const { data: products, error: prodError } = await prodQuery.range(offset, offset + PAGE_SIZE - 1);
         
       if (prodError) throw prodError;
 
@@ -38,11 +38,11 @@ export const syncInventoryToLocal = async (userRole = 'worker') => {
         
         // Fetch batches for these products
         const batchTable = userRole === 'owner' ? 'inventory_batches' : 'inventory_batches_public';
-        const { data: batches, error: batchError } = await supabase
-          .from(batchTable)
-          .select('*')
-          .in('barcode', barcodes)
-          .eq('is_active', true);
+        let batchQuery = supabase.from(batchTable).select('*').in('barcode', barcodes);
+        if (userRole !== 'owner') {
+          batchQuery = batchQuery.eq('is_active', true);
+        }
+        const { data: batches, error: batchError } = await batchQuery;
           
         if (batchError) throw batchError;
 

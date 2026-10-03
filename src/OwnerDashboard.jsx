@@ -9,6 +9,7 @@ import OwnerStaff from './OwnerStaff';
 import WorkerBilling from './WorkerBilling';
 import OwnerCategories from './OwnerCategories';
 import OwnerAuditLogs from './OwnerAuditLogs';
+import OwnerSettings from './OwnerSettings';
 import { 
   LayoutDashboard, 
   Plus, 
@@ -18,7 +19,8 @@ import {
   History, 
   Users, 
   Search, 
-  Menu
+  Menu,
+  Settings
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -30,6 +32,7 @@ const NAV_ITEMS = [
   { key: 'sales', label: 'Sales History', icon: History },
   { key: 'staff', label: 'Manage Staff', icon: Users },
   { key: 'audit', label: 'Audit Logs', icon: Search },
+  { key: 'settings', label: 'Shop Settings', icon: Settings },
 ];
 
 export default function OwnerDashboard() {
@@ -211,6 +214,12 @@ export default function OwnerDashboard() {
         {activeTab === 'audit' && (
           <div className="block h-full animate-fade-in">
             <OwnerAuditLogs />
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+          <div className="block h-full animate-fade-in">
+            <OwnerSettings />
           </div>
         )}
       </main>

@@ -6,7 +6,7 @@ import { useApp } from './AppContext';
 import { generateId } from './utils';
 
 export default function WorkerScanner({ cashierName }) {
-  const { showAlert } = useApp();
+  const { showAlert, userRole } = useApp();
   const [cart, setCart] = useState([]);
   const [isScanning, setIsScanning] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -253,7 +253,7 @@ export default function WorkerScanner({ cashierName }) {
             batch_id: instanceBatchId,
             purchase_cost: batch ? batch.purchase_cost : (item.cost_price || 0),
             selling_price: batch ? batch.selling_price : (item.price || 0),
-            msp_price: batch ? batch.msp : (item.msp || 0),
+            msp_price: (batch && batch.msp) ? batch.msp : (item.msp || 0),
             name: isInstance ? `${item.name} (Piece #${instanceBarcodeSuffix})` : item.name,
             length: isInstance ? instLength : '', 
             width: isInstance ? (item.default_width || '') : '', 
@@ -423,7 +423,7 @@ export default function WorkerScanner({ cashierName }) {
                       MRP: ₹{Number(item.price || 0).toFixed(2)}
                     </span>
                     <span className="text-[12px] font-semibold px-2 py-1 uppercase tracking-wider rounded-md group/msp cursor-help" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border-medium)' }}>
-                      MSP: <span className="blur-[4px] group-hover/msp:blur-none transition-all duration-300">₹{Number(item.msp || 0).toFixed(2)}</span>
+                      MSP: {userRole === 'owner' ? `₹${Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}</span></span>}
                     </span>
                   </div>
                 </div>

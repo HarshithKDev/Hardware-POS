@@ -163,7 +163,8 @@ function SalesTrendChart({ timeframe }) {
         .from('bills')
         .select('total_amount, created_at')
         .gte('created_at', startDate)
-        .eq('location', 'Store');
+        .eq('location', 'Store')
+        .neq('status', 'voided');
 
       let maxRev = 0;
       
@@ -292,7 +293,8 @@ export default function OwnerStats({ isActive }) {
       .from('bills')
       .select('id, total_amount, created_at')
       .gte('created_at', fetchStart)
-      .eq('location', 'Store');
+      .eq('location', 'Store')
+      .neq('status', 'voided');
 
     let soldNames = new Set();
     let productStats = {};
@@ -389,6 +391,8 @@ export default function OwnerStats({ isActive }) {
     let totalInventoryValue = 0, warehouseCapital = 0, storeCapital = 0, deadStockValue = 0;
 
     allStats.forEach(item => {
+      if (item.is_deleted) return;
+
       let wQty = 0;
       let sQty = 0;
       let wCap = 0;

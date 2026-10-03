@@ -2,9 +2,11 @@ import React from 'react';
 
 /** Mobile cart view */
 import { useCart } from '../../contexts/CartContext';
+import { useApp } from '../../AppContext';
 
 const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQuantity, onUpdateDimensions, onRemoveItem }) {
   const { cart } = useCart();
+  const { userRole } = useApp();
   const [expandedGroups, setExpandedGroups] = React.useState({});
 
   const toggleGroup = (barcode) => {
@@ -191,7 +193,7 @@ const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQ
             <p className="text-xs mt-1 mb-1" style={{ color: 'var(--color-accent)' }}>#{item.scanned_barcode || item.instance_barcode || item.barcode}</p>
             {activeTab === 'checkout' && (
               <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>
-                MRP: ₹{Number(item.price || 0).toFixed(2)} • <span className="group/msp cursor-help">MSP: <span className="blur-[4px] group-hover/msp:blur-none transition-all duration-300">₹{Number(item.msp || 0).toFixed(2)}</span></span>
+                MRP: ₹{Number(item.price || 0).toFixed(2)} • <span className="group/msp cursor-help">MSP: {userRole === 'owner' ? `₹${Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}</span></span>}</span>
               </p>
             )}
           </div>

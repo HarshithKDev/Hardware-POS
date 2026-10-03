@@ -112,11 +112,15 @@ function App() {
   }, [userRole]);
 
   useEffect(() => {
-    if (shopSettings?.shop_name) {
-      document.title = shopSettings.shop_name;
-    } else {
+    const link = document.getElementById('app-favicon');
+
+    if (!shopSettings?.shop_name) {
       document.title = 'Hardware POS System';
+      if (link) link.href = 'data:image/x-icon;,';
+      return;
     }
+
+    document.title = shopSettings.shop_name;
     const logoSrc = shopSettings?.logo_url || '/logo.png';
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -131,7 +135,6 @@ function App() {
       ctx.closePath();
       ctx.clip();
       ctx.drawImage(img, 0, 0, size, size);
-      const link = document.getElementById('app-favicon');
       if (link) link.href = canvas.toDataURL('image/png');
     };
     img.src = logoSrc;

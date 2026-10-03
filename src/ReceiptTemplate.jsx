@@ -12,9 +12,14 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
       style={{ fontFamily: "'Courier New', Courier, monospace", color: '#000000', backgroundColor: '#ffffff', ...(isPreview ? { minHeight: '100mm' } : {}) }}
     >
       <div className="text-center mb-3">
-        <h1 className="text-xl font-bold uppercase text-black" style={{ color: '#000' }}>
-          {shopSettings?.shop_name || 'STORE RECEIPT'}
+        <h1 className="text-xl font-bold uppercase text-black whitespace-pre-line mx-auto" style={{ color: '#000' }}>
+          {(shopSettings?.shop_name || 'STORE RECEIPT').replace(/ AND DECOR/i, ' AND\nDECOR')}
         </h1>
+        {shopSettings?.shop_address && (
+          <p className="text-xs mt-1 text-black whitespace-pre-line" style={{ color: '#000' }}>
+            {shopSettings.shop_address}
+          </p>
+        )}
       </div>
       
       <div className="mb-3 text-[12px] flex justify-between border-b border-black border-dashed pb-2 text-black" style={{ color: '#000' }}>
@@ -73,11 +78,11 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
         </div>
       )}
       
-      {shopSettings?.upi_id && (
+      {shopSettings?.upi_id && lastReceipt.paymentMethod !== 'CASH' && (
         <div className="flex flex-col items-center justify-center mt-3 pb-3 border-b border-black border-dashed text-black" style={{ color: '#000' }}>
           <p className="text-[11px] font-bold mb-1">Scan to Pay via UPI</p>
           <QRCodeSVG 
-            value={`upi://pay?pa=${shopSettings.upi_id}&pn=${encodeURIComponent(shopSettings.shop_name || 'Store')}&am=${lastReceipt.total.toFixed(2)}&cu=INR`} 
+            value={`upi://pay?pa=${shopSettings.upi_id}&pn=${encodeURIComponent(shopSettings.shop_name || 'Store')}&am=${lastReceipt.paymentMethod === 'SPLIT' ? Number(lastReceipt.upiAmount || 0).toFixed(2) : lastReceipt.total.toFixed(2)}&cu=INR`} 
             size={100}
             level="L"
             includeMargin={false}

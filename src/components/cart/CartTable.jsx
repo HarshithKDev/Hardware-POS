@@ -2,9 +2,11 @@ import React from 'react';
 
 /** Desktop cart table */
 import { useCart } from '../../contexts/CartContext';
+import { useApp } from '../../AppContext';
 
 const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, onUpdateDimensions, onCustomPriceChange, onCustomTotalChange, onCustomPriceBlur, onCustomPriceChangeGroup, onCustomTotalChangeGroup, onCustomPriceBlurGroup, onRemoveItem }) {
   const { cart } = useCart();
+  const { userRole } = useApp();
   const [expandedGroups, setExpandedGroups] = React.useState({});
 
   const toggleGroup = (barcode) => {
@@ -109,7 +111,7 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                             MRP: ₹{Number(item.price || 0).toFixed(2)}
                           </span>
                           <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider rounded-sm group/msp cursor-help" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
-                            MSP: <span className="blur-[4px] group-hover/msp:blur-none transition-all duration-300">₹{Number(item.msp || 0).toFixed(2)}</span>
+                            MSP: {userRole === 'owner' ? `₹${Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}</span></span>}
                           </span>
                         </div>
                       )}
@@ -207,7 +209,7 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                         MRP: ₹{Number(item.price || 0).toFixed(2)}
                       </span>
                       <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider group/msp cursor-help rounded-sm" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
-                        MSP: <span className="blur-[4px] group-hover/msp:blur-none transition-all duration-300">₹{Number(item.msp || 0).toFixed(2)}</span>
+                        MSP: {userRole === 'owner' ? `₹${Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}</span></span>}
                       </span>
                     </div>
                   )}

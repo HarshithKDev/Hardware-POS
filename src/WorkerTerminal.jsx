@@ -24,7 +24,7 @@ import CartMobileView from './components/cart/CartMobileView';
 // Main WorkerTerminal component (orchestrator)
 // ---------------------------------------------------------------
 export default function WorkerTerminal({ activeTab, shopSettings, cashierName }) {
-  const { showAlert, showConfirm, alertConfig, confirmConfig } = useApp();
+  const { showAlert, showConfirm, alertConfig, confirmConfig, userRole } = useApp();
   const queryClient = useQueryClient();
 
   const { 
@@ -287,7 +287,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               has_preset_width: !!item.default_width, 
               purchase_cost: Number(batch ? batch.purchase_cost : item.cost_price || 0).toFixed(2), 
               selling_price: Number(batch ? batch.selling_price : item.price || 0).toFixed(2), 
-              msp_price: Number(batch ? batch.msp : item.msp || 0).toFixed(2) 
+              msp_price: Number((batch && batch.msp) ? batch.msp : item.msp || 0).toFixed(2) 
             }];
           });
         } else {
@@ -494,7 +494,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           length: '', width: '', rolls: '1',
           purchase_cost: Number(batch ? batch.purchase_cost : item.cost_price || 0).toFixed(2), 
           selling_price: Number(batch ? batch.selling_price : item.price || 0).toFixed(2),
-          msp_price: Number(batch ? batch.msp : item.msp || 0).toFixed(2)
+          msp_price: Number((batch && batch.msp) ? batch.msp : item.msp || 0).toFixed(2)
         }];
       });
     }
@@ -566,7 +566,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         msp: targetBatch ? targetBatch.msp : item.msp,
         purchase_cost: Number(targetBatch && targetBatch.purchase_cost !== undefined ? targetBatch.purchase_cost : item.cost_price || 0).toFixed(2),
         selling_price: Number(targetBatch && targetBatch.selling_price !== undefined ? targetBatch.selling_price : item.price || 0).toFixed(2),
-        msp_price: Number(targetBatch && targetBatch.msp !== undefined ? targetBatch.msp : item.msp || 0).toFixed(2),
+        msp_price: Number((targetBatch && targetBatch.msp) ? targetBatch.msp : item.msp || 0).toFixed(2),
         discountPct: 0,
         quantity: addQty,
         unit: item.unit || 'PCS',
@@ -607,7 +607,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         msp: batch.msp,
         purchase_cost: Number(batch.purchase_cost !== undefined ? batch.purchase_cost : item.cost_price || 0).toFixed(2),
         selling_price: Number(batch.selling_price !== undefined ? batch.selling_price : item.price || 0).toFixed(2),
-        msp_price: Number(batch.msp !== undefined ? batch.msp : item.msp || 0).toFixed(2),
+        msp_price: Number((batch && batch.msp) ? batch.msp : item.msp || 0).toFixed(2),
         batch_id: batch.batch_id,
         batch_number: batch.batch_number,
         discountPct: 0,
@@ -689,7 +689,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         customPriceInput: Number(batch ? batch.selling_price : item.price || 0).toFixed(2),
         purchase_cost: Number(batch ? batch.purchase_cost : item.cost_price || 0).toFixed(2),
         selling_price: Number(batch ? batch.selling_price : item.price || 0).toFixed(2),
-        msp_price: Number(batch ? batch.msp : item.msp || 0).toFixed(2),
+        msp_price: Number((batch && batch.msp) ? batch.msp : item.msp || 0).toFixed(2),
         price: Number(batch ? batch.selling_price : item.price || 0).toFixed(2),
         msp: Number(batch ? batch.msp : item.msp || 0).toFixed(2)
       }, ...prev];
@@ -1285,7 +1285,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       let successData = null;
       if (navigator.onLine) {
         try {
-          const { data, error } = await supabase.rpc('process_pos_transaction', payload);
+          const { data, error } = await supabase.rpc('process_pos_transaction_unsafe', {
+            p_action: payload.p_action,
+            p_location: payload.p_location,
+            p_cashier_name: payload.p_cashier_name,
+            p_items: payload.p_items
+          });
           if (error) throw error;
           successData = data;
         } catch (error) {
@@ -1333,7 +1338,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
       if (navigator.onLine) {
         // Trigger background sync to ensure true consistency with server
-        syncInventoryToLocal().then(() => {
+        syncInventoryToLocal(userRole).then(() => {
           queryClient.invalidateQueries({ queryKey: ['inventory'] });
           queryClient.invalidateQueries({ queryKey: ['piece_counts'] });
           queryClient.invalidateQueries({ queryKey: ['stock_instances'] });
@@ -1411,7 +1416,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       showAlert(e.message, "Notice");
       if (navigator.onLine) {
         // Force a sync to fix local IDB drift if transaction failed due to stock mismatch
-        syncInventoryToLocal().then(() => {
+        syncInventoryToLocal(userRole).then(() => {
           queryClient.invalidateQueries({ queryKey: ['inventory'] });
           queryClient.invalidateQueries({ queryKey: ['piece_counts'] });
           queryClient.invalidateQueries({ queryKey: ['stock_instances'] });
@@ -1564,7 +1569,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                  >
                    <div>
                      <div className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>₹{Number(batch.selling_price).toFixed(2)}</div>
-                     <div className="text-xs uppercase tracking-wider mt-1 group/msp cursor-help" style={{ color: 'var(--text-tertiary)' }}>MSP: <span className="blur-[4px] group-hover/msp:blur-none transition-all duration-300">₹{Number(batch.msp).toFixed(2)}</span></div>
+                     <div className="text-xs uppercase tracking-wider mt-1 group/msp cursor-help" style={{ color: 'var(--text-tertiary)' }}>MSP: {userRole === 'owner' ? `₹${Number(batch.msp || 0).toFixed(2)}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{Number(batch.msp || 0).toFixed(2)}</span></span>}</div>
                    </div>
                    <div className="text-right">
                      <div className="flex items-center justify-end gap-3">

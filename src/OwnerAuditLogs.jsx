@@ -297,7 +297,7 @@ const formatChanges = (changes) => {
           </div>
         ) : (
         <div className="overflow-x-auto w-full max-w-[100vw]">
-          <table className="w-full text-left md:whitespace-nowrap border-collapse md:min-w-[900px]">
+          <table className="w-full text-left md:whitespace-nowrap border-collapse min-w-full">
           <thead className="hidden md:table-header-group sticky top-0 z-10 glass-header" style={{ borderBottom: '1px solid var(--border-medium)' }}>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
               <th className="p-3 w-40 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Date &amp; Time</th>
