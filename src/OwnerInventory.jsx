@@ -464,17 +464,6 @@ export default function OwnerInventory({ viewType }) {
               ))}
             </select>
 
-            <select
-              value={sortOption}
-              onChange={(e) => setSortOption(e.target.value)}
-              className="h-11 md:h-10 px-3 text-sm focus:outline-none rounded-md cursor-pointer"
-              style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
-            >
-              <option value="barcode-asc">Sort: Barcode</option>
-              <option value="name-asc">Sort: Name (A-Z)</option>
-              <option value="storestock-asc">Low Stock (Store)</option>
-              <option value="whsestock-asc">Low Stock (Whse)</option>
-            </select>
 
             <button
               onClick={() => {
