@@ -188,7 +188,7 @@ export default function OwnerSettings() {
               <h3 className="font-bold text-xs uppercase tracking-wider mb-2 pb-2 border-b" style={{ color: 'var(--text-tertiary)', borderColor: 'var(--border-light)' }}>Basic Details</h3>
               
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>Email (Cannot be changed)</label>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>Email</label>
                 <input 
                   type="email" 
                   value={formData.admin_email}
@@ -199,7 +199,7 @@ export default function OwnerSettings() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>Shop Name *</label>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>Shop Name</label>
                 <input 
                   type="text" 
                   name="shop_name"
@@ -213,7 +213,7 @@ export default function OwnerSettings() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>Owner Name *</label>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>Owner Name</label>
                 <input 
                   type="text" 
                   name="owner_name"
