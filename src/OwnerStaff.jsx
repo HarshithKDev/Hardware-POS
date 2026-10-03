@@ -159,17 +159,7 @@ export default function OwnerStaff() {
             />
           </div>
           <div className="w-full md:flex-1">
-            <div className="flex justify-between items-end mb-1">
-              <label className="block text-xs font-semibold uppercase" style={{ color: 'var(--text-tertiary)' }} htmlFor="staff-pwd">Login Password</label>
-              <button 
-                type="button" 
-                onClick={() => setNewStaffPassword(Math.floor(100000 + Math.random() * 900000).toString())}
-                className="text-[10px] font-bold uppercase hover:underline" 
-                style={{ color: 'var(--color-accent)' }}
-              >
-                Generate
-              </button>
-            </div>
+            <label className="block text-xs font-semibold uppercase mb-1" style={{ color: 'var(--text-tertiary)' }} htmlFor="staff-pwd">Login Password</label>
             <input
               id="staff-pwd"
               type="text"

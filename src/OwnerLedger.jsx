@@ -1,15 +1,16 @@
 import { useState, Fragment, useCallback } from 'react';
 import { supabase } from './supabaseClient';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { formatDateTime } from './utils';
 import { SALES_PER_PAGE } from './constants';
-import { ConfirmDialog } from './Dialog';
+import { ConfirmDialog, DialogOverlay } from './Dialog';
 import * as XLSX from 'xlsx';
 
 export default function OwnerLedger({ isActive }) {
   const { showAlert } = useApp();
+  const queryClient = useQueryClient();
 
   const [salesPage, setSalesPage] = useState(0);
   const [dateFilter, setDateFilter] = useState('ALL');
@@ -20,8 +21,7 @@ export default function OwnerLedger({ isActive }) {
   const [expandedBillId, setExpandedBillId] = useState(null);
   const [billItemsCache, setBillItemsCache] = useState({});
   const [isLoadingItems, setIsLoadingItems] = useState(false);
-  const [voidBillState, setVoidBillState] = useState(null);
-  const [returnItemState, setReturnItemState] = useState(null); // { bill, item }
+  const [returnModalState, setReturnModalState] = useState(null); // { bill, items }
 
   const fetchBills = useCallback(async () => {
     const from = salesPage * SALES_PER_PAGE;
@@ -132,26 +132,34 @@ export default function OwnerLedger({ isActive }) {
     }
   };
 
-  const handleVoidBill = (bill) => {
-    setVoidBillState(bill);
+  const handleOpenReturnModal = (bill) => {
+    const items = billItemsCache[bill.id] || [];
+    setReturnModalState({ bill, items });
   };
 
-  const executeVoidBill = async (bill) => {
+  const executeReturnItems = async (itemsToReturn, isAll, bill) => {
     try {
-      const items = billItemsCache[bill.id] || [];
-      if (items.length === 0) throw new Error("Bill items not loaded. Please expand the bill first.");
-      
-      // 1. Mark bill as voided
-      const { error: billError } = await supabase
-        .from('bills')
-        .update({ status: 'voided' })
-        .eq('id', bill.id);
-      if (billError) throw billError;
+      if (itemsToReturn.length === 0) return;
 
       const shopId = localStorage.getItem('shop_id');
-      
-      // 2. Restore stock for each item
-      for (const item of items) {
+
+      if (isAll) {
+        // Mark entire bill as voided
+        const { error: billError } = await supabase
+          .from('bills')
+          .update({ status: 'voided' })
+          .eq('id', bill.id);
+        if (billError) throw billError;
+      } else {
+        // Calculate partial refund
+        const refundAmount = itemsToReturn.reduce((sum, item) => sum + (Number(item.price_at_sale) * item.returnQuantity), 0);
+        const newTotal = Math.max(0, Number(bill.total_amount) - refundAmount);
+        const { error: billError } = await supabase.from('bills').update({ total_amount: newTotal }).eq('id', bill.id);
+        if (billError) throw billError;
+      }
+      // Restore stock for selected items
+      for (const item of itemsToReturn) {
+        const qtyToRestore = item.returnQuantity;
         if (item.instance_barcode) {
           const { data: inst } = await supabase.from('stock_instances').select('original_length').eq('instance_barcode', item.instance_barcode).single();
           if (inst) {
@@ -160,95 +168,54 @@ export default function OwnerLedger({ isActive }) {
         } else if (item.batch_id) {
           const { data: batch } = await supabase.from('inventory_batches').select('stock_store').eq('batch_id', item.batch_id).single();
           if (batch) {
-            const qtyToRestore = Number(item.actual_quantity || item.quantity || item.billable_quantity || 0);
             const newStock = Number(batch.stock_store || 0) + qtyToRestore;
             await supabase.from('inventory_batches').update({ stock_store: newStock }).eq('batch_id', item.batch_id);
           }
         }
 
-        // 3. Log the void action
-        const qtyToRestore = Number(item.actual_quantity || item.quantity || item.billable_quantity || 0);
         await supabase.from('audit_logs').insert([{
           shop_id: shopId,
           item_name: item.name,
           barcode: item.barcode,
-          action_type: 'VOID',
-          changes: `Restored ${qtyToRestore} ${item.unit} (Bill #${bill.id.split('-')[0]})`,
+          action_type: isAll ? 'VOID' : 'RETURN',
+          changes: isAll 
+            ? `Restored ${qtyToRestore} ${item.unit} (Bill #${bill.id.split('-')[0]})` 
+            : `Returned ${qtyToRestore} ${item.unit} of ${item.name} from Bill #${bill.id.split('-')[0]}`,
           performed_by: localStorage.getItem('owner_name') || 'Owner'
         }]);
-      }
-      
-      showAlert("Bill successfully returned and items restocked.", "Success");
-      fetchBills();
-      setVoidBillState(null);
-      setExpandedBillId(null);
-    } catch (e) {
-      console.error(e);
-      showAlert(e.message, "Return Failed");
-    }
-  };
 
-  const handleReturnItem = (bill, item) => {
-    setReturnItemState({ bill, item });
-  };
-
-  const executeReturnItem = async ({ bill, item }) => {
-    try {
-      const items = billItemsCache[bill.id] || [];
-      if (items.length <= 1) {
-        // If it's the last item, void the entire bill instead
-        setReturnItemState(null);
-        await executeVoidBill(bill);
-        return;
-      }
-
-      const shopId = localStorage.getItem('shop_id');
-      
-      // 1. Restore stock
-      if (item.instance_barcode) {
-        const { data: inst } = await supabase.from('stock_instances').select('original_length').eq('instance_barcode', item.instance_barcode).single();
-        if (inst) {
-          await supabase.from('stock_instances').update({ status: 'available', current_length: inst.original_length }).eq('instance_barcode', item.instance_barcode);
-        }
-      } else if (item.batch_id) {
-        const { data: batch } = await supabase.from('inventory_batches').select('stock_store').eq('batch_id', item.batch_id).single();
-        if (batch) {
-          const qtyToRestore = Number(item.actual_quantity || item.quantity || item.billable_quantity || 0);
-          const newStock = Number(batch.stock_store || 0) + qtyToRestore;
-          await supabase.from('inventory_batches').update({ stock_store: newStock }).eq('batch_id', item.batch_id);
+        if (!isAll) {
+          const currentQty = Number(item.billable_quantity || item.quantity);
+          if (qtyToRestore >= currentQty) {
+            // Delete individual returned item from bill_items
+            await supabase.from('bill_items').delete().eq('id', item.id);
+          } else {
+            // Update quantity for partial return
+            const newQty = currentQty - qtyToRestore;
+            const actQty = Number(item.actual_quantity || item.quantity) - qtyToRestore;
+            await supabase.from('bill_items').update({
+                quantity: newQty,
+                billable_quantity: newQty,
+                actual_quantity: actQty
+            }).eq('id', item.id);
+          }
         }
       }
-
-      // 2. Audit log
-      const qtyToRestore = Number(item.actual_quantity || item.quantity || item.billable_quantity || 0);
-      await supabase.from('audit_logs').insert([{
-        shop_id: shopId,
-        item_name: item.name,
-        barcode: item.barcode,
-        action_type: 'RETURN',
-        changes: `Returned 1 ${item.name} (${qtyToRestore} ${item.unit}) from Bill #${bill.id.split('-')[0]}`,
-        performed_by: localStorage.getItem('owner_name') || 'Owner'
-      }]);
-
-      // 3. Deduct from bill total
-      const itemTotal = Number(item.price_at_sale) * Number(item.billable_quantity || item.quantity);
-      const newTotal = Math.max(0, Number(bill.total_amount) - itemTotal);
-      const { error: billError } = await supabase.from('bills').update({ total_amount: newTotal }).eq('id', bill.id);
-      if (billError) throw billError;
-
-      // 4. Delete item from bill_items
-      const { error: itemError } = await supabase.from('bill_items').delete().eq('id', item.id);
-      if (itemError) throw itemError;
-
-      showAlert("Item successfully returned to stock.", "Success");
-      fetchBills();
       
-      // Update cache to reflect deletion
-      setBillItemsCache(prev => ({
-        ...prev,
-        [bill.id]: prev[bill.id].filter(i => i.id !== item.id)
-      }));
-      setReturnItemState(null);
+      showAlert(`Successfully returned ${isAll ? 'full bill' : 'selected items'}.`, "Success");
+      queryClient.invalidateQueries({ queryKey: ['bills'] });
+      
+      if (!isAll) {
+         // re-fetch bill items to update cache correctly for partial qtys
+         const { data: updatedItems } = await supabase.from('bill_items').select('*').eq('bill_id', bill.id);
+         setBillItemsCache(prev => ({
+           ...prev,
+           [bill.id]: updatedItems || []
+         }));
+      } else {
+         setExpandedBillId(null);
+      }
+      setReturnModalState(null);
     } catch (e) {
       console.error(e);
       showAlert(e.message, "Return Failed");
@@ -389,9 +356,9 @@ export default function OwnerLedger({ isActive }) {
                                 <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
                                   Bill #{bill.id.split('-')[0]} Items
                                 </p>
-                                {bill.status !== 'voided' && (
-                                  <button onClick={(e) => { e.stopPropagation(); handleVoidBill(bill); }} className="px-4 py-1.5 text-xs font-bold uppercase rounded transition-colors" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
-                                    Return Full Bill
+                                {bill.status !== 'voided' && items.length > 0 && (
+                                  <button onClick={(e) => { e.stopPropagation(); handleOpenReturnModal(bill); }} className="px-4 py-1.5 text-xs font-bold uppercase rounded transition-colors" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
+                                    Return Items
                                   </button>
                                 )}
                               </div>
@@ -441,11 +408,6 @@ export default function OwnerLedger({ isActive }) {
                                         <td className="hidden md:table-cell py-3 px-4 text-sm text-right font-bold border-none" style={{ color: bill.status === 'voided' ? 'var(--text-secondary)' : 'var(--color-success)' }}>
                                           <div className="flex flex-col items-end gap-1">
                                             {bill.status === 'voided' ? '₹0.00' : `₹${Number(item.profit || 0).toFixed(2)}`}
-                                            {bill.status !== 'voided' && (
-                                              <button onClick={(e) => { e.stopPropagation(); handleReturnItem(bill, item); }} className="px-2 py-0.5 text-[9px] font-bold uppercase rounded transition-colors opacity-0 group-hover:opacity-100" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
-                                                Return
-                                              </button>
-                                            )}
                                           </div>
                                         </td>
                                       </tr>
@@ -473,27 +435,154 @@ export default function OwnerLedger({ isActive }) {
         </div>
       </div>
 
-      <ConfirmDialog
-        isOpen={!!voidBillState}
-        title="Return Full Bill"
-        message={voidBillState ? `Are you sure you want to return ALL items from Bill #${voidBillState.id.split('-')[0]}? This will refund ₹${voidBillState.total_amount} and return items to stock.` : ''}
-        confirmLabel="Return Bill"
-        cancelLabel="Cancel"
-        isDestructive={true}
-        onConfirm={() => executeVoidBill(voidBillState)}
-        onCancel={() => setVoidBillState(null)}
-      />
-
-      <ConfirmDialog
-        isOpen={!!returnItemState}
-        title="Return Item"
-        message={returnItemState ? `Are you sure you want to return ${returnItemState.item.name} (${returnItemState.item.actual_quantity || returnItemState.item.quantity || returnItemState.item.billable_quantity} ${returnItemState.item.unit}) from Bill #${returnItemState.bill.id.split('-')[0]}? This will restock the item and reduce the bill total by ₹${(returnItemState.item.price_at_sale * (returnItemState.item.billable_quantity || returnItemState.item.quantity || 0)).toFixed(2)}.` : ''}
-        confirmLabel="Return Item"
-        cancelLabel="Cancel"
-        isDestructive={true}
-        onConfirm={() => executeReturnItem(returnItemState)}
-        onCancel={() => setReturnItemState(null)}
-      />
+      {returnModalState && (
+        <ReturnItemsModal 
+          isOpen={true}
+          onClose={() => setReturnModalState(null)}
+          bill={returnModalState.bill}
+          items={returnModalState.items}
+          onReturnItems={executeReturnItems}
+        />
+      )}
     </div>
+  );
+}
+
+function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
+  const [returnQuantities, setReturnQuantities] = useState({});
+  const [isReturning, setIsReturning] = useState(false);
+
+  if (!isOpen || !bill) return null;
+
+  const handleQtyChange = (item, delta) => {
+    setReturnQuantities(prev => {
+      const current = prev[item.id] || 0;
+      const maxQty = Number(item.billable_quantity || item.quantity);
+      let newQty = current + delta;
+      if (newQty < 0) newQty = 0;
+      if (newQty > maxQty) newQty = maxQty;
+      
+      const updated = { ...prev, [item.id]: newQty };
+      if (newQty === 0) delete updated[item.id];
+      return updated;
+    });
+  };
+
+  const handleCheckbox = (item) => {
+    setReturnQuantities(prev => {
+      if (prev[item.id]) {
+        const updated = { ...prev };
+        delete updated[item.id];
+        return updated;
+      } else {
+        return { ...prev, [item.id]: Number(item.billable_quantity || item.quantity) };
+      }
+    });
+  };
+
+  const itemsToReturn = Object.keys(returnQuantities).map(id => {
+    const item = items.find(i => i.id === id);
+    return { ...item, returnQuantity: returnQuantities[id] };
+  });
+
+  const refundAmount = itemsToReturn.reduce((sum, item) => sum + (Number(item.price_at_sale) * item.returnQuantity), 0);
+  const isAll = items.length === itemsToReturn.length && items.every(item => returnQuantities[item.id] === Number(item.billable_quantity || item.quantity));
+
+  const handleConfirm = async () => {
+    setIsReturning(true);
+    try {
+      await onReturnItems(itemsToReturn, isAll, bill);
+    } finally {
+      setIsReturning(false);
+    }
+  };
+
+  return (
+    <DialogOverlay isOpen={isOpen} onClose={onClose} labelId="return-items-title" maxWidth="500px">
+      <div className="flex justify-between items-center px-6 pt-6 pb-4 border-b border-[var(--border-light)]">
+        <span id="return-items-title" className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Return Items
+        </span>
+        <button onClick={onClose} className="p-2 hover:bg-[var(--bg-hover)] rounded-full transition-colors" style={{ color: 'var(--text-secondary)' }}>
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="p-6 max-h-[60vh] overflow-y-auto">
+        <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>Select the quantity you want to return from Bill #{bill.id.split('-')[0]}:</p>
+        
+        <div className="flex flex-col gap-3">
+          {items.map(item => {
+            const maxQty = Number(item.billable_quantity || item.quantity);
+            const returnQty = returnQuantities[item.id] || 0;
+            const isSelected = returnQty > 0;
+
+            return (
+              <div key={item.id} className="flex flex-col gap-3 p-3 rounded-lg border border-[var(--border-light)] transition-colors" style={{ backgroundColor: isSelected ? 'var(--color-accent-bg)' : 'transparent', borderColor: isSelected ? 'var(--color-accent)' : 'var(--border-light)' }}>
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-3 cursor-pointer flex-1" onClick={(e) => { e.preventDefault(); handleCheckbox(item); }}>
+                    <input 
+                      type="checkbox" 
+                      checked={isSelected} 
+                      readOnly
+                      className="w-5 h-5 rounded cursor-pointer pointer-events-none"
+                      style={{ accentColor: 'var(--color-accent)' }}
+                    />
+                    <div>
+                      <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name}</div>
+                      <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>Paid: ₹{Number(item.price_at_sale).toFixed(2)}/ea</div>
+                    </div>
+                  </label>
+
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => handleQtyChange(item, -1)} disabled={returnQty <= 0} className="w-8 h-8 rounded-full border border-[var(--border-medium)] flex items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-primary)] disabled:opacity-50 hover:bg-[var(--bg-hover)] transition-colors">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
+                    </button>
+                    <div className="w-10 text-center font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
+                      {returnQty}
+                    </div>
+                    <button onClick={() => handleQtyChange(item, 1)} disabled={returnQty >= maxQty} className="w-8 h-8 rounded-full border border-[var(--border-medium)] flex items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-primary)] disabled:opacity-50 hover:bg-[var(--bg-hover)] transition-colors">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="flex justify-between items-center text-xs pt-2 border-t border-[var(--border-light)]">
+                  <span style={{ color: 'var(--text-secondary)' }}>Purchased: {maxQty} {item.unit}</span>
+                  <span className="font-bold" style={{ color: 'var(--text-primary)' }}>Refund: ₹{(Number(item.price_at_sale) * returnQty).toFixed(2)}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="px-6 py-4 border-t border-[var(--border-light)] bg-[var(--bg-tertiary)] flex flex-col gap-4">
+        <div className="flex justify-between items-center">
+          <span className="text-sm font-medium uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Total Refund:</span>
+          <span className="text-2xl font-bold" style={{ color: 'var(--color-error)' }}>₹{refundAmount.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            disabled={isReturning}
+            className="h-10 px-6 text-sm font-medium rounded-md border border-[var(--border-light)] hover:bg-[var(--bg-hover)] transition-colors disabled:opacity-50"
+            style={{ backgroundColor: 'transparent', color: 'var(--text-primary)' }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={itemsToReturn.length === 0 || isReturning}
+            className="h-10 px-6 text-sm font-medium rounded-md transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[120px]"
+            style={{ backgroundColor: 'var(--color-error)', color: '#fff' }}
+          >
+            {isReturning ? <Spinner className="w-5 h-5 text-white" /> : (isAll ? 'Return Full Bill' : 'Confirm Return')}
+          </button>
+        </div>
+      </div>
+    </DialogOverlay>
   );
 }

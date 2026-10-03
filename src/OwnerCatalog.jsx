@@ -9,7 +9,6 @@ import { useApp } from './AppContext';
 import { generateId } from './utils';
 import { BARCODE_START_VALUE, BARCODE_RETRY_ATTEMPTS, UNIT_TYPES, STALE_TIME_5MIN } from './constants';
 import { Spinner, CreatableDropdown } from './SharedUI';
-import { PrintPreviewModal } from './AppModals';
 import { saveInventoryBatch } from './services/db';
 
 export default function OwnerCatalog() {
@@ -22,8 +21,6 @@ export default function OwnerCatalog() {
     default_length: '', default_width: '', billing_increment: '0.01', billing_method: 'exact'
   });
   const [nextBarcode, setNextBarcode] = useState('');
-  const [printLabelCount, setPrintLabelCount] = useState(0);
-  const [barcodePreview, setBarcodePreview] = useState({ isOpen: false, previewHtml: '', printHtml: '' });
   const fileInputRef = useRef(null);
 
   // Fetch Categories
@@ -63,62 +60,7 @@ export default function OwnerCatalog() {
     },
   });
 
-  // Single barcode preview for the modal
-  const generateSinglePreviewHtml = (itemData) => {
-    return `<html><head>
-      <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script>
-      <style>
-        body { margin: 0; padding: 20px; font-family: sans-serif; background: #fff; color: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; box-sizing: border-box; }
-        .label { width: 50mm; text-align: center; border: 1px solid #ccc; padding: 3mm; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 2px; }
-        .name { font-size: 10px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }
-        .price { font-size: 11px; font-weight: bold; }
-        .barcode-text { font-size: 12px; letter-spacing: 2px; font-family: monospace; }
-      </style></head><body>
-      <div class="label">
-        <div class="name">${itemData.name}</div>
-        <div class="price">MRP: ₹${itemData.price}</div>
-        <svg id="barcode-0"></svg>
-        <div class="barcode-text">${itemData.barcode}</div>
-      </div>
-      <script>
-        JsBarcode("#barcode-0", "${itemData.barcode}", { format: "CODE128", width: 1.5, height: 30, displayValue: false, margin: 0 });
-      </script>
-    </body></html>`;
-  };
 
-  // Full grid for actual printing (5 per row, A4)
-  const generatePrintHtml = (itemData, count) => {
-    let html = `<html><head>
-      <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"><\/script>
-      <style>
-        @page { margin: 5mm; size: A4; }
-        body { margin: 0; padding: 0; font-family: sans-serif; background: #fff; color: #000; }
-        .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2mm; width: 100%; }
-        .label { height: 24mm; text-align: center; border: 1px solid #ccc; padding: 1.5mm; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden; }
-        .name { font-size: 8px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }
-        .price { font-size: 9px; font-weight: bold; }
-        .barcode-text { font-size: 10px; letter-spacing: 1.5px; font-family: monospace; }
-        svg { max-width: 100%; }
-      </style></head><body>
-      <div class="grid">`;
-    for (let i = 0; i < count; i++) {
-      html += `
-        <div class="label">
-          <div class="name">${itemData.name}</div>
-          <div class="price">MRP: ₹${itemData.price}</div>
-          <svg id="barcode-${i}"></svg>
-          <div class="barcode-text">${itemData.barcode}</div>
-        </div>`;
-    }
-    html += `</div>
-      <script>
-        for (let i = 0; i < ${count}; i++) {
-          JsBarcode("#barcode-" + i, "${itemData.barcode}", { format: "CODE128", width: 1.5, height: 25, displayValue: false, margin: 0 });
-        }
-      </script>
-    </body></html>`;
-    return html;
-  };
 
   const addItemMutation = useMutation({
     mutationFn: async (itemData) => {
@@ -178,14 +120,7 @@ export default function OwnerCatalog() {
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['nextBarcode'] });
 
-      if (printLabelCount > 0) {
-        const previewHtml = generateSinglePreviewHtml(savedItem);
-        const printHtml = generatePrintHtml(savedItem, printLabelCount);
-        setBarcodePreview({ isOpen: true, previewHtml, printHtml });
-      }
-
       setForm({ name: '', category: '', sub_category: '', unit: 'PCS', min_quantity_warehouse: '', min_quantity_store: '', item_type: 'standard', default_length: '', default_width: '', billing_increment: '0.01', billing_method: 'exact' });
-      setPrintLabelCount(0);
       showAlert(`Added "${savedItem.name}" with Barcode ${savedItem.barcode}.`, "Success");
 
       // Track in Audit Logs
@@ -566,7 +501,6 @@ export default function OwnerCatalog() {
                 <option value="loose">Loose / Bulk Box (Prompt Qty)</option>
                 <option value="cuttable">Cuttable Stock (Pipes/Mesh)</option>
               </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
             </div>
           </div>
           <div className="lg:col-span-2">
@@ -575,7 +509,6 @@ export default function OwnerCatalog() {
               <select id="item-unit" required value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
                 {UNIT_TYPES.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
               </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
             </div>
           </div>
 
@@ -633,7 +566,6 @@ export default function OwnerCatalog() {
                  <option value="exact">Exact (No rounding)</option>
                  <option value="round_up">Round Up to 0.5 (e.g. 4.2 → 4.5, 4.6 → 5.0)</option>
                </select>
-               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
              </div>
           </div>
         </div>
@@ -641,26 +573,7 @@ export default function OwnerCatalog() {
         {/* Spacer to push the footer down if the screen is tall */}
         <div className="flex-1" />
 
-        <div className="flex justify-between items-center mt-auto pt-6" style={{ borderTop: '1px solid var(--border-light)' }}>
-          {form.item_type !== 'cuttable' ? (
-            <div className="flex items-center gap-4">
-              <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Print Labels:</label>
-              <input
-                id="print-qty"
-                type="number"
-                min="0"
-                max="50"
-                value={printLabelCount}
-                onChange={(e) => setPrintLabelCount(e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value)))}
-                className="w-20 h-10 px-2 text-center text-sm font-bold focus:outline-none rounded-md"
-                style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
-              />
-            </div>
-          ) : (
-            <div className="text-xs italic" style={{ color: 'var(--text-tertiary)' }}>
-              * Print labels for individual pieces from the Inventory tab.
-            </div>
-          )}
+        <div className="flex justify-end items-center mt-auto pt-6" style={{ borderTop: '1px solid var(--border-light)' }}>
           <button
             type="submit"
             disabled={addItemMutation.isPending || !nextBarcode}
@@ -672,14 +585,6 @@ export default function OwnerCatalog() {
         </div>
       </form>
 
-      <PrintPreviewModal
-        isOpen={barcodePreview.isOpen}
-        onClose={() => setBarcodePreview({ isOpen: false, previewHtml: '', printHtml: '' })}
-        type="barcode"
-        title="Barcode Label Preview"
-        iframeHtml={barcodePreview.previewHtml}
-        printHtml={barcodePreview.printHtml}
-      />
     </div>
   );
 }

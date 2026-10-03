@@ -74,7 +74,7 @@ function useFocusTrap(isOpen) {
 /**
  * Base dialog overlay. Handles backdrop, centering, escape key, and focus trap.
  */
-function DialogOverlay({ isOpen, onClose, children, labelId }) {
+export function DialogOverlay({ isOpen, onClose, children, labelId, maxWidth = '400px' }) {
   const containerRef = useFocusTrap(isOpen);
 
   const handleEscape = useCallback(
@@ -107,8 +107,9 @@ function DialogOverlay({ isOpen, onClose, children, labelId }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelId}
-        className="w-[85%] max-w-[400px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl"
+        className="w-[85%] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl"
         style={{
+          maxWidth: maxWidth,
           backgroundColor: 'var(--bg-secondary)',
         }}
       >
