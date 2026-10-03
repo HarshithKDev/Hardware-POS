@@ -296,7 +296,8 @@ const formatChanges = (changes) => {
             <p className="text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No matching audit logs found.</p>
           </div>
         ) : (
-        <table className="w-full text-left md:whitespace-nowrap border-collapse block md:table min-w-0 md:min-w-[900px]">
+        <div className="overflow-x-auto w-full max-w-[100vw]">
+          <table className="w-full text-left md:whitespace-nowrap border-collapse md:min-w-[900px]">
           <thead className="hidden md:table-header-group sticky top-0 z-10 glass-header" style={{ borderBottom: '1px solid var(--border-medium)' }}>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
               <th className="p-3 w-40 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Date &amp; Time</th>
@@ -385,6 +386,7 @@ const formatChanges = (changes) => {
             
           </tbody>
         </table>
+        </div>
         )}
       </div>
     </div>

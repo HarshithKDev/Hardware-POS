@@ -77,7 +77,7 @@ function StatCard({ title, value, accentColor, borderColor, onClick, clickLabel,
   return (
     <Tag
       onClick={onClick}
-      className={`p-5 rounded-lg border border-[var(--border-light)] text-left w-full flex flex-col h-full ${onClick ? 'cursor-pointer group' : ''}`}
+      className={`relative p-5 rounded-lg border border-[var(--border-light)] text-left w-full flex flex-col h-full ${onClick ? 'cursor-pointer group' : ''}`}
       style={{
         backgroundColor: 'var(--bg-secondary)',
       }}
@@ -88,12 +88,12 @@ function StatCard({ title, value, accentColor, borderColor, onClick, clickLabel,
           {title}
         </p>
       </div>
-      <div className="flex justify-between items-end mt-auto">
-        <p className="text-2xl md:text-3xl font-semibold break-all" style={{ color: accentColor || 'var(--text-primary)' }} title={value}>
+      <div className="flex justify-between items-end mt-auto w-full">
+        <p className="text-2xl md:text-3xl font-semibold break-words" style={{ color: accentColor || 'var(--text-primary)' }} title={value}>
           <AnimatedNumber valueStr={value} duration={1200} />
         </p>
         {onClick && (
-          <div className="flex flex-col items-end opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2 pb-1 text-right" style={{ color: 'var(--color-accent)' }}>
+          <div className="absolute bottom-4 right-4 flex flex-col items-end opacity-0 group-hover:opacity-100 transition-opacity text-right pl-2 py-1" style={{ color: 'var(--color-accent)', backgroundColor: 'var(--bg-secondary)' }}>
             <span className="text-[10px] font-bold uppercase leading-none mb-[2px]">View ↗</span>
             <span className="text-[10px] font-bold uppercase leading-none">Details</span>
           </div>

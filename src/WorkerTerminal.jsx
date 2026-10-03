@@ -1454,11 +1454,11 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           aria-modal="true"
           aria-labelledby="checkout-title"
         >
-          <div className="w-[85%] max-w-[450px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+          <div className="w-[85%] max-w-[450px] max-h-[90dvh] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
             <div className="flex justify-between items-center pr-1 pl-4 py-1" style={{ borderBottom: '1px solid var(--border-light)' }}>
               <span id="checkout-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Checkout Payment</span>
             </div>
-            <div className="p-6">
+            <div className="p-6 overflow-y-auto flex-1">
               <div className="flex justify-between items-end mb-6 pb-4" style={{ borderBottom: '1px solid var(--border-light)' }}>
                 <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Total Due</span>
                 <span className="text-4xl font-light" style={{ color: 'var(--color-accent)' }} aria-live="polite">₹{activeTotal.toFixed(2)}</span>
@@ -1527,8 +1527,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               )}
             </div>
             <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-              <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} disabled={isCheckingOut} className="h-9 px-8 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md text-white transition-colors bg-[var(--color-error)] hover:bg-red-600">Cancel</button>
-              <button onClick={handleCompleteTransaction} disabled={isCheckingOut || isShortfall} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 flex justify-center items-center min-w-[120px]" style={{ backgroundColor: 'var(--color-accent)' }}>
+              <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} disabled={isCheckingOut} className="min-h-[44px] md:min-h-0 md:h-10 px-8 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md text-white transition-colors bg-[var(--color-error)] hover:bg-red-600">Cancel</button>
+              <button onClick={handleCompleteTransaction} disabled={isCheckingOut || isShortfall} className="min-h-[44px] md:min-h-0 md:h-10 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 flex justify-center items-center min-w-[120px]" style={{ backgroundColor: 'var(--color-accent)' }}>
                 {isCheckingOut ? <Spinner className="w-4 h-4 text-white" /> : 'Complete Sale'}
               </button>
             </div>
@@ -2017,7 +2017,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             <div className="flex w-full md:w-auto gap-3">
               <button
                 onClick={() => showConfirm("Clear all items?", handleCancelSale, activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items', 'Clear', 'Cancel', true)}
-                className="flex-1 md:flex-none h-10 px-6 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md"
+                className="flex-1 md:flex-none min-h-[44px] md:min-h-0 md:h-10 px-6 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md"
                 style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
               >
                 {activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items'}
@@ -2025,7 +2025,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               {activeTab === 'checkout' && activeCartTab === 'local' && (
                 <button
                   onClick={handleHoldCart}
-                  className="flex-1 md:flex-none h-10 px-6 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md"
+                  className="flex-1 md:flex-none min-h-[44px] md:min-h-0 md:h-10 px-6 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md"
                   style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--color-accent)', border: '1px solid var(--color-accent)' }}
                 >
                   Hold Cart
@@ -2034,7 +2034,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             </div>
             <button
               onClick={() => activeTab === 'checkout' ? setCheckoutModal({ isOpen: true, cashGiven: '', negotiatedTotal: '' }) : handleCompleteTransaction()}
-              className="w-full md:w-auto h-10 px-10 text-white text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md focus:ring-2 focus:ring-offset-1 flex justify-center items-center"
+              className="w-full md:w-auto min-h-[44px] md:min-h-0 md:h-10 px-10 text-white text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md focus:ring-2 focus:ring-offset-1 flex justify-center items-center"
               style={{ backgroundColor: 'var(--color-accent)', border: '1px solid transparent' }}
             >
               {isCheckingOut ? 'Saving...' : 'Complete'}

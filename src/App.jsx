@@ -220,7 +220,7 @@ function App() {
   if (isInitialLoad) {
     return (
       <div
-        className="w-full min-h-screen flex flex-col items-center justify-center"
+        className="w-full min-h-[100dvh] flex flex-col items-center justify-center"
         style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
       >
         <PageLoader text="Initializing Subsystems" />
@@ -241,7 +241,7 @@ function App() {
 
   return (
     <div
-      className="w-full h-screen flex flex-col overflow-hidden relative"
+      className="w-full h-[100dvh] flex flex-col overflow-hidden relative"
       style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
     >
       {!isOnline && (
@@ -325,20 +325,7 @@ function App() {
             )}
 
 
-            {isBillable && (
-              <button
-                onClick={() => setIsMobileScannerOpen(true)}
-                className="md:hidden h-11 w-11 rounded-md focus:outline-none shrink-0 flex items-center justify-center"
-                style={{
-                  backgroundColor: 'var(--bg-secondary)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-medium)',
-                }}
-                aria-label="Open barcode scanner"
-              >
-                <ScanBarcode size={18} />
-              </button>
-            )}
+
 
             {userRole === 'owner' && (
               <>
@@ -364,7 +351,7 @@ function App() {
               onClick={() => setShowLogoutConfirm(true)}
               className="h-10 w-auto md:h-9 md:w-auto rounded-md px-3 md:px-6 text-white text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none shrink-0 flex items-center justify-center gap-2 border bg-[var(--color-error)] border-[var(--color-error)] hover:bg-[#c90f1f] hover:border-[#c90f1f]"
             >
-              <span>Sign Out</span>
+              <span className="hidden md:inline">Sign Out</span>
               <LogOut size={16} />
             </button>
           </div>

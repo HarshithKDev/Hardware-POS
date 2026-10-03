@@ -30,7 +30,7 @@ export default class ErrorBoundary extends Component {
     if (this.state.hasError) {
       return (
         <div
-          className="w-full min-h-screen flex flex-col items-center justify-center p-8"
+          className="w-full min-h-[100dvh] flex flex-col items-center justify-center p-8"
           style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
           role="alert"
           aria-live="assertive"

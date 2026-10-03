@@ -198,8 +198,8 @@ export default function WorkerDashboardView({ isBillable = true }) {
         style={{ backgroundColor: 'var(--bg-secondary)' }}
       >
         
-        <div className="w-full h-full">
-          <table className="w-full text-center table-fixed text-[10px] md:text-sm border-collapse" style={{ color: 'var(--text-primary)' }}>
+        <div className="w-full h-full overflow-x-auto">
+          <table className="w-full text-center table-fixed text-[10px] md:text-sm border-collapse md:min-w-[500px]" style={{ color: 'var(--text-primary)' }}>
             <thead style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
               <tr className="text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>
                 <th className="p-1.5 md:p-3 w-[15%] md:w-auto align-middle" style={{ borderRight: '1px solid var(--border-light)' }}>BC</th>
@@ -213,7 +213,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
               {isLoading ? (
                  <tr><td colSpan="5" className="h-full text-center py-6 align-middle"><PageLoader text="Loading items..." /></td></tr>
               ) : paginatedInventory.length === 0 ? (
-                <tr><td colSpan="5" className="h-full p-0"><EmptyState message="No items found." /></td></tr>
+                <tr className="border-none"><td colSpan="5" className="h-full p-0 border-none"><EmptyState message="No items found." /></td></tr>
               ) : paginatedInventory.map(item => (
                 <tr key={item.id} className="transition-colors hover:bg-[var(--bg-hover)] text-center" style={{ borderBottom: '1px solid var(--border-light)' }}>
                   <td className="p-1.5 md:p-3 font-semibold tracking-wider font-mono truncate align-middle" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{item.barcode}</td>

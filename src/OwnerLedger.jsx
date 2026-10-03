@@ -216,7 +216,8 @@ export default function OwnerLedger({ isActive }) {
         </div>
 
         <div className="flex-1 overflow-auto hide-x-scrollbar overflow-x-hidden md:overflow-x-auto shadow-sm min-h-[400px] md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent' }}>
-              <table className={`w-full max-w-full text-left border-collapse block md:table min-w-0 md:min-w-[700px] ${(isLoadingBills && bills.length === 0 || bills.length === 0) ? 'h-full' : ''}`}>
+              <div className="overflow-x-auto w-full max-w-full h-full">
+                <table className={`w-full text-left border-collapse md:min-w-[700px] ${(isLoadingBills && bills.length === 0 || bills.length === 0) ? 'h-full' : ''}`}>
             <thead className="hidden md:table-header-group sticky top-0 z-10 glass-header" style={{ borderBottom: '1px solid var(--border-medium)' }}>
               <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                 <th className="py-4 px-3 w-48 text-left border-none">Date & Time</th>
@@ -228,9 +229,9 @@ export default function OwnerLedger({ isActive }) {
             </thead>
             <tbody className="block md:table-row-group p-2 md:p-0">
               {isLoadingBills && bills.length === 0 ? (
-                <tr className="block md:table-row"><td colSpan="4" className="block md:table-cell h-full text-center p-4"><PageLoader text="Loading sales..." /></td></tr>
+                <tr className="block md:table-row border-none" style={{ borderBottom: 'none' }}><td colSpan="5" className="block md:table-cell h-[300px] text-center p-4 border-none" style={{ borderBottom: 'none' }}><PageLoader text="Loading sales..." /></td></tr>
               ) : bills.length === 0 ? (
-                <tr className="block md:table-row"><td colSpan="4" className="block md:table-cell h-full p-0"><EmptyState message="No sales found for this period." /></td></tr>
+                <tr className="block md:table-row border-none" style={{ borderBottom: 'none' }}><td colSpan="5" className="block md:table-cell h-[300px] p-0 border-none" style={{ borderBottom: 'none' }}><EmptyState message="No sales found for this period." /></td></tr>
               ) : bills.map(bill => {
                 const isExpanded = expandedBillId === bill.id;
                 const items = billItemsCache[bill.id] || [];
@@ -305,7 +306,8 @@ export default function OwnerLedger({ isActive }) {
                                 )}
                               </div>
                               <div className="overflow-x-auto overflow-y-hidden w-full rounded-lg shadow-sm" style={{ border: '1px solid var(--border-light)' }}>
-                                <table className="w-full text-left border-collapse block md:table" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                                <div className="overflow-x-auto w-full">
+                                  <table className="w-full text-left border-collapse md:min-w-[500px]" style={{ backgroundColor: 'var(--bg-secondary)' }}>
                                   <thead className="hidden md:table-header-group" style={{ backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-light)' }}>
                                     <tr className="text-xs font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>
                                       <th className="py-3 px-4 text-left border-none">Item Name</th>
@@ -350,7 +352,8 @@ export default function OwnerLedger({ isActive }) {
                                       </tr>
                                     ))}
                                   </tbody>
-                                </table>
+                                  </table>
+                                </div>
                               </div>
                             </div>
                           )}
@@ -362,6 +365,7 @@ export default function OwnerLedger({ isActive }) {
               })}
             </tbody>
           </table>
+        </div>
         </div>
 
         <div className="flex justify-between items-center p-3 mt-auto shadow-sm rounded-lg shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
