@@ -86,6 +86,15 @@ export function AppProvider({ children }) {
     setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
   }, []);
 
+  // --- Toast Notification ---
+  const [toast, setToast] = useState({ isOpen: false, message: '' });
+  const showToast = useCallback((message, duration = 2000) => {
+    setToast({ isOpen: true, message });
+    setTimeout(() => {
+      setToast(prev => prev.message === message ? { isOpen: false, message: '' } : prev);
+    }, duration);
+  }, []);
+
   const value = {
     // Shop & auth
     shopSettings,
@@ -109,7 +118,26 @@ export function AppProvider({ children }) {
     showConfirm,
     handleConfirm,
     closeConfirm,
+
+    // Toast
+    showToast,
   };
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider value={value}>
+      {children}
+      {toast.isOpen && (
+        <div 
+          className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[9999] bg-gray-800 text-white px-4 py-2 rounded-md shadow-lg text-sm font-medium flex items-center gap-2 animate-fade-in-down pointer-events-none"
+          style={{ 
+            backgroundColor: 'var(--color-accent, #3b82f6)',
+            animation: 'fadeInDown 0.3s ease-out'
+          }}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          {toast.message}
+        </div>
+      )}
+    </AppContext.Provider>
+  );
 }

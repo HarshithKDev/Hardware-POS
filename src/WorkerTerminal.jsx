@@ -240,8 +240,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         if (scannedInstanceBarcode) {
           // Find the batch to attach its prices
           let batch = null;
-          if (scannedBatchNumber !== null && item.batches) {
-            batch = item.batches.find(b => b.batch_number === scannedBatchNumber);
+          if (scannedBatchNumber !== null) {
+            batch = (item.batches || []).find(b => b.batch_number === scannedBatchNumber);
+            if (!batch) {
+              showAlertRef.current(`Batch #${String(scannedBatchNumber).padStart(2,'0')} of ${item.name} not found.`, "Batch Not Found");
+              return;
+            }
           }
           if (!batch && item.batches && item.batches.length > 0) {
             batch = item.batches[0]; // fallback
@@ -275,7 +279,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               instance_barcode: scannedInstanceBarcode,
               scanned_barcode: cleanBarcode,
               batch_id: batch ? batch.batch_id : null,
-              customPriceInput: Number(batch ? batch.selling_price : item.price || 0).toFixed(2), 
+              batch_number: batch ? batch.batch_number : null,
+              customPriceInput: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2), 
               discountPct: 0, 
               quantity: 1, 
               unit: item.unit, 
@@ -285,9 +290,11 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               default_width: item.default_width, 
               has_preset_length: !!item.default_length, 
               has_preset_width: !!item.default_width, 
-              purchase_cost: Number(batch ? batch.purchase_cost : item.cost_price || 0).toFixed(2), 
-              selling_price: Number(batch ? batch.selling_price : item.price || 0).toFixed(2), 
-              msp_price: Number((batch && batch.msp) ? batch.msp : item.msp || 0).toFixed(2) 
+              purchase_cost: Number(batch?.purchase_cost ?? (item.cost_price || 0)).toFixed(2), 
+              selling_price: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2), 
+              msp_price: Number((batch && batch.msp !== undefined && batch.msp !== null) ? batch.msp : item.msp || 0).toFixed(2),
+              price: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2),
+              msp: Number((batch && batch.msp !== undefined && batch.msp !== null) ? batch.msp : item.msp || 0).toFixed(2)
             }];
           });
         } else {
@@ -467,8 +474,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
       setCart(prev => {
         const batch = autoSelectedBatch || (item.batches && item.batches.length === 1 ? item.batches[0] : null);
-        const defaultPrice = batch ? batch.selling_price : item.price;
-        const msp = batch ? batch.msp : item.msp;
+        const defaultPrice = batch?.selling_price ?? item.price;
+        const msp = batch?.msp ?? item.msp;
         const batchId = batch ? batch.batch_id : null;
         
         const idx = prev.findIndex(c => c.barcode === cleanBarcode && c.batch_id === batchId);
@@ -492,9 +499,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           billableQuantity: (item.unit === 'SQFT' && item.is_cuttable) ? 0 : 1, 
           unit: item.unit || 'PCS', 
           length: '', width: '', rolls: '1',
-          purchase_cost: Number(batch ? batch.purchase_cost : item.cost_price || 0).toFixed(2), 
-          selling_price: Number(batch ? batch.selling_price : item.price || 0).toFixed(2),
-          msp_price: Number((batch && batch.msp) ? batch.msp : item.msp || 0).toFixed(2)
+          purchase_cost: Number(batch?.purchase_cost ?? (item.cost_price || 0)).toFixed(2), 
+          selling_price: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2),
+          msp_price: Number((batch && batch.msp !== undefined && batch.msp !== null) ? batch.msp : item.msp || 0).toFixed(2)
         }];
       });
     }
@@ -566,7 +573,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         msp: targetBatch ? targetBatch.msp : item.msp,
         purchase_cost: Number(targetBatch && targetBatch.purchase_cost !== undefined ? targetBatch.purchase_cost : item.cost_price || 0).toFixed(2),
         selling_price: Number(targetBatch && targetBatch.selling_price !== undefined ? targetBatch.selling_price : item.price || 0).toFixed(2),
-        msp_price: Number((targetBatch && targetBatch.msp) ? targetBatch.msp : item.msp || 0).toFixed(2),
+        msp_price: Number((targetBatch && targetBatch.msp !== undefined && targetBatch.msp !== null) ? targetBatch.msp : item.msp || 0).toFixed(2),
         discountPct: 0,
         quantity: addQty,
         unit: item.unit || 'PCS',
@@ -607,7 +614,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         msp: batch.msp,
         purchase_cost: Number(batch.purchase_cost !== undefined ? batch.purchase_cost : item.cost_price || 0).toFixed(2),
         selling_price: Number(batch.selling_price !== undefined ? batch.selling_price : item.price || 0).toFixed(2),
-        msp_price: Number((batch && batch.msp) ? batch.msp : item.msp || 0).toFixed(2),
+        msp_price: Number((batch && batch.msp !== undefined && batch.msp !== null) ? batch.msp : item.msp || 0).toFixed(2),
         batch_id: batch.batch_id,
         batch_number: batch.batch_number,
         discountPct: 0,
@@ -630,8 +637,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     }
 
     const currentLength = Number(instance.current_length);
-    const alreadyInCart = cart.filter(c => c.instance_barcode === instance.instance_barcode).reduce((tot, c) => tot + ((Number(c.length) || 0) * (Number(c.rolls) || 1)), 0);
-    const availableLength = currentLength - alreadyInCart;
+    const alreadyInCart = cart.filter(c => c.instance_barcode === instance.instance_barcode).reduce((tot, c) => tot + ((Number(c.length) || Number(c.pieceLength) || 0) * (Number(c.rolls) || 1)), 0);
+    const availableLength = Math.round((currentLength - alreadyInCart) * 100) / 100;
     if (!isNaN(currentLength) && addQty > availableLength) {
       if (alreadyInCart > 0) {
         showAlert(`You already have ${alreadyInCart}${item.unit} of this piece in the cart. You only have ${availableLength.toFixed(2)}${item.unit} left!`, "Invalid Cut");
@@ -643,15 +650,16 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
     setCart(prev => {
       const batch = item.batches?.find(b => b.batch_id === instance.batch_id);
-      const sellingPrice = batch ? batch.selling_price : (item.price || 0);
-      const purchaseCost = batch ? batch.purchase_cost : (item.cost_price || 0);
-      const mspPrice = batch ? batch.msp : (item.msp || 0);
+      const sellingPrice = batch?.selling_price ?? (item.price || 0);
+      const purchaseCost = batch?.purchase_cost ?? (item.cost_price || 0);
+      const mspPrice = batch?.msp ?? (item.msp || 0);
 
       return [...prev, {
         ...item,
         id: generateId(),
         instance_barcode: instance.instance_barcode,
         batch_id: instance.batch_id,
+        batch_number: batch?.batch_number ?? null,
         purchase_cost: Number(purchaseCost).toFixed(2),
         selling_price: Number(sellingPrice).toFixed(2),
         msp_price: Number(mspPrice).toFixed(2),
@@ -686,12 +694,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         pieceLength: length, 
         batch_id: batch?.batch_id || null,
         batch_number: batch?.batch_number || null,
-        customPriceInput: Number(batch ? batch.selling_price : item.price || 0).toFixed(2),
-        purchase_cost: Number(batch ? batch.purchase_cost : item.cost_price || 0).toFixed(2),
-        selling_price: Number(batch ? batch.selling_price : item.price || 0).toFixed(2),
-        msp_price: Number((batch && batch.msp) ? batch.msp : item.msp || 0).toFixed(2),
-        price: Number(batch ? batch.selling_price : item.price || 0).toFixed(2),
-        msp: Number(batch ? batch.msp : item.msp || 0).toFixed(2)
+        customPriceInput: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2),
+        purchase_cost: Number(batch?.purchase_cost ?? (item.cost_price || 0)).toFixed(2),
+        selling_price: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2),
+        msp_price: Number((batch && batch.msp !== undefined && batch.msp !== null) ? batch.msp : item.msp || 0).toFixed(2),
+        price: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2),
+        msp: Number(batch?.msp ?? (item.msp || 0)).toFixed(2)
       }, ...prev];
     });
   };
@@ -833,7 +841,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
 
   const handleCustomPriceChange = useCallback((id, val) => setCart(prev => prev.map(i => i.id === id ? { ...i, customPriceInput: val, customTotalInput: undefined } : i)), [setCart]);
-  const handleCustomPriceChangeGroup = useCallback((barcode, val) => setCart(prev => prev.map(i => (i.barcode === barcode && i.is_cuttable) ? { ...i, customPriceInput: val, customTotalInput: undefined } : i)), [setCart]);
+  const handleCustomPriceChangeGroup = useCallback((groupKey, val) => setCart(prev => prev.map(i => {
+    const iKey = i.barcode + '_' + (i.batch_id || 'default');
+    return (iKey === groupKey && i.is_cuttable) ? { ...i, customPriceInput: val, customTotalInput: undefined } : i;
+  })), [setCart]);
 
   const handleCustomTotalChange = useCallback((id, val, qty) => setCart(prev => prev.map(i => {
     if (i.id === id) {
@@ -846,8 +857,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     return i;
   })), [setCart]);
 
-  const handleCustomTotalChangeGroup = useCallback((barcode, val, totalQty) => setCart(prev => prev.map(i => {
-    if (i.barcode === barcode && i.is_cuttable) {
+  const handleCustomTotalChangeGroup = useCallback((groupKey, val, totalQty) => setCart(prev => prev.map(i => {
+    const iKey = i.barcode + '_' + (i.batch_id || 'default');
+    if (iKey === groupKey && i.is_cuttable) {
       const numVal = Number(val);
       if (!isNaN(numVal) && totalQty > 0) {
         return { ...i, customTotalInput: val, customPriceInput: numVal / totalQty };
@@ -872,10 +884,11 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     return i;
   })), [cashierName, setCart]);
 
-  const handleCustomPriceBlurGroup = useCallback((barcode) => {
+  const handleCustomPriceBlurGroup = useCallback((groupKey) => {
     setCart(prev => {
       return prev.map(i => {
-        if (i.barcode === barcode && i.is_cuttable) {
+        const iKey = i.barcode + '_' + (i.batch_id || 'default');
+        if (iKey === groupKey && i.is_cuttable) {
           const msp = Number(i.msp_price) || Number(i.msp || 0);
           let val = Number(i.customPriceInput);
           if (isNaN(val) || val <= 0) val = Number(i.price);
@@ -887,7 +900,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           if (Number(i.price) > 0 && val < Number(i.price)) {
             newDisc = ((Number(i.price) - val) / Number(i.price)) * 100;
           }
-          const groupQty = cart.filter(c => c.barcode === barcode && c.is_cuttable).reduce((sum, c) => sum + (c.billableQuantity !== undefined && c.billableQuantity !== '' ? Number(c.billableQuantity) : (c.quantity === '' ? 0 : Number(c.quantity))), 0);
+          const groupQty = cart.filter(c => (c.barcode + '_' + (c.batch_id || 'default')) === groupKey && c.is_cuttable).reduce((sum, c) => sum + (c.billableQuantity !== undefined && c.billableQuantity !== '' ? Number(c.billableQuantity) : (c.quantity === '' ? 0 : Number(c.quantity))), 0);
           return { ...i, customPriceInput: val, customTotalInput: groupQty > 0 ? (val * groupQty).toFixed(2) : '', discountPct: newDisc };
         }
         return i;
@@ -1599,7 +1612,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           <div className="w-[85%] max-w-[400px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
             <div className="flex justify-between items-center pr-1 pl-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
               <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Loose Item Quantity</span>
-              
+              <button type="button" onClick={() => setLooseItemModal({ isOpen: false, item: null, qty: '' })} className="p-2 rounded-full transition-colors hover:bg-[var(--bg-hover)]" style={{ color: 'var(--text-tertiary)' }} aria-label="Close modal">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
             </div>
             <form onSubmit={handleLooseItemSubmit}>
               <div className="p-6">
@@ -1621,7 +1636,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           <div className="w-[85%] max-w-[400px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
             <div className="flex justify-between items-center pr-1 pl-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
               <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Select Piece</span>
-              
+              <button type="button" onClick={() => setSelectPieceModal({ isOpen: false, item: null, instances: [], isLoading: false, action: 'checkout' })} className="p-2 rounded-full transition-colors hover:bg-[var(--bg-hover)]" style={{ color: 'var(--text-tertiary)' }} aria-label="Close modal">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
             </div>
             <div className="p-6 flex flex-col">
               <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>Which piece of <strong style={{ color: 'var(--color-accent)' }}>{selectPieceModal.item?.name}</strong> are you {selectPieceModal.action === 'transfer' ? 'transferring' : 'cutting from'}?</p>
@@ -1635,15 +1652,15 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   {selectPieceModal.instances.map(inst => {
                     let availableLength = Number(inst.current_length);
                     if (selectPieceModal.action === 'checkout') {
-                      const inCartQty = cart.filter(c => c.instance_barcode === inst.instance_barcode).reduce((sum, c) => sum + ((Number(c.length) || 0) * (Number(c.rolls) || 1)), 0);
-                      availableLength -= inCartQty;
+                      const inCartQty = cart.filter(c => c.instance_barcode === inst.instance_barcode).reduce((sum, c) => sum + ((Number(c.length) || Number(c.pieceLength) || 0) * (Number(c.rolls) || 1)), 0);
+                      availableLength = Math.round((availableLength - inCartQty) * 100) / 100;
                     }
                     
                     if (availableLength <= 0 && selectPieceModal.action === 'checkout') return null;
                     
                     const isAlreadyInCartTransfer = selectPieceModal.action === 'transfer' && cart.some(c => c.instance_barcode === inst.instance_barcode);
                     const batch = selectPieceModal.item.batches?.find(b => b.batch_id === inst.batch_id);
-                    const sellingPrice = batch ? batch.selling_price : (selectPieceModal.item.price || 0);
+                    const sellingPrice = batch?.selling_price ?? (selectPieceModal.item.price || 0);
                     
                     return (
                     <button
@@ -1662,17 +1679,22 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                               return prev;
                             }
                             
-                            const purchaseCost = batch ? batch.purchase_cost : (selectPieceModal.item.cost_price || 0);
-                            const mspPrice = batch ? batch.msp : (selectPieceModal.item.msp || 0);
+                            const purchaseCost = batch?.purchase_cost ?? (selectPieceModal.item.cost_price || 0);
+                            const mspPrice = batch?.msp ?? (selectPieceModal.item.msp || 0);
 
                             return [...prev, { 
                               ...selectPieceModal.item, 
                               id: generateId(), 
                               instance_barcode: inst.instance_barcode, 
                               batch_id: inst.batch_id,
+                              batch_number: batch?.batch_number ?? null,
                               purchase_cost: Number(purchaseCost).toFixed(2),
                               selling_price: Number(sellingPrice).toFixed(2),
                               msp_price: Number(mspPrice).toFixed(2),
+                              price: Number(sellingPrice).toFixed(2),
+                              msp: Number(mspPrice).toFixed(2),
+                              customPriceInput: Number(sellingPrice).toFixed(2),
+                              discountPct: 0,
                               quantity: 1, 
                               unit: selectPieceModal.item.unit, 
                               length: '', 
@@ -1703,6 +1725,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                 </div>
               )}
             </div>
+            <div className="p-4 flex justify-end gap-3" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
+              <button type="button" onClick={() => setSelectPieceModal({ isOpen: false, item: null, instances: [], isLoading: false, action: 'checkout' })} className="h-9 px-6 text-sm font-semibold rounded-md transition-colors border border-red-500 text-red-500 hover:bg-red-500/10">Cancel</button>
+            </div>
           </div>
         </div>
       )}
@@ -1713,7 +1738,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           <div className="w-full max-w-sm flex flex-col shadow-2xl" style={{ backgroundColor: 'var(--bg-primary)', borderTop: '4px solid var(--color-accent)' }}>
             <div className="flex justify-between items-center p-4" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
               <h3 className="font-bold tracking-wider text-sm" style={{ color: 'var(--text-primary)' }}>ENTER PIECE LENGTH</h3>
-              
+              <button type="button" onClick={() => setReceiveLengthModal({ isOpen: false, item: null, length: '', batch: null, instanceBarcode: null })} className="p-2 rounded-full transition-colors hover:bg-[var(--bg-hover)]" style={{ color: 'var(--text-tertiary)' }} aria-label="Close modal">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
             </div>
             <form onSubmit={handleReceiveLengthSubmit} className="p-6">
               <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>What is the standard length of each <strong>{receiveLengthModal.item?.name}</strong> piece?</p>
@@ -1782,7 +1809,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           <div className="w-[85%] max-w-[400px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
             <div className="flex justify-between items-center pr-1 pl-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
               <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Cut Length</span>
-              
+              <button type="button" onClick={() => setCutLengthModal({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false })} className="p-2 rounded-full transition-colors hover:bg-[var(--bg-hover)]" style={{ color: 'var(--text-tertiary)' }} aria-label="Close modal">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
             </div>
 
             <form onSubmit={handleCutLengthSubmit}>
@@ -1792,7 +1821,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                 <p className="text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                   Current Piece: {(() => {
                     const dbLen = Number(cutLengthModal.instance?.current_length) || 0;
-                    const already = cart.filter(c => c.instance_barcode === cutLengthModal.instance?.instance_barcode).reduce((tot, c) => tot + Number(c.length || 0), 0);
+                    const already = cart.filter(c => c.instance_barcode === cutLengthModal.instance?.instance_barcode).reduce((tot, c) => tot + (Number(c.length) || Number(c.pieceLength) || 0), 0);
                     return Math.max(0, dbLen - already).toFixed(2);
                   })()} {cutLengthModal.item?.unit === 'SQFT' ? 'ft' : cutLengthModal.item?.unit}
                 </p>

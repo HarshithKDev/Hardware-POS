@@ -9,8 +9,8 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
   const { userRole } = useApp();
   const [expandedGroups, setExpandedGroups] = React.useState({});
 
-  const toggleGroup = (barcode) => {
-    setExpandedGroups(prev => ({ ...prev, [barcode]: !prev[barcode] }));
+  const toggleGroup = (groupKey) => {
+    setExpandedGroups(prev => ({ ...prev, [groupKey]: !prev[groupKey] }));
   };
   if (cart.length === 0) {
     return (
@@ -51,15 +51,19 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
 
           cart.forEach(item => {
             if (activeTab === 'checkout' && item.is_cuttable) {
-              if (!groupMap.has(item.barcode)) {
+              const groupKey = `${item.barcode}_${item.batch_id || 'default'}`;
+              if (!groupMap.has(groupKey)) {
                 const group = {
                   isGroup: true,
-                  id: `group-${item.barcode}`,
+                  id: `group-${groupKey}`,
+                  groupKey: groupKey,
                   barcode: item.barcode,
-                  name: item.name,
+                  batch_id: item.batch_id,
+                  name: item.batch_number ? `${item.name} - Batch ${String(item.batch_number).padStart(2, '0')}` : item.name,
                   unit: item.unit,
                   price: item.price,
                   msp: item.msp,
+                  msp_price: item.msp_price,
                   customPriceInput: item.customPriceInput !== undefined ? item.customPriceInput : item.price,
                   discountPct: item.discountPct || 0,
                   totalQty: 0,
@@ -67,9 +71,9 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                   children: []
                 };
                 groupedCart.push(group);
-                groupMap.set(item.barcode, group);
+                groupMap.set(groupKey, group);
               }
-              const group = groupMap.get(item.barcode);
+              const group = groupMap.get(groupKey);
               group.children.push(item);
               const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
               const billableQty = item.billableQuantity !== undefined && item.billableQuantity !== '' ? Number(item.billableQuantity) : safeQty;
@@ -87,12 +91,12 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
 
           return groupedCart.map(item => {
             if (item.isGroup) {
-              const isExpanded = expandedGroups[item.barcode];
+              const isExpanded = expandedGroups[item.groupKey];
               const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
               return (
                 <React.Fragment key={item.id}>
                   {/* Parent Row */}
-                  <tr className="animate-fade-in cursor-pointer bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)]" onClick={() => toggleGroup(item.barcode)} style={{ borderBottom: isExpanded ? 'none' : '1px solid var(--border-light)' }}>
+                  <tr className="animate-fade-in cursor-pointer bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)]" onClick={() => toggleGroup(item.groupKey)} style={{ borderBottom: isExpanded ? 'none' : '1px solid var(--border-light)' }}>
                     <td className="py-4 px-3 text-center" >
                       <div className="flex items-center justify-center gap-2">
                         <span className={`text-[var(--text-secondary)] transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
@@ -125,13 +129,13 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                     <td className="p-2" onClick={e => e.stopPropagation()}>
                       <div className="relative inline-flex items-center w-full max-w-[120px] mx-auto">
                         <span className="absolute left-3 text-[11px] font-bold" style={{ color: 'var(--text-tertiary)' }}>₹</span>
-                        <input type="number" step="0.01" value={item.customPriceInput !== undefined ? (typeof item.customPriceInput === 'number' ? item.customPriceInput.toFixed(2) : item.customPriceInput) : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChangeGroup(item.barcode, e.target.value)} onBlur={() => onCustomPriceBlurGroup(item.barcode)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} MRP`} />
+                        <input type="number" step="0.01" value={item.customPriceInput !== undefined ? (typeof item.customPriceInput === 'number' ? item.customPriceInput.toFixed(2) : item.customPriceInput) : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChangeGroup(item.groupKey, e.target.value)} onBlur={() => onCustomPriceBlurGroup(item.groupKey)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} MRP`} />
                       </div>
                     </td>
                     <td className="p-2"  onClick={e => e.stopPropagation()}>
                       <div className="relative inline-flex items-center w-full max-w-[120px] mx-auto">
                         <span className="absolute left-3 text-[11px] font-bold" style={{ color: 'var(--text-tertiary)' }}>₹</span>
-                        <input type="number" step="0.01" value={item.customTotalInput !== undefined ? item.customTotalInput : item.totalPrice.toFixed(2)} onChange={(e) => onCustomTotalChangeGroup(item.barcode, e.target.value, item.totalBillableQty)} onBlur={() => onCustomPriceBlurGroup(item.barcode)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} total`} />
+                        <input type="number" step="0.01" value={item.customTotalInput !== undefined ? item.customTotalInput : item.totalPrice.toFixed(2)} onChange={(e) => onCustomTotalChangeGroup(item.groupKey, e.target.value, item.totalBillableQty)} onBlur={() => onCustomPriceBlurGroup(item.groupKey)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} total`} />
                       </div>
                     </td>
                     <td className="p-2 text-center align-middle" onClick={e => e.stopPropagation()}>

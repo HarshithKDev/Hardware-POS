@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { generateId } from '../utils';
+import { useApp } from '../AppContext';
 
 const CartContext = createContext(null);
 
@@ -10,6 +11,7 @@ export function useCart() {
 }
 
 export function CartProvider({ children, activeTab }) {
+  const { showToast } = useApp();
   const [activeCartTab, setActiveCartTab] = useState('local');
   const [cartSessions, setCartSessions] = useState(() => {
     try { const saved = localStorage.getItem(`pos_cart_sessions_${activeTab}`); return saved ? JSON.parse(saved) : { local: [] }; } catch { return { local: [] }; }
@@ -119,14 +121,18 @@ export function CartProvider({ children, activeTab }) {
     }));
   }, []);
 
-  const customPriceChangeGroup = useCallback((barcode, val) => {
+  const customPriceChangeGroup = useCallback((groupKey, val) => {
     if (val !== '' && (isNaN(val) || Number(val) < 0)) return;
-    setCart(prev => prev.map(i => (i.barcode === barcode && i.is_cuttable) ? { ...i, customPriceInput: val } : i));
+    setCart(prev => prev.map(i => {
+      const iKey = i.barcode + '_' + (i.batch_id || 'default');
+      return (iKey === groupKey && i.is_cuttable) ? { ...i, customPriceInput: val } : i;
+    }));
   }, []);
 
-  const customPriceBlurGroup = useCallback((barcode) => {
+  const customPriceBlurGroup = useCallback((groupKey) => {
     setCart(prev => prev.map(i => {
-      if (i.barcode === barcode && i.is_cuttable && (i.customPriceInput === '' || i.customPriceInput === undefined)) {
+      const iKey = i.barcode + '_' + (i.batch_id || 'default');
+      if (iKey === groupKey && i.is_cuttable && (i.customPriceInput === '' || i.customPriceInput === undefined)) {
         return { ...i, customPriceInput: i.price };
       }
       return i;
@@ -134,8 +140,15 @@ export function CartProvider({ children, activeTab }) {
   }, []);
 
   const removeItem = useCallback((id) => {
-    setCart(prev => prev.filter(i => i.id !== id));
-  }, []);
+    setCart(prev => {
+      const itemToRemove = prev.find(i => i.id === id);
+      if (itemToRemove) {
+        const listName = activeTab === 'receive' ? 'Inbound List' : activeTab === 'transfer' ? 'Transfer List' : 'Cart';
+        showToast(`${itemToRemove.name} removed from ${listName}`);
+      }
+      return prev.filter(i => i.id !== id);
+    });
+  }, [activeTab, showToast]);
 
   const calculateTotal = useCallback(() => cart.reduce((tot, i) => {
     const qty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : (i.quantity === '' ? 0 : Number(i.quantity));

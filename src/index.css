@@ -123,9 +123,7 @@
   height: 100%;
 }
 
-* {
-  font-family: var(--font-family);
-}
+
 
 html {
   font-size: 16px;
@@ -140,6 +138,7 @@ html {
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
+  font-family: var(--font-family);
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   scrollbar-width: thin;
 }
@@ -413,10 +412,12 @@ tbody tr:hover {
    --------------------------------------------------------------- */
 @media print {
   @page {
-    margin: 0 !important;
+    margin: 5px 0 0 0 !important;
   }
 
   body {
+    width: 100% !important;
+    min-width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
     -webkit-print-color-adjust: exact;
@@ -431,7 +432,8 @@ tbody tr:hover {
   #printable-receipt {
     display: block !important;
     position: static !important;
-    width: 80mm !important;
+    width: 100% !important;
+    max-width: 100% !important;
     margin: 0 !important;
     transform: none !important;
   }
@@ -441,12 +443,18 @@ tbody tr:hover {
   }
 
   .thermal-receipt {
-    width: 80mm;
-    max-width: 80mm;
+    width: 100%;
+    max-width: 100%;
     margin: 0 !important;
-    padding: 6mm 4mm 2mm 4mm;
+    padding: 0;
     page-break-after: always;
     box-sizing: border-box;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .thermal-receipt * {
+    -webkit-text-size-adjust: 100%;
+    font-family: inherit !important;
   }
 
   #printable-barcodes {
@@ -566,7 +574,19 @@ tbody tr:hover {
 .glow-accent:hover {
   box-shadow: 0 0 25px rgba(59, 130, 246, 0.5);
 }
-/* Fix for thermal receipt font inheritance */
-.thermal-receipt, .thermal-receipt * {
-  font-family: "Courier New", Courier, monospace !important;
+/* Removed forced Courier New */
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    margin-top: -20px;
+  }
+  to {
+    opacity: 1;
+    margin-top: 0;
+  }
+}
+
+.animate-fade-in-down {
+  animation: fadeInDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

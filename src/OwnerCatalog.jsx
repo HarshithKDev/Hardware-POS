@@ -82,9 +82,9 @@ export default function OwnerCatalog() {
           default_width: (itemData.item_type === 'cuttable' && itemData.unit === 'SQFT') ? (Number(itemData.default_width) || null) : null,
           billing_increment: Number(itemData.billing_increment) || 0.01,
           billing_method: itemData.billing_method || 'exact',
-          price: 0,
-          msp: 0,
-          cost_price: 0,
+          price: Number(itemData.price) || 0,
+          msp: Number(itemData.msp) || 0,
+          cost_price: Number(itemData.cost_price) || 0,
           is_active: true
         }]);
 
@@ -370,7 +370,10 @@ export default function OwnerCatalog() {
           min_quantity_store: row.min_quantity_store,
           is_active: row.is_active,
           billing_increment: 0.01,
-          billing_method: 'exact'
+          billing_method: 'exact',
+          price: Number(row.price || row.Selling_Price || 0),
+          msp: Number(row.msp || row.MSP || 0),
+          cost_price: Number(row.cost_price || row.Cost_Price || 0)
         });
       });
         

@@ -9,8 +9,8 @@ const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQ
   const { userRole } = useApp();
   const [expandedGroups, setExpandedGroups] = React.useState({});
 
-  const toggleGroup = (barcode) => {
-    setExpandedGroups(prev => ({ ...prev, [barcode]: !prev[barcode] }));
+  const toggleGroup = (groupKey) => {
+    setExpandedGroups(prev => ({ ...prev, [groupKey]: !prev[groupKey] }));
   };
   if (cart.length === 0) {
     return (
@@ -76,15 +76,19 @@ const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQ
 
   cart.forEach(item => {
     if (activeTab === 'checkout' && item.is_cuttable) {
-      if (!groupMap.has(item.barcode)) {
+      const groupKey = item.barcode + '_' + (item.batch_id || 'default');
+      if (!groupMap.has(groupKey)) {
         const group = {
           isGroup: true,
-          id: `group-${item.barcode}`,
+          id: `group-${groupKey}`,
+          groupKey: groupKey,
           barcode: item.barcode,
-          name: item.name,
+          batch_id: item.batch_id,
+          name: item.batch_number ? `${item.name} - Batch ${String(item.batch_number).padStart(2, '0')}` : item.name,
           unit: item.unit,
           price: item.price,
           msp: item.msp,
+          msp_price: item.msp_price,
           customPriceInput: item.customPriceInput !== undefined ? item.customPriceInput : item.price,
           discountPct: item.discountPct || 0,
           totalQty: 0,
@@ -92,9 +96,9 @@ const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQ
           children: []
         };
         groupedCart.push(group);
-        groupMap.set(item.barcode, group);
+        groupMap.set(groupKey, group);
       }
-      const group = groupMap.get(item.barcode);
+      const group = groupMap.get(item.barcode + '_' + (item.batch_id || 'default'));
       group.children.push(item);
       const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
       group.totalQty += safeQty;
@@ -109,11 +113,11 @@ const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQ
 
   return groupedCart.map((item) => {
     if (item.isGroup) {
-      const isExpanded = expandedGroups[item.barcode];
+      const isExpanded = expandedGroups[item.groupKey];
       return (
          <React.Fragment key={item.id}>
              {/* Parent Card */}
-             <div className="p-4 flex flex-col gap-3 animate-fade-in cursor-pointer" onClick={() => toggleGroup(item.barcode)} style={{ borderBottom: isExpanded ? 'none' : '1px solid var(--border-light)' }}>
+             <div className="p-4 flex flex-col gap-3 animate-fade-in cursor-pointer" onClick={() => toggleGroup(item.groupKey)} style={{ borderBottom: isExpanded ? 'none' : '1px solid var(--border-light)' }}>
                  <div className="flex justify-between items-start">
                      <div className="flex items-center gap-3 pr-2 flex-1">
                          <span className="text-xl font-bold" style={{ color: 'var(--text-secondary)' }}>{isExpanded ? '▼' : '▶'}</span>
