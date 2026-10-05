@@ -289,26 +289,44 @@ export default function OwnerStats({ isActive }) {
     fetchStartMs = new Date(fetchStart).getTime();
 
     // --- Sales data ---
-    const { data: billsData } = await supabase
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const deadStockStartIso = `${thirtyDaysAgo.toLocaleDateString('en-CA')}T00:00:00`;
+
+    const billsPromise = supabase
       .from('bills')
       .select('id, total_amount, created_at')
       .gte('created_at', fetchStart)
       .eq('location', 'Store')
       .neq('status', 'voided');
 
+    const dsBillsPromise = supabase
+      .from('bills')
+      .select('id')
+      .gte('created_at', deadStockStartIso)
+      .eq('location', 'Store')
+      .neq('status', 'voided');
+
+    const [{ data: billsData }, { data: dsBillsData }] = await Promise.all([billsPromise, dsBillsPromise]);
+
     let soldNames = new Set();
+    let deadStockSoldNames = new Set();
     let productStats = {};
 
     let tfTrueRevenue = 0, tfGrossProfit = 0, tfTotalCost = 0, tfTotalDiscount = 0;
     let tfSalesDetails = [];
     let topProducts = [];
 
-    if (billsData && billsData.length > 0) {
-      const billIds = billsData.map(b => b.id);
+    const allBillIds = new Set();
+    if (billsData) billsData.forEach(b => allBillIds.add(b.id));
+    if (dsBillsData) dsBillsData.forEach(b => allBillIds.add(b.id));
+
+    if (allBillIds.size > 0) {
+      const billIdArray = Array.from(allBillIds);
       const chunkSize = 100;
       const chunks = [];
-      for (let i = 0; i < billIds.length; i += chunkSize) {
-        chunks.push(billIds.slice(i, i + chunkSize));
+      for (let i = 0; i < billIdArray.length; i += chunkSize) {
+        chunks.push(billIdArray.slice(i, i + chunkSize));
       }
       const batchResults = [];
       for (const batch of chunks) {
@@ -322,11 +340,19 @@ export default function OwnerStats({ isActive }) {
       if (itemsData.length > 0) {
         let tProfitCents = 0, tCostCents = 0, tSystemRevCents = 0, tFinalRevCents = 0;
         const salesMap = {};
-        const tfBillIds = new Set(billsData.map(b => b.id));
+        const tfBillIds = new Set(billsData?.map(b => b.id) || []);
+        const dsBillIds = new Set(dsBillsData?.map(b => b.id) || []);
 
         itemsData.forEach(item => {
           const cleanName = item.name.split(' (Cut from ')[0];
-          soldNames.add(cleanName);
+          
+          if (dsBillIds.has(item.bill_id)) {
+            deadStockSoldNames.add(cleanName.trim().toLowerCase());
+          }
+
+          if (tfBillIds.has(item.bill_id)) {
+            soldNames.add(cleanName);
+          }
           const qty = Number(item.billable_quantity || item.quantity || 0);
           const price = Number(item.price_at_sale || 0);
           
@@ -358,7 +384,7 @@ export default function OwnerStats({ isActive }) {
           }
         });
 
-        const tfTotalRevCents = billsData.reduce((sum, bill) => sum + Math.round(Number(bill.total_amount || 0) * 100), 0);
+        const tfTotalRevCents = (billsData || []).reduce((sum, bill) => sum + Math.round(Number(bill.total_amount || 0) * 100), 0);
 
         tfTrueRevenue = tfTotalRevCents / 100;
         tfTotalDiscount = (tSystemRevCents - tFinalRevCents) / 100;
@@ -432,7 +458,8 @@ export default function OwnerStats({ isActive }) {
       warehouseCapital += wCap;
       storeCapital += sCap;
 
-      if (totalQty > 0 && !soldNames.has(item.name)) {
+      const inventoryItemCleanName = item.name.trim().toLowerCase();
+      if (totalQty > 0 && !deadStockSoldNames.has(inventoryItemCleanName)) {
         const itemDeadValue = wCap + sCap;
         deadStockValue += itemDeadValue;
         deadStockItems.push({ ...item, totalQty, deadValue: itemDeadValue });
