@@ -443,9 +443,9 @@ tbody tr:hover {
   }
 
   .thermal-receipt {
-    width: 100%;
-    max-width: 100%;
-    margin: 0 !important;
+    width: 302px !important;
+    max-width: 302px !important;
+    margin: 0 auto !important;
     padding: 0;
     page-break-after: always;
     box-sizing: border-box;

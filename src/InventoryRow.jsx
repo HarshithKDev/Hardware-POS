@@ -237,7 +237,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
             <input type="checkbox" checked={isSelected} onChange={() => onSelect(item.barcode)} onClick={e => e.stopPropagation()} className="w-4 h-4 rounded text-accent focus:ring-accent" />
           </td>
         )}
-        <td className="hidden md:table-cell p-3 w-28 text-sm font-semibold tracking-wider font-mono" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--color-accent)' }}>{item.barcode}</td>
+        <td className="hidden md:table-cell p-3 w-28 text-sm font-semibold tracking-wider" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--color-accent)' }}>{item.barcode}</td>
       <td className="hidden md:table-cell p-3 w-full text-sm font-medium" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
         <div className="relative flex justify-center items-center w-full min-h-[1.5rem]">
           <span className="text-center">{item.name}</span>
@@ -343,7 +343,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
                           )}
                           <div>
                             <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">Batch ID</div>
-                            <div className="text-sm font-semibold font-mono text-[var(--text-primary)]">{item.barcode}-{String(batch.batch_number || 1).padStart(2, '0')}</div>
+                            <div className="text-sm font-semibold text-[var(--text-primary)]">{item.barcode}-{String(batch.batch_number || 1).padStart(2, '0')}</div>
                           </div>
                         </div>
                         

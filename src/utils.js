@@ -73,3 +73,25 @@ export function formatDateTime(input) {
 
   return { datePart, timePart, full: `${datePart}, ${timePart}` };
 }
+
+/**
+ * Calculates the true Minimum Selling Price (MSP) of an item/batch combo.
+ * It gracefully falls back through available cost values if MSP is strictly zero or missing.
+ * 
+ * @param {Object} batch - The batch object (optional)
+ * @param {Object} item - The master product object (optional)
+ * @returns {number} The calculated MSP value
+ */
+export function calculateMSP(batch, item) {
+  const bMsp = batch && !isNaN(Number(batch.msp)) ? Number(batch.msp) : 0;
+  if (bMsp > 0) return bMsp;
+
+  const bCost = batch && !isNaN(Number(batch.purchase_cost)) ? Number(batch.purchase_cost) : 0;
+  if (bCost > 0) return bCost;
+
+  const iMsp = item && !isNaN(Number(item.msp)) ? Number(item.msp) : 0;
+  if (iMsp > 0) return iMsp;
+
+  const iCost = item && !isNaN(Number(item.cost_price)) ? Number(item.cost_price) : 0;
+  return iCost > 0 ? iCost : 0;
+}

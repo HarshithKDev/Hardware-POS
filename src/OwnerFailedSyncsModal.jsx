@@ -61,7 +61,7 @@ export default function OwnerFailedSyncsModal({ failedSyncs, onClose }) {
           ) : (
             failedSyncs.map(tx => (
               <tr key={tx.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
-                <td className="p-3 text-xs font-mono" style={{ color: 'var(--text-secondary)', borderRight: '1px solid var(--border-light)' }}>
+                <td className="p-3 text-xs " style={{ color: 'var(--text-secondary)', borderRight: '1px solid var(--border-light)' }}>
                   {formatDateTime(tx.queued_at).full}
                 </td>
                 <td className="p-3 text-sm" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>
@@ -71,7 +71,7 @@ export default function OwnerFailedSyncsModal({ failedSyncs, onClose }) {
                     {tx.p_items?.length} items ({tx.p_items?.map(i => `${i.qty}x`).join(', ')})
                   </div>
                 </td>
-                <td className="p-3 text-xs font-mono font-medium" style={{ color: 'var(--color-error)', borderRight: '1px solid var(--border-light)', whiteSpace: 'pre-wrap' }}>
+                <td className="p-3 text-xs  font-medium" style={{ color: 'var(--color-error)', borderRight: '1px solid var(--border-light)', whiteSpace: 'pre-wrap' }}>
                   {tx.error_message || 'Unknown Error'}
                 </td>
                 <td className="p-3 text-center">

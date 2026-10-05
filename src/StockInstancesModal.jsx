@@ -205,7 +205,7 @@ export default function StockInstancesModal({ isOpen, onClose, item, inline, fil
                 value={discardModal.inputBarcode} 
                 onChange={e => setDiscardModal({ ...discardModal, inputBarcode: e.target.value })} 
                 onKeyDown={e => { if (e.key === 'Enter' && discardModal.inputBarcode) confirmDiscardBarcode(); }} 
-                className="w-full h-12 px-4 text-lg font-mono focus:outline-none rounded-md transition-all focus:ring-1 focus:border-transparent" 
+                className="w-full h-12 px-4 text-lg  focus:outline-none rounded-md transition-all focus:ring-1 focus:border-transparent" 
                 style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)', '--tw-ring-color': 'var(--color-error)' }} 
                 placeholder="e.g. 1006-123456" 
               />

@@ -9,7 +9,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getInventoryItemByBarcode, queueOfflineTransaction, getInventoryByQuery, saveInventoryBatch } from './services/db';
 import { syncInventoryToLocal } from './services/sync';
 import { useApp } from './AppContext';
-import { generateId, formatDateTime } from './utils';
+import { generateId, formatDateTime, calculateMSP } from './utils';
 import { SCAN_TIMEOUT_MS } from './constants';
 
 import InlineContinuousScanner from './components/scanner/InlineContinuousScanner';
@@ -43,7 +43,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const [isMobileScannerOpen, setIsMobileScannerOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [lastReceipt, setLastReceipt] = useState(null);
-  const [checkoutModal, setCheckoutModal] = useState({ isOpen: false, cashGiven: '', negotiatedTotal: '', paymentMethod: 'CASH', splitUpi: '', splitCash: '' });
+  const [checkoutModal, setCheckoutModal] = useState({ isOpen: false, cashGiven: '', negotiatedTotal: '', paymentMethod: 'CASH', splitUpi: '', splitCash: '', error: '' });
   const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -292,9 +292,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               has_preset_width: !!item.default_width, 
               purchase_cost: Number(batch?.purchase_cost ?? (item.cost_price || 0)).toFixed(2), 
               selling_price: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2), 
-              msp_price: Number((batch && batch.msp !== undefined && batch.msp !== null) ? batch.msp : item.msp || 0).toFixed(2),
+              msp_price: Number(calculateMSP(batch, item)).toFixed(2),
               price: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2),
-              msp: Number((batch && batch.msp !== undefined && batch.msp !== null) ? batch.msp : item.msp || 0).toFixed(2)
+              msp: Number(calculateMSP(batch, item)).toFixed(2)
             }];
           });
         } else {
@@ -501,7 +501,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           length: '', width: '', rolls: '1',
           purchase_cost: Number(batch?.purchase_cost ?? (item.cost_price || 0)).toFixed(2), 
           selling_price: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2),
-          msp_price: Number((batch && batch.msp !== undefined && batch.msp !== null) ? batch.msp : item.msp || 0).toFixed(2)
+          msp_price: Number(calculateMSP(batch, item)).toFixed(2)
         }];
       });
     }
@@ -570,10 +570,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         batch_number: targetBatch ? targetBatch.batch_number : null,
         customPriceInput: Number(targetBatch ? targetBatch.selling_price : (item.price || 0)).toFixed(2),
         price: targetBatch ? targetBatch.selling_price : item.price,
-        msp: targetBatch ? targetBatch.msp : item.msp,
+        msp: calculateMSP(targetBatch, item),
         purchase_cost: Number(targetBatch && targetBatch.purchase_cost !== undefined ? targetBatch.purchase_cost : item.cost_price || 0).toFixed(2),
         selling_price: Number(targetBatch && targetBatch.selling_price !== undefined ? targetBatch.selling_price : item.price || 0).toFixed(2),
-        msp_price: Number((targetBatch && targetBatch.msp !== undefined && targetBatch.msp !== null) ? targetBatch.msp : item.msp || 0).toFixed(2),
+        msp_price: Number(calculateMSP(targetBatch, item)).toFixed(2),
         discountPct: 0,
         quantity: addQty,
         unit: item.unit || 'PCS',
@@ -611,10 +611,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         scanned_barcode: `${item.barcode}-${String(batch.batch_number).padStart(2, '0')}`,
         customPriceInput: Number(batch.selling_price || 0).toFixed(2),
         price: batch.selling_price,
-        msp: batch.msp,
+        msp: calculateMSP(batch, item),
         purchase_cost: Number(batch.purchase_cost !== undefined ? batch.purchase_cost : item.cost_price || 0).toFixed(2),
         selling_price: Number(batch.selling_price !== undefined ? batch.selling_price : item.price || 0).toFixed(2),
-        msp_price: Number((batch && batch.msp !== undefined && batch.msp !== null) ? batch.msp : item.msp || 0).toFixed(2),
+        msp_price: Number(calculateMSP(batch, item)).toFixed(2),
         batch_id: batch.batch_id,
         batch_number: batch.batch_number,
         discountPct: 0,
@@ -697,7 +697,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         customPriceInput: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2),
         purchase_cost: Number(batch?.purchase_cost ?? (item.cost_price || 0)).toFixed(2),
         selling_price: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2),
-        msp_price: Number((batch && batch.msp !== undefined && batch.msp !== null) ? batch.msp : item.msp || 0).toFixed(2),
+        msp_price: Number(calculateMSP(batch, item)).toFixed(2),
         price: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2),
         msp: Number(batch?.msp ?? (item.msp || 0)).toFixed(2)
       }, ...prev];
@@ -1006,6 +1006,38 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const handleCompleteTransaction = async () => {
     let finalCart = cart.filter(i => Number(i.quantity) > 0);
     if (finalCart.length === 0) return;
+
+    if (activeTab === 'checkout') {
+      if (checkoutModal.negotiatedTotal === '') {
+        setCheckoutModal(prev => ({ ...prev, error: "Please enter the Final Negotiated Amount. If there is no discount, enter the exact System Total." }));
+        return;
+      }
+      
+      const activeTotal = Number(checkoutModal.negotiatedTotal);
+      const activeTotalCents = Math.round(activeTotal * 100);
+
+      if (checkoutModal.paymentMethod === 'CASH') {
+        if (checkoutModal.cashGiven === '') {
+          setCheckoutModal(prev => ({ ...prev, error: "Please enter the Cash Given by the customer." }));
+          return;
+        }
+        const cashGivenCents = Math.round(Number(checkoutModal.cashGiven) * 100);
+        if (cashGivenCents < activeTotalCents) {
+          setCheckoutModal(prev => ({ ...prev, error: "Cash given is less than the total due." }));
+          return;
+        }
+      } else if (checkoutModal.paymentMethod === 'SPLIT') {
+        if (checkoutModal.splitCash === '' || checkoutModal.splitUpi === '') {
+          setCheckoutModal(prev => ({ ...prev, error: "Please enter both Cash and UPI amounts." }));
+          return;
+        }
+        const splitTotalCents = Math.round(Number(checkoutModal.splitCash) * 100) + Math.round(Number(checkoutModal.splitUpi) * 100);
+        if (splitTotalCents < activeTotalCents) {
+          setCheckoutModal(prev => ({ ...prev, error: "Split payment amounts must equal or exceed the total due." }));
+          return;
+        }
+      }
+    }
 
     // --- APPLY CART-LEVEL NEGOTIATED TOTAL DISCOUNT (Proportional) ---
     if (activeTab === 'checkout' && checkoutModal.negotiatedTotal !== '') {
@@ -1487,7 +1519,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   <span>Final Negotiated Amount (₹)</span>
                   <span className="opacity-70 font-normal">System: ₹{cartTotal.toFixed(2)}</span>
                 </label>
-                <input id="negotiated-total" type="number" step="any" min="0" autoFocus value={checkoutModal.negotiatedTotal} onChange={(e) => { const v = parseFloat(e.target.value); setCheckoutModal({ ...checkoutModal, negotiatedTotal: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder={`e.g. ${Math.floor(cartTotal)}`} className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <input id="negotiated-total" type="number" step="any" min="0" autoFocus value={checkoutModal.negotiatedTotal} onChange={(e) => { const v = parseFloat(e.target.value); setCheckoutModal({ ...checkoutModal, error: '', negotiatedTotal: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder={`e.g. ${Math.floor(cartTotal)}`} className="w-full h-12 px-4 text-2xl  focus:outline-none rounded-md" style={{ border: checkoutModal.error ? '1px solid var(--color-error)' : '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                 {checkoutModal.negotiatedTotal !== '' && Number(checkoutModal.negotiatedTotal) < minPossibleTotal && cashierName !== 'admin' && (
                   <p className="text-xs font-bold mt-2" style={{ color: 'var(--color-error)' }}>
                     Warning: Cannot discount below minimum selling limit (₹{minPossibleTotal.toFixed(2)}). The final bill will automatically be clamped.
@@ -1501,7 +1533,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   {['CASH', 'UPI', 'SPLIT'].map((method) => (
                     <button
                       key={method}
-                      onClick={() => setCheckoutModal({ ...checkoutModal, paymentMethod: method })}
+                      onClick={() => setCheckoutModal({ ...checkoutModal, paymentMethod: method, error: '' })}
                       className={`flex-1 h-10 text-sm font-bold uppercase tracking-wider rounded-md transition-colors ${checkoutModal.paymentMethod === method ? 'text-white' : ''}`}
                       style={{ 
                         backgroundColor: checkoutModal.paymentMethod === method ? 'var(--color-accent)' : 'var(--bg-tertiary)',
@@ -1517,7 +1549,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                 {checkoutModal.paymentMethod === 'CASH' && (
                   <div>
                     <label htmlFor="cash-given" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Cash Given (₹)</label>
-                    <input id="cash-given" type="number" step="any" min="0" value={checkoutModal.cashGiven} onChange={(e) => { const v = parseFloat(e.target.value); setCheckoutModal({ ...checkoutModal, cashGiven: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder="0.00" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                    <input id="cash-given" type="number" step="any" min="0" value={checkoutModal.cashGiven} onChange={(e) => { const v = parseFloat(e.target.value); setCheckoutModal({ ...checkoutModal, error: '', cashGiven: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder="0.00" className="w-full h-12 px-4 text-2xl  focus:outline-none rounded-md" style={{ border: checkoutModal.error ? '1px solid var(--color-error)' : '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                   </div>
                 )}
                 
@@ -1525,11 +1557,11 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   <div className="flex gap-4">
                     <div className="flex-1">
                       <label htmlFor="split-upi" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>UPI (₹)</label>
-                      <input id="split-upi" type="number" step="any" min="0" value={checkoutModal.splitUpi} onChange={(e) => { const v = parseFloat(e.target.value); setCheckoutModal({ ...checkoutModal, splitUpi: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder="0.00" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                      <input id="split-upi" type="number" step="any" min="0" value={checkoutModal.splitUpi} onChange={(e) => { const v = parseFloat(e.target.value); setCheckoutModal({ ...checkoutModal, error: '', splitUpi: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder="0.00" className="w-full h-12 px-4 text-2xl  focus:outline-none rounded-md" style={{ border: checkoutModal.error ? '1px solid var(--color-error)' : '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                     </div>
                     <div className="flex-1">
                       <label htmlFor="split-cash" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Cash (₹)</label>
-                      <input id="split-cash" type="number" step="any" min="0" value={checkoutModal.splitCash} onChange={(e) => { const v = parseFloat(e.target.value); setCheckoutModal({ ...checkoutModal, splitCash: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder="0.00" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                      <input id="split-cash" type="number" step="any" min="0" value={checkoutModal.splitCash} onChange={(e) => { const v = parseFloat(e.target.value); setCheckoutModal({ ...checkoutModal, error: '', splitCash: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder="0.00" className="w-full h-12 px-4 text-2xl  focus:outline-none rounded-md" style={{ border: checkoutModal.error ? '1px solid var(--color-error)' : '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                     </div>
                   </div>
                 )}
@@ -1544,9 +1576,16 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                 </div>
               )}
             </div>
+            <div className="px-4 pb-2" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+              {checkoutModal.error && (
+                <p className="text-sm font-bold text-center" style={{ color: 'var(--color-error)' }}>
+                  {checkoutModal.error}
+                </p>
+              )}
+            </div>
             <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
               <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} disabled={isCheckingOut} className="min-h-[44px] md:min-h-0 md:h-10 px-8 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md text-white transition-colors bg-[var(--color-error)] hover:bg-red-600">Cancel</button>
-              <button onClick={handleCompleteTransaction} disabled={isCheckingOut || isShortfall} className="min-h-[44px] md:min-h-0 md:h-10 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 flex justify-center items-center min-w-[120px]" style={{ backgroundColor: 'var(--color-accent)' }}>
+              <button onClick={handleCompleteTransaction} disabled={isCheckingOut} className="min-h-[44px] md:min-h-0 md:h-10 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 flex justify-center items-center min-w-[120px]" style={{ backgroundColor: 'var(--color-accent)' }}>
                 {isCheckingOut ? <Spinner className="w-4 h-4 text-white" /> : 'Complete Sale'}
               </button>
             </div>
@@ -1582,11 +1621,11 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                  >
                    <div>
                      <div className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>₹{Number(batch.selling_price).toFixed(2)}</div>
-                     <div className="text-xs uppercase tracking-wider mt-1 group/msp cursor-help" style={{ color: 'var(--text-tertiary)' }}>MSP: {userRole === 'owner' ? `₹${Number(batch.msp || 0).toFixed(2)}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{Number(batch.msp || 0).toFixed(2)}</span></span>}</div>
+                     <div className="text-xs uppercase tracking-wider mt-1 group/msp cursor-help" style={{ color: 'var(--text-tertiary)' }}>MSP: {userRole === 'owner' ? `₹${Number(calculateMSP(batch, selectBatchModal.item)).toFixed(2)}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{Number(calculateMSP(batch, selectBatchModal.item)).toFixed(2)}</span></span>}</div>
                    </div>
                    <div className="text-right">
                      <div className="flex items-center justify-end gap-3">
-                       <p className="text-xs font-mono" style={{ color: 'var(--color-accent)' }}>#{selectBatchModal.item.barcode}-{String(batch.batch_number).padStart(2,'0')}</p>
+                       <p className="text-xs " style={{ color: 'var(--color-accent)' }}>#{selectBatchModal.item.barcode}-{String(batch.batch_number).padStart(2,'0')}</p>
                        <div className="text-sm font-bold" style={{ color: 'var(--color-accent)' }}>{activeTab === 'receive' ? batch.stock_warehouse : batch[stockField]} {selectBatchModal.item.unit}</div>
                      </div>
                      <div className="text-xs uppercase tracking-wider mt-1" style={{ color: 'var(--text-tertiary)' }}>In {activeTab === 'checkout' ? 'Store' : 'Warehouse'}</div>
@@ -1620,7 +1659,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               <div className="p-6">
                 <p className="text-sm mb-4 font-semibold">{looseItemModal.item?.name}</p>
                 <label htmlFor="loose-qty" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Enter Quantity</label>
-                <input id="loose-qty" type="number" step="any" min="0" autoFocus value={looseItemModal.qty} onChange={(e) => { const v = parseFloat(e.target.value); setLooseItemModal({ ...looseItemModal, qty: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder="0" className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <input id="loose-qty" type="number" step="any" min="0" autoFocus value={looseItemModal.qty} onChange={(e) => { const v = parseFloat(e.target.value); setLooseItemModal({ ...looseItemModal, qty: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder="0" className="w-full h-12 px-4 text-2xl  focus:outline-none rounded-md" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
               </div>
               <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
                 <button type="submit" disabled={!looseItemModal.qty} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50" style={{ backgroundColor: 'var(--color-accent)' }}>Add to Cart</button>
@@ -1713,7 +1752,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                       className={`p-3 text-left border border-[var(--border-medium)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] transition-colors flex justify-between items-center focus:outline-none rounded-md focus:border-[var(--color-accent)] ${isAlreadyInCartTransfer ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
                     >
                       <div className="flex flex-col items-start">
-                        <span className="font-mono text-xs font-bold" style={{ color: 'var(--color-accent)' }}>#{inst.instance_barcode}</span>
+                        <span className=" text-xs font-bold" style={{ color: 'var(--color-accent)' }}>#{inst.instance_barcode}</span>
                         <span className="text-xs font-bold mt-0.5" style={{ color: 'var(--text-tertiary)' }}>MRP: ₹{Number(sellingPrice).toFixed(2)}</span>
                       </div>
                       <span className="text-sm font-bold text-[var(--text-primary)]">
@@ -1745,7 +1784,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             <form onSubmit={handleReceiveLengthSubmit} className="p-6">
               <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>What is the standard length of each <strong>{receiveLengthModal.item?.name}</strong> piece?</p>
               <div className="mb-6">
-                <input type="number" autoFocus step="any" min="0" value={receiveLengthModal.length} onChange={e => { const v = parseFloat(e.target.value); setReceiveLengthModal({ ...receiveLengthModal, length: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder={`Length (${receiveLengthModal.item?.unit})`} className="w-full h-12 px-4 text-xl font-mono focus:outline-none rounded-md" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <input type="number" autoFocus step="any" min="0" value={receiveLengthModal.length} onChange={e => { const v = parseFloat(e.target.value); setReceiveLengthModal({ ...receiveLengthModal, length: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder={`Length (${receiveLengthModal.item?.unit})`} className="w-full h-12 px-4 text-xl  focus:outline-none rounded-md" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
               </div>
               <div className="flex justify-end gap-3">
                 <button type="submit" disabled={!receiveLengthModal.length} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 transition-colors hover:brightness-110" style={{ backgroundColor: 'var(--color-accent)' }}>Add to Cart</button>
@@ -1774,7 +1813,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   style={{ border: '1px solid var(--border-input)' }}
                   onClick={() => document.getElementById('instance_barcode_input')?.focus()}
                 >
-                  <span className="text-lg font-mono font-bold text-[var(--text-tertiary)] select-none whitespace-nowrap mr-0.5">
+                  <span className="text-lg  font-bold text-[var(--text-tertiary)] select-none whitespace-nowrap mr-0.5">
                     {manualInstanceBarcodeModal.prefix}
                   </span>
                   <input 
@@ -1785,7 +1824,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                     onChange={e => setManualInstanceBarcodeModal({ ...manualInstanceBarcodeModal, barcodeInput: e.target.value.replace(/[^0-9]/g, ''), error: null })} 
                     placeholder="01" 
                     maxLength={2} 
-                    className="flex-1 bg-transparent !text-lg font-mono font-bold uppercase p-0 m-0 w-full placeholder:opacity-40 focus:outline-none focus:ring-0 focus:border-transparent !border-none !outline-none !ring-0" 
+                    className="flex-1 bg-transparent !text-lg  font-bold uppercase p-0 m-0 w-full placeholder:opacity-40 focus:outline-none focus:ring-0 focus:border-transparent !border-none !outline-none !ring-0" 
                     style={{ color: 'var(--text-primary)', boxShadow: 'none' }}
                   />
                 </div>
@@ -1816,7 +1855,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
             <form onSubmit={handleCutLengthSubmit}>
               <div className="p-6">
-                <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>How much of <strong style={{ color: 'var(--color-accent)' }}>{cutLengthModal.item?.name}</strong> are you cutting from piece <strong className="font-mono text-[var(--text-primary)]">#{cutLengthModal.instance?.instance_barcode}</strong>?</p>
+                <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>How much of <strong style={{ color: 'var(--color-accent)' }}>{cutLengthModal.item?.name}</strong> are you cutting from piece <strong className=" text-[var(--text-primary)]">#{cutLengthModal.instance?.instance_barcode}</strong>?</p>
 
                 <p className="text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                   Current Piece: {(() => {
@@ -1837,7 +1876,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                     const max = Number(cutLengthModal.instance?.current_length);
                     const isSmallScrap = !isNaN(numVal) && !isNaN(max) && (max - numVal < 1) && (max - numVal > 0);
                     setCutLengthModal({ ...cutLengthModal, cutQty: val, discardScrap: isSmallScrap });
-                  }} className="w-full h-12 px-4 text-2xl font-mono focus:outline-none rounded-md" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} placeholder="0" />
+                  }} className="w-full h-12 px-4 text-2xl  focus:outline-none rounded-md" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} placeholder="0" />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold uppercase" style={{ color: 'var(--text-tertiary)' }}>{cutLengthModal.item?.unit === 'SQFT' ? 'ft' : cutLengthModal.item?.unit}</span>
                 </div>
 
@@ -2000,7 +2039,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                         }}
                       >
                         <span className="truncate pr-2 font-medium" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
-                        <span className="text-[10px] font-mono whitespace-nowrap self-center px-1.5 py-0.5 rounded-sm" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)' }}>#{item.barcode}</span>
+                        <span className="text-[10px]  whitespace-nowrap self-center px-1.5 py-0.5 rounded-sm" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)' }}>#{item.barcode}</span>
                       </li>
                     ))}
                   </ul>
@@ -2067,7 +2106,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               )}
             </div>
             <button
-              onClick={() => activeTab === 'checkout' ? setCheckoutModal({ isOpen: true, cashGiven: '', negotiatedTotal: '' }) : handleCompleteTransaction()}
+              onClick={() => activeTab === 'checkout' ? setCheckoutModal(prev => ({ ...prev, isOpen: true, cashGiven: '', negotiatedTotal: '', error: '', paymentMethod: 'CASH', splitUpi: '', splitCash: '' })) : handleCompleteTransaction()}
               className="w-full md:w-auto min-h-[44px] md:min-h-0 md:h-10 px-10 text-white text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md focus:ring-2 focus:ring-offset-1 flex justify-center items-center"
               style={{ backgroundColor: 'var(--color-accent)', border: '1px solid transparent' }}
             >

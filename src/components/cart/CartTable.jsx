@@ -104,7 +104,7 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                             <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                           </svg>
                         </span>
-                        <p className="text-sm font-mono font-bold" style={{ color: 'var(--color-accent)' }}>{item.barcode}</p>
+                        <p className="text-sm  font-bold" style={{ color: 'var(--color-accent)' }}>{item.barcode}</p>
                       </div>
                     </td>
                     <td className="py-4 px-3 text-center" >
@@ -156,7 +156,7 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                             <svg className="w-4 h-4" style={{ color: 'var(--border-heavy)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5v8a2 2 0 002 2h7M14 11l4 4-4 4" />
                             </svg>
-                            <span className="text-xs font-mono font-bold" style={{ color: 'var(--text-tertiary)' }}>{child.instance_barcode || 'Unknown'}</span>
+                            <span className="text-xs  font-bold" style={{ color: 'var(--text-tertiary)' }}>{child.instance_barcode || 'Unknown'}</span>
                           </div>
                         </td>
                         <td className="py-4 px-3 text-center" >
@@ -199,7 +199,7 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
             const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
             return (
               <tr key={item.id} className="animate-fade-in" style={{ borderBottom: '1px solid var(--border-light)' }}>
-                <td className="py-4 px-3 text-center font-mono text-sm font-bold" style={{ color: 'var(--color-accent)' }}>
+                <td className="py-4 px-3 text-center  text-sm font-bold" style={{ color: 'var(--color-accent)' }}>
                   {item.scanned_barcode && item.scanned_barcode.includes('-') ? item.scanned_barcode : (item.batch_number ? `${item.barcode}-${String(item.batch_number).padStart(2, '0')}` : item.scanned_barcode || item.instance_barcode || item.barcode)}
                 </td>
                 <td className="py-4 px-3 text-center" >

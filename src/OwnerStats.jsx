@@ -686,7 +686,7 @@ export default function OwnerStats({ isActive }) {
                     <tbody>
                       {activeModal === 'low-store' && lowStoreItems.map(item => (
                         <tr key={item.barcode} style={{ borderBottom: '1px solid var(--border-light)' }}>
-                          <td className="p-3 text-sm font-mono" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{item.barcode}</td>
+                          <td className="p-3 text-sm " style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{item.barcode}</td>
                           <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
                           <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--text-tertiary)', borderRight: '1px solid var(--border-light)' }}>{item.min_quantity_store ?? 10}</td>
                           <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-error)' }}>{item.stock_store}</td>
@@ -694,7 +694,7 @@ export default function OwnerStats({ isActive }) {
                       ))}
                       {activeModal === 'low-warehouse' && lowWarehouseItems.map(item => (
                         <tr key={item.barcode} style={{ borderBottom: '1px solid var(--border-light)' }}>
-                          <td className="p-3 text-sm font-mono" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{item.barcode}</td>
+                          <td className="p-3 text-sm " style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{item.barcode}</td>
                           <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
                           <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--text-tertiary)', borderRight: '1px solid var(--border-light)' }}>{item.min_quantity_warehouse ?? 50}</td>
                           <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-error)' }}>{item.stock_warehouse}</td>
@@ -705,7 +705,7 @@ export default function OwnerStats({ isActive }) {
                       )}
                       {activeModal === 'dead-stock' && deadStockItems.map(item => (
                         <tr key={item.barcode} style={{ borderBottom: '1px solid var(--border-light)' }}>
-                          <td className="p-3 text-sm font-mono" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{item.barcode}</td>
+                          <td className="p-3 text-sm " style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{item.barcode}</td>
                           <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
                           <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-warning)', borderRight: '1px solid var(--border-light)' }}>{item.totalQty}</td>
                           <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-error)' }}>₹{item.deadValue.toFixed(2)}</td>

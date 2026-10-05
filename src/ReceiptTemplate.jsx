@@ -13,17 +13,17 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
     >
       <style>{`@media print { @page { margin: 0; } body { min-width: 100% !important; } }`}</style>
       <div className="text-center mb-3">
-        <h1 className="font-bold uppercase text-black whitespace-pre-line mx-auto break-words" style={{ color: '#000', fontSize: '14px' }}>
+        <h1 className="font-bold uppercase text-black whitespace-pre-line mx-auto break-words" style={{ color: '#000', fontSize: '16px' }}>
           {(shopSettings?.shop_name || 'STORE RECEIPT').replace(/ AND DECOR/i, ' AND\nDECOR')}
         </h1>
         {shopSettings?.shop_address && (
-          <p className="mt-1 text-black whitespace-pre-line" style={{ color: '#000', fontSize: '9px' }}>
+          <p className="mt-1 text-black whitespace-pre-line" style={{ color: '#000', fontSize: '10px' }}>
             {shopSettings.shop_address}
           </p>
         )}
       </div>
       
-      <div className="mb-3 flex justify-between border-b border-black border-dashed pb-2 text-black" style={{ color: '#000', fontSize: '9px' }}>
+      <div className="mb-3 flex justify-between border-b border-black border-dashed pb-2 text-black" style={{ color: '#000', fontSize: '12px' }}>
         <div>
           <p>Txn ID: {lastReceipt.id}</p>
           <p>Date: {formatDateTime(lastReceipt.date).datePart}</p>
@@ -34,23 +34,23 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
         </div>
       </div>
       
-      <table className="w-full table-fixed mb-3 text-black" style={{ color: '#000', fontSize: '9px' }}>
+      <table className="w-full table-fixed mb-3 text-black" style={{ color: '#000', fontSize: '10px' }}>
         <thead>
           <tr className="border-b border-black border-dashed">
-            <th className="text-left font-semibold pb-1 w-[35%] text-black" style={{ color: '#000' }}>Item</th>
-            <th className="text-center font-semibold pb-1 w-[15%] text-black" style={{ color: '#000' }}>Qty</th>
-            <th className="text-right font-semibold pb-1 w-[15%] text-black" style={{ color: '#000' }}>MRP</th>
-            <th className="text-right font-semibold pb-1 w-[15%] text-black" style={{ color: '#000' }}>Rate</th>
-            <th className="text-right font-semibold pb-1 w-[20%] text-black" style={{ color: '#000' }}>Amt</th>
+            <th className="text-left font-semibold pb-1 w-4/12 text-black" style={{ color: '#000' }}>Item</th>
+            <th className="text-center font-semibold pb-1 w-2/12 text-black" style={{ color: '#000' }}>Qty</th>
+            <th className="text-center font-semibold pb-1 w-2/12 pr-1 text-black" style={{ color: '#000' }}>MRP</th>
+            <th className="text-center font-semibold pb-1 w-2/12 pr-1 text-black" style={{ color: '#000' }}>Rate</th>
+            <th className="text-center font-semibold pb-1 w-2/12 text-black" style={{ color: '#000' }}>Amt</th>
           </tr>
         </thead>
         <tbody className="align-top">
           {lastReceipt.items.map((item, i) => (
             <tr key={i} className="hover:!bg-transparent">
-              <td className="py-1 pr-1 break-words text-black" style={{ color: '#000' }}>{item.name}</td>
+              <td className="py-1 pr-1 text-black overflow-hidden whitespace-nowrap" style={{ color: '#000', textOverflow: 'ellipsis' }}>{item.name}</td>
               <td className="py-1 text-center text-black" style={{ color: '#000' }}>{item.quantity} {item.unit}</td>
-              <td className="py-1 text-right text-black" style={{ color: '#000' }}>{item.mrp.toFixed(2)}</td>
-              <td className="py-1 text-right text-black" style={{ color: '#000' }}>{item.finalRate.toFixed(2)}</td>
+              <td className="py-1 text-right pr-1 text-black" style={{ color: '#000' }}>{item.mrp.toFixed(2)}</td>
+              <td className="py-1 text-right pr-1 text-black" style={{ color: '#000' }}>{item.finalRate.toFixed(2)}</td>
               <td className="py-1 text-right text-black" style={{ color: '#000' }}>{item.lineTotal.toFixed(2)}</td>
             </tr>
           ))}
@@ -58,12 +58,12 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
       </table>
       
       <div className="border-t border-black pt-2 flex justify-between items-center mb-2 text-black" style={{ color: '#000' }}>
-        <span className="font-bold" style={{ fontSize: '10px' }}>NET DUE</span>
-        <span className="font-bold" style={{ fontSize: '14px' }}>₹{lastReceipt.total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+        <span className="font-bold" style={{ fontSize: '14px' }}>NET DUE</span>
+        <span className="font-bold" style={{ fontSize: '16px' }}>₹{lastReceipt.total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
       </div>
 
       {lastReceipt.paymentMethod && (
-        <div className="flex justify-between items-center mb-2 text-black" style={{ color: '#000', fontSize: '9px' }}>
+        <div className="flex justify-between items-center mb-2 text-black" style={{ color: '#000', fontSize: '12px' }}>
           <span className="font-semibold">PAID VIA</span>
           <span className="font-bold">
             {lastReceipt.paymentMethod === 'SPLIT' 
@@ -75,13 +75,13 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
       
       {totalSavings > 0 && (
         <div className="text-center mt-2 pb-2 border-b border-black border-dashed text-black" style={{ color: '#000' }}>
-          <p className="font-bold" style={{ fontSize: '10px' }}>You saved {totalSavings.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} Rs</p>
+          <p className="font-bold" style={{ fontSize: '12px' }}>You saved {totalSavings.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} Rs</p>
         </div>
       )}
       
       {shopSettings?.upi_id && lastReceipt.paymentMethod !== 'CASH' && (
         <div className="flex flex-col items-center justify-center mt-3 pb-3 border-b border-black border-dashed text-black" style={{ color: '#000' }}>
-          <p className="font-bold mb-1" style={{ fontSize: '8px' }}>Scan to Pay via UPI</p>
+          <p className="font-bold mb-1" style={{ fontSize: '10px' }}>Scan to Pay via UPI</p>
           <QRCodeSVG 
             value={`upi://pay?pa=${shopSettings.upi_id}&pn=${encodeURIComponent(shopSettings.shop_name || 'Store')}&am=${lastReceipt.paymentMethod === 'SPLIT' ? Number(lastReceipt.upiAmount || 0).toFixed(2) : lastReceipt.total.toFixed(2)}&cu=INR`} 
             size={100}
@@ -91,7 +91,7 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
         </div>
       )}
       
-      <div className="text-center pt-2 mt-2 text-black" style={{ color: '#000', fontSize: '8px' }}>
+      <div className="text-center pt-2 mt-2 text-black" style={{ color: '#000', fontSize: '10px' }}>
         <p>Thank You For Your Business!</p>
         <p>Goods once sold will not be taken back.</p>
       </div>

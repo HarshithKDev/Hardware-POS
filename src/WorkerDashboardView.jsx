@@ -216,7 +216,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
                 <tr className="border-none"><td colSpan="5" className="h-full p-0 border-none"><EmptyState message="No items found." /></td></tr>
               ) : paginatedInventory.map(item => (
                 <tr key={item.id} className="transition-colors hover:bg-[var(--bg-hover)] text-center" style={{ borderBottom: '1px solid var(--border-light)' }}>
-                  <td className="p-1.5 md:p-3 font-semibold tracking-wider font-mono truncate align-middle" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{item.barcode}</td>
+                  <td className="p-1.5 md:p-3 font-semibold tracking-wider  truncate align-middle" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{item.barcode}</td>
                   <td className="p-1.5 md:p-3 font-medium leading-tight break-words align-middle" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
                   <td className="p-1.5 md:p-3 align-middle" style={{ borderRight: '1px solid var(--border-light)' }}>₹{Number(item.price).toFixed(2)}</td>
                   <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: item.stock_warehouse < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.stock_warehouse}</td>
@@ -259,7 +259,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
                     <div key={item.id} className="p-3 border flex justify-between items-center shadow-sm" style={{ borderColor: 'var(--border-light)', backgroundColor: 'var(--bg-primary)' }}>
                       <div className="flex flex-col gap-1">
                         <span className="font-bold text-sm leading-tight" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
-                        <span className="font-mono text-[10px] bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded-sm self-start" style={{ color: 'var(--color-accent)' }}>#{item.barcode}</span>
+                        <span className=" text-[10px] bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded-sm self-start" style={{ color: 'var(--color-accent)' }}>#{item.barcode}</span>
                       </div>
                       <div className="flex flex-col items-end">
                         <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Current Stock</span>

@@ -3,7 +3,7 @@ import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { getInventoryItemByBarcode } from './services/db';
 import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
-import { generateId } from './utils';
+import { generateId, calculateMSP } from './utils';
 
 export default function WorkerScanner({ cashierName }) {
   const { showAlert, userRole } = useApp();
@@ -253,7 +253,7 @@ export default function WorkerScanner({ cashierName }) {
             batch_id: instanceBatchId,
             purchase_cost: batch ? batch.purchase_cost : (item.cost_price || 0),
             selling_price: batch ? batch.selling_price : (item.price || 0),
-            msp_price: (batch && batch.msp) ? batch.msp : (item.msp || 0),
+            msp_price: calculateMSP(batch, item),
             name: isInstance ? `${item.name} (Piece #${instanceBarcodeSuffix})` : item.name,
             length: isInstance ? instLength : '', 
             width: isInstance ? (item.default_width || '') : '', 

@@ -24,7 +24,7 @@ const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQ
         <div className="flex justify-between items-start mb-4 gap-4">
           <div className="flex flex-col flex-1">
             <span className="font-bold text-xl leading-tight" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
-            {item.instance_barcode && <span className="font-mono text-sm mt-1" style={{ color: 'var(--color-accent)' }}>Piece #{item.instance_barcode}</span>}
+            {item.instance_barcode && <span className=" text-sm mt-1" style={{ color: 'var(--color-accent)' }}>Piece #{item.instance_barcode}</span>}
           </div>
           <button 
             onClick={() => onRemoveItem(item.id)} 
@@ -155,7 +155,7 @@ const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQ
                          <div className="flex justify-between items-center pl-2">
                              <div className="flex items-center gap-2">
                                  <span className="text-sm font-bold text-[var(--border-medium)]" style={{ color: 'var(--text-tertiary)' }}>↳</span>
-                                 <span className="text-xs font-mono font-bold" style={{ color: 'var(--text-secondary)' }}>Piece #{child.instance_barcode || 'Unknown'}</span>
+                                 <span className="text-xs  font-bold" style={{ color: 'var(--text-secondary)' }}>Piece #{child.instance_barcode || 'Unknown'}</span>
                              </div>
                              <button type="button" onClick={() => onRemoveItem(child.id)} className="p-1 rounded transition-colors focus:outline-none" style={{ color: 'var(--text-secondary)' }} aria-label={`Remove piece`}>✕</button>
                          </div>
