@@ -406,7 +406,7 @@ export default function OwnerStats({ isActive }) {
     const invPages = [];
     for (let i = 0; i < pageCount; i++) {
        const res = await supabase.from('product_master')
-          .select('barcode, name, price, cost_price, stock_warehouse, stock_store, min_quantity_warehouse, min_quantity_store, inventory_batches(stock_warehouse, stock_store, purchase_cost, is_active)')
+          .select('barcode, name, price, cost_price, is_cuttable, stock_warehouse, stock_store, min_quantity_warehouse, min_quantity_store, inventory_batches(stock_warehouse, stock_store, purchase_cost, is_active), stock_instances(location, current_length, is_active)')
           .eq('is_active', true)
           .range(i * pageSize, (i + 1) * pageSize - 1);
        invPages.push(res);
@@ -424,7 +424,21 @@ export default function OwnerStats({ isActive }) {
       let wCap = 0;
       let sCap = 0;
       
-      if (item.inventory_batches && item.inventory_batches.length > 0) {
+      if (item.is_cuttable && item.stock_instances) {
+        item.stock_instances.forEach(inst => {
+          if (inst.is_active !== false) {
+             const len = Number(inst.current_length || 0);
+             const cost = Number(item.cost_price || item.price * 0.7);
+             if (inst.location === 'Store') {
+               sQty += len;
+               sCap += len * cost;
+             } else {
+               wQty += len;
+               wCap += len * cost;
+             }
+          }
+        });
+      } else if (item.inventory_batches && item.inventory_batches.length > 0) {
         item.inventory_batches.forEach(b => {
           if (b.is_active) {
             const bWQty = Number(b.stock_warehouse || 0);
@@ -711,6 +725,9 @@ export default function OwnerStats({ isActive }) {
                       </tr>
                     </thead>
                     <tbody>
+                      {activeModal === 'low-store' && lowStoreItems.length === 0 && (
+                        <tr><td colSpan="4" className="h-[50vh] align-middle text-center text-sm font-semibold" style={{ color: 'var(--color-success)' }}>Nothing in low stock.</td></tr>
+                      )}
                       {activeModal === 'low-store' && lowStoreItems.map(item => (
                         <tr key={item.barcode} style={{ borderBottom: '1px solid var(--border-light)' }}>
                           <td className="p-3 text-sm " style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{item.barcode}</td>
@@ -719,6 +736,9 @@ export default function OwnerStats({ isActive }) {
                           <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-error)' }}>{item.stock_store}</td>
                         </tr>
                       ))}
+                      {activeModal === 'low-warehouse' && lowWarehouseItems.length === 0 && (
+                        <tr><td colSpan="4" className="h-[50vh] align-middle text-center text-sm font-semibold" style={{ color: 'var(--color-success)' }}>Nothing in low stock.</td></tr>
+                      )}
                       {activeModal === 'low-warehouse' && lowWarehouseItems.map(item => (
                         <tr key={item.barcode} style={{ borderBottom: '1px solid var(--border-light)' }}>
                           <td className="p-3 text-sm " style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{item.barcode}</td>
