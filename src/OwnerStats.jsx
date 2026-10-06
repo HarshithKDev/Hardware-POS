@@ -406,7 +406,7 @@ export default function OwnerStats({ isActive }) {
     const invPages = [];
     for (let i = 0; i < pageCount; i++) {
        const res = await supabase.from('product_master')
-          .select('barcode, name, price, cost_price, is_cuttable, stock_warehouse, stock_store, min_quantity_warehouse, min_quantity_store, inventory_batches(stock_warehouse, stock_store, purchase_cost, is_active), stock_instances(location, current_length, is_active)')
+          .select('barcode, name, price, cost_price, is_cuttable, stock_warehouse, stock_store, min_quantity_warehouse, min_quantity_store, inventory_batches(stock_warehouse, stock_store, purchase_cost, is_active)')
           .eq('is_active', true)
           .range(i * pageSize, (i + 1) * pageSize - 1);
        invPages.push(res);
@@ -424,21 +424,7 @@ export default function OwnerStats({ isActive }) {
       let wCap = 0;
       let sCap = 0;
       
-      if (item.is_cuttable && item.stock_instances) {
-        item.stock_instances.forEach(inst => {
-          if (inst.is_active !== false) {
-             const len = Number(inst.current_length || 0);
-             const cost = Number(item.cost_price || item.price * 0.7);
-             if (inst.location === 'Store') {
-               sQty += len;
-               sCap += len * cost;
-             } else {
-               wQty += len;
-               wCap += len * cost;
-             }
-          }
-        });
-      } else if (item.inventory_batches && item.inventory_batches.length > 0) {
+      if (item.inventory_batches && item.inventory_batches.length > 0) {
         item.inventory_batches.forEach(b => {
           if (b.is_active) {
             const bWQty = Number(b.stock_warehouse || 0);
