@@ -459,7 +459,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           const locationName = currentTab === 'transfer' ? 'warehouse' : 'store';
           const totalStock = availableBatches.length === 1 ? Number(autoSelectedBatch[stockField]) : (item.batches ? item.batches.reduce((sum, b) => sum + Number(b[stockField]), 0) : Number(item[stockField] || 0));
           
-          const currentCartItem = cartRef.current.find(c => c.barcode === cleanBarcode && (!autoSelectedBatch || c.batch_id === autoSelectedBatch.batch_id));
+          const currentCartItem = cartRef.current.find(c => c.barcode === item.barcode && (!autoSelectedBatch || c.batch_id === autoSelectedBatch.batch_id));
           const currentQty = currentCartItem ? (Number(currentCartItem.quantity) || 0) : 0;
           
           if (totalStock <= 0) return showAlertRef.current(`${item.name} is out of stock in the ${locationName}.`, "Out of Stock");
@@ -478,7 +478,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         const msp = batch?.msp ?? item.msp;
         const batchId = batch ? batch.batch_id : null;
         
-        const idx = prev.findIndex(c => c.barcode === cleanBarcode && c.batch_id === batchId);
+        const idx = prev.findIndex(c => c.barcode === item.barcode && c.batch_id === batchId);
         if (idx >= 0) { 
           const up = [...prev]; 
           up[idx] = { ...up[idx], quantity: (Number(up[idx].quantity) || 0) + 1, billableQuantity: (Number(up[idx].quantity) || 0) + 1 }; 
