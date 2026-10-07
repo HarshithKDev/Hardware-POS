@@ -1546,35 +1546,20 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   ))}
                 </div>
 
-                {checkoutModal.paymentMethod === 'CASH' && (
-                  <div>
-                    <label htmlFor="cash-given" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Cash Given (₹)</label>
-                    <input id="cash-given" type="number" step="any" min="0" value={checkoutModal.cashGiven} onChange={(e) => { const v = parseFloat(e.target.value); setCheckoutModal({ ...checkoutModal, error: '', cashGiven: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder="0.00" className="w-full h-12 px-4 text-2xl  focus:outline-none rounded-md" style={{ border: checkoutModal.error ? '1px solid var(--color-error)' : '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-                  </div>
-                )}
-                
+
                 {checkoutModal.paymentMethod === 'SPLIT' && (
                   <div className="flex gap-4">
                     <div className="flex-1">
                       <label htmlFor="split-upi" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>UPI (₹)</label>
-                      <input id="split-upi" type="number" step="any" min="0" value={checkoutModal.splitUpi} onChange={(e) => { const v = parseFloat(e.target.value); setCheckoutModal({ ...checkoutModal, error: '', splitUpi: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder="0.00" className="w-full h-12 px-4 text-2xl  focus:outline-none rounded-md" style={{ border: checkoutModal.error ? '1px solid var(--color-error)' : '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                      <input id="split-upi" type="number" step="any" min="0" value={checkoutModal.splitUpi} onChange={(e) => { const val = e.target.value; const v = parseFloat(val); let newCash = checkoutModal.splitCash; if (val === '') { newCash = ''; } else if (!isNaN(v) && v >= 0) { newCash = Number(Math.max(0, activeTotal - v).toFixed(2)).toString(); } setCheckoutModal({ ...checkoutModal, error: '', splitUpi: (isNaN(v) && val !== '') || v < 0 ? checkoutModal.splitUpi : val, splitCash: newCash }) }} placeholder="0.00" className="w-full h-12 px-4 text-2xl  focus:outline-none rounded-md" style={{ border: checkoutModal.error ? '1px solid var(--color-error)' : '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                     </div>
                     <div className="flex-1">
                       <label htmlFor="split-cash" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Cash (₹)</label>
-                      <input id="split-cash" type="number" step="any" min="0" value={checkoutModal.splitCash} onChange={(e) => { const v = parseFloat(e.target.value); setCheckoutModal({ ...checkoutModal, error: '', splitCash: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder="0.00" className="w-full h-12 px-4 text-2xl  focus:outline-none rounded-md" style={{ border: checkoutModal.error ? '1px solid var(--color-error)' : '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                      <input id="split-cash" type="number" step="any" min="0" value={checkoutModal.splitCash} onChange={(e) => { const val = e.target.value; const v = parseFloat(val); let newUpi = checkoutModal.splitUpi; if (val === '') { newUpi = ''; } else if (!isNaN(v) && v >= 0) { newUpi = Number(Math.max(0, activeTotal - v).toFixed(2)).toString(); } setCheckoutModal({ ...checkoutModal, error: '', splitCash: (isNaN(v) && val !== '') || v < 0 ? checkoutModal.splitCash : val, splitUpi: newUpi }) }} placeholder="0.00" className="w-full h-12 px-4 text-2xl  focus:outline-none rounded-md" style={{ border: checkoutModal.error ? '1px solid var(--color-error)' : '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                     </div>
                   </div>
                 )}
               </div>
-              
-              {checkoutModal.paymentMethod === 'CASH' && cashGivenCents > 0 && (
-                <div className={`p-4 ${!isShortfall ? 'pos-success-box' : 'pos-error-box'}`} aria-live="polite">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>{!isShortfall ? 'Give Change' : 'Missing Amount'}</span>
-                    <span className="text-2xl font-light" style={{ color: 'var(--text-primary)' }}>₹{(differenceCents / 100).toFixed(2)}</span>
-                  </div>
-                </div>
-              )}
             </div>
             <div className="px-4 pb-2" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
               {checkoutModal.error && (

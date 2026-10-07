@@ -26,16 +26,35 @@ export default function OwnerSettings() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  const [showAddress, setShowAddress] = useState(true);
+  const [showUpi, setShowUpi] = useState(true);
+
   useEffect(() => {
     if (shopSettings) {
+      let addr = shopSettings.shop_address || '';
+      let upi = shopSettings.upi_id || '';
+      let sAddr = true;
+      let sUpi = true;
+      
+      if (addr.startsWith('HIDDEN::')) {
+        sAddr = false;
+        addr = addr.substring(8);
+      }
+      if (upi.startsWith('HIDDEN::')) {
+        sUpi = false;
+        upi = upi.substring(8);
+      }
+
       setFormData({
         shop_name: shopSettings.shop_name || '',
         owner_name: shopSettings.owner_name || '',
-        shop_address: shopSettings.shop_address || '',
+        shop_address: addr,
         phone: shopSettings.phone || '',
-        upi_id: shopSettings.upi_id || '',
+        upi_id: upi,
         admin_email: shopSettings.admin_email || ''
       });
+      setShowAddress(sAddr);
+      setShowUpi(sUpi);
       setLogoPreview(shopSettings.logo_url);
     }
   }, [shopSettings]);
@@ -98,9 +117,9 @@ export default function OwnerSettings() {
       const updates = {
         shop_name: formData.shop_name.trim(),
         owner_name: formData.owner_name.trim(),
-        shop_address: formData.shop_address.trim() || null,
+        shop_address: formData.shop_address.trim() ? (!showAddress ? 'HIDDEN::' + formData.shop_address.trim() : formData.shop_address.trim()) : null,
         phone: formData.phone.trim() || null,
-        upi_id: formData.upi_id.trim() || null,
+        upi_id: formData.upi_id.trim() ? (!showUpi ? 'HIDDEN::' + formData.upi_id.trim() : formData.upi_id.trim()) : null,
         logo_url: updatedLogoUrl
       };
 
@@ -245,7 +264,13 @@ export default function OwnerSettings() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>UPI ID</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>UPI ID</label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Show on Bill</span>
+                    <input type="checkbox" checked={showUpi} onChange={(e) => setShowUpi(e.target.checked)} disabled={!isEditing} className="accent-[var(--color-accent)] w-3.5 h-3.5" />
+                  </label>
+                </div>
                 <input 
                   type="text" 
                   name="upi_id"
@@ -258,7 +283,13 @@ export default function OwnerSettings() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>Shop Address</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Shop Address</label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Show on Bill</span>
+                    <input type="checkbox" checked={showAddress} onChange={(e) => setShowAddress(e.target.checked)} disabled={!isEditing} className="accent-[var(--color-accent)] w-3.5 h-3.5" />
+                  </label>
+                </div>
                 <textarea 
                   name="shop_address"
                   value={formData.shop_address}
@@ -315,14 +346,30 @@ export default function OwnerSettings() {
                     setPassword('');
                     setConfirmPassword('');
                     if (shopSettings) {
+                      let addr = shopSettings.shop_address || '';
+                      let upi = shopSettings.upi_id || '';
+                      let sAddr = true;
+                      let sUpi = true;
+                      
+                      if (addr.startsWith('HIDDEN::')) {
+                        sAddr = false;
+                        addr = addr.substring(8);
+                      }
+                      if (upi.startsWith('HIDDEN::')) {
+                        sUpi = false;
+                        upi = upi.substring(8);
+                      }
+
                       setFormData({
                         shop_name: shopSettings.shop_name || '',
                         owner_name: shopSettings.owner_name || '',
-                        shop_address: shopSettings.shop_address || '',
+                        shop_address: addr,
                         phone: shopSettings.phone || '',
-                        upi_id: shopSettings.upi_id || '',
+                        upi_id: upi,
                         admin_email: shopSettings.admin_email || ''
                       });
+                      setShowAddress(sAddr);
+                      setShowUpi(sUpi);
                       setLogoPreview(shopSettings.logo_url);
                       setLogoFile(null);
                     }

@@ -8,15 +8,15 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
   const content = (
     <div 
       id={isPreview ? undefined : "printable-receipt"} 
-      className={`${isPreview ? 'mx-auto shadow-md border border-gray-300 w-full p-4 md:p-6 bg-white box-border' : 'hidden print:block'} thermal-receipt`} 
-      style={{ fontFamily: "'Courier New', Courier, monospace", color: '#000000', backgroundColor: '#ffffff', lineHeight: 1.2, ...(isPreview ? { minHeight: '100mm' } : {}) }}
+      className={`${isPreview ? 'mx-auto shadow-md border border-gray-300 w-full p-4 md:p-6 bg-white box-border' : 'hidden print:block'} thermal-receipt font-bold`} 
+      style={{ fontFamily: "'Courier New', Courier, monospace", color: '#000000', backgroundColor: '#ffffff', lineHeight: 1.2, fontWeight: 'bold' }}
     >
-      <style>{`@media print { @page { margin: 0; } body { min-width: 100% !important; } }`}</style>
+      <style>{`@media print { @page { margin: 0; } body { min-width: 100% !important; font-weight: bold !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } * { font-weight: bold !important; } }`}</style>
       <div className="text-center mb-3">
         <h1 className="font-bold uppercase text-black whitespace-pre-line mx-auto break-words" style={{ color: '#000', fontSize: '16px' }}>
           {(shopSettings?.shop_name || 'STORE RECEIPT').replace(/ AND DECOR/i, ' AND\nDECOR')}
         </h1>
-        {shopSettings?.shop_address && (
+        {shopSettings?.shop_address && !shopSettings.shop_address.startsWith('HIDDEN::') && (
           <p className="mt-1 text-black whitespace-pre-line" style={{ color: '#000', fontSize: '10px' }}>
             {shopSettings.shop_address}
           </p>
@@ -39,15 +39,15 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
           <tr className="border-b border-black border-dashed">
             <th className="text-left font-semibold pb-1 w-4/12 text-black" style={{ color: '#000' }}>Item</th>
             <th className="text-center font-semibold pb-1 w-2/12 text-black" style={{ color: '#000' }}>Qty</th>
-            <th className="text-center font-semibold pb-1 w-2/12 pr-1 text-black" style={{ color: '#000' }}>MRP</th>
-            <th className="text-center font-semibold pb-1 w-2/12 pr-1 text-black" style={{ color: '#000' }}>Rate</th>
-            <th className="text-center font-semibold pb-1 w-2/12 text-black" style={{ color: '#000' }}>Amt</th>
+            <th className="text-right font-semibold pb-1 w-2/12 pr-1 text-black" style={{ color: '#000' }}>MRP</th>
+            <th className="text-right font-semibold pb-1 w-2/12 pr-1 text-black" style={{ color: '#000' }}>Rate</th>
+            <th className="text-right font-semibold pb-1 w-2/12 text-black" style={{ color: '#000' }}>Amt</th>
           </tr>
         </thead>
         <tbody className="align-top">
           {lastReceipt.items.map((item, i) => (
             <tr key={i} className="hover:!bg-transparent">
-              <td className="py-1 pr-1 text-black overflow-hidden whitespace-nowrap" style={{ color: '#000', textOverflow: 'ellipsis' }}>{item.name}</td>
+              <td className="py-1 pr-1 text-black break-words" style={{ color: '#000' }}>{item.name}</td>
               <td className="py-1 text-center text-black" style={{ color: '#000' }}>{item.quantity} {item.unit}</td>
               <td className="py-1 text-right pr-1 text-black" style={{ color: '#000' }}>{item.mrp.toFixed(2)}</td>
               <td className="py-1 text-right pr-1 text-black" style={{ color: '#000' }}>{item.finalRate.toFixed(2)}</td>
@@ -79,7 +79,7 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
         </div>
       )}
       
-      {shopSettings?.upi_id && lastReceipt.paymentMethod !== 'CASH' && (
+      {shopSettings?.upi_id && !shopSettings.upi_id.startsWith('HIDDEN::') && lastReceipt.paymentMethod !== 'CASH' && (
         <div className="flex flex-col items-center justify-center mt-3 pb-3 border-b border-black border-dashed text-black" style={{ color: '#000' }}>
           <p className="font-bold mb-1" style={{ fontSize: '10px' }}>Scan to Pay via UPI</p>
           <QRCodeSVG 
@@ -93,7 +93,6 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
       
       <div className="text-center pt-2 mt-2 text-black" style={{ color: '#000', fontSize: '10px' }}>
         <p>Thank You For Your Business!</p>
-        <p>Goods once sold will not be taken back.</p>
       </div>
     </div>
   );
