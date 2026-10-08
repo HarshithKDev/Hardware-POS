@@ -36,7 +36,6 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
           )}
           {activeTab === 'receive' && (
             <>
-              <th className="py-4 px-3 text-center w-32" >Cost (₹)</th>
               <th className="py-4 px-3 text-center w-32" >MSP (₹)</th>
               <th className="py-4 px-3 text-center w-32" >MRP (₹)</th>
             </>
@@ -308,11 +307,8 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                   </td>
                 </>)}
                 {activeTab === 'receive' && (<>
-                  <td className="p-2 text-center text-sm font-semibold bg-[var(--bg-tertiary)]" style={{ color: 'var(--text-secondary)' }}>
-                    ₹{Number(item.purchase_cost !== undefined ? item.purchase_cost : item.price || 0).toFixed(2)}
-                  </td>
-                  <td className="p-2 text-center text-sm font-semibold bg-[var(--bg-tertiary)]" style={{ color: 'var(--text-secondary)' }}>
-                    ₹{Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}
+                  <td className="p-2 text-center text-sm font-semibold bg-[var(--bg-tertiary)] group/msp cursor-help" style={{ color: 'var(--text-secondary)' }}>
+                    {userRole === 'owner' ? `₹${Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}</span></span>}
                   </td>
                   <td className="p-2 text-center text-sm font-semibold bg-[var(--bg-tertiary)]" style={{ color: 'var(--text-secondary)' }}>
                     ₹{Number(item.selling_price !== undefined ? item.selling_price : item.price || 0).toFixed(2)}

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import { Spinner, PageLoader } from './SharedUI';
 import { debounce, formatDateTime } from './utils';
+import { useApp } from './AppContext';
 
 const formatChanges = (changes) => {
   if (!changes || changes === '—') return <span style={{ color: 'var(--text-tertiary)' }}>—</span>;
@@ -50,6 +51,8 @@ const formatChanges = (changes) => {
     </div>
   );
 };export default function OwnerAuditLogs() {
+  const { shopSettings } = useApp();
+  const ownerName = shopSettings?.owner_name || 'Owner';
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('ALL');
@@ -132,7 +135,7 @@ const formatChanges = (changes) => {
           barcode: log.barcode,
           item_name: log.item_name ? log.item_name.split(' (Cut from ')[0] : log.item_name,
           changes: formatChanges(log.changes, unitMap[log.barcode]),
-          performed_by: log.performed_by || 'System',
+          performed_by: (log.performed_by === 'Owner' || log.performed_by === 'owner' || log.performed_by === 'Administrator') ? ownerName : (log.performed_by || 'System'),
           source: 'audit'
         };
       });
@@ -350,7 +353,7 @@ const formatChanges = (changes) => {
                           {log.action_type}
                         </span>
                       </td>
-                      <td className="hidden md:table-cell p-3 text-sm font-mono font-semibold text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--color-accent)' }}>
+                      <td className="hidden md:table-cell p-3 text-sm font-bold text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--color-accent)' }}>
                         {log.barcode === 'CATEGORY' || log.barcode === 'SUB-CATEGORY' || log.barcode === '---' ? <span style={{ color: 'var(--text-tertiary)' }}>—</span> : log.barcode}
                       </td>
                       <td className="hidden md:table-cell p-3 text-sm font-medium text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>

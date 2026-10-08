@@ -261,11 +261,20 @@ export default function WorkerDashboardView({ isBillable = true }) {
                         <span className="font-bold text-sm leading-tight" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
                         <span className=" text-[10px] bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded-sm self-start" style={{ color: 'var(--color-accent)' }}>#{item.barcode}</span>
                       </div>
-                      <div className="flex flex-col items-end">
-                        <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Current Stock</span>
-                        <span className="text-xl font-bold" style={{ color: 'var(--color-error)' }}>
-                          {lowStockModal.type === 'store' ? item.stock_store : item.stock_warehouse}
-                        </span>
+                      <div className="flex items-center gap-4 md:gap-6">
+                        <div className="flex flex-col items-center">
+                          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Store</span>
+                          <span className={`text-lg font-bold ${lowStockModal.type === 'store' ? 'text-[var(--color-error)]' : 'text-[var(--text-primary)]'}`}>
+                            {item.stock_store}
+                          </span>
+                        </div>
+                        <div className="w-[1px] h-8 bg-[var(--border-light)]"></div>
+                        <div className="flex flex-col items-center">
+                          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Warehouse</span>
+                          <span className={`text-lg font-bold ${lowStockModal.type === 'warehouse' ? 'text-[var(--color-error)]' : 'text-[var(--text-primary)]'}`}>
+                            {item.stock_warehouse}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   ))}

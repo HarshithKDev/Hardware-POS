@@ -54,12 +54,6 @@ const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQ
         {activeTab === 'receive' && (
           <div className="flex gap-4 mt-4 pt-4" style={{ borderTop: '2px dashed var(--border-light)' }}>
             <div className="flex-1">
-              <span className="text-xs font-bold uppercase tracking-wider block mb-1" style={{ color: 'var(--text-secondary)' }}>Purchase Cost</span>
-              <div className="w-full h-12 flex items-center justify-center text-lg font-semibold text-center rounded-md bg-[var(--bg-tertiary)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}>
-                ₹{Number(item.purchase_cost !== undefined ? item.purchase_cost : item.price || 0).toFixed(2)}
-              </div>
-            </div>
-            <div className="flex-1">
               <span className="text-xs font-bold uppercase tracking-wider block mb-1" style={{ color: 'var(--text-secondary)' }}>MRP</span>
               <div className="w-full h-12 flex items-center justify-center text-lg font-semibold text-center rounded-md bg-[var(--bg-tertiary)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}>
                 ₹{Number(item.selling_price !== undefined ? item.selling_price : item.price || 0).toFixed(2)}
