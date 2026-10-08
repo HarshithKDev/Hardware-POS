@@ -235,7 +235,7 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                         <>
                           <div className="relative inline-flex items-center">
                             <input type="number" step="any" placeholder="L" disabled={activeTab === 'receive'} value={activeTab === 'receive' ? (item.pieceLength || item.default_length || '') : (item.length !== undefined ? item.length : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_length', e.target.value) : onUpdateDimensions(item.id, 'length', e.target.value)} className={`w-24 h-10 pl-2 pr-12 text-sm font-semibold text-center focus:outline-none rounded-md ${activeTab === 'receive' ? 'opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]' : ''}`} style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title={activeTab === 'receive' ? "Length is locked during receive" : "Length"} aria-label="Length" />
-                            <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>{item.unit === 'SQFT' ? 'ft' : item.unit}</span>
+                            <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>{item.unit === 'SQFT' ? 'ft' : (item.unit?.toUpperCase() === 'METER' ? 'M' : item.unit)}</span>
                           </div>
                           {item.unit === 'SQFT' && (
                             <>
@@ -271,7 +271,7 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                             {safeQty}
                           </div>
                           <span className="absolute right-1.5 text-[9px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>
-                            {(item.unit === 'SQFT' || item.is_cuttable) && activeTab !== 'checkout' ? 'PCS' : item.unit}
+                            {(item.unit === 'SQFT' || item.is_cuttable) && activeTab !== 'checkout' ? 'PCS' : (item.unit?.toUpperCase() === 'METER' ? 'M' : item.unit)}
                           </span>
                         </div>
                       ) : (
@@ -280,7 +280,7 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                           <div className="relative inline-flex items-center">
                             <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-16 h-8 !p-0 !pl-1 !pr-6 text-sm font-bold text-center bg-[var(--bg-tertiary)] border border-[var(--border-medium)] !rounded-md text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-all shadow-sm" aria-label={`${item.name} quantity`} style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.1) inset' }} />
                             <span className="absolute right-1.5 text-[9px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>
-                              {(item.unit === 'SQFT' || item.is_cuttable) && activeTab !== 'checkout' ? 'PCS' : item.unit}
+                              {(item.unit === 'SQFT' || item.is_cuttable) && activeTab !== 'checkout' ? 'PCS' : (item.unit?.toUpperCase() === 'METER' ? 'M' : item.unit)}
                             </span>
                           </div>
                           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-8 h-8 flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border border-[var(--border-medium)] rounded-md bg-[var(--bg-tertiary)] shadow-sm" aria-label={`Increase ${item.name} quantity`}>+</button>

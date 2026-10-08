@@ -241,7 +241,7 @@ const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQ
                       1
                     </div>
                     <span className="absolute right-1.5 text-[9px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>
-                      {item.unit === 'SQFT' && activeTab !== 'checkout' ? 'ROLLS' : item.unit}
+                      {item.unit === 'SQFT' && activeTab !== 'checkout' ? 'ROLLS' : (item.unit?.toUpperCase() === 'METER' ? 'M' : item.unit)}
                     </span>
                   </div>
                 ) : (
@@ -250,7 +250,7 @@ const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQ
                     <div className="relative inline-flex items-center">
                       <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-16 h-8 !p-0 !pl-1 !pr-6 text-sm font-bold text-center bg-[var(--bg-tertiary)] border border-[var(--border-medium)] !rounded-md text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-all shadow-sm" aria-label={`${item.name} quantity`} style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.1) inset' }} />
                       <span className="absolute right-1.5 text-[9px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>
-                        {item.unit === 'SQFT' && activeTab !== 'checkout' ? 'ROLLS' : item.unit}
+                        {item.unit === 'SQFT' && activeTab !== 'checkout' ? 'ROLLS' : (item.unit?.toUpperCase() === 'METER' ? 'M' : item.unit)}
                       </span>
                     </div>
                     <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-8 h-8 flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border border-[var(--border-medium)] rounded-md bg-[var(--bg-tertiary)] shadow-sm" aria-label={`Increase ${item.name} quantity`}>+</button>
