@@ -532,10 +532,10 @@ export default function OwnerStats({ isActive }) {
   const timeframeLabel = getTimeframeLabel();
 
   return (
-    <div className="flex flex-col h-full relative">
+    <div className="flex flex-col h-auto lg:h-full relative">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 shrink-0 gap-4">
         <h1 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>Business Overview</h1>
-        <div className="relative inline-flex items-center rounded-md transition-colors hover:bg-[var(--bg-tertiary)]" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}>
+        <div className="relative inline-flex items-center rounded-md transition-colors hover:bg-[var(--bg-tertiary)] self-start sm:self-auto" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}>
           <select 
             value={globalTimeframe} 
             onChange={(e) => setGlobalTimeframe(e.target.value)}
@@ -609,7 +609,7 @@ export default function OwnerStats({ isActive }) {
       </div>
 
       {/* ROW 2: TRENDS & LEADERBOARD */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4 flex-1 min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4 flex-1 min-h-[500px] lg:min-h-0">
         <SalesTrendChart timeframe={globalTimeframe} />
         <TopProductsList products={topProducts} timeframeLabel={timeframeLabel} />
       </div>
