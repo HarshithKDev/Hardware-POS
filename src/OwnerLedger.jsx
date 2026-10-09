@@ -356,12 +356,7 @@ export default function OwnerLedger({ isActive }) {
                                 <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
                                   Bill #{bill.id.split('-')[0]} Items
                                 </p>
-                                {bill.status !== 'voided' && items.length > 0 && (
-                                  <button onClick={(e) => { e.stopPropagation(); handleOpenReturnModal(bill); }} className="px-4 py-1.5 text-xs font-bold uppercase rounded transition-colors" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
-                                    Return Items
-                                  </button>
-                                )}
-                              </div>
+                                </div>
                               <div className="overflow-x-auto overflow-y-hidden w-full rounded-lg shadow-sm" style={{ border: '1px solid var(--border-light)' }}>
                                 <div className="overflow-x-auto w-full">
                                   <table className="w-full text-left border-collapse min-w-full" style={{ backgroundColor: 'var(--bg-secondary)' }}>

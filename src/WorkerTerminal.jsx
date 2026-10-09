@@ -43,7 +43,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const [isMobileScannerOpen, setIsMobileScannerOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [lastReceipt, setLastReceipt] = useState(null);
-  const [checkoutModal, setCheckoutModal] = useState({ isOpen: false, cashGiven: '', negotiatedTotal: '', paymentMethod: 'CASH', splitUpi: '', splitCash: '', error: '' });
+  const [checkoutModal, setCheckoutModal] = useState({ isOpen: false, cashGiven: '', negotiatedTotal: '', paymentMethod: 'CASH', splitUpi: '', splitCash: '', customerName: '', customerPhone: '', error: '' });
   const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -1281,6 +1281,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         p_payment_method: paymentMethod,
         p_cash_amount: cashAmount,
         p_upi_amount: upiAmount,
+        p_customer_name: checkoutModal.customerName || null,
+        p_customer_phone: checkoutModal.customerPhone || null,
         p_items: finalCart.map(i => {
           let calcQuantity = Number(i.quantity);
           if (i.is_cuttable) {
@@ -1338,6 +1340,23 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           });
           if (error) throw error;
           successData = data;
+          
+          if (successData?.bill_id) {
+             try {
+               const updatePayload = {
+                 payment_method: payload.p_payment_method,
+                 cash_amount: payload.p_cash_amount,
+                 upi_amount: payload.p_upi_amount
+               };
+               if (payload.p_customer_name || payload.p_customer_phone) {
+                 updatePayload.customer_name = payload.p_customer_name;
+                 updatePayload.customer_phone = payload.p_customer_phone;
+               }
+               await supabase.from('bills').update(updatePayload).eq('id', successData.bill_id);
+             } catch (e) {
+               console.warn("Could not save additional bill data.", e);
+             }
+          }
         } catch (error) {
           if (error.message === 'Failed to fetch' || error.code === '503') {
             await queueOfflineTransaction(payload);
@@ -1380,6 +1399,11 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       // Also invalidate piece_counts for cuttable items so WHSE/STORE QTY refreshes
       queryClient.invalidateQueries({ queryKey: ['piece_counts'] });
       queryClient.invalidateQueries({ queryKey: ['stock_instances'] });
+      queryClient.invalidateQueries({ queryKey: ['bills'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['sales-trend'] });
+      queryClient.invalidateQueries({ queryKey: ['unifiedAuditLogs'] });
+      queryClient.invalidateQueries({ queryKey: ['owner-reports'] });
 
       if (navigator.onLine) {
         // Trigger background sync to ensure true consistency with server
@@ -1515,6 +1539,15 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               </div>
               
               <div className="mb-4">
+                <label htmlFor="customer-name" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Customer Name (Optional)</label>
+                <input id="customer-name" type="text" value={checkoutModal.customerName || ''} onChange={(e) => setCheckoutModal({ ...checkoutModal, customerName: e.target.value })} placeholder="e.g. John Doe" className="w-full h-10 px-4 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+              </div>
+              <div className="mb-4">
+                <label htmlFor="customer-phone" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Customer Phone (Optional)</label>
+                <input id="customer-phone" type="text" value={checkoutModal.customerPhone || ''} onChange={(e) => setCheckoutModal({ ...checkoutModal, customerPhone: e.target.value })} placeholder="e.g. 9876543210" className="w-full h-10 px-4 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+              </div>
+
+              <div className="mb-4">
                 <label htmlFor="negotiated-total" className="block text-xs font-bold uppercase tracking-wider mb-2 flex justify-between" style={{ color: 'var(--text-secondary)' }}>
                   <span>Final Negotiated Amount (₹)</span>
                   <span className="opacity-70 font-normal">System: ₹{cartTotal.toFixed(2)}</span>
@@ -1546,6 +1579,34 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   ))}
                 </div>
 
+                {checkoutModal.paymentMethod === 'CASH' && (
+                  <div className="mb-4">
+                    <label htmlFor="cash-given" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Cash Given (₹)</label>
+                    <input 
+                      id="cash-given" 
+                      type="number" 
+                      step="any" 
+                      min="0" 
+                      value={checkoutModal.cashGiven} 
+                      onChange={(e) => { 
+                        const v = parseFloat(e.target.value); 
+                        setCheckoutModal({ ...checkoutModal, error: '', cashGiven: (isNaN(v) || v < 0) && e.target.value !== '' ? checkoutModal.cashGiven : e.target.value }) 
+                      }} 
+                      placeholder={`e.g. ${Math.ceil(activeTotal / 100) * 100 || 500}`} 
+                      className="w-full h-12 px-4 text-2xl focus:outline-none rounded-md" 
+                      style={{ border: checkoutModal.error && isShortfall ? '1px solid var(--color-error)' : '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} 
+                    />
+                    
+                    {checkoutModal.cashGiven !== '' && Number(checkoutModal.cashGiven) >= activeTotal && (
+                      <div className="mt-3 p-3 rounded-md flex items-center justify-between" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--color-success)' }}>
+                        <div className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Change to Return:</div>
+                        <div className="text-2xl font-bold" style={{ color: 'var(--color-success)' }}>
+                          ₹{(Number(checkoutModal.cashGiven) - activeTotal).toFixed(2)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {checkoutModal.paymentMethod === 'SPLIT' && (
                   <div className="flex gap-4">
