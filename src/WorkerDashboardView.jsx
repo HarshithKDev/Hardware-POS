@@ -90,7 +90,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
       <h2 className="text-xl md:text-2xl font-medium mb-4 hidden md:block" style={{ color: 'var(--text-primary)' }}>Staff Dashboard</h2>
       
       {/* Big Action Buttons */}
-      <div className={`grid grid-cols-2 ${isBillable ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-3 md:gap-4 mb-6`}>
+      <div className={`grid grid-cols-2 ${isBillable ? 'md:grid-cols-4' : 'md:grid-cols-2'} gap-3 md:gap-4 mb-6`}>
         <button 
           onClick={() => navigate('/terminal/receive')}
           className="p-4 md:p-8 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
@@ -110,14 +110,24 @@ export default function WorkerDashboardView({ isBillable = true }) {
         </button>
 
         {isBillable && (
-          <button 
-            onClick={() => navigate('/terminal/checkout')}
-            className="p-4 md:p-8 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
-            style={{ backgroundColor: '#10b981', color: 'white' }}
-          >
-            <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-            <span className="font-bold text-sm md:text-base leading-tight">Checkout<br/>Customer</span>
-          </button>
+          <>
+            <button 
+              onClick={() => navigate('/terminal/checkout')}
+              className="p-4 md:p-8 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
+              style={{ backgroundColor: '#10b981', color: 'white' }}
+            >
+              <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+              <span className="font-bold text-sm md:text-base leading-tight">Checkout<br/>Customer</span>
+            </button>
+            <button 
+              onClick={() => navigate('/terminal/returns')}
+              className="p-4 md:p-8 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
+              style={{ backgroundColor: '#ef4444', color: 'white' }}
+            >
+              <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+              <span className="font-bold text-sm md:text-base leading-tight">Process<br/>Returns</span>
+            </button>
+          </>
         )}
 
         <button 

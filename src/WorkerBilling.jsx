@@ -6,6 +6,7 @@ import { useApp } from './AppContext';
 import WorkerDashboardView from './WorkerDashboardView';
 import WorkerTerminal from './WorkerTerminal';
 import WorkerScanner from './WorkerScanner';
+import OwnerReturns from './OwnerReturns';
 import { CartProvider } from './contexts/CartContext';
 import { PageLoader } from './SharedUI';
 
@@ -44,6 +45,7 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
   ];
   if (isBillable) {
     tabs.push({ key: 'checkout', label: 'Terminal' });
+    tabs.push({ key: 'returns', label: 'Returns' });
   } else {
     tabs.push({ key: 'receive', label: 'Inbound' });
     tabs.push({ key: 'transfer', label: 'Transfer' });
@@ -68,6 +70,8 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
           <WorkerDashboardView isBillable={isBillable} />
         ) : activeTab === 'scanner' ? (
           <WorkerScanner cashierName={cashierName} />
+        ) : activeTab === 'returns' && isBillable ? (
+          <OwnerReturns />
         ) : activeTab === 'checkout' && !isBillable ? (
           <div className="flex flex-col items-center justify-center h-full flex-1">
             <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
