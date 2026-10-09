@@ -92,15 +92,15 @@ export default function CreateBatchModal({ item, onClose }) {
         <div className="p-4 md:p-6 overflow-y-auto custom-scrollbar">
           <form id="createBatchForm" onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="batch-cost">Cost Price (₹)</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="batch-cost">Cost Price (₹){item.unit ? ` PER ${item.unit.toUpperCase()}` : ''}</label>
               <input id="batch-cost" type="number" step="any" min="0" required autoFocus value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} placeholder="0.00" className="w-full h-11 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
             </div>
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="batch-msp">Min Selling Price (₹)</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="batch-msp">Min Selling Price (₹){item.unit ? ` PER ${item.unit.toUpperCase()}` : ''}</label>
               <input id="batch-msp" type="number" step="any" min="0" required value={form.msp} onChange={(e) => setForm({ ...form, msp: e.target.value })} placeholder="0.00" className="w-full h-11 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
             </div>
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="batch-mrp">Max Retail Price (₹)</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="batch-mrp">Max Retail Price (₹){item.unit ? ` PER ${item.unit.toUpperCase()}` : ''}</label>
               <input id="batch-mrp" type="number" step="any" min="0" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0.00" className="w-full h-11 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
             </div>
           </form>

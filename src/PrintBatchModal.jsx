@@ -76,7 +76,7 @@ export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }
                 lineColor="#000000" 
                 background="#ffffff" 
               />
-              <p className="text-xs font-bold text-black mt-1">₹{Number(selectedBatch.selling_price).toFixed(2)}</p>
+              <p className="text-xs font-bold text-black mt-1">₹{Number(selectedBatch.selling_price || 0).toFixed(2)}</p>
             </div>
 
             <div>
@@ -92,7 +92,7 @@ export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }
             </div>
 
             <div className="mt-2 text-xs text-[var(--text-secondary)] bg-[var(--bg-tertiary)] p-3 rounded-md border border-[var(--border-light)]">
-              <p><strong>Batch {batchNumberStr}:</strong> Labels will be printed with MRP ₹{Number(selectedBatch.selling_price).toFixed(2)}.</p>
+              <p><strong>Batch {batchNumberStr}:</strong> Labels will be printed with MRP ₹{Number(selectedBatch.selling_price || 0).toFixed(2)}.</p>
               {item.is_cuttable && (
                 <p className="mt-1">Unique sequence numbers will be generated starting from {String(nextSeqForCuttable).padStart(2, '0')}.</p>
               )}
@@ -134,7 +134,7 @@ export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }
               <div key={`${barcodeVal}-${index}`} className="thermal-barcode" style={{ backgroundColor: '#ffffff', width: '50mm', height: '25mm', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', pageBreakAfter: 'always' }}>
                 <p style={{ color: '#000000', fontSize: '9px', fontWeight: 'bold', lineHeight: 1, margin: 0, marginBottom: '2px', textAlign: 'center', width: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</p>
                 <Barcode value={barcodeVal} width={1.25} height={24} fontSize={10} margin={0} displayValue={true} lineColor="#000000" background="#ffffff" />
-                <p style={{ color: '#000000', fontSize: '10px', fontWeight: 'bold', lineHeight: 1, margin: 0, marginTop: '2px' }}>₹{Number(selectedBatch.selling_price).toFixed(2)}</p>
+                <p style={{ color: '#000000', fontSize: '10px', fontWeight: 'bold', lineHeight: 1, margin: 0, marginTop: '2px' }}>₹{Number(selectedBatch.selling_price || 0).toFixed(2)}</p>
               </div>
             );
           })}

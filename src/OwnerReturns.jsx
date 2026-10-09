@@ -30,8 +30,9 @@ export default function OwnerReturns() {
           const unique = [];
           const map = new Map();
           for (const row of data) {
-            if (row.customer_name && !map.has(row.customer_name)) {
-              map.set(row.customer_name, true);
+            const compositeKey = `${row.customer_name}-${row.customer_phone || ''}`.toLowerCase();
+            if (row.customer_name && !map.has(compositeKey)) {
+              map.set(compositeKey, true);
               unique.push({ name: row.customer_name, phone: row.customer_phone || '' });
             }
           }
@@ -348,7 +349,7 @@ function ReturnModal({ isOpen, onClose, bill, items, onExecuteReturn, isReturnin
   const handleQtyChange = (item, delta) => {
     setReturnQuantities(prev => {
       const current = prev[item.id] || 0;
-      const maxQty = Number(item.billable_quantity || item.quantity);
+      const maxQty = Number(item.billable_quantity || item.actual_quantity || item.quantity);
       let newQty = current + delta;
       if (newQty < 0) newQty = 0;
       if (newQty > maxQty) newQty = maxQty;
@@ -370,7 +371,7 @@ function ReturnModal({ isOpen, onClose, bill, items, onExecuteReturn, isReturnin
       }
       const all = {};
       items.forEach(item => {
-        all[item.id] = Number(item.billable_quantity || item.quantity);
+        all[item.id] = Number(item.billable_quantity || item.actual_quantity || item.quantity);
       });
       return all;
     });
@@ -401,9 +402,10 @@ function ReturnModal({ isOpen, onClose, bill, items, onExecuteReturn, isReturnin
           
           <div className="flex flex-col gap-3">
             {items.map(item => {
-              const maxQty = Number(item.billable_quantity || item.quantity);
+              const maxQty = Number(item.billable_quantity || item.actual_quantity || item.quantity);
               const returnQty = returnQuantities[item.id] || 0;
               const isSelected = returnQty > 0;
+              const isCuttable = item.instance_barcode || item.cut_length !== null || ['SQFT', 'FT', 'METER', 'M'].includes((item.unit || '').toUpperCase());
               
               return (
                 <div key={item.id} className="flex justify-between items-center p-3 rounded-lg border transition-colors" style={{ backgroundColor: isSelected ? 'rgba(239, 68, 68, 0.05)' : 'var(--bg-secondary)', borderColor: isSelected ? 'rgba(239, 68, 68, 0.3)' : 'var(--border-light)' }}>
@@ -415,11 +417,22 @@ function ReturnModal({ isOpen, onClose, bill, items, onExecuteReturn, isReturnin
                   </div>
                   
                   <div className="flex items-center gap-3">
-                    <button onClick={() => handleQtyChange(item, -1)} disabled={returnQty <= 0} className="w-8 h-8 rounded-full border flex items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-primary)] disabled:opacity-50 hover:bg-[var(--bg-hover)]">-</button>
-                    <span className="w-6 text-center font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
-                      {returnQty}
-                    </span>
-                    <button onClick={() => handleQtyChange(item, 1)} disabled={returnQty >= maxQty} className="w-8 h-8 rounded-full border flex items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-primary)] disabled:opacity-50 hover:bg-[var(--bg-hover)]">+</button>
+                    {isCuttable ? (
+                      <button 
+                        onClick={() => handleQtyChange(item, isSelected ? -maxQty : maxQty)}
+                        className={`w-24 h-8 rounded-md border flex items-center justify-center font-bold text-xs transition-colors ${isSelected ? 'bg-red-500 text-white border-red-600 hover:bg-red-600' : 'bg-[var(--bg-secondary)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'}`}
+                      >
+                        {isSelected ? 'RETURN PIECE' : 'KEEP PIECE'}
+                      </button>
+                    ) : (
+                      <>
+                        <button onClick={() => handleQtyChange(item, -1)} disabled={returnQty <= 0} className="w-8 h-8 rounded-full border flex items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-primary)] disabled:opacity-50 hover:bg-[var(--bg-hover)]">-</button>
+                        <span className="w-6 text-center font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
+                          {returnQty}
+                        </span>
+                        <button onClick={() => handleQtyChange(item, 1)} disabled={returnQty >= maxQty} className="w-8 h-8 rounded-full border flex items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-primary)] disabled:opacity-50 hover:bg-[var(--bg-hover)]">+</button>
+                      </>
+                    )}
                   </div>
                 </div>
               );

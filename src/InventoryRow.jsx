@@ -362,7 +362,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
                                 style={{ borderColor: 'var(--border-medium)', backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
                               />
                             ) : (
-                              <div className="text-sm font-medium text-[var(--text-primary)]">₹{Number(batch.purchase_cost).toFixed(2)}</div>
+                              <div className="text-sm font-medium text-[var(--text-primary)]">₹{Number(batch.purchase_cost || item.cost_price || 0).toFixed(2)}</div>
                             )}
                           </div>
                           <div>
@@ -378,7 +378,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
                                 style={{ borderColor: 'var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
                               />
                             ) : (
-                              <div className="text-sm font-medium text-[var(--text-primary)]">₹{Number(batch.msp).toFixed(2)}</div>
+                              <div className="text-sm font-medium text-[var(--text-primary)]">₹{Number(batch.msp || item.msp || item.cost_price || 0).toFixed(2)}</div>
                             )}
                           </div>
                           <div>
@@ -395,7 +395,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
                                 style={{ borderColor: 'var(--border-medium)', backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
                               />
                             ) : (
-                              <div className="text-sm font-medium text-[var(--text-primary)]">₹{Number(batch.selling_price).toFixed(2)}</div>
+                              <div className="text-sm font-medium text-[var(--text-primary)]">₹{Number(batch.selling_price || item.price || 0).toFixed(2)}</div>
                             )}
                           </div>
                           <div className="pl-0 md:pl-6 border-l-0 md:border-l border-[var(--border-light)]">
@@ -445,7 +445,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
                                 onClick={(e) => {
                                   e.stopPropagation(); e.preventDefault();
                                   setEditingBatchId(batch.batch_id);
-                                  setBatchEditForm({ cost: batch.purchase_cost || 0, msp: batch.msp || 0, mrp: batch.selling_price || 0 });
+                                  setBatchEditForm({ cost: batch.purchase_cost || item.cost_price || 0, msp: batch.msp || item.msp || item.cost_price || 0, mrp: batch.selling_price || item.price || 0 });
                                 }}
                                 className={`h-[28px] px-3 flex items-center justify-center gap-1.5 rounded-md transition-colors font-bold text-[10px] uppercase tracking-wider border ${
                                   viewType === 'recycle'
