@@ -272,8 +272,8 @@ export default function OwnerLedger({ isActive }) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto hide-x-scrollbar overflow-x-hidden md:overflow-x-auto shadow-sm min-h-[400px] md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent' }}>
-              <div className="overflow-x-auto w-full max-w-full h-full">
+        <div className="flex-1 overflow-auto hide-x-scrollbar overflow-x-hidden md:overflow-x-hidden md:overflow-x-auto shadow-sm min-h-[400px] md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent' }}>
+              <div className="overflow-x-hidden md:overflow-x-auto w-full max-w-full h-full">
                 <table className={`w-full text-left border-collapse min-w-full ${(isLoadingBills && bills.length === 0 || bills.length === 0) ? 'h-full' : ''}`}>
             <thead className="hidden md:table-header-group sticky top-0 z-10 glass-header" style={{ borderBottom: '1px solid var(--border-medium)' }}>
               <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
@@ -375,8 +375,8 @@ export default function OwnerLedger({ isActive }) {
                                   )}
                                 </div>
                               </div>
-                              <div className="overflow-x-auto overflow-y-hidden w-full rounded-lg shadow-sm" style={{ border: '1px solid var(--border-light)' }}>
-                                <div className="overflow-x-auto w-full">
+                              <div className="overflow-x-hidden md:overflow-x-auto overflow-y-hidden w-full rounded-lg shadow-sm" style={{ border: '1px solid var(--border-light)' }}>
+                                <div className="overflow-x-hidden md:overflow-x-auto w-full">
                                   <table className="w-full text-left border-collapse min-w-full" style={{ backgroundColor: 'var(--bg-secondary)' }}>
                                   <thead className="hidden md:table-header-group" style={{ backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-light)' }}>
                                     <tr className="text-xs font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>

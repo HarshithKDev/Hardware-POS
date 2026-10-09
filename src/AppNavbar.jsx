@@ -42,7 +42,7 @@ export default function AppNavbar({ displayUserName, userRole, setIsMobileScanne
           {displayUserName}
         </span>
       </div>
-      <div className="flex-1 flex items-center justify-end gap-2 h-full overflow-x-auto hide-scrollbar">
+      <div className="flex-1 flex items-center justify-end gap-2 h-full overflow-x-hidden md:overflow-x-auto hide-scrollbar">
         <button
           onClick={() => setIsMobileScannerOpen(true)}
           className="md:hidden h-9 px-3 text-sm font-medium flex items-center gap-2"

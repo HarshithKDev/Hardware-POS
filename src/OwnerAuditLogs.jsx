@@ -285,7 +285,7 @@ const formatChanges = (changes) => {
         </div>
       )}
 
-      <div className="flex-1 overflow-auto overflow-x-hidden md:overflow-x-auto shadow-sm md:rounded-lg border border-[var(--border-light)]" style={{ backgroundColor: 'transparent' }}>
+      <div className="flex-1 overflow-auto overflow-x-hidden md:overflow-x-hidden md:overflow-x-auto shadow-sm md:rounded-lg border border-[var(--border-light)]" style={{ backgroundColor: 'transparent' }}>
         {isLoading && limit === 300 ? (
           <div className="h-full min-h-[400px] flex flex-col items-center justify-center">
             <PageLoader text="Loading logs..." />
@@ -299,7 +299,7 @@ const formatChanges = (changes) => {
             <p className="text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No matching audit logs found.</p>
           </div>
         ) : (
-        <div className="overflow-x-auto w-full max-w-[100vw]">
+        <div className="overflow-x-hidden md:overflow-x-auto w-full max-w-[100vw]">
           <table className="w-full text-left md:whitespace-nowrap border-collapse min-w-full">
           <thead className="hidden md:table-header-group sticky top-0 z-10 glass-header" style={{ borderBottom: '1px solid var(--border-medium)' }}>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>

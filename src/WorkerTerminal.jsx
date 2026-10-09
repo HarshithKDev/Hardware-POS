@@ -2010,7 +2010,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
           {/* Header Block */}
           {activeTab === 'checkout' && (pendingCarts.length > 0 || heldCarts.length > 0) && (
-          <div className="flex gap-1 p-2 bg-[var(--bg-tertiary)] border-b border-[var(--border-medium)] overflow-x-auto whitespace-nowrap scrollbar-hide">
+          <div className="flex gap-1 p-2 bg-[var(--bg-tertiary)] border-b border-[var(--border-medium)] overflow-x-hidden md:overflow-x-auto whitespace-nowrap scrollbar-hide">
             <button 
               onClick={() => handleRestoreCart('local')}
               className="px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors"
@@ -2101,7 +2101,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         </div>
 
         {/* Desktop View */}
-        <div className="hidden md:block flex-1 overflow-y-auto overflow-x-auto" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+        <div className="hidden md:block flex-1 overflow-y-auto overflow-x-hidden md:overflow-x-auto" style={{ backgroundColor: 'var(--bg-secondary)' }}>
           <CartTable
             cart={cart}
             activeTab={activeTab}

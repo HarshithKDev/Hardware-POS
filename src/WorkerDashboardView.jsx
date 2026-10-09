@@ -208,7 +208,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
         style={{ backgroundColor: 'var(--bg-secondary)' }}
       >
         
-        <div className="w-full h-full overflow-x-auto">
+        <div className="w-full h-full overflow-x-hidden md:overflow-x-auto">
           <table className="w-full text-center table-fixed text-[10px] md:text-sm border-collapse min-w-full" style={{ color: 'var(--text-primary)' }}>
             <thead style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
               <tr className="text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>

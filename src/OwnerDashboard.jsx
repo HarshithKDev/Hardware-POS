@@ -150,7 +150,7 @@ export default function OwnerDashboard() {
               Main Storage Actions
             </h1>
             <div
-              className="flex gap-1 mb-6 pb-0 overflow-x-auto border-b border-[var(--border-light)]"
+              className="flex gap-1 mb-6 pb-0 overflow-x-hidden md:overflow-x-auto border-b border-[var(--border-light)]"
               role="tablist"
               aria-label="Warehouse tabs"
             >

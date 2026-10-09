@@ -237,7 +237,7 @@ export default function BarcodePrinter() {
               </div>
 
               {printQueue.length > 0 && (
-                <div className="rounded-lg border border-[var(--border-light)] shadow-sm overflow-x-auto" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                <div className="rounded-lg border border-[var(--border-light)] shadow-sm overflow-x-hidden md:overflow-x-auto" style={{ backgroundColor: 'var(--bg-secondary)' }}>
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="text-xs uppercase" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-medium)' }}>

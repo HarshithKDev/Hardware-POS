@@ -273,7 +273,7 @@ export default function OwnerReports() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex gap-1 mb-0 pb-0 overflow-x-auto border-b border-[var(--border-light)] shrink-0" role="tablist">
+      <div className="flex gap-1 mb-0 pb-0 overflow-x-hidden md:overflow-x-auto border-b border-[var(--border-light)] shrink-0" role="tablist">
         {TABS.map(({ key, label }) => (
           <button
             key={key}

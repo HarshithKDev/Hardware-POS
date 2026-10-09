@@ -290,7 +290,7 @@ export default function OwnerReturns() {
                                 </button>
                               )}
                             </div>
-                            <div className="overflow-x-auto w-full rounded-lg shadow-sm border border-[var(--border-light)]">
+                            <div className="overflow-x-hidden md:overflow-x-auto w-full rounded-lg shadow-sm border border-[var(--border-light)]">
                               <table className="w-full text-left border-collapse min-w-full" style={{ backgroundColor: 'var(--bg-secondary)' }}>
                                 <thead className="hidden md:table-header-group" style={{ backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-light)' }}>
                                   <tr className="text-xs font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>

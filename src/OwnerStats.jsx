@@ -535,20 +535,18 @@ export default function OwnerStats({ isActive }) {
     <div className="flex flex-col h-auto lg:h-full relative">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 shrink-0 gap-4">
         <h1 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>Business Overview</h1>
-        <div className="relative inline-flex items-center rounded-md transition-colors hover:bg-[var(--bg-tertiary)] self-start sm:self-auto" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}>
-          <select 
-            value={globalTimeframe} 
-            onChange={(e) => setGlobalTimeframe(e.target.value)}
-            className="text-[12px] font-bold uppercase focus:outline-none bg-transparent cursor-pointer appearance-none pl-4 pr-10 py-2 w-40"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            <option value="today">Today</option>
-            <option value="7_days">1 Week</option>
-            <option value="1_month">1 Month</option>
-            <option value="6_months">6 Months</option>
-            <option value="1_year">1 Year</option>
-          </select>
-        </div>
+        <select 
+          value={globalTimeframe} 
+          onChange={(e) => setGlobalTimeframe(e.target.value)}
+          className="text-[12px] font-bold uppercase cursor-pointer rounded-md transition-colors self-start sm:self-auto py-2 pl-4 pr-10 w-40 hover:bg-[var(--bg-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--border-medium)]"
+          style={{ color: 'var(--text-primary)', border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)' }}
+        >
+          <option value="today">Today</option>
+          <option value="7_days">1 Week</option>
+          <option value="1_month">1 Month</option>
+          <option value="6_months">6 Months</option>
+          <option value="1_year">1 Year</option>
+        </select>
       </div>
 
       {failedSyncs && failedSyncs.length > 0 && (
@@ -661,7 +659,7 @@ export default function OwnerStats({ isActive }) {
                       <p className="text-xl font-bold" style={{ color: 'var(--color-success)' }}>₹{tfGrossProfit.toFixed(2)}</p>
                     </div>
                   </div>
-                  <div className="overflow-x-auto w-full shadow-sm rounded-none" style={{ border: '1px solid var(--border-light)' }}>
+                  <div className="overflow-x-hidden md:overflow-x-auto w-full shadow-sm rounded-none" style={{ border: '1px solid var(--border-light)' }}>
                     <table className="w-full text-left border-collapse">
                       <thead className="sticky top-0 shadow-sm" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-light)' }}>
                         <tr className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
@@ -691,7 +689,7 @@ export default function OwnerStats({ isActive }) {
               )}
 
               {(activeModal === 'low-store' || activeModal === 'low-warehouse' || activeModal === 'dead-stock') && (
-                <div className="overflow-x-auto w-full shadow-sm rounded-none" style={{ border: '1px solid var(--border-light)' }}>
+                <div className="overflow-x-hidden md:overflow-x-auto w-full shadow-sm rounded-none" style={{ border: '1px solid var(--border-light)' }}>
                   <table className="w-full text-left border-collapse">
                     <thead className="sticky top-0 shadow-sm" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-light)' }}>
                       <tr className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>

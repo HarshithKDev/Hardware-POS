@@ -129,7 +129,7 @@ export default function StockInstancesModal({ isOpen, onClose, item, inline, fil
                 return acc;
               }, {})).sort((a, b) => Number(b.current_length) - Number(a.current_length)).map(group => (
                 <div key={`${group.original_length}_${group.current_length}_${group.location}`} className="flex flex-wrap md:flex-nowrap items-center justify-between p-3 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-light)] shadow-sm">
-                  <div className="flex items-center gap-6 w-full md:w-auto overflow-x-auto hide-x-scrollbar">
+                  <div className="flex items-center gap-6 w-full md:w-auto overflow-x-hidden md:overflow-x-auto hide-x-scrollbar">
                     <div>
                       <div className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] mb-0.5">{item.unit === 'SQFT' ? 'Orig Length' : 'Original'}</div>
                       <div className="text-xs text-[var(--text-secondary)]">{group.original_length} {item.unit === 'SQFT' ? 'ft' : item.unit}</div>
