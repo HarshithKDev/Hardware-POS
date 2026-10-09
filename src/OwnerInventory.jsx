@@ -502,7 +502,7 @@ export default function OwnerInventory({ viewType }) {
             className="hide-x-scrollbar"
             components={{
               List: forwardRef((props, ref) => (
-                <table ref={ref} style={{ ...props.style }} className={`w-full max-w-full text-center border-collapse table-fixed min-w-full ${props.className || ''}`}>
+                <table ref={ref} style={{ ...props.style }} className={`block md:table w-full max-w-full text-center border-collapse table-fixed min-w-full ${props.className || ''}`}>
                   <thead className="hidden md:table-header-group sticky top-0 z-10 glass-header" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                     <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                       {isSelectionMode && (

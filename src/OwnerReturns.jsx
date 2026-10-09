@@ -241,7 +241,7 @@ export default function OwnerReturns() {
           </div>
         ) : bills.length > 0 ? (
           <div className="w-full">
-            <table className="w-full text-left border-collapse min-w-full">
+            <table className="block md:table w-full text-left border-collapse min-w-full">
             <thead className="hidden md:table-header-group" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-light)' }}>
               <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                 <th className="p-4 border-none w-10"></th>
@@ -291,7 +291,7 @@ export default function OwnerReturns() {
                               )}
                             </div>
                             <div className="overflow-x-hidden md:overflow-x-auto w-full rounded-lg shadow-sm border border-[var(--border-light)]">
-                              <table className="w-full text-left border-collapse min-w-full" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                              <table className="block md:table w-full text-left border-collapse min-w-full" style={{ backgroundColor: 'var(--bg-secondary)' }}>
                                 <thead className="hidden md:table-header-group" style={{ backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-light)' }}>
                                   <tr className="text-xs font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>
                                     <th className="py-3 px-4">Item Name</th>
