@@ -1685,7 +1685,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             </div>
             
             <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-              <button onClick={() => setSelectBatchModal({ isOpen: false, item: null, batches: [] })} className="h-9 px-6 text-sm font-semibold focus:outline-none rounded-md" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}>Cancel</button>
+              <button onClick={() => setSelectBatchModal({ isOpen: false, item: null, batches: [] })} className="h-9 px-6 text-sm font-semibold focus:outline-none rounded-md transition-colors" style={{ backgroundColor: 'transparent', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -1880,7 +1880,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               </div>
               
               <div className="p-4 md:p-5 border-t border-[var(--border-light)] bg-[var(--bg-secondary)] flex justify-end gap-3">
-                <button type="button" onClick={() => setManualInstanceBarcodeModal({ isOpen: false, item: null, batch: null, barcodeInput: '', prefix: '', error: null })} className="px-5 py-2.5 text-sm font-bold uppercase tracking-wider rounded-md transition-colors" style={{ color: 'var(--text-primary)', border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-primary)' }}>Cancel</button>
+                <button type="button" onClick={() => setManualInstanceBarcodeModal({ isOpen: false, item: null, batch: null, barcodeInput: '', prefix: '', error: null })} className="px-5 py-2.5 text-sm font-bold uppercase tracking-wider rounded-md transition-colors" style={{ color: 'var(--color-error)', border: '1px solid var(--color-error)', backgroundColor: 'transparent' }}>Cancel</button>
                 <button type="submit" className="px-6 py-2.5 text-white text-sm font-bold uppercase tracking-wider focus:outline-none rounded-md transition-colors hover:opacity-90 shadow-sm" style={{ backgroundColor: 'var(--color-accent)' }}>Confirm & Next</button>
               </div>
             </form>
@@ -2137,7 +2137,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               <button
                 onClick={() => showConfirm("Clear all items?", handleCancelSale, activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items', 'Clear', 'Cancel', true)}
                 className="flex-1 md:flex-none min-h-[44px] md:min-h-0 md:h-10 px-6 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md"
-                style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
+                style={{ backgroundColor: 'transparent', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
               >
                 {activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items'}
               </button>

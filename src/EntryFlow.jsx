@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { Spinner, EyeIcon, EyeSlashIcon } from './SharedUI';
 
@@ -12,7 +12,9 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
+  const [workersList, setWorkersList] = useState([]);
+  const [loadingWorkers, setLoadingWorkers] = useState(false);
 
   const [shopName, setShopName] = useState('');
   const [ownerName, setOwnerName] = useState('');
@@ -30,6 +32,32 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [ownerEmail, setOwnerEmail] = useState(localStorage.getItem('owner_email') || '');
+
+  useEffect(() => {
+    if (step === 2 && role === 'worker' && shopSettings?.id) {
+      const fetchWorkers = async () => {
+        setLoadingWorkers(true);
+        try {
+          const { data } = await supabase
+            .from('workers')
+            .select('name')
+            .eq('shop_id', shopSettings.id)
+            .order('name');
+          if (data && data.length > 0) {
+            setWorkersList(data);
+            if (!operatorId) {
+              setOperatorId(data[0].name);
+            }
+          }
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setLoadingWorkers(false);
+        }
+      };
+      fetchWorkers();
+    }
+  }, [step, role, shopSettings]);
 
   const handleLogoSelect = (e) => {
     const file = e.target.files[0];
@@ -186,13 +214,13 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
     const targetId = role === 'owner' ? 'owner' : operatorId.trim();
 
     if (role === 'worker' && !targetId) {
-      setError('Please enter your Staff Username.');
+      setError('Please select or enter your Staff Username.');
       setIsAuthenticating(false);
       return;
     }
 
     try {
-      const targetEmail = role === 'owner' ? (ownerEmail.trim() || 'admin@hardwarepos.com') : getWorkerEmail(targetId);
+      const targetEmail = role === 'owner' ? (shopSettings?.admin_email || ownerEmail.trim()) : getWorkerEmail(targetId);
 
       const { error: authError } = await supabase.auth.signInWithPassword({
         email: targetEmail,
@@ -437,26 +465,32 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
             </p>
             <form onSubmit={handleLogin} className="space-y-4">
               {role === 'worker' ? (
-                <input
-                  type="text"
-                  value={operatorId}
-                  onChange={(e) => setOperatorId(e.target.value)}
-                  placeholder="Staff Name"
-                  className="w-full h-12 px-3 focus:outline-none text-lg"
-                  style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
-                  autoFocus
-                />
-              ) : (
-                <input
-                  type="email"
-                  value={ownerEmail}
-                  onChange={(e) => setOwnerEmail(e.target.value)}
-                  placeholder="Owner Email"
-                  className="w-full h-12 px-3 focus:outline-none text-lg"
-                  style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
-                  autoFocus
-                />
-              )}
+                workersList.length > 0 ? (
+                  <div className="relative">
+                    <select
+                      value={operatorId}
+                      onChange={(e) => setOperatorId(e.target.value)}
+                      className="w-full h-12 px-3 focus:outline-none text-lg cursor-pointer"
+                      style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
+                      autoFocus
+                    >
+                      {workersList.map((w, idx) => (
+                        <option key={idx} value={w.name}>{w.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    value={operatorId}
+                    onChange={(e) => setOperatorId(e.target.value)}
+                    placeholder="Staff Name"
+                    className="w-full h-12 px-3 focus:outline-none text-lg"
+                    style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
+                    autoFocus
+                  />
+                )
+              ) : null}
               <div className="relative">
                 <input
                   type={showLoginPassword ? 'text' : 'password'}
@@ -465,6 +499,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
                   placeholder={role === 'owner' ? 'Owner Password' : 'Login PIN'}
                   className="w-full h-12 px-3 pr-10 focus:outline-none text-lg"
                   style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
+                  autoFocus
                 />
                 <button
                   type="button"
@@ -476,21 +511,19 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
                   {showLoginPassword ? <EyeSlashIcon /> : <EyeIcon />}
                 </button>
               </div>
-              {role === 'owner' && (
-                <div className="flex items-center gap-2 mt-2">
-                  <input
-                    type="checkbox"
-                    id="rememberMe"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-300 focus:ring-[var(--color-accent)]"
-                    style={{ accentColor: 'var(--color-accent)' }}
-                  />
-                  <label htmlFor="rememberMe" className="text-sm font-medium select-none cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
-                    Remember me
-                  </label>
-                </div>
-              )}
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="checkbox"
+                  id="rememberMe"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 focus:ring-[var(--color-accent)] cursor-pointer"
+                  style={{ accentColor: 'var(--color-accent)' }}
+                />
+                <label htmlFor="rememberMe" className="text-sm font-medium select-none cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
+                  Remember me
+                </label>
+              </div>
               {error && <p className="text-sm font-semibold" style={{ color: 'var(--color-error)' }}>{error}</p>}
               <button
                 type="submit"

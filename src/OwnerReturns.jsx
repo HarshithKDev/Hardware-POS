@@ -115,11 +115,20 @@ export default function OwnerReturns() {
           if (inst) {
             await supabase.from('stock_instances').update({ status: 'available', current_length: inst.original_length }).eq('instance_barcode', item.instance_barcode);
           }
-        } else if (item.batch_id) {
-          const { data: batch } = await supabase.from('inventory_batches').select('stock_store').eq('batch_id', item.batch_id).single();
-          if (batch) {
-            const newStock = Number(batch.stock_store || 0) + qtyToRestore;
-            await supabase.from('inventory_batches').update({ stock_store: newStock }).eq('batch_id', item.batch_id);
+        } else {
+          // If we have batch_id, restore to it. If not, try to find any batch for this barcode.
+          let targetBatchId = item.batch_id;
+          if (!targetBatchId) {
+             const { data: batches } = await supabase.from('inventory_batches').select('batch_id').eq('barcode', item.barcode).limit(1);
+             if (batches && batches.length > 0) targetBatchId = batches[0].batch_id;
+          }
+          
+          if (targetBatchId) {
+            const { data: batch } = await supabase.from('inventory_batches').select('stock_store').eq('batch_id', targetBatchId).single();
+            if (batch) {
+              const newStock = Number(batch.stock_store || 0) + qtyToRestore;
+              await supabase.from('inventory_batches').update({ stock_store: newStock }).eq('batch_id', targetBatchId);
+            }
           }
         }
 
@@ -418,12 +427,9 @@ function ReturnModal({ isOpen, onClose, bill, items, onExecuteReturn, isReturnin
                   
                   <div className="flex items-center gap-3">
                     {isCuttable ? (
-                      <button 
-                        onClick={() => handleQtyChange(item, isSelected ? -maxQty : maxQty)}
-                        className={`w-24 h-8 rounded-md border flex items-center justify-center font-bold text-xs transition-colors ${isSelected ? 'bg-red-500 text-white border-red-600 hover:bg-red-600' : 'bg-[var(--bg-secondary)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'}`}
-                      >
-                        {isSelected ? 'RETURN PIECE' : 'KEEP PIECE'}
-                      </button>
+                      <span className="text-xs font-semibold px-3 py-1.5 rounded" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>
+                        Non-returnable (Cut Item)
+                      </span>
                     ) : (
                       <>
                         <button onClick={() => handleQtyChange(item, -1)} disabled={returnQty <= 0} className="w-8 h-8 rounded-full border flex items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-primary)] disabled:opacity-50 hover:bg-[var(--bg-hover)]">-</button>

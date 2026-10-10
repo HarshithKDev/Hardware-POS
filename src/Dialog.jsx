@@ -120,43 +120,57 @@ export function DialogOverlay({ isOpen, onClose, children, labelId, maxWidth = '
 }
 
 /**
- * Alert Dialog — informational message with an OK/Acknowledge button.
+ * Alert Dialog / Toast — informational message that slides from top and auto-dismisses.
  */
-export function AlertDialog({ isOpen, title, message, onClose, buttonLabel = 'OK' }) {
-  const labelId = 'alert-dialog-title';
-  const descId = 'alert-dialog-desc';
+export function AlertDialog({ isOpen, title, message, onClose }) {
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        onClose();
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  let borderColorStyle = 'var(--border-medium)';
+  let titleColor = 'var(--text-primary)';
+  const lowerTitle = (title || '').toLowerCase();
+  
+  if (lowerTitle.includes('success') || lowerTitle.includes('restored')) {
+    borderColorStyle = '#10b981'; // green
+    titleColor = '#10b981';
+  } else if (lowerTitle.includes('error') || lowerTitle.includes('fail') || lowerTitle.includes('invalid')) {
+    borderColorStyle = 'var(--color-error)'; // red
+    titleColor = 'var(--color-error)';
+  } else if (lowerTitle.includes('warn') || lowerTitle.includes('limit') || lowerTitle.includes('notice') || lowerTitle.includes('missing') || lowerTitle.includes('required') || lowerTitle.includes('expired')) {
+    borderColorStyle = '#f59e0b'; // orange
+    titleColor = '#f59e0b';
+  } else if (lowerTitle.includes('info')) {
+    borderColorStyle = '#3b82f6'; // blue
+    titleColor = '#3b82f6';
+  }
 
   return (
-    <DialogOverlay isOpen={isOpen} onClose={onClose} labelId={labelId}>
-      {/* Title bar */}
-      <div className="flex justify-between items-center px-6 pt-6 pb-2">
-        <span
-          id={labelId}
-          className="text-base font-semibold"
-          style={{ color: 'var(--text-primary)' }}
-        >
-          {title}
-        </span>
+    <div className="fixed top-8 left-1/2 -translate-x-1/2 px-4 animate-fade-in-down print:hidden pointer-events-none w-full max-w-sm" style={{ zIndex: 99999 }}>
+      <div 
+        onClick={onClose}
+        className="flex items-center justify-center px-5 py-3.5 rounded-xl shadow-2xl pointer-events-auto cursor-pointer transition-transform hover:scale-[1.02]"
+        style={{ 
+          backgroundColor: 'var(--bg-secondary)',
+          border: `1px solid ${borderColorStyle}`,
+          borderLeft: `4px solid ${borderColorStyle}`
+        }}
+      >
+        <div className="flex-1 text-center">
+          {title && title !== 'Notice' && title !== 'Info' && (
+            <p className="text-sm font-bold mb-1" style={{ color: titleColor }}>{title}</p>
+          )}
+          <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>{message}</p>
+        </div>
       </div>
-
-      {/* Body */}
-      <div className="px-6 py-4">
-        <p id={descId} className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-          {message}
-        </p>
-      </div>
-
-      {/* Footer */}
-      <div className="px-6 pb-6 pt-2 flex justify-end">
-        <button
-          onClick={onClose}
-          className="h-10 px-6 text-sm font-medium rounded-md"
-          style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-accent-fg)' }}
-        >
-          {buttonLabel}
-        </button>
-      </div>
-    </DialogOverlay>
+    </div>
   );
 }
 

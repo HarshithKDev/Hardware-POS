@@ -498,8 +498,10 @@ export default function OwnerInventory({ viewType }) {
           <Virtuoso
             data={items}
             useWindowScroll={false}
-            style={{ height: '100%', width: '100%', overflowAnchor: 'none' }}
+            style={{ height: '100%', width: '100%' }}
             className="hide-x-scrollbar"
+            defaultItemHeight={80}
+            increaseViewportBy={{ top: 400, bottom: 400 }}
             components={{
               List: forwardRef((props, ref) => (
                 <table ref={ref} style={{ ...props.style }} className={`block md:table w-full max-w-full text-center border-collapse table-fixed min-w-full ${props.className || ''}`}>

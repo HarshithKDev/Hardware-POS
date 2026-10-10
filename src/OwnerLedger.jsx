@@ -165,11 +165,19 @@ export default function OwnerLedger({ isActive }) {
           if (inst) {
             await supabase.from('stock_instances').update({ status: 'available', current_length: inst.original_length }).eq('instance_barcode', item.instance_barcode);
           }
-        } else if (item.batch_id) {
-          const { data: batch } = await supabase.from('inventory_batches').select('stock_store').eq('batch_id', item.batch_id).single();
-          if (batch) {
-            const newStock = Number(batch.stock_store || 0) + qtyToRestore;
-            await supabase.from('inventory_batches').update({ stock_store: newStock }).eq('batch_id', item.batch_id);
+        } else {
+          let targetBatchId = item.batch_id;
+          if (!targetBatchId) {
+             const { data: batches } = await supabase.from('inventory_batches').select('batch_id').eq('barcode', item.barcode).limit(1);
+             if (batches && batches.length > 0) targetBatchId = batches[0].batch_id;
+          }
+          
+          if (targetBatchId) {
+            const { data: batch } = await supabase.from('inventory_batches').select('stock_store').eq('batch_id', targetBatchId).single();
+            if (batch) {
+              const newStock = Number(batch.stock_store || 0) + qtyToRestore;
+              await supabase.from('inventory_batches').update({ stock_store: newStock }).eq('batch_id', targetBatchId);
+            }
           }
         }
 
@@ -531,11 +539,12 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
             const maxQty = Number(item.billable_quantity || item.quantity);
             const returnQty = returnQuantities[item.id] || 0;
             const isSelected = returnQty > 0;
+            const isCuttable = item.instance_barcode || item.cut_length !== null || ['SQFT', 'FT', 'METER', 'M'].includes((item.unit || '').toUpperCase());
 
             return (
               <div key={item.id} className="flex flex-col gap-3 p-3 rounded-lg border border-[var(--border-light)] transition-colors" style={{ backgroundColor: isSelected ? 'var(--color-accent-bg)' : 'transparent', borderColor: isSelected ? 'var(--color-accent)' : 'var(--border-light)' }}>
                 <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-3 cursor-pointer flex-1" onClick={(e) => { e.preventDefault(); handleCheckbox(item); }}>
+                  <label className={`flex items-center gap-3 flex-1 ${isCuttable ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`} onClick={(e) => { e.preventDefault(); if (!isCuttable) handleCheckbox(item); }}>
                     <input 
                       type="checkbox" 
                       checked={isSelected} 
@@ -549,22 +558,32 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
                     </div>
                   </label>
 
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => handleQtyChange(item, -1)} disabled={returnQty <= 0} className="w-8 h-8 rounded-full border border-[var(--border-medium)] flex items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-primary)] disabled:opacity-50 hover:bg-[var(--bg-hover)] transition-colors">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
-                    </button>
-                    <div className="w-10 text-center font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
-                      {returnQty}
+                  {isCuttable ? (
+                    <div className="flex items-center">
+                      <span className="text-xs font-semibold px-3 py-1.5 rounded" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>
+                        Non-returnable (Cut Item)
+                      </span>
                     </div>
-                    <button onClick={() => handleQtyChange(item, 1)} disabled={returnQty >= maxQty} className="w-8 h-8 rounded-full border border-[var(--border-medium)] flex items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-primary)] disabled:opacity-50 hover:bg-[var(--bg-hover)] transition-colors">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                    </button>
-                  </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => handleQtyChange(item, -1)} disabled={returnQty <= 0} className="w-8 h-8 rounded-full border border-[var(--border-medium)] flex items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-primary)] disabled:opacity-50 hover:bg-[var(--bg-hover)] transition-colors">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
+                      </button>
+                      <div className="w-10 text-center font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
+                        {returnQty}
+                      </div>
+                      <button onClick={() => handleQtyChange(item, 1)} disabled={returnQty >= maxQty} className="w-8 h-8 rounded-full border border-[var(--border-medium)] flex items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-primary)] disabled:opacity-50 hover:bg-[var(--bg-hover)] transition-colors">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                      </button>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="flex justify-between items-center text-xs pt-2 border-t border-[var(--border-light)]">
                   <span style={{ color: 'var(--text-secondary)' }}>Purchased: {maxQty} {item.unit}</span>
-                  <span className="font-bold" style={{ color: 'var(--text-primary)' }}>Refund: ₹{(Number(item.price_at_sale) * returnQty).toFixed(2)}</span>
+                  {!isCuttable && (
+                    <span className="font-bold" style={{ color: 'var(--text-primary)' }}>Refund: ₹{(Number(item.price_at_sale) * returnQty).toFixed(2)}</span>
+                  )}
                 </div>
               </div>
             );
