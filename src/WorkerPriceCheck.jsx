@@ -5,12 +5,11 @@ import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
 import { calculateMSP } from './utils';
 import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD } from './constants';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Camera, RefreshCw } from 'lucide-react';
 
 export default function WorkerPriceCheck() {
   const { showAlert, userRole } = useApp();
-  const [searchInput, setSearchInput] = useState('');
-  const [isScanning, setIsScanning] = useState(false);
+  const [isScanning, setIsScanning] = useState(true);
   const [scannedItem, setScannedItem] = useState(null);
   const [availableInstances, setAvailableInstances] = useState([]);
   const [isLoadingInstances, setIsLoadingInstances] = useState(false);
@@ -34,6 +33,20 @@ export default function WorkerPriceCheck() {
       console.log('Audio unlock failed', e);
     }
   };
+
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      unlockAudio();
+      window.removeEventListener('click', handleFirstInteraction);
+      window.removeEventListener('touchstart', handleFirstInteraction);
+    };
+    window.addEventListener('click', handleFirstInteraction, { passive: true });
+    window.addEventListener('touchstart', handleFirstInteraction, { passive: true });
+    return () => {
+      window.removeEventListener('click', handleFirstInteraction);
+      window.removeEventListener('touchstart', handleFirstInteraction);
+    };
+  }, []);
 
   const playBeep = () => {
     try {
@@ -233,13 +246,6 @@ export default function WorkerPriceCheck() {
     }
   };
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    if (searchInput.trim()) {
-      handleLookup(searchInput.trim());
-    }
-  };
-
   const displayUnit = (scannedItem?.unit || '').toUpperCase();
   const activeBatch = scannedItem?.activeBatch;
   const price = activeBatch?.selling_price ?? (scannedItem?.price || 0);
@@ -258,72 +264,54 @@ export default function WorkerPriceCheck() {
           <div>
             <h1 className="text-xl md:text-2xl font-bold uppercase tracking-wider text-[var(--text-primary)] flex items-center gap-2">
               <span className="p-2 rounded-lg bg-[var(--color-accent-bg)] text-[var(--color-accent)]">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+                <Camera className="w-5 h-5" />
               </span>
               Item & Stock Lookup
             </h1>
-            <p className="text-xs text-[var(--text-secondary)] mt-1">General lookup for live Store stock, Warehouse stock, MRP, MSP & batch details</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-1">Live camera scanner for Store stock, Warehouse stock, MRP & MSP details</p>
           </div>
+          {isScanning && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              Camera Active
+            </span>
+          )}
         </div>
 
-        {/* Input & Camera Toggle */}
-        <div className="flex flex-col gap-3 p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-light)] shadow-sm">
-          <form onSubmit={handleSearchSubmit} className="flex gap-2">
-            <input 
-              type="text"
-              autoFocus
-              value={searchInput}
-              onChange={e => setSearchInput(e.target.value)}
-              placeholder="Scan barcode or type name..."
-              className="flex-1 h-12 px-4 rounded-lg bg-[var(--bg-input)] border border-[var(--border-medium)] text-sm md:text-base font-semibold text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)]"
-            />
-            <button
-              type="submit"
-              className="px-5 h-12 rounded-lg font-bold uppercase text-xs tracking-wider text-white bg-[var(--color-accent)] hover:opacity-90 active:scale-95 transition-all shadow-sm"
-            >
-              Search
-            </button>
-          </form>
-
-          <button
-            type="button"
-            onClick={() => {
-              unlockAudio();
-              setIsScanning(!isScanning);
-            }}
-            className="w-full py-3.5 rounded-lg font-bold text-sm uppercase tracking-wider text-white flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95"
-            style={{ backgroundColor: isScanning ? 'var(--color-error)' : '#8b5cf6' }}
-          >
-            {isScanning ? (
-              <>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Stop Camera Scanner
-              </>
-            ) : (
-              <>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Scan with Camera
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Camera Container */}
-        {isScanning && (
-          <div className="w-full rounded-xl overflow-hidden border-2 border-[#8b5cf6] bg-[#000000] p-2 shadow-lg animate-scale-in">
+        {/* Direct Camera Interface */}
+        {isScanning ? (
+          <div className="w-full rounded-2xl overflow-hidden border-2 border-[var(--color-accent)] bg-black p-2.5 shadow-lg relative animate-fade-in">
             <style>{`
               #price-check-reader { width: 100% !important; border: none !important; }
-              #price-check-reader video { width: 100% !important; max-height: 280px !important; object-fit: cover !important; border-radius: 8px; }
+              #price-check-reader video { width: 100% !important; max-height: 280px !important; object-fit: cover !important; border-radius: 12px; }
               #price-check-reader canvas { display: none !important; }
             `}</style>
             <div id="price-check-reader" className="w-full flex justify-center"></div>
+            <div className="mt-2 py-1 text-center text-xs text-white/80 font-medium flex items-center justify-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              Point camera at barcode to look up stock & price
+            </div>
+          </div>
+        ) : (
+          <div className="w-full rounded-2xl p-6 bg-[var(--bg-secondary)] border border-[var(--border-light)] text-center flex flex-col items-center justify-center gap-3 animate-fade-in">
+            <div className="w-12 h-12 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center text-[var(--text-secondary)]">
+              <Camera className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="font-semibold text-sm text-[var(--text-primary)]">Camera Scanner Inactive</p>
+              <p className="text-xs text-[var(--text-tertiary)] mt-0.5">Camera access may have been paused or blocked.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                unlockAudio();
+                setIsScanning(true);
+              }}
+              className="px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider text-white bg-[var(--color-accent)] hover:opacity-90 active:scale-95 transition-all shadow-sm flex items-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Restart Camera Scanner
+            </button>
           </div>
         )}
 
@@ -361,7 +349,6 @@ export default function WorkerPriceCheck() {
               <button
                 onClick={() => {
                   setScannedItem(null);
-                  setSearchInput('');
                 }}
                 className="px-3 py-1.5 rounded-md text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--color-error)] border border-[var(--border-medium)] hover:border-[var(--color-error)] transition-colors"
               >
@@ -542,13 +529,11 @@ export default function WorkerPriceCheck() {
             )}
           </div>
         ) : (
-          <div className="p-10 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-light)] text-center flex flex-col items-center justify-center">
-            <svg className="w-16 h-16 mb-3 opacity-30 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <p className="font-bold text-base text-[var(--text-secondary)]">No Item Selected</p>
+          <div className="p-8 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-light)] text-center flex flex-col items-center justify-center">
+            <Camera className="w-12 h-12 mb-3 opacity-30 text-[var(--text-secondary)]" />
+            <p className="font-bold text-base text-[var(--text-secondary)]">Ready to Scan</p>
             <p className="text-xs text-[var(--text-tertiary)] mt-1 max-w-xs">
-              Scan a barcode or enter item name/code above to look up live Store stock, Warehouse stock, and price details.
+              Hold any item barcode in front of the camera above to instantly look up live Store stock, Warehouse stock, MRP, and MSP details.
             </p>
           </div>
         )}

@@ -212,7 +212,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
               setInventorySearch(e.target.value);
               debouncedSetSearch(e.target.value);
             }}
-            className="w-full h-10 px-3 border text-xs md:text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 rounded-lg"
+            className="w-full h-10 px-2.5 sm:px-3 text-[11px] sm:text-xs md:text-sm border shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 rounded-lg leading-normal"
             style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)', colorScheme: 'dark' }}
           />
         </div>
@@ -221,7 +221,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="w-full h-10 px-3 border text-xs md:text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 rounded-lg cursor-pointer font-medium"
+            className="w-full h-10 pl-2.5 sm:pl-3 pr-7 sm:pr-8 text-[11px] sm:text-xs md:text-sm border shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 rounded-lg cursor-pointer font-medium leading-normal truncate"
             style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)', colorScheme: 'dark' }}
           >
             <option value="ALL" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>All Categories</option>
