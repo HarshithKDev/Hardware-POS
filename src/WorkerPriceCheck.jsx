@@ -269,19 +269,18 @@ export default function WorkerPriceCheck() {
         {scannedItem ? (
           /* Scanned Item Details View (Full Page, Prominent, Phone-Optimized) */
           <div className="flex-1 flex flex-col justify-between gap-4 animate-fade-in">
-            {/* Header: Product Details Title & Barcode Badge */}
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-                Product Details
-              </span>
-              <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-md bg-[var(--bg-secondary)] text-[var(--color-accent)] border border-[var(--border-light)]">
-                #{scannedItem.scannedCode || scannedItem.barcode}
-              </span>
-            </div>
-
             {/* Main Product Card - Simple, Clean, Full Page */}
             <div className="flex-1 flex flex-col justify-between bg-[var(--bg-secondary)] border border-[var(--border-light)] rounded-2xl p-6 md:p-8 shadow-sm gap-6">
               <div className="flex flex-col gap-6">
+                {/* Barcode inside the box - Big & Clear */}
+                <div className="flex items-center justify-between pb-3 border-b border-[var(--border-light)]">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                    Barcode
+                  </span>
+                  <span className="px-3.5 py-1.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-light)] text-base md:text-xl font-mono font-extrabold text-[var(--color-accent)] tracking-wider">
+                    {scannedItem.scannedCode || scannedItem.barcode}
+                  </span>
+                </div>
                 {/* Product Name ON TOP */}
                 <div className="flex flex-col gap-2">
                   <h2 className="text-2xl md:text-3xl font-extrabold text-[var(--text-primary)] leading-tight capitalize">
@@ -341,10 +340,10 @@ export default function WorkerPriceCheck() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    {/* ST (Store) */}
+                    {/* Store */}
                     <div className="p-4 md:p-5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-light)] flex flex-col justify-between">
                       <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                        ST (Store)
+                        Store
                       </span>
                       <div className="flex items-baseline gap-1.5 my-2">
                         <span className={`text-3xl md:text-5xl font-black ${Number(storeStock) < STORE_LOW_STOCK_THRESHOLD ? 'text-amber-500' : 'text-[var(--text-primary)]'}`}>
@@ -361,10 +360,10 @@ export default function WorkerPriceCheck() {
                       )}
                     </div>
 
-                    {/* WH (Warehouse) */}
+                    {/* Warehouse */}
                     <div className="p-4 md:p-5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-light)] flex flex-col justify-between">
                       <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                        WH (Warehouse)
+                        Warehouse
                       </span>
                       <div className="flex items-baseline gap-1.5 my-2">
                         <span className={`text-3xl md:text-5xl font-black ${Number(whseStock) < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'text-amber-500' : 'text-[var(--text-primary)]'}`}>
