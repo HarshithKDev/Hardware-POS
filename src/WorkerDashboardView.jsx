@@ -10,8 +10,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
   const navigate = useNavigate();
   const [inventorySearch, setInventorySearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [sortOption, setSortOption] = useState('barcode-asc');
-  const [isSortOpen, setIsSortOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [lowStockModal, setLowStockModal] = useState({ isOpen: false, type: null });
 
   // Debounced search
@@ -44,6 +43,30 @@ export default function WorkerDashboardView({ isBillable = true }) {
     staleTime: STALE_TIME_5MIN,
   });
 
+  // Fetch distinct categories from categories table and products
+  const { data: categories = [] } = useQuery({
+    queryKey: ['workerCategories'],
+    queryFn: async () => {
+      const catSet = new Set();
+      try {
+        const { data } = await supabase.from('categories').select('name').order('name', { ascending: true });
+        if (data) {
+          data.forEach(c => { if (c.name) catSet.add(c.name); });
+        }
+      } catch {}
+
+      try {
+        const { data } = await supabase.from('product_master_public').select('category').eq('is_active', true);
+        if (data) {
+          data.forEach(p => { if (p.category) catSet.add(p.category); });
+        }
+      } catch {}
+
+      return Array.from(catSet).sort((a, b) => a.localeCompare(b));
+    },
+    staleTime: STALE_TIME_5MIN,
+  });
+
   const { 
     data: inventoryData, 
     isLoading,
@@ -51,7 +74,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
     hasNextPage,
     isFetchingNextPage
   } = useInfiniteQuery({
-    queryKey: ['workerInventory', debouncedSearch, sortOption],
+    queryKey: ['workerInventory', debouncedSearch, selectedCategory],
     queryFn: async ({ pageParam = 0 }) => {
       const from = pageParam * INV_PER_PAGE;
       let query = supabase.from('product_master_public').select('*', { count: 'exact' }).eq('is_active', true);
@@ -61,9 +84,13 @@ export default function WorkerDashboardView({ isBillable = true }) {
         const safe = escapeIlike(debouncedSearch.trim());
         query = query.or(`name.ilike.%${safe}%,barcode.ilike.%${safe}%`);
       }
+
+      // Filter by category
+      if (selectedCategory && selectedCategory !== 'ALL') {
+        query = query.eq('category', selectedCategory);
+      }
       
-      if (sortOption === 'name-asc') query = query.order('name', { ascending: true });
-      else if (sortOption === 'barcode-asc') query = query.order('barcode', { ascending: true });
+      query = query.order('barcode', { ascending: true });
 
       const { data, count, error } = await query.range(from, from + INV_PER_PAGE - 1);
       if (error) throw error;
@@ -175,96 +202,90 @@ export default function WorkerDashboardView({ isBillable = true }) {
         </button>
       </div>
 
-      <div className="flex flex-row gap-2 md:gap-4 mb-3 md:mb-4">
-        <input 
-          type="text" 
-          placeholder="Search Barcode or Name..." 
-          value={inventorySearch}
-          onChange={(e) => {
-            setInventorySearch(e.target.value);
-            debouncedSetSearch(e.target.value);
-          }}
-          className="flex-1 min-w-0 px-3 md:px-4 py-1.5 md:py-2 border text-xs md:text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-          style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)' }}
-        />
-        <div className="relative w-[150px] md:w-auto md:min-w-[200px] flex-shrink-0">
-          <button 
-            type="button"
-            onClick={() => setIsSortOpen(!isSortOpen)}
-            className="w-full flex justify-between items-center px-2 md:px-4 py-1.5 md:py-2 border text-xs md:text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-            style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)' }}
+      <div className="grid grid-cols-2 gap-2 md:gap-4 mb-3 md:mb-4">
+        <div className="w-full">
+          <input 
+            type="text" 
+            placeholder="Search Barcode or Name..." 
+            value={inventorySearch}
+            onChange={(e) => {
+              setInventorySearch(e.target.value);
+              debouncedSetSearch(e.target.value);
+            }}
+            className="w-full h-10 px-3 border text-xs md:text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 rounded-lg"
+            style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)', colorScheme: 'dark' }}
+          />
+        </div>
+
+        <div className="w-full">
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="w-full h-10 px-3 border text-xs md:text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 rounded-lg cursor-pointer font-medium"
+            style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)', colorScheme: 'dark' }}
           >
-            <span className="truncate">{sortOption === 'barcode-asc' ? 'Barcode (Low to High)' : 'Item Name (A-Z)'}</span>
-            <svg className="w-3 h-3 md:w-4 md:h-4 ml-1 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          
-          {isSortOpen && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setIsSortOpen(false)}></div>
-              <div className="absolute top-full right-0 w-full mt-2 rounded-lg border border-[var(--border-light)] shadow-md overflow-hidden z-50 animate-fade-in flex flex-col" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-                <button 
-                  className="w-full text-left px-3 md:px-4 py-2.5 md:py-2 text-xs md:text-sm transition-colors hover:bg-[var(--bg-hover)] focus:outline-none"
-                  style={{ color: 'var(--text-primary)', borderBottom: '1px solid var(--border-light)' }}
-                  onClick={() => { setSortOption('barcode-asc'); setIsSortOpen(false); }}
-                >
-                  Barcode (Low to High)
-                </button>
-                <button 
-                  className="w-full text-left px-3 md:px-4 py-2.5 md:py-2 text-xs md:text-sm transition-colors hover:bg-[var(--bg-hover)] focus:outline-none"
-                  style={{ color: 'var(--text-primary)' }}
-                  onClick={() => { setSortOption('name-asc'); setIsSortOpen(false); }}
-                >
-                  Item Name (A-Z)
-                </button>
-              </div>
-            </>
-          )}
+            <option value="ALL" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>All Categories</option>
+            {categories.map((catName) => (
+              <option key={catName} value={catName} style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+                {catName}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
       <div 
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 md:min-h-[300px] flex flex-col rounded-lg border border-[var(--border-light)]" 
-        style={{ backgroundColor: 'var(--bg-secondary)' }}
+        className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 md:min-h-[300px] rounded-lg border border-[var(--border-light)] relative overscroll-contain" 
+        style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'contain' }}
       >
-        
-        <div className="w-full h-full overflow-x-hidden md:overflow-x-auto">
-          <table className="w-full text-center table-fixed text-[10px] md:text-sm border-collapse min-w-full" style={{ color: 'var(--text-primary)' }}>
-            <thead style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
-              <tr className="text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>
-                <th className="p-1.5 md:p-3 w-[15%] md:w-auto align-middle" style={{ borderRight: '1px solid var(--border-light)' }}>BC</th>
-                <th className="p-1.5 md:p-3 w-[40%] md:w-auto align-middle" style={{ borderRight: '1px solid var(--border-light)' }}>Name</th>
-                <th className="p-1.5 md:p-3 w-[15%] md:w-auto align-middle" style={{ borderRight: '1px solid var(--border-light)' }}>MRP</th>
-                <th className="p-1.5 md:p-3 w-[15%] md:w-auto align-middle" style={{ borderRight: '1px solid var(--border-light)' }}>WHS</th>
-                <th className="p-1.5 md:p-3 w-[15%] md:w-auto align-middle">STR</th>
+        <table 
+          className="w-full text-center table-fixed text-[10px] md:text-sm min-w-full" 
+          style={{ 
+            color: 'var(--text-primary)', 
+            borderCollapse: 'separate', 
+            borderSpacing: 0 
+          }}
+        >
+          <thead 
+            className="sticky top-0 z-20 shadow-sm" 
+            style={{ 
+              backgroundColor: 'var(--bg-tertiary)',
+              transform: 'translate3d(0, 0, 0)',
+              WebkitTransform: 'translate3d(0, 0, 0)'
+            }}
+          >
+            <tr className="text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>
+              <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-light)', borderBottom: '1px solid var(--border-medium)' }}>BC</th>
+              <th className="p-2 md:p-3 w-[40%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-light)', borderBottom: '1px solid var(--border-medium)' }}>Name</th>
+              <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-light)', borderBottom: '1px solid var(--border-medium)' }}>MRP</th>
+              <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-light)', borderBottom: '1px solid var(--border-medium)' }}>WHS</th>
+              <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>STR</th>
+            </tr>
+          </thead>
+          <tbody style={{ borderBottom: '1px solid var(--border-medium)' }}>
+            {isLoading ? (
+               <tr><td colSpan="5" className="h-full text-center py-6 align-middle"><PageLoader text="Loading items..." /></td></tr>
+            ) : paginatedInventory.length === 0 ? (
+              <tr className="border-none"><td colSpan="5" className="h-full p-0 border-none"><EmptyState message="No items found." /></td></tr>
+            ) : paginatedInventory.map(item => (
+              <tr key={item.id} className="transition-colors hover:bg-[var(--bg-hover)] text-center" style={{ borderBottom: '1px solid var(--border-light)' }}>
+                <td className="p-1.5 md:p-3 font-semibold tracking-wider truncate align-middle" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)', borderBottom: '1px solid var(--border-light)' }}>{item.barcode}</td>
+                <td className="p-1.5 md:p-3 font-medium leading-tight break-words align-middle" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)', borderBottom: '1px solid var(--border-light)' }}>{item.name}</td>
+                <td className="p-1.5 md:p-3 align-middle" style={{ borderRight: '1px solid var(--border-light)', borderBottom: '1px solid var(--border-light)' }}>₹{Number(item.price).toFixed(2)}</td>
+                <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: item.stock_warehouse < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)', borderRight: '1px solid var(--border-light)', borderBottom: '1px solid var(--border-light)' }}>{item.stock_warehouse}</td>
+                <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: item.stock_store < STORE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)', borderBottom: '1px solid var(--border-light)' }}>{item.stock_store}</td>
               </tr>
-            </thead>
-            <tbody style={{ borderBottom: '1px solid var(--border-medium)' }}>
-              {isLoading ? (
-                 <tr><td colSpan="5" className="h-full text-center py-6 align-middle"><PageLoader text="Loading items..." /></td></tr>
-              ) : paginatedInventory.length === 0 ? (
-                <tr className="border-none"><td colSpan="5" className="h-full p-0 border-none"><EmptyState message="No items found." /></td></tr>
-              ) : paginatedInventory.map(item => (
-                <tr key={item.id} className="transition-colors hover:bg-[var(--bg-hover)] text-center" style={{ borderBottom: '1px solid var(--border-light)' }}>
-                  <td className="p-1.5 md:p-3 font-semibold tracking-wider  truncate align-middle" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{item.barcode}</td>
-                  <td className="p-1.5 md:p-3 font-medium leading-tight break-words align-middle" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
-                  <td className="p-1.5 md:p-3 align-middle" style={{ borderRight: '1px solid var(--border-light)' }}>₹{Number(item.price).toFixed(2)}</td>
-                  <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: item.stock_warehouse < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.stock_warehouse}</td>
-                  <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: item.stock_store < STORE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)' }}>{item.stock_store}</td>
-                </tr>
-              ))}
-              {isFetchingNextPage && (
-                <tr>
-                  <td colSpan="5" className="py-4 text-center text-sm font-semibold align-middle" style={{ color: 'var(--text-tertiary)' }}>
-                    Loading more...
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+            ))}
+            {isFetchingNextPage && (
+              <tr>
+                <td colSpan="5" className="py-3 text-center text-xs font-semibold align-middle" style={{ color: 'var(--text-tertiary)' }}>
+                  Loading more...
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
 
       {lowStockModal.isOpen && (
