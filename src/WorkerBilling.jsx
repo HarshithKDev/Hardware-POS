@@ -6,6 +6,7 @@ import { useApp } from './AppContext';
 import WorkerDashboardView from './WorkerDashboardView';
 import WorkerTerminal from './WorkerTerminal';
 import WorkerScanner from './WorkerScanner';
+import WorkerPriceCheck from './WorkerPriceCheck';
 import OwnerReturns from './OwnerReturns';
 import { CartProvider } from './contexts/CartContext';
 import { PageLoader } from './SharedUI';
@@ -49,6 +50,7 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
   } else {
     tabs.push({ key: 'receive', label: 'Inbound' });
     tabs.push({ key: 'transfer', label: 'Transfer' });
+    tabs.push({ key: 'price-check', label: 'Check Price' });
     tabs.push({ key: 'scanner', label: 'Scanner' });
   }
 
@@ -69,7 +71,23 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
         {activeTab === 'dashboard' ? (
           <WorkerDashboardView isBillable={isBillable} />
         ) : activeTab === 'scanner' ? (
-          <WorkerScanner cashierName={cashierName} />
+          isBillable ? (
+            <div className="flex flex-col items-center justify-center h-full flex-1">
+              <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
+              <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Scanner is only available for non-billable helper accounts.</p>
+            </div>
+          ) : (
+            <WorkerScanner cashierName={cashierName} />
+          )
+        ) : activeTab === 'price-check' ? (
+          isBillable ? (
+            <div className="flex flex-col items-center justify-center h-full flex-1">
+              <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
+              <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Check Price is only available for non-billable helper accounts.</p>
+            </div>
+          ) : (
+            <WorkerPriceCheck />
+          )
         ) : activeTab === 'returns' && isBillable ? (
           <OwnerReturns />
         ) : activeTab === 'checkout' && !isBillable ? (
