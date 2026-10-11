@@ -8,6 +8,7 @@ import WorkerTerminal from './WorkerTerminal';
 import WorkerScanner from './WorkerScanner';
 import WorkerPriceCheck from './WorkerPriceCheck';
 import OwnerReturns from './OwnerReturns';
+import OwnerExpenses from './OwnerExpenses';
 import { CartProvider } from './contexts/CartContext';
 import { PageLoader } from './SharedUI';
 
@@ -47,6 +48,7 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
   if (isBillable) {
     tabs.push({ key: 'checkout', label: 'Terminal' });
     tabs.push({ key: 'returns', label: 'Returns' });
+    tabs.push({ key: 'expenses', label: 'Expenses' });
   } else {
     tabs.push({ key: 'receive', label: 'Inbound' });
     tabs.push({ key: 'transfer', label: 'Transfer' });
@@ -87,6 +89,15 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
             </div>
           ) : (
             <WorkerPriceCheck />
+          )
+        ) : activeTab === 'expenses' ? (
+          isBillable ? (
+            <OwnerExpenses isOwner={false} cashierName={cashierName} />
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full flex-1">
+              <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
+              <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Expenses are only accessible by billable accounts.</p>
+            </div>
           )
         ) : activeTab === 'returns' && isBillable ? (
           <OwnerReturns />

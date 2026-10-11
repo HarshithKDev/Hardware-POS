@@ -533,7 +533,7 @@ export default function OwnerInventory({ viewType }) {
                         </div>
                       </th>
                       <th 
-                        className="p-3 w-36 cursor-pointer select-none text-center group" 
+                        className="p-3 w-52 cursor-pointer select-none text-center group" 
                         style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
                         onClick={() => handleSortClick('category')}
                       >
@@ -543,7 +543,7 @@ export default function OwnerInventory({ viewType }) {
                         </div>
                       </th>
                       <th 
-                        className="p-3 w-36 cursor-pointer select-none text-center group" 
+                        className="p-3 w-44 cursor-pointer select-none text-center group" 
                         style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
                         onClick={() => handleSortClick('subcategory')}
                       >
@@ -552,7 +552,7 @@ export default function OwnerInventory({ viewType }) {
                           {renderSortIcon('subcategory')}
                         </div>
                       </th>
-                      <th className="p-3 w-28 text-center" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>Batches</th>
+                      <th className="p-3 w-36 text-center" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>Batches</th>
                       <th 
                         className="p-3 w-28 text-center whitespace-nowrap cursor-pointer select-none group" 
                         style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}

@@ -5,6 +5,7 @@ import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
 import { calculateMSP } from './utils';
 import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD } from './constants';
+import { AlertTriangle } from 'lucide-react';
 
 export default function WorkerPriceCheck() {
   const { showAlert, userRole } = useApp();
@@ -400,7 +401,9 @@ export default function WorkerPriceCheck() {
                     <span className="text-xs font-semibold text-[var(--text-secondary)]">{displayUnit || 'units'}</span>
                   </div>
                   {Number(storeStock) < STORE_LOW_STOCK_THRESHOLD && (
-                    <span className="text-[10px] font-bold text-[var(--color-error)] mt-1">⚠️ Low Store Stock</span>
+                    <span className="text-[10px] font-bold text-[var(--color-error)] mt-1 flex items-center gap-1">
+                      <AlertTriangle size={12} /> Low Store Stock
+                    </span>
                   )}
                 </div>
 
@@ -421,7 +424,9 @@ export default function WorkerPriceCheck() {
                     <span className="text-xs font-semibold text-[var(--text-secondary)]">{displayUnit || 'units'}</span>
                   </div>
                   {Number(whseStock) < WAREHOUSE_LOW_STOCK_THRESHOLD && (
-                    <span className="text-[10px] font-bold text-[var(--color-error)] mt-1">⚠️ Low Warehouse Stock</span>
+                    <span className="text-[10px] font-bold text-[var(--color-error)] mt-1 flex items-center gap-1">
+                      <AlertTriangle size={12} /> Low Warehouse Stock
+                    </span>
                   )}
                 </div>
               </div>

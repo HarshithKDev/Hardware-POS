@@ -90,7 +90,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
       <h2 className="text-xl md:text-2xl font-medium mb-4 hidden md:block" style={{ color: 'var(--text-primary)' }}>Staff Dashboard</h2>
       
       {/* Big Action Buttons */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 mb-6">
         <button 
           onClick={() => navigate('/terminal/receive')}
           className="p-4 md:p-8 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
@@ -126,6 +126,14 @@ export default function WorkerDashboardView({ isBillable = true }) {
             >
               <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
               <span className="font-bold text-sm md:text-base leading-tight">Process<br/>Returns</span>
+            </button>
+            <button 
+              onClick={() => navigate('/terminal/expenses')}
+              className="p-4 md:p-8 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
+              style={{ backgroundColor: '#e11d48', color: 'white' }}
+            >
+              <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" /></svg>
+              <span className="font-bold text-sm md:text-base leading-tight">Expenses &<br/>Advances</span>
             </button>
           </>
         ) : (

@@ -76,7 +76,9 @@ export function AppProvider({ children }) {
   }, []);
 
   const handleConfirm = useCallback(() => {
-    if (confirmCallbackRef.current) confirmCallbackRef.current();
+    if (typeof confirmCallbackRef.current === 'function') {
+      confirmCallbackRef.current();
+    }
     confirmCallbackRef.current = null;
     setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
   }, []);

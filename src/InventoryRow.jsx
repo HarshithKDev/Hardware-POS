@@ -248,9 +248,9 @@ export default function InventoryRow({ item, viewType, categories, subcategories
           </div>
         </div>
       </td>
-      <td className="hidden md:table-cell p-3 w-36 text-sm whitespace-nowrap" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{item.category || '-'}</td>
-      <td className="hidden md:table-cell p-3 w-36 text-sm whitespace-nowrap" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>{item.sub_category || '-'}</td>
-      <td className="hidden md:table-cell p-3 w-28 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+      <td className="hidden md:table-cell p-3 w-52 text-sm whitespace-nowrap overflow-hidden text-ellipsis" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }} title={item.category || '-'}>{item.category || '-'}</td>
+      <td className="hidden md:table-cell p-3 w-44 text-sm whitespace-nowrap overflow-hidden text-ellipsis" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }} title={item.sub_category || '-'}>{item.sub_category || '-'}</td>
+      <td className="hidden md:table-cell p-3 w-36 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
         {item.is_cuttable ? (
           <span onClick={(e) => { e.stopPropagation(); onToggleExpand(item.barcode); }} className="inline-flex px-2.5 py-0.5 text-[9px] font-bold uppercase rounded-full whitespace-nowrap cursor-pointer transition-all active:scale-95 shadow-sm items-center justify-center gap-1 min-w-[75px]" style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', border: '1px solid rgba(59, 130, 246, 0.2)' }} title="View Batches/Pieces">
             {isExpanded ? 'Hide Details' : `${item.batches?.length || 0} Batches`}
@@ -274,7 +274,7 @@ export default function InventoryRow({ item, viewType, categories, subcategories
       <td className="hidden md:table-cell p-3 w-28 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
         {item.is_cuttable ? (pieceCounts ? pieceCounts.store : '...') : totalStore} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : displayUnit}</span>
       </td>
-      <td className="hidden md:table-cell p-3 w-24 text-center">
+      <td className="hidden md:table-cell p-3 w-36 text-center">
         {viewType === 'recycle' ? (
           <button 
             onClick={(e) => { 

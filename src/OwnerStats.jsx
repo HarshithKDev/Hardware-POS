@@ -11,6 +11,7 @@ import {
   DEAD_STOCK_ALARM_VALUE,
   STALE_TIME_5MIN,
 } from './constants';
+import { AlertTriangle } from 'lucide-react';
 
 // ---------------------------------------------------------------
 // Extracted sub-components (Phase 5 decomposition)
@@ -552,7 +553,7 @@ export default function OwnerStats({ isActive }) {
       {failedSyncs && failedSyncs.length > 0 && (
         <div className="mb-6 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm" style={{ backgroundColor: 'rgba(239, 68, 68, 0.05)', border: '1px solid var(--color-error)' }}>
           <div className="flex items-center gap-4">
-            <span className="text-3xl">⚠️</span>
+            <AlertTriangle className="w-8 h-8 text-[var(--color-error)] shrink-0" />
             <div>
               <p className="text-sm font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--color-error)' }}>{failedSyncs.length} Offline Transaction(s) Failed to Sync</p>
               <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>These transactions encountered errors when uploading to the cloud and require manual review to resolve.</p>
