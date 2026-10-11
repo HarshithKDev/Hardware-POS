@@ -153,6 +153,8 @@ export default function WorkerScanner({ cashierName }) {
       let instanceBarcodeSuffix = "";
       let instanceBatchId = null; // Will extract later if needed
       let scannedBatchNumber = null;
+      let batch = null;
+      let instLength = 0;
       
       // Try exactly first
       let item = await getInventoryItemByBarcode(searchBarcode);
@@ -219,29 +221,45 @@ export default function WorkerScanner({ cashierName }) {
           if (error || !data) {
             // If the piece doesn't exist, it might be a newly printed label being scanned to RECEIVE into stock.
             maxStock = Number(item.default_length) || 1;
+            instLength = maxStock;
             if (scannedBatchNumber !== null && item.batches) {
                const b = item.batches.find(bx => bx.batch_number === scannedBatchNumber);
-               if (b) instanceBatchId = b.batch_id;
+               if (b) {
+                 instanceBatchId = b.batch_id;
+                 batch = b;
+               }
             }
           } else {
             maxStock = Number(data.current_length);
+            instLength = maxStock;
             instanceBatchId = data.batch_id;
+            if (item.batches && instanceBatchId) {
+              batch = item.batches.find(bx => bx.batch_id === instanceBatchId) || null;
+            }
           }
         } catch (err) {
           console.error(err);
           maxStock = Number(item.default_length) || 1;
+          instLength = maxStock;
         }
       } else {
-        let batch = null;
         if (scannedBatchNumber !== null && item.batches) {
-          batch = item.batches.find(b => b.batch_number === scannedBatchNumber);
-        }
-        
-        if (batch) {
-          maxStock = Number(batch.stock_store || 0);
-          instanceBatchId = batch.batch_id;
+          batch = item.batches.find(b => b.batch_number === scannedBatchNumber) || null;
+          if (batch) {
+            maxStock = Number(batch.stock_store || 0);
+            instanceBatchId = batch.batch_id;
+          } else {
+            showAlert(`Batch #${String(scannedBatchNumber).padStart(2, '0')} not found for ${item.name}`, "Batch Not Found");
+            return;
+          }
         } else {
-          maxStock = item.batches ? item.batches.reduce((acc, b) => acc + Number(b.stock_store || 0), 0) : Number(item.stock_store || 0);
+          if (item.batches && item.batches.length > 0) {
+            batch = item.batches.find(b => Number(b.stock_store || 0) > 0) || item.batches[0];
+            instanceBatchId = batch ? batch.batch_id : null;
+            maxStock = item.batches.reduce((acc, b) => acc + Number(b.stock_store || 0), 0);
+          } else {
+            maxStock = Number(item.stock_store || 0);
+          }
         }
       }
 
