@@ -60,10 +60,10 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
     <div style={{ fontFamily: "var(--font-family)" }} className="h-full">
       <div className="flex flex-col h-full w-full">
         {!hideNav && activeTab !== 'dashboard' && (
-          <div className="mb-4">
+          <div className="pt-3 px-4 md:pt-2 md:px-0 mb-2">
             <button
               onClick={() => handleTabSwitch('dashboard')}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-bold uppercase tracking-wider rounded-md text-[var(--color-accent)] bg-[var(--color-accent-bg)] hover:opacity-80 transition-opacity"
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-xs md:text-sm font-bold uppercase tracking-wider rounded-xl text-[var(--color-accent)] bg-[var(--color-accent-bg)] border border-[var(--color-accent)]/20 hover:opacity-80 active:scale-95 transition-all shadow-sm"
             >
               ← Back to Dashboard
             </button>

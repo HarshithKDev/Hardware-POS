@@ -5,7 +5,7 @@ import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
 import { calculateMSP } from './utils';
 import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD } from './constants';
-import { AlertTriangle, Camera, RefreshCw, ArrowLeft, Eye } from 'lucide-react';
+import { AlertTriangle, Camera, RefreshCw, Eye } from 'lucide-react';
 
 export default function WorkerPriceCheck() {
   const { showAlert, userRole } = useApp();
@@ -263,23 +263,18 @@ export default function WorkerPriceCheck() {
   const totalStock = Number(storeStock || 0) + Number(whseStock || 0);
 
   return (
-    <div className="flex flex-col h-full bg-[var(--bg-primary)] overflow-y-auto p-4 md:p-6 animate-fade-in">
+    <div className="flex flex-col h-full bg-[var(--bg-primary)] overflow-y-auto px-4 pb-6 pt-1 md:px-6 md:pb-6 md:pt-2 animate-fade-in">
       <div className="max-w-2xl w-full mx-auto flex flex-col gap-4">
         
         {scannedItem ? (
           /* Scanned Item Details View (Minimal, Simple, Phone-Optimized) */
           <div className="flex flex-col gap-4 animate-fade-in">
-            {/* Top Navigation Bar with Back Button */}
-            <div className="flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={handleScanAnother}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] border border-[var(--border-medium)] text-[var(--text-primary)] text-xs font-bold uppercase tracking-wider transition-all active:scale-95 shadow-sm"
-              >
-                <ArrowLeft className="w-4 h-4 text-[var(--color-accent)]" />
-                Scan Next Item
-              </button>
-              <span className="text-xs font-mono font-medium px-2.5 py-1 rounded-lg bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-[var(--border-light)]">
+            {/* Scanned Header */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                Product Details
+              </span>
+              <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-[var(--bg-secondary)] text-[var(--color-accent)] border border-[var(--border-light)]">
                 #{scannedItem.scannedCode || scannedItem.barcode}
               </span>
             </div>
