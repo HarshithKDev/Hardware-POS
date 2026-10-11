@@ -263,196 +263,204 @@ export default function WorkerPriceCheck() {
   const totalStock = Number(storeStock || 0) + Number(whseStock || 0);
 
   return (
-    <div className="flex flex-col h-full bg-[var(--bg-primary)] overflow-y-auto px-4 pb-6 pt-1 md:px-6 md:pb-6 md:pt-2 animate-fade-in">
-      <div className="max-w-2xl w-full mx-auto flex flex-col gap-4">
+    <div className="flex-1 flex flex-col h-full bg-[var(--bg-primary)] overflow-y-auto px-4 pb-6 pt-1 md:px-6 md:pb-6 md:pt-2 animate-fade-in">
+      <div className="max-w-2xl w-full mx-auto flex-1 flex flex-col gap-4">
         
         {scannedItem ? (
-          /* Scanned Item Details View (Minimal, Simple, Phone-Optimized) */
-          <div className="flex flex-col gap-4 animate-fade-in">
-            {/* Scanned Header */}
+          /* Scanned Item Details View (Full Page, Prominent, Phone-Optimized) */
+          <div className="flex-1 flex flex-col justify-between gap-4 animate-fade-in">
+            {/* Header: Product Details Title & Barcode Badge */}
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
                 Product Details
               </span>
-              <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-[var(--bg-secondary)] text-[var(--color-accent)] border border-[var(--border-light)]">
+              <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-md bg-[var(--bg-secondary)] text-[var(--color-accent)] border border-[var(--border-light)]">
                 #{scannedItem.scannedCode || scannedItem.barcode}
               </span>
             </div>
 
-            {/* Main Product Card */}
-            <div className="bg-[var(--bg-secondary)] border border-[var(--border-light)] rounded-2xl p-5 shadow-sm flex flex-col gap-4">
-              {/* Product Header */}
-              <div>
-                <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
-                  {scannedItem.category && (
-                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-light)]">
-                      {scannedItem.category}
-                    </span>
-                  )}
-                  {scannedItem.is_cuttable && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                      Cuttable
-                    </span>
-                  )}
-                  {scannedItem.is_loose_item && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                      Loose
-                    </span>
-                  )}
-                  {scannedItem.activeBatch && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                      Batch #{String(scannedItem.activeBatch.batch_number).padStart(2, '0')}
-                    </span>
-                  )}
-                </div>
-                <h2 className="text-xl md:text-2xl font-bold text-[var(--text-primary)] leading-snug capitalize">
-                  {scannedItem.name}
-                </h2>
-              </div>
-
-              {/* Selling Price & MSP */}
-              <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-light)] flex items-center justify-between">
+            {/* Main Product Card - Expansive Full Page on Mobile */}
+            <div className="flex-1 flex flex-col justify-between bg-[var(--bg-secondary)] border border-[var(--border-light)] rounded-2xl p-5 md:p-6 shadow-sm gap-5">
+              <div className="flex flex-col gap-5">
+                {/* Product Name ON TOP */}
                 <div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block">
-                    Selling Price
-                  </span>
-                  <div className="flex items-baseline gap-1.5 mt-0.5">
-                    <span className="text-3xl md:text-4xl font-extrabold text-[var(--color-success)] tracking-tight">
-                      ₹{Number(price).toFixed(2)}
-                    </span>
-                    <span className="text-xs text-[var(--text-tertiary)] font-medium">
-                      {displayUnit ? `/ ${displayUnit}` : ''}
-                    </span>
-                  </div>
-                </div>
-
-                <div 
-                  onClick={() => setRevealedMsp(!revealedMsp)}
-                  className="cursor-pointer text-right px-3 py-2 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-light)] hover:border-[var(--color-accent)] transition-all select-none"
-                  title="Tap to reveal minimum price"
-                >
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center justify-end gap-1">
-                    Min Price
-                    <Eye className="w-3 h-3 text-[var(--text-tertiary)]" />
-                  </span>
-                  <span className="text-sm font-bold text-[var(--text-primary)] font-mono mt-0.5 block">
-                    {(revealedMsp || userRole === 'owner') ? `₹${Number(msp).toFixed(2)}` : '••••••'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Stock Availability */}
-              <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-light)] flex flex-col gap-3">
-                <div className="flex items-center justify-between text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
-                  <span>Live Stock</span>
-                  <span>Total: <strong className="text-[var(--text-primary)] font-bold">{totalStock}</strong> {displayUnit || 'pcs'}</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Store Floor */}
-                  <div className="p-3.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-light)] flex flex-col">
-                    <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase">Store Floor</span>
-                    <div className="flex items-baseline gap-1 mt-1.5">
-                      <span className={`text-2xl md:text-3xl font-extrabold ${Number(storeStock) < STORE_LOW_STOCK_THRESHOLD ? 'text-amber-500' : 'text-[var(--text-primary)]'}`}>
-                        {storeStock}
-                      </span>
-                      <span className="text-xs text-[var(--text-tertiary)]">{displayUnit || 'pcs'}</span>
-                    </div>
-                    {Number(storeStock) < STORE_LOW_STOCK_THRESHOLD && (
-                      <span className="text-[10px] font-semibold text-amber-500 mt-1 flex items-center gap-1">
-                        <AlertTriangle size={11} /> Low stock
+                  <h2 className="text-2xl md:text-3xl font-extrabold text-[var(--text-primary)] leading-tight capitalize">
+                    {scannedItem.name}
+                  </h2>
+                  {/* Category, Batch, and Attributes BELOW Product Name */}
+                  <div className="flex items-center gap-2 flex-wrap mt-2.5">
+                    {scannedItem.category && (
+                      <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-light)]">
+                        {scannedItem.category}
                       </span>
                     )}
-                  </div>
-
-                  {/* Warehouse */}
-                  <div className="p-3.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-light)] flex flex-col">
-                    <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase">Warehouse</span>
-                    <div className="flex items-baseline gap-1 mt-1.5">
-                      <span className={`text-2xl md:text-3xl font-extrabold ${Number(whseStock) < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'text-amber-500' : 'text-[var(--text-primary)]'}`}>
-                        {whseStock}
+                    {scannedItem.activeBatch && (
+                      <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                        Batch #{String(scannedItem.activeBatch.batch_number).padStart(2, '0')}
                       </span>
-                      <span className="text-xs text-[var(--text-tertiary)]">{displayUnit || 'pcs'}</span>
-                    </div>
-                    {Number(whseStock) < WAREHOUSE_LOW_STOCK_THRESHOLD && (
-                      <span className="text-[10px] font-semibold text-amber-500 mt-1 flex items-center gap-1">
-                        <AlertTriangle size={11} /> Low stock
+                    )}
+                    {scannedItem.is_cuttable && (
+                      <span className="px-2.5 py-1 rounded-md text-xs font-bold uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                        Cuttable
+                      </span>
+                    )}
+                    {scannedItem.is_loose_item && (
+                      <span className="px-2.5 py-1 rounded-md text-xs font-bold uppercase bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                        Loose
                       </span>
                     )}
                   </div>
                 </div>
-              </div>
 
-              {/* Batches Breakdown (Only if multiple batches exist) */}
-              {scannedItem.batches && scannedItem.batches.length > 1 && (
-                <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-light)] flex flex-col gap-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-                    All Batches ({scannedItem.batches.length})
-                  </span>
-                  <div className="divide-y divide-[var(--border-light)]">
-                    {scannedItem.batches.map(b => (
-                      <div key={b.batch_id} className="py-2.5 flex items-center justify-between text-xs">
-                        <div>
-                          <span className="font-bold text-[var(--text-primary)]">
-                            Batch #{String(b.batch_number).padStart(2, '0')}
-                          </span>
-                          <div className="text-[11px] text-[var(--text-tertiary)] mt-0.5">
-                            Store: <span className="font-semibold text-[var(--text-secondary)]">{b.stock_store || 0}</span> • WH: <span className="font-semibold text-[var(--text-secondary)]">{b.stock_warehouse || 0}</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <span className="font-bold text-[var(--color-success)] text-sm">
-                            ₹{Number(b.selling_price || scannedItem.price || 0).toFixed(2)}
-                          </span>
-                          {revealedMsp && (
-                            <div className="text-[10px] text-[var(--text-tertiary)] font-mono">
-                              MSP: ₹{Number(b.msp || 0).toFixed(2)}
-                            </div>
-                          )}
-                        </div>
+                {/* Selling Price Card - Large and Prominent */}
+                <div className="p-4 md:p-5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-light)] flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] block">
+                      Selling Price
+                    </span>
+                    <div className="flex items-baseline gap-2 mt-1">
+                      <span className="text-4xl md:text-5xl font-black text-[var(--color-success)] tracking-tight">
+                        ₹{Number(price).toFixed(2)}
+                      </span>
+                      <span className="text-sm text-[var(--text-tertiary)] font-semibold">
+                        {displayUnit ? `/ ${displayUnit}` : ''}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Min Price (MSP) */}
+                  <div 
+                    onClick={() => setRevealedMsp(!revealedMsp)}
+                    className="cursor-pointer text-right px-3.5 py-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)] hover:border-[var(--color-accent)] transition-all select-none"
+                    title="Tap to reveal minimum price"
+                  >
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center justify-end gap-1">
+                      Min Price
+                      <Eye className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
+                    </span>
+                    <span className="text-base font-bold text-[var(--text-primary)] font-mono mt-0.5 block">
+                      {(revealedMsp || userRole === 'owner') ? `₹${Number(msp).toFixed(2)}` : '••••••'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Live Stock Availability - Big readable metrics */}
+                <div className="p-4 md:p-5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-light)] flex flex-col gap-3.5">
+                  <div className="flex items-center justify-between text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                    <span>Live Stock Levels</span>
+                    <span>Total: <strong className="text-[var(--text-primary)] font-extrabold text-sm">{totalStock}</strong> {displayUnit || 'pcs'}</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3.5">
+                    {/* Store Floor */}
+                    <div className="p-4 md:p-5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-light)] flex flex-col justify-between">
+                      <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Store Floor</span>
+                      <div className="flex items-baseline gap-1.5 my-1.5">
+                        <span className={`text-3xl md:text-5xl font-black ${Number(storeStock) < STORE_LOW_STOCK_THRESHOLD ? 'text-amber-500' : 'text-[var(--text-primary)]'}`}>
+                          {storeStock}
+                        </span>
+                        <span className="text-xs font-semibold text-[var(--text-tertiary)]">{displayUnit || 'pcs'}</span>
                       </div>
-                    ))}
+                      {Number(storeStock) < STORE_LOW_STOCK_THRESHOLD ? (
+                        <span className="text-[10px] font-bold text-amber-500 flex items-center gap-1">
+                          <AlertTriangle size={11} /> Low stock
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-medium text-[var(--color-success)]">In Stock</span>
+                      )}
+                    </div>
+
+                    {/* Warehouse */}
+                    <div className="p-4 md:p-5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-light)] flex flex-col justify-between">
+                      <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Warehouse</span>
+                      <div className="flex items-baseline gap-1.5 my-1.5">
+                        <span className={`text-3xl md:text-5xl font-black ${Number(whseStock) < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'text-amber-500' : 'text-[var(--text-primary)]'}`}>
+                          {whseStock}
+                        </span>
+                        <span className="text-xs font-semibold text-[var(--text-tertiary)]">{displayUnit || 'pcs'}</span>
+                      </div>
+                      {Number(whseStock) < WAREHOUSE_LOW_STOCK_THRESHOLD ? (
+                        <span className="text-[10px] font-bold text-amber-500 flex items-center gap-1">
+                          <AlertTriangle size={11} /> Low stock
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-medium text-[var(--color-success)]">In Stock</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              )}
 
-              {/* Cuttable Pieces (Only if cuttable item) */}
-              {scannedItem.is_cuttable && (
-                <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-light)] flex flex-col gap-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-                    Cuttable Pieces ({availableInstances.length})
-                  </span>
-                  {isLoadingInstances ? (
-                    <p className="text-xs text-[var(--text-tertiary)]">Loading piece lengths...</p>
-                  ) : availableInstances.length === 0 ? (
-                    <p className="text-xs text-[var(--text-tertiary)]">No active rolls found.</p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2 max-h-44 overflow-y-auto pt-1">
-                      {availableInstances.map(inst => (
-                        <div key={inst.id} className="p-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)] text-xs flex flex-col">
-                          <span className="font-mono font-bold text-[var(--color-accent)] truncate text-[11px]">
-                            #{inst.instance_barcode}
-                          </span>
-                          <div className="flex justify-between items-center mt-1">
+                {/* Batches Breakdown (Only if multiple batches exist) */}
+                {scannedItem.batches && scannedItem.batches.length > 1 && (
+                  <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-light)] flex flex-col gap-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                      All Batches ({scannedItem.batches.length})
+                    </span>
+                    <div className="divide-y divide-[var(--border-light)]">
+                      {scannedItem.batches.map(b => (
+                        <div key={b.batch_id} className="py-2.5 flex items-center justify-between text-xs">
+                          <div>
                             <span className="font-bold text-[var(--text-primary)]">
-                              {inst.current_length} {scannedItem.unit === 'SQFT' ? 'ft' : (scannedItem.unit || 'm')}
+                              Batch #{String(b.batch_number).padStart(2, '0')}
                             </span>
-                            <span className="text-[10px] uppercase font-semibold text-[var(--text-tertiary)]">
-                              {inst.location || 'Store'}
+                            <div className="text-[11px] text-[var(--text-tertiary)] mt-0.5">
+                              Store: <span className="font-semibold text-[var(--text-secondary)]">{b.stock_store || 0}</span> • WH: <span className="font-semibold text-[var(--text-secondary)]">{b.stock_warehouse || 0}</span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-bold text-[var(--color-success)] text-sm">
+                              ₹{Number(b.selling_price || scannedItem.price || 0).toFixed(2)}
                             </span>
+                            {revealedMsp && (
+                              <div className="text-[10px] text-[var(--text-tertiary)] font-mono">
+                                MSP: ₹{Number(b.msp || 0).toFixed(2)}
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}
                     </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
+
+                {/* Cuttable Pieces (Only if cuttable item) */}
+                {scannedItem.is_cuttable && (
+                  <div className="p-4 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-light)] flex flex-col gap-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                      Cuttable Pieces ({availableInstances.length})
+                    </span>
+                    {isLoadingInstances ? (
+                      <p className="text-xs text-[var(--text-tertiary)]">Loading piece lengths...</p>
+                    ) : availableInstances.length === 0 ? (
+                      <p className="text-xs text-[var(--text-tertiary)]">No active rolls found.</p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2 max-h-44 overflow-y-auto pt-1">
+                        {availableInstances.map(inst => (
+                          <div key={inst.id} className="p-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)] text-xs flex flex-col">
+                            <span className="font-mono font-bold text-[var(--color-accent)] truncate text-[11px]">
+                              #{inst.instance_barcode}
+                            </span>
+                            <div className="flex justify-between items-center mt-1">
+                              <span className="font-bold text-[var(--text-primary)]">
+                                {inst.current_length} {scannedItem.unit === 'SQFT' ? 'ft' : (scannedItem.unit || 'm')}
+                              </span>
+                              <span className="text-[10px] uppercase font-semibold text-[var(--text-tertiary)]">
+                                {inst.location || 'Store'}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* Big Bottom Action Button */}
               <button
                 type="button"
                 onClick={handleScanAnother}
-                className="w-full py-4 rounded-xl font-bold text-sm uppercase tracking-wider text-white bg-[var(--color-accent)] hover:opacity-90 active:scale-98 transition-all shadow-md flex items-center justify-center gap-2 mt-1"
+                className="w-full py-4 md:py-4.5 rounded-xl font-bold text-sm md:text-base uppercase tracking-wider text-white bg-[var(--color-accent)] hover:opacity-90 active:scale-98 transition-all shadow-md flex items-center justify-center gap-2 mt-2"
               >
                 <Camera className="w-5 h-5" />
                 Scan Another Item
