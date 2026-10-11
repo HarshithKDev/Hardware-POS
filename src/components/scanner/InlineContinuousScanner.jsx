@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 export default function InlineContinuousScanner({ onScan }) {
   const scannerRef = useRef(null);
@@ -39,49 +39,79 @@ export default function InlineContinuousScanner({ onScan }) {
 
   useEffect(() => {
     isUnmountingRef.current = false;
-    const scanner = new Html5QrcodeScanner(
-      "receive-reader", 
-      { 
-        fps: 10, 
-        qrbox: { width: 300, height: 150 },
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.UPC_A
-        ],
-        videoConstraints: {
-          facingMode: "environment",
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        },
-        experimentalFeatures: {
-          useBarCodeDetectorIfSupported: true
-        }
-      }, 
-      false
-    );
-    
-    scannerRef.current = scanner;
+    let active = true;
+    let html5QrCode = null;
 
-    let isProcessing = false;
-    scanner.render(
-      async (decodedText) => {
-        if (scanner.getState() === 2 && !isProcessing && !isUnmountingRef.current) {
-          isProcessing = true;
-          playBeep();
-          await onScanRef.current(decodedText);
-          setTimeout(() => {
-            isProcessing = false;
-          }, 1000);
+    const startScanner = async () => {
+      try {
+        html5QrCode = new Html5Qrcode("receive-reader");
+        scannerRef.current = html5QrCode;
+
+        const scanConfig = {
+          fps: 10,
+          qrbox: { width: 280, height: 160 },
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.UPC_A
+          ]
+        };
+
+        let isProcessing = false;
+        const onDecoded = async (decodedText) => {
+          if (!isProcessing && !isUnmountingRef.current && active) {
+            isProcessing = true;
+            playBeep();
+            await onScanRef.current(decodedText);
+            setTimeout(() => {
+              isProcessing = false;
+            }, 800);
+          }
+        };
+
+        try {
+          await html5QrCode.start(
+            { facingMode: "environment" },
+            scanConfig,
+            onDecoded,
+            () => {}
+          );
+        } catch (envErr) {
+          console.warn("Back camera unavailable in inline scanner, attempting fallback:", envErr);
+          const devices = await Html5Qrcode.getCameras();
+          if (devices && devices.length > 0) {
+            const backCam = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[0];
+            await html5QrCode.start(
+              backCam.id,
+              scanConfig,
+              onDecoded,
+              () => {}
+            );
+          }
         }
-      },
-      () => {}
-    );
+      } catch (err) {
+        console.error("Inline scanner error:", err);
+      }
+    };
+
+    startScanner();
 
     return () => {
+      active = false;
       isUnmountingRef.current = true;
       if (scannerRef.current) {
-        scannerRef.current.clear().catch(console.error);
+        const scannerInstance = scannerRef.current;
+        scannerRef.current = null;
+        (async () => {
+          try {
+            if (scannerInstance.getState && scannerInstance.getState() === 2) {
+              await scannerInstance.stop();
+            }
+            scannerInstance.clear();
+          } catch (e) {
+            console.warn("Inline scanner cleanup error:", e);
+          }
+        })();
       }
     };
   }, []);
@@ -89,61 +119,9 @@ export default function InlineContinuousScanner({ onScan }) {
   return (
     <>
       <style>{`
-        #receive-reader { 
-          width: 100% !important; 
-          border: none !important; 
-          text-align: center !important; 
-          background: transparent url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="%23333333" stroke-width="4"/><circle cx="25" cy="25" r="20" fill="none" stroke="%233b82f6" stroke-width="4" stroke-dasharray="31.4 100"><animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/></circle></svg>') no-repeat center center !important;
-          background-size: 50px 50px !important;
-        }
-
-        #receive-reader div {
-          color: transparent !important;
-          border: none !important;
-          box-shadow: none !important;
-          outline: none !important;
-        }
-        
-        #receive-reader video { 
-          max-height: 300px !important; 
-          object-fit: cover !important; 
-          background-color: var(--bg-secondary) !important;
-          position: relative;
-          z-index: 10;
-        }
-        
-        #receive-reader a, #receive-reader [id*="swaplink"], #receive-reader [id*="file_scan"] { 
-          display: none !important; 
-        }
-        
-        #receive-reader span { 
-          display: none !important; 
-        }
-        
-        #receive-reader select { 
-          display: none !important; 
-          visibility: hidden !important;
-          opacity: 0 !important;
-          height: 0 !important;
-        }
-        
-        #receive-reader button { 
-          background-color: var(--bg-tertiary) !important; 
-          color: var(--text-primary) !important;
-          padding: 8px 16px !important; 
-          border-radius: 0 !important; 
-          font-weight: bold !important; 
-          font-size: 12px !important; 
-          text-transform: uppercase !important;
-          border: 2px solid var(--border-medium) !important;
-          margin-top: 15px !important;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
-          cursor: pointer !important;
-          position: relative;
-          z-index: 20;
-        }
-        
-        #receive-reader img { display: none !important; }
+        #receive-reader { width: 100% !important; border: none !important; }
+        #receive-reader video { width: 100% !important; max-height: 280px !important; object-fit: cover !important; }
+        #receive-reader canvas { display: none !important; }
       `}</style>
       <div id="receive-reader" className="w-full h-full flex flex-col justify-center"></div>
     </>

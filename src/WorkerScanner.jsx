@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { getInventoryItemByBarcode } from './services/db';
 import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
@@ -31,68 +31,95 @@ export default function WorkerScanner({ cashierName }) {
 
   useEffect(() => {
     let active = true;
-    
-    const initScanner = async () => {
+    let html5QrCode = null;
+
+    const startCamera = async () => {
       if (window._globalScannerCleanupPromise) {
         await window._globalScannerCleanupPromise;
       }
       if (!active || !isScanning) return;
 
-      const scanner = new Html5QrcodeScanner(
-        "reader", 
-        { 
-          fps: 10, 
-          qrbox: { width: 300, height: 150 },
+      try {
+        html5QrCode = new Html5Qrcode("reader");
+        scannerRef.current = html5QrCode;
+
+        const scanConfig = {
+          fps: 10,
+          qrbox: { width: 280, height: 160 },
           formatsToSupport: [
             Html5QrcodeSupportedFormats.CODE_128,
             Html5QrcodeSupportedFormats.EAN_13,
             Html5QrcodeSupportedFormats.UPC_A
-          ],
-          videoConstraints: {
-            facingMode: "environment",
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
-          },
-          experimentalFeatures: {
-            useBarCodeDetectorIfSupported: true
-          }
-        }, 
-        false
-      );
-      
-      scannerRef.current = scanner;
+          ]
+        };
 
-      let isProcessing = false;
-      scanner.render(
-        async (decodedText) => {
-          if (scanner.getState() === 2 && !isProcessing) {
+        let isProcessing = false;
+        const onDecoded = async (decodedText) => {
+          if (!isProcessing && active) {
             isProcessing = true;
             await handleScan(decodedText);
             setTimeout(() => {
               isProcessing = false;
-            }, 300);
+            }, 400);
           }
-        },
-        (errorMessage) => {
-          // ignore background scan errors
+        };
+
+        // Try environment camera first, then fallback to any available camera (for laptops, Macs, etc.)
+        try {
+          await html5QrCode.start(
+            { facingMode: "environment" },
+            scanConfig,
+            onDecoded,
+            () => {}
+          );
+        } catch (envErr) {
+          console.warn("Back camera unavailable, attempting fallback to any available camera:", envErr);
+          const devices = await Html5Qrcode.getCameras();
+          if (devices && devices.length > 0) {
+            const backCam = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[0];
+            await html5QrCode.start(
+              backCam.id,
+              scanConfig,
+              onDecoded,
+              () => {}
+            );
+          } else {
+            throw new Error("No camera found on this device.");
+          }
         }
-      );
+      } catch (err) {
+        console.error("Camera startup error:", err);
+        if (active) {
+          showAlert(err.message || "Failed to access camera. Please check camera permissions.", "Camera Error");
+          setIsScanning(false);
+        }
+      }
     };
 
     if (isScanning) {
-      initScanner();
+      startCamera();
     }
 
     return () => {
       active = false;
       if (scannerRef.current) {
-        const cleanupPromise = scannerRef.current.clear().catch(console.error);
+        const scannerInstance = scannerRef.current;
+        scannerRef.current = null;
+        const cleanupPromise = (async () => {
+          try {
+            if (scannerInstance.getState && scannerInstance.getState() === 2) {
+              await scannerInstance.stop();
+            }
+            scannerInstance.clear();
+          } catch (e) {
+            console.warn("Camera cleanup error:", e);
+          }
+        })();
         window._globalScannerCleanupPromise = cleanupPromise.finally(() => {
           if (window._globalScannerCleanupPromise === cleanupPromise) {
             window._globalScannerCleanupPromise = null;
           }
         });
-        scannerRef.current = null;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -334,69 +361,11 @@ export default function WorkerScanner({ cashierName }) {
       {/* Camera Area */}
       {isScanning && (
         <div className="p-4 w-full flex justify-center bg-[var(--bg-primary)] flex-shrink-0" style={{ borderBottom: '1px solid var(--border-medium)' }}>
-          <div className="w-full max-w-md rounded-xl overflow-hidden border-4 flex flex-col justify-center relative" style={{ minHeight: '200px', maxHeight: '300px', borderColor: 'var(--color-success)', backgroundColor: 'var(--bg-secondary)' }}>
+          <div className="w-full max-w-md rounded-xl overflow-hidden border-2 flex flex-col justify-center relative shadow-lg" style={{ minHeight: '220px', borderColor: 'var(--color-success)', backgroundColor: '#000000' }}>
             <style>{`
-              #reader { 
-                width: 100% !important; 
-                border: none !important; 
-                text-align: center !important; 
-                background: transparent url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="%23333333" stroke-width="4"/><circle cx="25" cy="25" r="20" fill="none" stroke="%233b82f6" stroke-width="4" stroke-dasharray="31.4 100"><animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/></circle></svg>') no-repeat center center !important;
-                background-size: 50px 50px !important;
-              }
-
-              /* Hide all text and internal borders generated by the camera library */
-              #reader div {
-                color: transparent !important;
-                border: none !important;
-                box-shadow: none !important;
-                outline: none !important;
-              }
-              
-              #reader video { 
-                max-height: 300px !important; 
-                object-fit: cover !important; 
-                background-color: var(--bg-secondary) !important; /* Covers the background spinner once loaded */
-                position: relative;
-                z-index: 10;
-              }
-              
-              /* Aggressively hide "Scan an Image File" and "Select Camera" text/dropdowns */
-              #reader a, #reader [id*="swaplink"], #reader [id*="file_scan"] { 
-                display: none !important; 
-              }
-              
-              /* This completely hides the "Select Camera" text and any other helper text */
-              #reader span { 
-                display: none !important; 
-              }
-              
-              /* This completely hides the dropdown */
-              #reader select { 
-                display: none !important; 
-                visibility: hidden !important;
-                opacity: 0 !important;
-                height: 0 !important;
-              }
-              
-              /* Style permission button to match dark theme natively */
-              #reader button { 
-                background-color: var(--bg-tertiary) !important; 
-                color: var(--text-primary) !important; /* Override the transparent color from parent */
-                padding: 8px 16px !important; 
-                border-radius: 0 !important; 
-                font-weight: bold !important; 
-                font-size: 12px !important; 
-                text-transform: uppercase !important;
-                border: 2px solid var(--border-medium) !important;
-                margin-top: 15px !important;
-                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
-                cursor: pointer !important;
-                position: relative;
-                z-index: 20; /* Keep above spinner */
-              }
-              
-              /* Hide the info icon in the top right */
-              #reader img { display: none !important; }
+              #reader { width: 100% !important; border: none !important; }
+              #reader video { width: 100% !important; max-height: 280px !important; object-fit: cover !important; }
+              #reader canvas { display: none !important; }
             `}</style>
             <div id="reader" className="w-full h-full flex flex-col justify-center"></div>
           </div>

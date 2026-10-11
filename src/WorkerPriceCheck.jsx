@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { getInventoryItemByBarcode } from './services/db';
 import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
@@ -57,66 +57,94 @@ export default function WorkerPriceCheck() {
 
   useEffect(() => {
     let active = true;
+    let html5QrCode = null;
 
-    const initScanner = async () => {
+    const startCamera = async () => {
       if (window._globalScannerCleanupPromise) {
         await window._globalScannerCleanupPromise;
       }
       if (!active || !isScanning) return;
 
-      const scanner = new Html5QrcodeScanner(
-        "price-check-reader",
-        {
+      try {
+        html5QrCode = new Html5Qrcode("price-check-reader");
+        scannerRef.current = html5QrCode;
+
+        const scanConfig = {
           fps: 10,
           qrbox: { width: 280, height: 160 },
           formatsToSupport: [
             Html5QrcodeSupportedFormats.CODE_128,
             Html5QrcodeSupportedFormats.EAN_13,
             Html5QrcodeSupportedFormats.UPC_A
-          ],
-          videoConstraints: {
-            facingMode: "environment",
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
-          },
-          experimentalFeatures: {
-            useBarCodeDetectorIfSupported: true
-          }
-        },
-        false
-      );
+          ]
+        };
 
-      scannerRef.current = scanner;
-
-      let isProcessing = false;
-      scanner.render(
-        async (decodedText) => {
-          if (scanner.getState() === 2 && !isProcessing) {
+        let isProcessing = false;
+        const onDecoded = async (decodedText) => {
+          if (!isProcessing && active) {
             isProcessing = true;
             await handleLookup(decodedText);
             setTimeout(() => {
               isProcessing = false;
             }, 500);
           }
-        },
-        () => {}
-      );
+        };
+
+        try {
+          await html5QrCode.start(
+            { facingMode: "environment" },
+            scanConfig,
+            onDecoded,
+            () => {}
+          );
+        } catch (envErr) {
+          console.warn("Back camera unavailable in lookup, attempting fallback:", envErr);
+          const devices = await Html5Qrcode.getCameras();
+          if (devices && devices.length > 0) {
+            const backCam = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[0];
+            await html5QrCode.start(
+              backCam.id,
+              scanConfig,
+              onDecoded,
+              () => {}
+            );
+          } else {
+            throw new Error("No camera found on this device.");
+          }
+        }
+      } catch (err) {
+        console.error("Lookup camera startup error:", err);
+        if (active) {
+          showAlert(err.message || "Failed to access camera. Please check camera permissions.", "Camera Error");
+          setIsScanning(false);
+        }
+      }
     };
 
     if (isScanning) {
-      initScanner();
+      startCamera();
     }
 
     return () => {
       active = false;
       if (scannerRef.current) {
-        const cleanupPromise = scannerRef.current.clear().catch(console.error);
+        const scannerInstance = scannerRef.current;
+        scannerRef.current = null;
+        const cleanupPromise = (async () => {
+          try {
+            if (scannerInstance.getState && scannerInstance.getState() === 2) {
+              await scannerInstance.stop();
+            }
+            scannerInstance.clear();
+          } catch (e) {
+            console.warn("Lookup camera cleanup error:", e);
+          }
+        })();
         window._globalScannerCleanupPromise = cleanupPromise.finally(() => {
           if (window._globalScannerCleanupPromise === cleanupPromise) {
             window._globalScannerCleanupPromise = null;
           }
         });
-        scannerRef.current = null;
       }
     };
   }, [isScanning]);
@@ -143,7 +171,6 @@ export default function WorkerPriceCheck() {
             matchedBatch = parentItem.batches.find(b => Number(b.batch_number) === batchNum);
           }
 
-          // Check if instance
           if (parentItem.is_cuttable) {
             const { data: inst } = await supabase
               .from('stock_instances')
@@ -155,7 +182,7 @@ export default function WorkerPriceCheck() {
         }
       }
 
-      // Fallback search in product_master_public if not in local IDB
+      // Fallback search in product_master_public
       if (!matchedItem) {
         const { data: remoteData } = await supabase
           .from('product_master_public')
@@ -173,7 +200,7 @@ export default function WorkerPriceCheck() {
       }
 
       if (!matchedItem) {
-        showAlert(`Item not found for barcode: "${rawBarcode}"`, "Not Found");
+        showAlert(`Item not found for: "${rawBarcode}"`, "Not Found");
         return;
       }
 
@@ -186,7 +213,6 @@ export default function WorkerPriceCheck() {
       });
       setRevealedMsp(false);
 
-      // If cuttable, fetch active piece instances
       if (matchedItem.is_cuttable) {
         setIsLoadingInstances(true);
         const { data: instances } = await supabase
@@ -201,8 +227,8 @@ export default function WorkerPriceCheck() {
         setAvailableInstances([]);
       }
     } catch (err) {
-      console.error("Price check error:", err);
-      showAlert("Failed to retrieve price information.", "Error");
+      console.error("Item lookup error:", err);
+      showAlert("Failed to retrieve item information.", "Error");
     }
   };
 
@@ -218,6 +244,10 @@ export default function WorkerPriceCheck() {
   const price = activeBatch?.selling_price ?? (scannedItem?.price || 0);
   const msp = calculateMSP(activeBatch, scannedItem);
 
+  const storeStock = activeBatch ? activeBatch.stock_store : (scannedItem?.stock_store ?? 0);
+  const whseStock = activeBatch ? activeBatch.stock_warehouse : (scannedItem?.stock_warehouse ?? 0);
+  const totalStock = Number(storeStock || 0) + Number(whseStock || 0);
+
   return (
     <div className="flex flex-col h-full bg-[var(--bg-primary)] overflow-y-auto p-4 md:p-6 animate-fade-in">
       <div className="max-w-2xl w-full mx-auto flex flex-col gap-5">
@@ -228,12 +258,12 @@ export default function WorkerPriceCheck() {
             <h1 className="text-xl md:text-2xl font-bold uppercase tracking-wider text-[var(--text-primary)] flex items-center gap-2">
               <span className="p-2 rounded-lg bg-[var(--color-accent-bg)] text-[var(--color-accent)]">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </span>
-              Check Item Price
+              Item & Stock Lookup
             </h1>
-            <p className="text-xs text-[var(--text-secondary)] mt-1">Scan barcode or search name to check MRP, MSP, and available stock</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-1">General lookup for live Store stock, Warehouse stock, MRP, MSP & batch details</p>
           </div>
         </div>
 
@@ -245,14 +275,14 @@ export default function WorkerPriceCheck() {
               autoFocus
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
-              placeholder="Scan or enter barcode / name..."
+              placeholder="Scan barcode or type name..."
               className="flex-1 h-12 px-4 rounded-lg bg-[var(--bg-input)] border border-[var(--border-medium)] text-sm md:text-base font-semibold text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)]"
             />
             <button
               type="submit"
               className="px-5 h-12 rounded-lg font-bold uppercase text-xs tracking-wider text-white bg-[var(--color-accent)] hover:opacity-90 active:scale-95 transition-all shadow-sm"
             >
-              Lookup
+              Search
             </button>
           </form>
 
@@ -286,21 +316,11 @@ export default function WorkerPriceCheck() {
 
         {/* Camera Container */}
         {isScanning && (
-          <div className="w-full rounded-xl overflow-hidden border-2 border-[#8b5cf6] bg-[var(--bg-secondary)] p-2 shadow-lg animate-scale-in">
+          <div className="w-full rounded-xl overflow-hidden border-2 border-[#8b5cf6] bg-[#000000] p-2 shadow-lg animate-scale-in">
             <style>{`
               #price-check-reader { width: 100% !important; border: none !important; }
-              #price-check-reader video { max-height: 260px !important; object-fit: cover !important; border-radius: 8px; }
-              #price-check-reader a, #price-check-reader span, #price-check-reader select, #price-check-reader img { display: none !important; }
-              #price-check-reader button { 
-                background-color: var(--bg-tertiary) !important; 
-                color: var(--text-primary) !important; 
-                padding: 6px 14px !important; 
-                font-size: 11px !important; 
-                font-weight: bold !important; 
-                text-transform: uppercase !important; 
-                border: 1px solid var(--border-medium) !important; 
-                margin-top: 10px !important; 
-              }
+              #price-check-reader video { width: 100% !important; max-height: 280px !important; object-fit: cover !important; border-radius: 8px; }
+              #price-check-reader canvas { display: none !important; }
             `}</style>
             <div id="price-check-reader" className="w-full flex justify-center"></div>
           </div>
@@ -348,10 +368,69 @@ export default function WorkerPriceCheck() {
               </button>
             </div>
 
-            {/* Price Cards */}
+            {/* LIVE STOCK BREAKDOWN (Store & WHSE Prominently) */}
+            <div className="p-5 border-b border-[var(--border-light)] bg-[var(--bg-primary)]">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-1.5">
+                  <svg className="w-4 h-4 text-[var(--color-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                  Current Stock Levels
+                </span>
+                <span className="text-xs font-bold text-[var(--text-primary)]">
+                  Total: <strong className="text-sm font-extrabold text-[var(--color-accent)]">{totalStock}</strong> {displayUnit || 'units'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 md:gap-4">
+                {/* Store Floor Stock */}
+                <div className="p-4 rounded-xl flex flex-col justify-center bg-[var(--bg-secondary)] border-2 border-[var(--color-success)] shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-[var(--color-success)]">
+                      Store Floor
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-[rgba(16,185,129,0.1)] text-[var(--color-success)]">
+                      Shop Stock
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-1.5 mt-2">
+                    <span className={`text-3xl md:text-4xl font-extrabold ${Number(storeStock) < STORE_LOW_STOCK_THRESHOLD ? 'text-[var(--color-error)]' : 'text-[var(--text-primary)]'}`}>
+                      {storeStock}
+                    </span>
+                    <span className="text-xs font-semibold text-[var(--text-secondary)]">{displayUnit || 'units'}</span>
+                  </div>
+                  {Number(storeStock) < STORE_LOW_STOCK_THRESHOLD && (
+                    <span className="text-[10px] font-bold text-[var(--color-error)] mt-1">⚠️ Low Store Stock</span>
+                  )}
+                </div>
+
+                {/* Warehouse (WHSE) Stock */}
+                <div className="p-4 rounded-xl flex flex-col justify-center bg-[var(--bg-secondary)] border-2 border-[var(--color-accent)] shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">
+                      Warehouse (WHSE)
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-[var(--color-accent-bg)] text-[var(--color-accent)]">
+                      Storage
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-1.5 mt-2">
+                    <span className={`text-3xl md:text-4xl font-extrabold ${Number(whseStock) < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'text-[var(--color-error)]' : 'text-[var(--text-primary)]'}`}>
+                      {whseStock}
+                    </span>
+                    <span className="text-xs font-semibold text-[var(--text-secondary)]">{displayUnit || 'units'}</span>
+                  </div>
+                  {Number(whseStock) < WAREHOUSE_LOW_STOCK_THRESHOLD && (
+                    <span className="text-[10px] font-bold text-[var(--color-error)] mt-1">⚠️ Low Warehouse Stock</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Price Cards (MRP & MSP) */}
             <div className="p-5 grid grid-cols-2 gap-4">
               {/* MRP Box */}
-              <div className="p-4 rounded-xl flex flex-col justify-center items-center text-center bg-[rgba(16,185,129,0.08)] border border-[rgba(16,185,129,0.3)]">
+              <div className="p-4 rounded-xl flex flex-col justify-center items-center text-center bg-[rgba(16,185,129,0.06)] border border-[rgba(16,185,129,0.25)]">
                 <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-success)] mb-1">
                   Retail MRP
                 </span>
@@ -385,34 +464,11 @@ export default function WorkerPriceCheck() {
               </div>
             </div>
 
-            {/* Stock Levels */}
-            <div className="px-5 pb-5 grid grid-cols-2 gap-4">
-              <div className="p-3.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-light)] flex flex-col">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-1">Store Floor Stock</span>
-                <div className="flex items-baseline gap-1.5">
-                  <span className={`text-2xl font-bold ${Number(scannedItem.stock_store) < STORE_LOW_STOCK_THRESHOLD ? 'text-[var(--color-error)]' : 'text-[var(--text-primary)]'}`}>
-                    {scannedItem.stock_store ?? 0}
-                  </span>
-                  <span className="text-xs text-[var(--text-tertiary)]">{displayUnit || 'units'}</span>
-                </div>
-              </div>
-
-              <div className="p-3.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-light)] flex flex-col">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-1">Warehouse Stock</span>
-                <div className="flex items-baseline gap-1.5">
-                  <span className={`text-2xl font-bold ${Number(scannedItem.stock_warehouse) < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'text-[var(--color-error)]' : 'text-[var(--text-primary)]'}`}>
-                    {scannedItem.stock_warehouse ?? 0}
-                  </span>
-                  <span className="text-xs text-[var(--text-tertiary)]">{displayUnit || 'units'}</span>
-                </div>
-              </div>
-            </div>
-
             {/* Batches Table if multiple */}
             {scannedItem.batches && scannedItem.batches.length > 0 && (
               <div className="px-5 pb-5">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2.5">
-                  Available Batches ({scannedItem.batches.length})
+                  Batch Breakdown ({scannedItem.batches.length} Batches)
                 </h3>
                 <div className="flex flex-col gap-2">
                   {scannedItem.batches.map(b => (
@@ -428,9 +484,11 @@ export default function WorkerPriceCheck() {
                         <span className="font-bold text-[var(--text-primary)]">
                           Batch #{String(b.batch_number).padStart(2, '0')}
                         </span>
-                        <span className="text-[10px] text-[var(--text-secondary)]">
-                          Store: {b.stock_store || 0} • Whse: {b.stock_warehouse || 0}
-                        </span>
+                        <div className="flex items-center gap-3 mt-0.5 text-[11px]">
+                          <span className="text-[var(--color-success)] font-semibold">Store: {b.stock_store || 0}</span>
+                          <span className="text-[var(--text-tertiary)]">•</span>
+                          <span className="text-[var(--color-accent)] font-semibold">WHSE: {b.stock_warehouse || 0}</span>
+                        </div>
                       </div>
                       <div className="flex flex-col items-end">
                         <span className="font-bold text-[var(--color-success)] text-sm">
@@ -481,11 +539,11 @@ export default function WorkerPriceCheck() {
         ) : (
           <div className="p-10 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-light)] text-center flex flex-col items-center justify-center">
             <svg className="w-16 h-16 mb-3 opacity-30 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <p className="font-bold text-base text-[var(--text-secondary)]">No Item Selected</p>
             <p className="text-xs text-[var(--text-tertiary)] mt-1 max-w-xs">
-              Scan a barcode using the camera or enter a barcode/item name above to view current selling price and stock.
+              Scan a barcode or enter item name/code above to look up live Store stock, Warehouse stock, and price details.
             </p>
           </div>
         )}

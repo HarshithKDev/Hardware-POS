@@ -50,7 +50,7 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
   } else {
     tabs.push({ key: 'receive', label: 'Inbound' });
     tabs.push({ key: 'transfer', label: 'Transfer' });
-    tabs.push({ key: 'price-check', label: 'Check Price' });
+    tabs.push({ key: 'lookup', label: 'Item Lookup' });
     tabs.push({ key: 'scanner', label: 'Scanner' });
   }
 
@@ -79,11 +79,11 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
           ) : (
             <WorkerScanner cashierName={cashierName} />
           )
-        ) : activeTab === 'price-check' ? (
+        ) : (activeTab === 'lookup' || activeTab === 'price-check') ? (
           isBillable ? (
             <div className="flex flex-col items-center justify-center h-full flex-1">
               <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
-              <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Check Price is only available for non-billable helper accounts.</p>
+              <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Item Lookup is only available for non-billable helper accounts.</p>
             </div>
           ) : (
             <WorkerPriceCheck />
