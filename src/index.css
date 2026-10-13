@@ -135,6 +135,29 @@ html {
 /* ---------------------------------------------------------------
    GLOBAL ELEMENT DEFAULTS
    --------------------------------------------------------------- */
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+  overscroll-behavior: none !important;
+  overscroll-behavior-y: none !important;
+  overscroll-behavior-x: none !important;
+}
+
+#root,
+main,
+[data-virtuoso-scroller],
+div[data-viewport-type="element"],
+.overflow-y-auto,
+.overflow-auto,
+.overflow-scroll,
+.overflow-x-hidden,
+.overflow-x-auto {
+  overscroll-behavior: none !important;
+  overscroll-behavior-y: none !important;
+  overscroll-behavior-x: none !important;
+}
+
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
@@ -227,7 +250,13 @@ input[type="date"]::-webkit-datetime-edit-fields-wrapper {
    --------------------------------------------------------------- */
 ::-webkit-scrollbar {
   width: 6px;
-  height: 6px;
+  height: 0px;
+}
+
+::-webkit-scrollbar:horizontal {
+  display: none !important;
+  height: 0 !important;
+  width: 0 !important;
 }
 
 ::-webkit-scrollbar-track {
@@ -507,6 +536,15 @@ tbody tr:hover {
     height: auto !important;
     max-height: 16mm;
   }
+
+  table thead,
+  table thead th,
+  thead th,
+  thead tr th {
+    position: static !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+  }
 }
 
 .hide-scrollbar::-webkit-scrollbar {
@@ -527,25 +565,53 @@ tbody tr:hover {
   scrollbar-width: none;
 }
 
-/* Disable all horizontal scrollbars globally to prevent 1px jitter tracks */
-::-webkit-scrollbar:horizontal {
-  height: 0px !important;
-  display: none !important;
-}
-
-/* Disable all horizontal scrollbars globally to prevent 1px jitter tracks */
-::-webkit-scrollbar:horizontal {
-  height: 0px !important;
-  display: none !important;
-}
 
 /* ---------------------------------------------------------------
-   UI/UX POLISH - MICRO-INTERACTIONS & GLASSMORPHISM
+   TABLE HEADERS — 100% OPAQUE & LOCKED IN PLACE (NO RUBBER BAND)
    --------------------------------------------------------------- */
 .glass-header {
-  background-color: rgba(18, 18, 18, 0.75) !important;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background-color: var(--bg-tertiary) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  opacity: 1 !important;
+}
+
+thead,
+thead.sticky,
+thead[class*="sticky"],
+.sticky thead,
+thead.glass-header,
+table thead {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 20 !important;
+  background-color: var(--bg-tertiary) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  opacity: 1 !important;
+}
+
+table thead th,
+table thead tr th,
+thead th,
+thead tr th,
+thead.sticky th,
+thead[class*="sticky"] th,
+thead.sticky tr th,
+thead[class*="sticky"] tr th,
+thead.glass-header th,
+thead.glass-header tr th,
+th.sticky,
+th[class*="sticky"] {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 20 !important;
+  background-color: var(--bg-tertiary) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  opacity: 1 !important;
+  box-shadow: 0 1px 0 var(--border-medium) !important;
+  background-clip: padding-box !important;
 }
 
 .premium-hover {

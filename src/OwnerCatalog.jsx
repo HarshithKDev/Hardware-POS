@@ -415,7 +415,7 @@ export default function OwnerCatalog() {
   };
 
   return (
-    <div className="flex flex-col h-full gap-6 animate-fade-in">
+    <div className="flex flex-col h-full overflow-y-auto gap-6 animate-fade-in pr-1">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Register New Item</h1>

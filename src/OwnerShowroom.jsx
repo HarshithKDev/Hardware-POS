@@ -4,7 +4,7 @@ import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { formatDateTime } from './utils';
-import { Store, CheckCircle, ChevronDown, User, Phone } from 'lucide-react';
+import { CheckCircle, ChevronDown, User, Phone } from 'lucide-react';
 
 const SHOWROOM_PAGE_SIZE = 20;
 
@@ -89,8 +89,7 @@ export default function OwnerShowroom() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-            <Store size={22} className="text-[var(--color-accent)]" />
+          <h1 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>
             Showroom Pending
           </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
@@ -107,7 +106,7 @@ export default function OwnerShowroom() {
 
       {/* Bills list container */}
       <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] shadow-sm p-4">
-        <div className="flex-1 overflow-auto hide-x-scrollbar overflow-x-hidden md:overflow-x-hidden md:overflow-x-auto shadow-sm min-h-[300px] md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent' }}>
+        <div className="flex-1 overflow-x-hidden overflow-y-auto shadow-sm min-h-[300px] md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent', overscrollBehavior: 'none' }}>
           {isLoading ? (
             <div className="h-full flex items-center justify-center p-8">
               <PageLoader text="Loading showroom sales..." />
@@ -115,98 +114,96 @@ export default function OwnerShowroom() {
           ) : bills.length === 0 ? (
             <EmptyState message="No pending showroom sales. All goods have been paid for!" />
           ) : (
-            <>
-              {/* Desktop header */}
-              <div
-                className="hidden md:grid px-4 py-3 border-b border-[var(--border-light)] text-[11px] font-bold uppercase tracking-wider sticky top-0 z-10"
-                style={{ gridTemplateColumns: '1fr 1fr 80px 140px 160px', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-tertiary)' }}
-              >
-              <span>Date &amp; Time</span>
-              <span>Customer / Cashier</span>
-              <span className="text-center">Items</span>
-              <span className="text-right">Amount</span>
-              <span className="text-center">Action</span>
-            </div>
-
-            <div className="divide-y divide-[var(--border-light)]">
-              {bills.map(bill => {
-                const isExpanded = expandedBillId === bill.id;
-                const items = billItemsCache[bill.id] || [];
-                return (
-                  <Fragment key={bill.id}>
-                    {/* Row */}
-                    <div
-                      className="px-4 py-3 cursor-pointer transition-colors"
-                      style={{ backgroundColor: isExpanded ? 'var(--color-accent-bg)' : undefined }}
-                      onClick={() => toggleRow(bill)}
-                    >
+            <table className="block md:table w-full text-center border-collapse">
+              <thead className="hidden md:table-header-group sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
+                <tr className="text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>
+                  <th className="p-3.5 text-center">Date &amp; Time</th>
+                  <th className="p-3.5 text-center">Customer Name</th>
+                  <th className="p-3.5 text-center">Phone Number</th>
+                  <th className="p-3.5 text-center w-28">Items</th>
+                  <th className="p-3.5 text-center w-36">Amount</th>
+                  <th className="p-3.5 text-center w-40">Action</th>
+                </tr>
+              </thead>
+              <tbody className="block md:table-row-group">
+                {bills.map(bill => {
+                  const isExpanded = expandedBillId === bill.id;
+                  const items = billItemsCache[bill.id] || [];
+                  return (
+                    <Fragment key={bill.id}>
                       {/* Mobile layout */}
-                      <div className="md:hidden">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <p className="text-xs font-bold" style={{ color: 'var(--text-secondary)' }}>{formatDateTime(bill.created_at).full}</p>
-                            <p className="text-sm font-semibold mt-0.5" style={{ color: 'var(--text-primary)' }}>
-                              {bill.customer_name || bill.cashier_name || 'Walk-in'}
-                            </p>
-                            {bill.customer_phone && (
-                              <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{bill.customer_phone}</p>
-                            )}
+                      <tr
+                        className="md:hidden block p-4 border-b border-[var(--border-light)] cursor-pointer"
+                        style={{ backgroundColor: isExpanded ? 'var(--color-accent-bg)' : undefined, borderBottom: '1px solid var(--border-light)' }}
+                        onClick={() => toggleRow(bill)}
+                      >
+                        <td className="block p-0 border-none">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <p className="text-xs font-bold" style={{ color: 'var(--text-secondary)' }}>{formatDateTime(bill.created_at).full}</p>
+                              <p className="text-sm font-semibold mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                                {bill.customer_name || 'Walk-in'}
+                              </p>
+                              {bill.customer_phone && (
+                                <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{bill.customer_phone}</p>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <p className="text-lg font-bold" style={{ color: 'var(--color-accent)' }}>&#8377;{Number(bill.total_amount).toFixed(2)}</p>
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase" style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)' }}>SHOWROOM</span>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-lg font-bold" style={{ color: 'var(--color-accent)' }}>&#8377;{Number(bill.total_amount).toFixed(2)}</p>
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase" style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)' }}>SHOWROOM</span>
+                          <div className="flex items-center justify-between mt-2" onClick={e => e.stopPropagation()}>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleMarkPaid(bill); }}
+                              disabled={markingPaidId === bill.id}
+                              className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-md text-white transition-opacity disabled:opacity-50 active:scale-95"
+                              style={{ backgroundColor: 'var(--color-success)' }}
+                            >
+                              {markingPaidId === bill.id
+                                ? <Spinner className="w-3 h-3 text-white" />
+                                : <CheckCircle size={14} />}
+                              Mark as Paid
+                            </button>
+                            <ChevronDown size={18} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} style={{ color: 'var(--text-tertiary)' }} />
                           </div>
-                        </div>
-                        <div className="flex items-center justify-between mt-2" onClick={e => e.stopPropagation()}>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleMarkPaid(bill); }}
-                            disabled={markingPaidId === bill.id}
-                            className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-md text-white transition-opacity disabled:opacity-50 active:scale-95"
-                            style={{ backgroundColor: 'var(--color-success)' }}
-                          >
-                            {markingPaidId === bill.id
-                              ? <Spinner className="w-3 h-3 text-white" />
-                              : <CheckCircle size={14} />}
-                            Mark as Paid
-                          </button>
-                          <ChevronDown size={18} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} style={{ color: 'var(--text-tertiary)' }} />
-                        </div>
-                      </div>
+                        </td>
+                      </tr>
 
                       {/* Desktop layout */}
-                      <div
-                        className="hidden md:grid items-center"
-                        style={{ gridTemplateColumns: '1fr 1fr 80px 140px 160px' }}
+                      <tr
+                        className="hidden md:table-row cursor-pointer transition-colors hover:bg-[var(--bg-hover)] border-b border-[var(--border-light)]"
+                        style={{ 
+                          backgroundColor: isExpanded ? 'var(--color-accent-bg)' : undefined,
+                          borderBottom: '1px solid var(--border-light)'
+                        }}
+                        onClick={() => toggleRow(bill)}
                       >
-                        <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{formatDateTime(bill.created_at).full}</span>
-                        <div className="flex flex-col">
-                          {bill.customer_name && (
-                            <span className="text-sm font-medium flex items-center gap-1" style={{ color: 'var(--text-primary)' }}>
-                              <User size={12} className="text-[var(--text-tertiary)] shrink-0" />
-                              {bill.customer_name}
+                        <td className="p-3.5 text-sm text-center align-middle" style={{ color: 'var(--text-primary)' }}>
+                          {formatDateTime(bill.created_at).full}
+                        </td>
+                        <td className="p-3.5 text-sm font-medium text-center align-middle" style={{ color: 'var(--text-primary)' }}>
+                          {bill.customer_name || '—'}
+                        </td>
+                        <td className="p-3.5 text-sm text-center align-middle" style={{ color: 'var(--text-secondary)' }}>
+                          {bill.customer_phone || '—'}
+                        </td>
+                        <td className="p-3.5 text-center align-middle">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                              {items.length > 0 ? `${items.length} items` : 'View'}
                             </span>
-                          )}
-                          {bill.customer_phone && (
-                            <span className="text-xs flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
-                              <Phone size={11} className="shrink-0" />
-                              {bill.customer_phone}
-                            </span>
-                          )}
-                          {!bill.customer_name && !bill.customer_phone && (
-                            <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{bill.cashier_name || 'Walk-in'}</span>
-                          )}
-                        </div>
-                        <div className="flex justify-center">
-                          <ChevronDown size={16} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} style={{ color: 'var(--text-tertiary)' }} />
-                        </div>
-                        <div className="flex justify-end">
-                          <span className="text-sm font-bold" style={{ color: 'var(--color-accent)' }}>&#8377;{Number(bill.total_amount).toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-center" onClick={e => e.stopPropagation()}>
+                            <ChevronDown size={15} className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} style={{ color: 'var(--text-tertiary)' }} />
+                          </div>
+                        </td>
+                        <td className="p-3.5 text-sm font-bold text-center align-middle" style={{ color: 'var(--color-accent)' }}>
+                          &#8377;{Number(bill.total_amount).toFixed(2)}
+                        </td>
+                        <td className="p-3.5 text-center align-middle" onClick={e => e.stopPropagation()}>
                           <button
                             onClick={(e) => { e.stopPropagation(); handleMarkPaid(bill); }}
                             disabled={markingPaidId === bill.id}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded-md text-white transition-opacity disabled:opacity-50 active:scale-95"
+                            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded-md text-white transition-opacity disabled:opacity-50 active:scale-95 shadow-sm"
                             style={{ backgroundColor: 'var(--color-success)' }}
                           >
                             {markingPaidId === bill.id
@@ -214,73 +211,71 @@ export default function OwnerShowroom() {
                               : <CheckCircle size={13} />}
                             Mark Paid
                           </button>
-                        </div>
-                      </div>
-                    </div>
+                        </td>
+                      </tr>
 
-                    {/* Expanded items */}
-                    {isExpanded && (
-                      <div
-                        className="px-6 py-4 border-b border-[var(--border-light)]"
-                        style={{ backgroundColor: 'var(--bg-tertiary)' }}
-                      >
-                        {isLoadingItems && !billItemsCache[bill.id] ? (
-                          <div className="flex justify-center py-4"><PageLoader text="" /></div>
-                        ) : (
-                          <>
-                            <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--text-tertiary)' }}>
-                              Bill #{bill.id.split('-')[0]} — Items
-                            </p>
-                            <div className="rounded-lg overflow-hidden border border-[var(--border-light)]" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-                              <table className="w-full text-sm">
-                                <thead>
-                                  <tr
-                                    className="text-[10px] font-bold uppercase text-left border-b border-[var(--border-light)]"
-                                    style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}
-                                  >
-                                    <th className="px-4 py-2">Item</th>
-                                    <th className="px-4 py-2 text-center">Qty</th>
-                                    <th className="px-4 py-2 text-right">Price</th>
-                                    <th className="px-4 py-2 text-right">Total</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {items.length === 0 ? (
-                                    <tr>
-                                      <td colSpan={4} className="text-center py-4 text-sm" style={{ color: 'var(--text-tertiary)' }}>No items found.</td>
-                                    </tr>
-                                  ) : items.map(item => (
-                                    <tr key={item.id} className="border-b border-[var(--border-light)] last:border-0">
-                                      <td className="px-4 py-2 font-medium" style={{ color: 'var(--text-primary)' }}>{item.name}</td>
-                                      <td className="px-4 py-2 text-center" style={{ color: 'var(--text-secondary)' }}>
-                                        {Number(item.billable_quantity || item.quantity)} {item.unit}
-                                      </td>
-                                      <td className="px-4 py-2 text-right" style={{ color: 'var(--text-secondary)' }}>
-                                        &#8377;{Number(item.price_at_sale).toFixed(2)}
-                                      </td>
-                                      <td className="px-4 py-2 text-right font-semibold" style={{ color: 'var(--text-primary)' }}>
-                                        &#8377;{(Number(item.price_at_sale) * Number(item.billable_quantity || item.quantity)).toFixed(2)}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                            <div className="flex justify-end mt-3">
-                              <div className="text-right">
-                                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Pending Total</span>
-                                <p className="text-xl font-bold" style={{ color: 'var(--color-accent)' }}>&#8377;{Number(bill.total_amount).toFixed(2)}</p>
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </div>
-            </>
+                      {/* Expanded items */}
+                      {isExpanded && (
+                        <tr className="bg-[var(--bg-tertiary)] border-b border-[var(--border-light)]" style={{ borderBottom: '1px solid var(--border-light)' }}>
+                          <td colSpan={6} className="px-6 py-4 text-left">
+                            {isLoadingItems && !billItemsCache[bill.id] ? (
+                              <div className="flex justify-center py-4"><PageLoader text="" /></div>
+                            ) : (
+                              <>
+                                <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--text-tertiary)' }}>
+                                  Bill #{bill.id.split('-')[0]} — Items
+                                </p>
+                                <div className="rounded-lg overflow-x-hidden border border-[var(--border-light)]" style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}>
+                                  <table className="w-full text-sm text-center border-collapse">
+                                    <thead className="sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
+                                      <tr
+                                        className="text-[10px] font-bold uppercase text-center border-b border-[var(--border-light)]"
+                                        style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
+                                      >
+                                        <th className="px-4 py-2 text-center">Item</th>
+                                        <th className="px-4 py-2 text-center">Qty</th>
+                                        <th className="px-4 py-2 text-center">Price</th>
+                                        <th className="px-4 py-2 text-center">Total</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {items.length === 0 ? (
+                                        <tr>
+                                          <td colSpan={4} className="text-center py-4 text-sm" style={{ color: 'var(--text-tertiary)' }}>No items found.</td>
+                                        </tr>
+                                      ) : items.map(item => (
+                                        <tr key={item.id} className="border-b border-[var(--border-light)] last:border-0 text-center">
+                                          <td className="px-4 py-2 font-medium text-center" style={{ color: 'var(--text-primary)' }}>{item.name}</td>
+                                          <td className="px-4 py-2 text-center" style={{ color: 'var(--text-secondary)' }}>
+                                            {Number(item.billable_quantity || item.quantity)} {item.unit}
+                                          </td>
+                                          <td className="px-4 py-2 text-center" style={{ color: 'var(--text-secondary)' }}>
+                                            &#8377;{Number(item.price_at_sale).toFixed(2)}
+                                          </td>
+                                          <td className="px-4 py-2 text-center font-semibold" style={{ color: 'var(--text-primary)' }}>
+                                            &#8377;{(Number(item.price_at_sale) * Number(item.billable_quantity || item.quantity)).toFixed(2)}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                                <div className="flex justify-end mt-3">
+                                  <div className="text-right">
+                                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Pending Total</span>
+                                    <p className="text-xl font-bold" style={{ color: 'var(--color-accent)' }}>&#8377;{Number(bill.total_amount).toFixed(2)}</p>
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
         </div>
 

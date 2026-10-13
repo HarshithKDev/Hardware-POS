@@ -281,16 +281,16 @@ export default function OwnerLedger({ isActive }) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto hide-x-scrollbar overflow-x-hidden md:overflow-x-hidden md:overflow-x-auto shadow-sm min-h-[400px] md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent' }}>
-              <div className="overflow-x-hidden md:overflow-x-auto w-full max-w-full h-full">
-                <table className={`block md:table w-full text-left border-collapse min-w-full ${(isLoadingBills && bills.length === 0 || bills.length === 0) ? 'h-full' : ''}`}>
-            <thead className="hidden md:table-header-group sticky top-0 z-10 glass-header" style={{ borderBottom: '1px solid var(--border-medium)' }}>
+        <div className="flex-1 overflow-x-hidden overflow-y-auto shadow-sm min-h-[400px] md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent', overscrollBehavior: 'none' }}>
+          <div className="w-full max-w-full h-full">
+            <table className={`block md:table w-full text-left border-collapse ${(isLoadingBills && bills.length === 0 || bills.length === 0) ? 'h-full' : ''}`}>
+            <thead className="hidden md:table-header-group sticky top-0 z-20 glass-header" style={{ borderBottom: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}>
               <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                <th className="py-4 px-3 w-56 text-left border-none">Date & Time</th>
+                <th className="py-4 px-3 w-48 text-left border-none">Date &amp; Time</th>
                 <th className="py-4 px-3 text-left border-none">Cashier</th>
-                <th className="py-4 px-3 w-32 text-center border-none">Payment</th>
-                <th className="py-4 px-3 w-32 text-right border-none">Total (₹)</th>
-                <th className="py-4 px-3 text-center w-16 border-none">Details</th>
+                <th className="py-4 px-3 w-28 text-center border-none">Payment</th>
+                <th className="py-4 px-3 w-28 text-right border-none">Total (₹)</th>
+                <th className="py-4 px-3 text-center w-14 border-none">Details</th>
               </tr>
             </thead>
             <tbody className="block md:table-row-group p-2 md:p-0">
@@ -384,10 +384,9 @@ export default function OwnerLedger({ isActive }) {
                                   )}
                                 </div>
                               </div>
-                              <div className="overflow-x-hidden md:overflow-x-auto overflow-y-hidden w-full rounded-lg shadow-sm" style={{ border: '1px solid var(--border-light)' }}>
-                                <div className="overflow-x-hidden md:overflow-x-auto w-full">
-                                  <table className="block md:table w-full text-left border-collapse min-w-full" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-                                  <thead className="hidden md:table-header-group" style={{ backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-light)' }}>
+                              <div className="overflow-x-hidden overflow-y-hidden w-full rounded-lg shadow-sm" style={{ border: '1px solid var(--border-light)', overscrollBehavior: 'none' }}>
+                                <table className="block md:table w-full text-left border-collapse" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                                  <thead className="hidden md:table-header-group sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                                     <tr className="text-xs font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>
                                       <th className="py-3 px-4 text-left border-none">Item Name</th>
                                       <th className="py-3 px-4 text-center w-24 border-none">Qty</th>
@@ -438,10 +437,9 @@ export default function OwnerLedger({ isActive }) {
                                   </table>
                                 </div>
                               </div>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
+                            )}
+                          </td>
+                        </tr>
                     )}
                   </Fragment>
                 );

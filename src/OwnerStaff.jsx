@@ -198,9 +198,9 @@ export default function OwnerStaff() {
         </form>
       </div>
 
-      <div className="flex-1 overflow-auto rounded-lg border border-[var(--border-light)] shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-        <table className={`w-full text-left border-collapse ${(isLoading || staffList.length === 0) ? 'h-full' : ''}`}>
-          <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
+      <div className="flex-1 overflow-auto rounded-lg border border-[var(--border-light)] shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}>
+        <table className={`w-full min-w-[480px] text-left border-collapse ${(isLoading || staffList.length === 0) ? 'h-full' : ''}`}>
+          <thead className="sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
               <th className="p-4 w-5/12 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Staff Name</th>
               <th className="p-4 w-4/12 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Account Type</th>

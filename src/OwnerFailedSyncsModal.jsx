@@ -45,9 +45,9 @@ export default function OwnerFailedSyncsModal({ failedSyncs, onClose }) {
   };
 
   return (
-    <div className="overflow-x-hidden md:overflow-x-auto w-full shadow-sm rounded-none" style={{ border: '1px solid var(--border-light)' }}>
+    <div className="overflow-x-hidden w-full shadow-sm rounded-none" style={{ border: '1px solid var(--border-light)', overscrollBehavior: 'none' }}>
       <table className="w-full text-left border-collapse">
-        <thead className="sticky top-0 shadow-sm" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-light)' }}>
+        <thead className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
           <tr className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
             <th className="p-3 w-40" style={{ borderRight: '1px solid var(--border-light)' }}>Timestamp</th>
             <th className="p-3" style={{ borderRight: '1px solid var(--border-light)' }}>Transaction Details</th>

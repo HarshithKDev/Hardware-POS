@@ -22,25 +22,25 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
   }
 
   return (
-    <table className="w-full text-center whitespace-nowrap border-collapse" role="table">
-      <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-light)' }}>
+    <table className="w-full min-w-[760px] xl:min-w-[900px] text-center whitespace-nowrap border-collapse" role="table">
+      <thead className="sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
         <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-          <th className="py-4 px-3 w-32 text-center" >Barcode</th>
-          <th className="py-4 px-3 w-1/3 text-center" >Item Name</th>
-          <th className={`p-3 text-center w-72 ${activeTab === 'checkout' || activeTab === 'receive' ? '' : ''}`} style={activeTab === 'checkout' || activeTab === 'receive' ? { } : {}}>Quantity</th>
+          <th className="py-4 px-3 w-28 text-center">Barcode</th>
+          <th className="py-4 px-3 w-1/3 min-w-[160px] text-center">Item Name</th>
+          <th className={`p-3 text-center w-60 lg:w-72 ${activeTab === 'checkout' || activeTab === 'receive' ? '' : ''}`} style={activeTab === 'checkout' || activeTab === 'receive' ? { } : {}}>Quantity</th>
           {activeTab === 'checkout' && (
             <>
-              <th className="py-4 px-3 text-center w-36" >MRP (₹)</th>
-              <th className="py-4 px-3 text-center w-32" >Total</th>
+              <th className="py-4 px-3 text-center w-28 lg:w-36">MRP (₹)</th>
+              <th className="py-4 px-3 text-center w-28 lg:w-32">Total</th>
             </>
           )}
           {activeTab === 'receive' && (
             <>
-              <th className="py-4 px-3 text-center w-32" >MSP (₹)</th>
-              <th className="py-4 px-3 text-center w-32" >MRP (₹)</th>
+              <th className="py-4 px-3 text-center w-28 lg:w-32">MSP (₹)</th>
+              <th className="py-4 px-3 text-center w-28 lg:w-32">MRP (₹)</th>
             </>
           )}
-          <th className="py-4 px-3 w-12"></th>
+          <th className="py-4 px-2 w-12"></th>
         </tr>
       </thead>
       <tbody style={{ borderBottom: '1px solid var(--border-light)' }}>

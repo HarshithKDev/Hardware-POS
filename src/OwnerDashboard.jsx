@@ -101,10 +101,11 @@ export default function OwnerDashboard() {
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
           md:translate-x-0 
           absolute md:relative top-0 left-0 h-full md:h-full z-50
-          w-64 md:w-56 flex-shrink-0 py-4 
+          w-64 md:w-56 flex-shrink-0 py-3 md:py-4
           m-0 md:rounded-xl 
           border-r md:border border-[var(--border-medium)] md:border-[var(--border-light)] 
           shadow-2xl md:shadow-sm transition-transform duration-300 ease-in-out
+          overflow-y-auto
         `}
         style={{
           backgroundColor: 'var(--bg-secondary)',
@@ -112,14 +113,14 @@ export default function OwnerDashboard() {
         role="navigation"
         aria-label="Dashboard navigation"
       >
-        <div className="flex flex-col gap-1 px-3">
+        <div className="flex flex-col gap-0.5 md:gap-1 px-2.5 md:px-3">
           {NAV_ITEMS.map(({ key, label, icon: Icon }) => {
             const isActive = activeTab === key;
             return (
               <button
                 key={key}
                 onClick={() => changeTab(key)}
-                className={`relative overflow-hidden text-left pl-4 pr-3 py-2.5 my-0.5 rounded-lg text-sm flex items-center gap-3 transition-all duration-200 ${
+                className={`relative overflow-hidden text-left pl-3.5 pr-2.5 py-2 my-0.5 rounded-lg text-sm flex items-center gap-2.5 md:gap-3 transition-all duration-200 shrink-0 ${
                   isActive 
                     ? 'bg-[var(--bg-tertiary)] text-[var(--color-accent)] font-semibold shadow-sm' 
                     : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
@@ -130,7 +131,7 @@ export default function OwnerDashboard() {
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-[var(--color-accent)]" />
                 )}
                 <Icon size={18} className={isActive ? 'text-[var(--color-accent)]' : 'text-[var(--text-tertiary)]'} />
-                {label}
+                <span className="truncate">{label}</span>
               </button>
             );
           })}
@@ -139,8 +140,8 @@ export default function OwnerDashboard() {
 
       {/* MAIN CONTENT */}
       <main
-        className="flex-1 flex flex-col p-4 overflow-y-auto relative m-0 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm"
-        style={{ backgroundColor: 'var(--bg-secondary)' }}
+        className="flex-1 min-w-0 flex flex-col p-3 md:p-4 overflow-y-auto overflow-x-hidden relative m-0 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm"
+        style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}
         role="main"
         aria-label="Dashboard content"
       >
@@ -156,7 +157,7 @@ export default function OwnerDashboard() {
               Main Storage Actions
             </h1>
             <div
-              className="flex gap-1 mb-6 pb-0 overflow-x-hidden md:overflow-x-auto border-b border-[var(--border-light)]"
+              className="flex gap-1 mb-6 pb-0 overflow-x-hidden border-b border-[var(--border-light)]"
               role="tablist"
               aria-label="Warehouse tabs"
             >

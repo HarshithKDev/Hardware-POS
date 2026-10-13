@@ -498,14 +498,14 @@ export default function OwnerInventory({ viewType }) {
           <Virtuoso
             data={items}
             useWindowScroll={false}
-            style={{ height: '100%', width: '100%' }}
-            className="hide-x-scrollbar"
+            style={{ height: '100%', width: '100%', overscrollBehavior: 'none' }}
+            className="overflow-x-hidden"
             defaultItemHeight={80}
             increaseViewportBy={{ top: 400, bottom: 400 }}
             components={{
               List: forwardRef((props, ref) => (
-                <table ref={ref} style={{ ...props.style }} className={`block md:table w-full max-w-full text-center border-collapse table-fixed min-w-full ${props.className || ''}`}>
-                  <thead className="hidden md:table-header-group sticky top-0 z-10 glass-header" style={{ borderBottom: '1px solid var(--border-medium)' }}>
+                <table ref={ref} style={{ ...props.style }} className={`block md:table w-full text-center border-collapse table-fixed ${props.className || ''}`}>
+                  <thead className="hidden md:table-header-group sticky top-0 z-20 glass-header" style={{ borderBottom: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}>
                     <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                       {isSelectionMode && (
                         <th className="p-3 w-12 text-center" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>
@@ -513,7 +513,7 @@ export default function OwnerInventory({ viewType }) {
                         </th>
                       )}
                       <th 
-                        className="p-3 w-28 cursor-pointer select-none group" 
+                        className="p-3 w-24 lg:w-28 cursor-pointer select-none group" 
                         style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
                         onClick={() => handleSortClick('barcode')}
                       >
@@ -523,7 +523,7 @@ export default function OwnerInventory({ viewType }) {
                         </div>
                       </th>
                       <th 
-                        className="p-3 w-full cursor-pointer select-none group" 
+                        className="p-3 w-full min-w-[180px] cursor-pointer select-none group" 
                         style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
                         onClick={() => handleSortClick('name')}
                       >
@@ -533,7 +533,7 @@ export default function OwnerInventory({ viewType }) {
                         </div>
                       </th>
                       <th 
-                        className="p-3 w-52 cursor-pointer select-none text-center group" 
+                        className="p-3 w-36 lg:w-48 cursor-pointer select-none text-center group" 
                         style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
                         onClick={() => handleSortClick('category')}
                       >
@@ -543,7 +543,7 @@ export default function OwnerInventory({ viewType }) {
                         </div>
                       </th>
                       <th 
-                        className="p-3 w-44 cursor-pointer select-none text-center group" 
+                        className="p-3 w-32 lg:w-40 cursor-pointer select-none text-center group" 
                         style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
                         onClick={() => handleSortClick('subcategory')}
                       >
@@ -552,9 +552,9 @@ export default function OwnerInventory({ viewType }) {
                           {renderSortIcon('subcategory')}
                         </div>
                       </th>
-                      <th className="p-3 w-36 text-center" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>Batches</th>
+                      <th className="p-3 w-28 lg:w-32 text-center" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>Batches</th>
                       <th 
-                        className="p-3 w-28 text-center whitespace-nowrap cursor-pointer select-none group" 
+                        className="p-3 w-24 lg:w-28 text-center whitespace-nowrap cursor-pointer select-none group" 
                         style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
                         onClick={() => handleSortClick('whsestock')}
                       >
@@ -564,7 +564,7 @@ export default function OwnerInventory({ viewType }) {
                         </div>
                       </th>
                       <th 
-                        className="p-3 w-28 text-center whitespace-nowrap cursor-pointer select-none group" 
+                        className="p-3 w-24 lg:w-28 text-center whitespace-nowrap cursor-pointer select-none group" 
                         style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
                         onClick={() => handleSortClick('storestock')}
                       >
@@ -573,7 +573,7 @@ export default function OwnerInventory({ viewType }) {
                           {renderSortIcon('storestock')}
                         </div>
                       </th>
-                      <th className="p-3 w-36 text-center">Actions</th>
+                      <th className="p-3 w-28 lg:w-32 text-center">Actions</th>
                     </tr>
                   </thead>
                   {props.children}

@@ -2105,16 +2105,16 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                 )}
               </form>
           </div>
-          <div className="text-left md:text-right flex flex-col justify-end pt-2 md:pt-0" style={{ borderTop: window.innerWidth < 768 ? `1px solid var(--border-light)` : 'none' }}>
+          <div className="text-left md:text-right flex flex-col justify-end pt-2 md:pt-0 border-t border-[var(--border-light)] md:border-t-0 shrink-0">
             <span className="text-xs uppercase font-semibold tracking-wider block mb-1" style={{ color: 'var(--text-tertiary)' }}>{activeTab === 'checkout' ? 'Total Price' : 'Total Units'}</span>
-            <span className="text-4xl font-light" style={{ color: 'var(--color-accent)' }} aria-live="polite">
+            <span className="text-3xl md:text-4xl font-light" style={{ color: 'var(--color-accent)' }} aria-live="polite">
               {activeTab === 'checkout' ? `₹${cartTotal.toFixed(2)}` : cartUnits}
             </span>
           </div>
         </div>
 
         {/* Desktop View */}
-        <div className="hidden md:block flex-1 overflow-y-auto overflow-x-hidden md:overflow-x-auto" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+        <div className="hidden md:block flex-1 overflow-y-auto overflow-x-hidden" style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}>
           <CartTable
             cart={cart}
             activeTab={activeTab}
@@ -2145,11 +2145,11 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         </div>
 
         {cart.length > 0 && !isInputFocused && (
-          <div className="p-4 flex flex-col md:flex-row justify-between gap-3" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-            <div className="flex w-full md:w-auto gap-3">
+          <div className="p-3 md:p-4 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+            <div className="flex w-full sm:w-auto gap-2 md:gap-3">
               <button
                 onClick={() => showConfirm("Clear all items?", handleCancelSale, activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items', 'Clear', 'Cancel', true)}
-                className="flex-1 md:flex-none min-h-[44px] md:min-h-0 md:h-10 px-6 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md"
+                className="flex-1 sm:flex-none min-h-[40px] md:h-10 px-4 md:px-6 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md"
                 style={{ backgroundColor: 'transparent', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
               >
                 {activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items'}
@@ -2157,7 +2157,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               {activeTab === 'checkout' && activeCartTab === 'local' && (
                 <button
                   onClick={handleHoldCart}
-                  className="flex-1 md:flex-none min-h-[44px] md:min-h-0 md:h-10 px-6 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md"
+                  className="flex-1 sm:flex-none min-h-[40px] md:h-10 px-4 md:px-6 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md"
                   style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--color-accent)', border: '1px solid var(--color-accent)' }}
                 >
                   Hold Cart
@@ -2166,7 +2166,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             </div>
             <button
               onClick={() => activeTab === 'checkout' ? setCheckoutModal(prev => ({ ...prev, isOpen: true, cashGiven: '', negotiatedTotal: '', error: '', paymentMethod: 'CASH', splitUpi: '', splitCash: '' })) : handleCompleteTransaction()}
-              className="w-full md:w-auto min-h-[44px] md:min-h-0 md:h-10 px-10 text-white text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md focus:ring-2 focus:ring-offset-1 flex justify-center items-center"
+              className="w-full sm:w-auto min-h-[40px] md:h-10 px-8 md:px-10 text-white text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md focus:ring-2 focus:ring-offset-1 flex justify-center items-center"
               style={{ backgroundColor: 'var(--color-accent)', border: '1px solid transparent' }}
             >
               {isCheckingOut ? 'Saving...' : 'Complete'}

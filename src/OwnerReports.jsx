@@ -273,7 +273,7 @@ export default function OwnerReports() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex gap-1 mb-0 pb-0 overflow-x-hidden md:overflow-x-auto border-b border-[var(--border-light)] shrink-0" role="tablist">
+      <div className="flex gap-1 mb-0 pb-0 overflow-x-hidden border-b border-[var(--border-light)] shrink-0" role="tablist">
         {TABS.map(({ key, label }) => (
           <button
             key={key}
@@ -295,12 +295,12 @@ export default function OwnerReports() {
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 min-h-0 overflow-auto mt-4">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden mt-4" style={{ overscrollBehavior: 'none' }}>
         {/* ===== TAB A: Batch Profitability ===== */}
         {activeTab === 'batch' && (
-          <div className="rounded-lg overflow-hidden shadow-sm" style={{ border: '1px solid var(--border-light)' }}>
+          <div className="rounded-lg overflow-x-hidden shadow-sm" style={{ border: '1px solid var(--border-light)' }}>
             <table className="w-full text-left border-collapse">
-              <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
+              <thead className="sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                 <tr className="text-[10px] sm:text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                   <th className="p-3 sm:p-4" style={{ borderRight: '1px solid var(--border-light)' }}>Product</th>
                   <th className="p-3 sm:p-4 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Batch</th>
@@ -365,9 +365,9 @@ export default function OwnerReports() {
               ))}
             </div>
 
-            <div className="rounded-lg overflow-hidden shadow-sm" style={{ border: '1px solid var(--border-light)' }}>
+            <div className="rounded-lg overflow-x-hidden shadow-sm" style={{ border: '1px solid var(--border-light)' }}>
               <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-medium)' }}>
+                <thead className="sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                   <tr className="text-[10px] sm:text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                     <th className="p-3 sm:p-4" style={{ borderRight: '1px solid var(--border-light)' }}>
                       {leakageView === 'employee' ? 'Employee' : leakageView === 'product' ? 'Product' : 'Category'}

@@ -237,16 +237,16 @@ export default function BarcodePrinter() {
               </div>
 
               {printQueue.length > 0 && (
-                <div className="rounded-lg border border-[var(--border-light)] shadow-sm overflow-x-hidden md:overflow-x-auto" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                <div className="rounded-lg border border-[var(--border-light)] shadow-sm overflow-x-hidden max-h-[300px] overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}>
                   <table className="w-full text-left border-collapse">
-                    <thead>
+                    <thead className="sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                       <tr className="text-xs uppercase" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
                         <th className="p-2" style={{ borderRight: '1px solid var(--border-light)' }}>Item</th>
                         <th className="p-2 w-20 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Qty</th>
                         <th className="p-2 w-10 text-center"></th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y" style={{ divideColor: 'var(--border-light)' }}>
+                    <tbody className="divide-y border-b border-[var(--border-light)]" style={{ divideColor: 'var(--border-light)' }}>
                       {printQueue.map((item) => (
                         <tr key={item.barcode} className="transition-colors hover:bg-[var(--bg-hover)]">
                           <td className="p-2 text-sm" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>

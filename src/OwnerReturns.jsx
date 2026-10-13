@@ -184,8 +184,8 @@ export default function OwnerReturns() {
       
       <div className="mb-6 p-6 rounded-lg shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-light)' }}>
         <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Search Customer</h2>
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
+        <div className="flex flex-col md:flex-row gap-3 md:gap-4 items-stretch md:items-end">
+          <div className="flex-1 min-w-0 relative">
             <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Customer Name</label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
@@ -211,7 +211,7 @@ export default function OwnerReturns() {
             </div>
           </div>
           
-          <div className="flex-1 relative">
+          <div className="flex-1 min-w-0 relative">
             <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Customer Phone</label>
             <div className="relative">
               <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
@@ -226,11 +226,11 @@ export default function OwnerReturns() {
             </div>
           </div>
           
-          <div className="flex items-end">
+          <div className="flex items-end shrink-0">
             <button 
               onClick={() => searchPurchases()} 
               disabled={loadingBills}
-              className="h-10 px-6 text-sm font-semibold rounded-md flex items-center gap-2 transition-colors text-white disabled:opacity-50" 
+              className="w-full md:w-auto h-10 px-6 text-sm font-semibold rounded-md flex items-center justify-center gap-2 transition-colors text-white disabled:opacity-50" 
               style={{ backgroundColor: 'var(--color-accent)' }}
             >
               {loadingBills ? 'Searching...' : <><Search className="w-4 h-4" /> Search</>}
@@ -239,7 +239,7 @@ export default function OwnerReturns() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto bg-[var(--bg-secondary)] rounded-lg shadow-sm border border-[var(--border-light)]">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden bg-[var(--bg-secondary)] rounded-lg shadow-sm border border-[var(--border-light)]">
         {loadingBills ? (
           <div className="flex flex-col items-center justify-center h-48 gap-4">
              <PageLoader text="Loading purchases..." />
@@ -249,15 +249,15 @@ export default function OwnerReturns() {
              <p>No purchases found for this customer.</p>
           </div>
         ) : bills.length > 0 ? (
-          <div className="w-full">
-            <table className="block md:table w-full text-left border-collapse min-w-full">
-            <thead className="hidden md:table-header-group" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-light)' }}>
+          <div className="w-full overflow-x-hidden">
+            <table className="block md:table w-full text-center border-collapse">
+            <thead className="hidden md:table-header-group sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-light)' }}>
               <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                <th className="p-4 border-none w-10"></th>
-                <th className="p-4 border-none">Bill ID</th>
-                <th className="p-4 border-none">Date</th>
-                <th className="p-4 border-none text-right">Items</th>
-                <th className="p-4 border-none text-right">Total</th>
+                <th className="p-4 border-none w-12 text-center"></th>
+                <th className="p-4 border-none text-center">Bill ID</th>
+                <th className="p-4 border-none text-center">Date</th>
+                <th className="p-4 border-none text-center">Items</th>
+                <th className="p-4 border-none text-center">Total</th>
               </tr>
             </thead>
             <tbody className="block md:table-row-group">
@@ -267,20 +267,20 @@ export default function OwnerReturns() {
                 return (
                   <Fragment key={bill.id}>
                     <tr onClick={() => setExpandedBillId(isExpanded ? null : bill.id)} className="block md:table-row border-b border-[var(--border-light)] cursor-pointer hover:bg-[var(--bg-hover)] transition-colors">
-                      <td className="hidden md:table-cell p-4 w-10 text-center border-none">
+                      <td className="hidden md:table-cell p-4 w-12 text-center border-none">
                         {isExpanded ? <ChevronDown className="w-4 h-4 mx-auto" /> : <ChevronRight className="w-4 h-4 mx-auto" />}
                       </td>
-                      <td className="block md:table-cell p-4 border-none font-medium" style={{ color: 'var(--text-primary)' }}>
+                      <td className="block md:table-cell p-4 border-none font-medium text-center" style={{ color: 'var(--text-primary)' }}>
                          #{bill.id.split('-')[0]}
                          {bill.status === 'voided' && <span className="ml-2 px-2 py-0.5 text-[10px] font-bold uppercase rounded" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>Returned</span>}
                       </td>
-                      <td className="block md:table-cell p-4 border-none text-sm" style={{ color: 'var(--text-secondary)' }}>
+                      <td className="block md:table-cell p-4 border-none text-sm text-center" style={{ color: 'var(--text-secondary)' }}>
                         {new Date(bill.created_at).toLocaleString()}
                       </td>
-                      <td className="block md:table-cell p-4 border-none text-sm text-right font-medium" style={{ color: 'var(--text-secondary)' }}>
+                      <td className="block md:table-cell p-4 border-none text-sm text-center font-medium" style={{ color: 'var(--text-secondary)' }}>
                         {items.length} items
                       </td>
-                      <td className="block md:table-cell p-4 border-none text-right font-bold text-lg" style={{ color: bill.status === 'voided' ? 'var(--text-secondary)' : 'var(--color-success)' }}>
+                      <td className="block md:table-cell p-4 border-none text-center font-bold text-lg" style={{ color: bill.status === 'voided' ? 'var(--text-secondary)' : 'var(--color-success)' }}>
                         <span className={bill.status === 'voided' ? 'line-through opacity-50 mr-2' : ''}>
                           ₹{Number(bill.total_amount).toFixed(2)}
                         </span>
@@ -290,7 +290,7 @@ export default function OwnerReturns() {
                     {isExpanded && (
                       <tr className="block md:table-row bg-[var(--bg-tertiary)]">
                         <td colSpan="5" className="block md:table-cell p-0" style={{ borderBottom: '2px solid var(--color-accent)' }}>
-                          <div className="p-6 px-8">
+                          <div className="p-4 md:p-6 lg:px-8">
                             <div className="flex justify-between items-center mb-3 pb-2" style={{ borderBottom: '1px solid var(--border-light)' }}>
                               <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>Bill #{bill.id.split('-')[0]} Items</p>
                               {bill.status !== 'voided' && items.length > 0 && (
@@ -299,25 +299,25 @@ export default function OwnerReturns() {
                                 </button>
                               )}
                             </div>
-                            <div className="overflow-x-hidden md:overflow-x-auto w-full rounded-lg shadow-sm border border-[var(--border-light)]">
-                              <table className="block md:table w-full text-left border-collapse min-w-full" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-                                <thead className="hidden md:table-header-group" style={{ backgroundColor: 'var(--bg-hover)', borderBottom: '1px solid var(--border-light)' }}>
+                            <div className="overflow-x-hidden w-full rounded-lg shadow-sm border border-[var(--border-light)]">
+                              <table className="block md:table w-full text-center border-collapse" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                                <thead className="hidden md:table-header-group sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-light)' }}>
                                   <tr className="text-xs font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>
-                                    <th className="py-3 px-4">Item Name</th>
+                                    <th className="py-3 px-4 text-center">Item Name</th>
                                     <th className="py-3 px-4 text-center">Qty</th>
                                     <th className="py-3 px-4 text-center">MRP</th>
                                     <th className="py-3 px-4 text-center">Sold At</th>
-                                    <th className="py-3 px-4 text-right">Total</th>
+                                    <th className="py-3 px-4 text-center">Total</th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {items.map(item => (
                                     <tr key={item.id} className="border-b border-[var(--border-light)]">
-                                      <td className="py-3 px-4 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{item.name}</td>
+                                      <td className="py-3 px-4 text-sm font-medium text-center" style={{ color: 'var(--text-primary)' }}>{item.name}</td>
                                       <td className="py-3 px-4 text-sm text-center">{item.billable_quantity || item.quantity} {item.unit}</td>
                                       <td className="py-3 px-4 text-sm text-center">₹{Number(item.selling_price || item.system_price || item.price_at_sale).toFixed(2)}</td>
                                       <td className="py-3 px-4 text-sm text-center">₹{Number(item.price_at_sale).toFixed(2)}</td>
-                                      <td className="py-3 px-4 text-sm text-right font-bold" style={{ color: 'var(--text-primary)' }}>₹{(item.price_at_sale * (item.billable_quantity || item.quantity)).toFixed(2)}</td>
+                                      <td className="py-3 px-4 text-sm text-center font-bold" style={{ color: 'var(--text-primary)' }}>₹{(item.price_at_sale * (item.billable_quantity || item.quantity)).toFixed(2)}</td>
                                     </tr>
                                   ))}
                                 </tbody>

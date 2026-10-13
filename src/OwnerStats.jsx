@@ -78,26 +78,28 @@ function StatCard({ title, value, accentColor, borderColor, onClick, clickLabel,
   return (
     <Tag
       onClick={onClick}
-      className={`relative p-5 rounded-lg border border-[var(--border-light)] text-left w-full flex flex-col h-full ${onClick ? 'cursor-pointer group' : ''}`}
+      className={`relative p-3.5 sm:p-4 rounded-lg border border-[var(--border-light)] text-left w-full flex flex-col justify-between h-full transition-all ${onClick ? 'cursor-pointer group hover:border-[var(--color-accent)]' : ''}`}
       style={{
         backgroundColor: 'var(--bg-secondary)',
       }}
       aria-label={onClick ? clickLabel : undefined}
     >
-      <div className="mb-2">
-        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+      {/* Title Header - Full name, never truncated */}
+      <div className="w-full mb-2 min-h-[1.75rem] flex items-start">
+        <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider leading-snug break-words" style={{ color: 'var(--text-secondary)' }}>
           {title}
         </p>
       </div>
-      <div className="flex justify-between items-end mt-auto w-full">
-        <p className="text-2xl md:text-3xl font-semibold break-words" style={{ color: accentColor || 'var(--text-primary)' }} title={value}>
+
+      {/* Value & View Button Row */}
+      <div className="flex items-baseline justify-between gap-2 mt-auto w-full min-w-0">
+        <p className="text-lg sm:text-xl md:text-2xl 2xl:text-3xl font-semibold truncate tracking-tight" style={{ color: accentColor || 'var(--text-primary)' }} title={value}>
           <AnimatedNumber valueStr={value} duration={1200} />
         </p>
         {onClick && (
-          <div className="absolute bottom-4 right-4 flex flex-col items-end opacity-0 group-hover:opacity-100 transition-opacity text-right pl-2 py-1" style={{ color: 'var(--color-accent)', backgroundColor: 'var(--bg-secondary)' }}>
-            <span className="text-[10px] font-bold uppercase leading-none mb-[2px]">View ↗</span>
-            <span className="text-[10px] font-bold uppercase leading-none">Details</span>
-          </div>
+          <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider shrink-0 text-[var(--color-accent)] opacity-80 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 pb-0.5">
+            View ↗
+          </span>
         )}
       </div>
       {children}
@@ -199,7 +201,7 @@ function SalesTrendChart({ timeframe }) {
   }, [trend]);
 
   return (
-    <div className="p-5 rounded-lg border border-[var(--border-light)] flex flex-col h-full lg:col-span-2" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+    <div className="p-4 sm:p-5 rounded-lg border border-[var(--border-light)] flex flex-col h-full xl:col-span-2 min-w-0" style={{ backgroundColor: 'var(--bg-secondary)' }}>
       <div className="flex justify-between items-center mb-4">
         <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Sales Trend</p>
       </div>
@@ -213,20 +215,17 @@ function SalesTrendChart({ timeframe }) {
           </div>
         ) : (trend || []).map((point, i) => (
           <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group cursor-crosshair relative">
-            {/* Background track — always visible so chart looks intentional even with 0 revenue */}
-            <div className="w-full h-full flex flex-col justify-end relative rounded-sm overflow-hidden" style={{ backgroundColor: 'var(--bg-tertiary)', minHeight: '4rem' }}>
-              <div
-                className={`w-full relative rounded-t-sm transition-all duration-700 opacity-80 group-hover:opacity-100 ${!isAnimated ? 'ease-in' : 'ease-out'}`}
-                style={{
-                  height: isAnimated ? `${point.heightPct}%` : '0%',
-                  minHeight: (isAnimated && point.rev > 0) ? '4px' : '0px',
-                  backgroundColor: 'var(--color-accent)',
-                }}
-              >
-                <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm flex items-center gap-1" style={{ color: 'var(--text-primary)', backgroundColor: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-light)' }}>
-                  ₹{point.rev.toFixed(0)} <span className="font-medium text-[9px]" style={{ color: 'var(--text-tertiary)' }}>({point.label})</span>
-                </span>
-              </div>
+            <div
+              className={`w-full relative rounded-t-sm transition-all duration-700 opacity-80 group-hover:opacity-100 ${!isAnimated ? 'ease-in' : 'ease-out'}`}
+              style={{
+                height: isAnimated ? `${point.heightPct}%` : '0%',
+                minHeight: (isAnimated && point.rev > 0) ? '4px' : '0px',
+                backgroundColor: 'var(--color-accent)',
+              }}
+            >
+              <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm flex items-center gap-1 pointer-events-none" style={{ color: 'var(--text-primary)', backgroundColor: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-light)' }}>
+                ₹{point.rev.toFixed(0)} <span className="font-medium text-[9px]" style={{ color: 'var(--text-tertiary)' }}>({point.label})</span>
+              </span>
             </div>
             <span className={`absolute -bottom-4 left-1/2 -translate-x-1/2 text-[6px] sm:text-[7px] md:text-[8px] font-bold uppercase whitespace-nowrap text-center`} style={{ color: 'var(--text-tertiary)' }}>
               {point.label}
@@ -572,7 +571,7 @@ export default function OwnerStats({ isActive }) {
       )}
 
       {/* ROW 1: TODAY'S VITALS */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4 shrink-0">
+      <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-3 lg:gap-4 mb-4 shrink-0">
         <StatCard title={`${timeframeLabel} Revenue`} value={`₹${tfTrueRevenue.toFixed(2)}`} borderColor="var(--color-success)" />
         <StatCard
           title={`${timeframeLabel} Profit`}
@@ -614,13 +613,13 @@ export default function OwnerStats({ isActive }) {
       </div>
 
       {/* ROW 2: TRENDS & LEADERBOARD */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4 flex-1 min-h-[500px] lg:min-h-0">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 lg:gap-4 mb-4 flex-1 min-h-[420px] xl:min-h-0 min-w-0">
         <SalesTrendChart timeframe={globalTimeframe} />
         <TopProductsList products={topProducts} timeframeLabel={timeframeLabel} />
       </div>
 
       {/* ROW 3: CAPITAL */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 shrink-0">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 lg:gap-4 shrink-0">
         <StatCard title="Total Asset Value" value={`₹${totalInventoryValue.toFixed(2)}`} borderColor="var(--text-tertiary)" />
         <StatCard title="Warehouse Capital" value={`₹${warehouseCapital.toFixed(2)}`} borderColor="var(--color-accent)" />
         <div className="col-span-2 md:col-span-1">
@@ -666,9 +665,9 @@ export default function OwnerStats({ isActive }) {
                       <p className="text-xl font-bold" style={{ color: 'var(--color-success)' }}>₹{tfGrossProfit.toFixed(2)}</p>
                     </div>
                   </div>
-                  <div className="overflow-x-hidden md:overflow-x-auto w-full shadow-sm rounded-none" style={{ border: '1px solid var(--border-light)' }}>
+                  <div className="overflow-x-hidden w-full shadow-sm rounded-none" style={{ border: '1px solid var(--border-light)', overscrollBehavior: 'none' }}>
                     <table className="w-full text-left border-collapse">
-                      <thead className="sticky top-0 shadow-sm" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-light)' }}>
+                      <thead className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-light)' }}>
                         <tr className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                           <th className="p-3" style={{ borderRight: '1px solid var(--border-light)' }}>Item Sold</th>
                           <th className="p-3 text-left" style={{ borderRight: '1px solid var(--border-light)' }}>Total Qty</th>
@@ -696,9 +695,9 @@ export default function OwnerStats({ isActive }) {
               )}
 
               {(activeModal === 'low-store' || activeModal === 'low-warehouse' || activeModal === 'dead-stock') && (
-                <div className="overflow-x-hidden md:overflow-x-auto w-full shadow-sm rounded-none" style={{ border: '1px solid var(--border-light)' }}>
+                <div className="overflow-x-hidden w-full shadow-sm rounded-none" style={{ border: '1px solid var(--border-light)', overscrollBehavior: 'none' }}>
                   <table className="w-full text-left border-collapse">
-                    <thead className="sticky top-0 shadow-sm" style={{ backgroundColor: 'var(--bg-quaternary)', borderBottom: '1px solid var(--border-light)' }}>
+                    <thead className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-light)' }}>
                       <tr className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                         <th className="p-3 w-32" style={{ borderRight: '1px solid var(--border-light)' }}>Barcode</th>
                         <th className="p-3" style={{ borderRight: '1px solid var(--border-light)' }}>Item Name</th>

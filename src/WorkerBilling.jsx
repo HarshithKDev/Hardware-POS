@@ -57,8 +57,8 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
   }
 
   return (
-    <div style={{ fontFamily: "var(--font-family)" }} className="h-full">
-      <div className="flex flex-col h-full w-full">
+    <div style={{ fontFamily: "var(--font-family)" }} className="h-full min-h-0">
+      <div className="flex flex-col h-full w-full min-h-0">
         {!hideNav && activeTab !== 'dashboard' && (
           <div className="pt-3 px-4 md:pt-2 md:px-0 mb-2">
             <button

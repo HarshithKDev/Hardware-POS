@@ -113,96 +113,100 @@ export default function WorkerDashboardView({ isBillable = true }) {
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   return (
-    <div className="flex flex-col h-full p-4 animate-fade-in flex-1 m-0 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
-      <h2 className="text-xl md:text-2xl font-medium mb-4 hidden md:block" style={{ color: 'var(--text-primary)' }}>Staff Dashboard</h2>
+    <div className="flex flex-col h-full p-3 md:p-4 animate-fade-in flex-1 m-0 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm min-h-0 overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+      <h2 className="text-xl md:text-2xl font-medium mb-3 md:mb-4 hidden md:block" style={{ color: 'var(--text-primary)' }}>Staff Dashboard</h2>
       
       {/* Big Action Buttons */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 mb-6">
+      <div className={`grid gap-2.5 md:gap-4 mb-3 md:mb-4 ${
+        isBillable 
+          ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5' 
+          : 'grid-cols-2 sm:grid-cols-4'
+      }`}>
         <button 
           onClick={() => navigate('/terminal/receive')}
-          className="p-4 md:p-8 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
+          className="p-3 md:p-4 lg:p-5 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
           style={{ backgroundColor: '#3b82f6', color: 'white' }}
         >
-          <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-          <span className="font-bold text-sm md:text-base leading-tight">Receiving Stock<br/>From Wholesaler</span>
+          <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+          <span className="font-bold text-xs md:text-sm lg:text-base leading-tight">Receiving Stock<br/>From Wholesaler</span>
         </button>
         
         <button 
           onClick={() => navigate('/terminal/transfer')}
-          className="p-4 md:p-8 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
+          className="p-3 md:p-4 lg:p-5 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
           style={{ backgroundColor: '#f59e0b', color: 'white' }}
         >
-          <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-          <span className="font-bold text-sm md:text-base leading-tight">Sending Stock<br/>Warehouse to Shop</span>
+          <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+          <span className="font-bold text-xs md:text-sm lg:text-base leading-tight">Sending Stock<br/>Warehouse to Shop</span>
         </button>
 
         {isBillable ? (
           <>
             <button 
               onClick={() => navigate('/terminal/checkout')}
-              className="p-4 md:p-8 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
+              className="p-3 md:p-4 lg:p-5 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
               style={{ backgroundColor: '#10b981', color: 'white' }}
             >
-              <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-              <span className="font-bold text-sm md:text-base leading-tight">Checkout<br/>Customer</span>
+              <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+              <span className="font-bold text-xs md:text-sm lg:text-base leading-tight">Checkout<br/>Customer</span>
             </button>
             <button 
               onClick={() => navigate('/terminal/returns')}
-              className="p-4 md:p-8 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
+              className="p-3 md:p-4 lg:p-5 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
               style={{ backgroundColor: '#ef4444', color: 'white' }}
             >
-              <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
-              <span className="font-bold text-sm md:text-base leading-tight">Process<br/>Returns</span>
+              <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+              <span className="font-bold text-xs md:text-sm lg:text-base leading-tight">Process<br/>Returns</span>
             </button>
             <button 
               onClick={() => navigate('/terminal/expenses')}
-              className="p-4 md:p-8 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
+              className="p-3 md:p-4 lg:p-5 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
               style={{ backgroundColor: '#e11d48', color: 'white' }}
             >
-              <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" /></svg>
-              <span className="font-bold text-sm md:text-base leading-tight">Expenses &<br/>Advances</span>
+              <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" /></svg>
+              <span className="font-bold text-xs md:text-sm lg:text-base leading-tight">Expenses &<br/>Advances</span>
             </button>
           </>
         ) : (
           <>
             <button 
               onClick={() => navigate('/terminal/lookup')}
-              className="p-4 md:p-8 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
+              className="p-3 md:p-4 lg:p-5 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
               style={{ backgroundColor: '#8b5cf6', color: 'white' }}
             >
-              <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-              <span className="font-bold text-sm md:text-base leading-tight">Item & Stock<br/>Lookup</span>
+              <span className="font-bold text-xs md:text-sm lg:text-base leading-tight">Item & Stock<br/>Lookup</span>
             </button>
             <button 
               onClick={() => navigate('/terminal/scanner')}
-              className="p-4 md:p-8 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
+              className="p-3 md:p-4 lg:p-5 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
               style={{ backgroundColor: '#06b6d4', color: 'white' }}
             >
-              <svg className="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
               </svg>
-              <span className="font-bold text-sm md:text-base leading-tight">Floor<br/>Scanner</span>
+              <span className="font-bold text-xs md:text-sm lg:text-base leading-tight">Floor<br/>Scanner</span>
             </button>
           </>
         )}
       </div>
       
-      <div className="grid grid-cols-2 gap-3 md:gap-4 mb-3 md:mb-6">
-        <button onClick={() => setLowStockModal({ isOpen: true, type: 'store' })} className="p-4 md:p-6 rounded-lg border border-[var(--border-light)] text-left cursor-pointer flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+      <div className="grid grid-cols-2 gap-3 md:gap-4 mb-3 md:mb-4">
+        <button onClick={() => setLowStockModal({ isOpen: true, type: 'store' })} className="p-3 md:p-4 rounded-lg border border-[var(--border-light)] text-left cursor-pointer flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
           <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full" style={{ backgroundColor: storeAlerts > 0 ? 'var(--color-error)' : 'var(--color-accent)' }} />
-          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider mb-1 md:mb-2 ml-3" style={{ color: 'var(--text-secondary)' }}>Low Store Stock</p>
-          <p className="text-xl md:text-3xl font-semibold ml-3" style={{ color: storeAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{storeAlerts} Items</p>
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider mb-1 ml-3" style={{ color: 'var(--text-secondary)' }}>Low Store Stock</p>
+          <p className="text-xl md:text-2xl font-semibold ml-3" style={{ color: storeAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{storeAlerts} Items</p>
         </button>
-        <button onClick={() => setLowStockModal({ isOpen: true, type: 'warehouse' })} className="p-4 md:p-6 rounded-lg border border-[var(--border-light)] text-left cursor-pointer flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+        <button onClick={() => setLowStockModal({ isOpen: true, type: 'warehouse' })} className="p-3 md:p-4 rounded-lg border border-[var(--border-light)] text-left cursor-pointer flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
           <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full" style={{ backgroundColor: whseAlerts > 0 ? 'var(--color-error)' : 'var(--color-accent)' }} />
-          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider mb-1 md:mb-2 ml-3" style={{ color: 'var(--text-secondary)' }}>Low Whse Stock</p>
-          <p className="text-xl md:text-3xl font-semibold ml-3" style={{ color: whseAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{whseAlerts} Items</p>
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider mb-1 ml-3" style={{ color: 'var(--text-secondary)' }}>Low Whse Stock</p>
+          <p className="text-xl md:text-2xl font-semibold ml-3" style={{ color: whseAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{whseAlerts} Items</p>
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 md:gap-4 mb-3 md:mb-4">
+      <div className="grid grid-cols-2 gap-2 md:gap-4 mb-2.5 md:mb-3">
         <div className="w-full">
           <input 
             type="text" 
@@ -236,8 +240,8 @@ export default function WorkerDashboardView({ isBillable = true }) {
 
       <div 
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 md:min-h-[300px] rounded-lg border border-[var(--border-light)] relative overscroll-contain" 
-        style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'contain' }}
+        className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 rounded-lg border border-[var(--border-light)] relative overscroll-none" 
+        style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}
       >
         <table 
           className="w-full text-center table-fixed text-[10px] md:text-sm min-w-full" 
