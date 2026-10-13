@@ -39,7 +39,7 @@ export default function OwnerReports() {
     queryKey: ['owner-reports', dateBounds.start, dateBounds.end],
     queryFn: async () => {
       // 1. Fetch all sale bills in the date range
-      let billQuery = supabase.from('bills').select('id, cashier_name, created_at, total_amount').eq('location', 'Store');
+      let billQuery = supabase.from('bills').select('id, cashier_name, created_at, total_amount').eq('location', 'Store').neq('status', 'showroom_pending');
       if (dateBounds.start) billQuery = billQuery.gte('created_at', dateBounds.start);
       if (dateBounds.end) billQuery = billQuery.lte('created_at', dateBounds.end);
 

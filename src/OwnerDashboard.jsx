@@ -12,6 +12,7 @@ import OwnerAuditLogs from './OwnerAuditLogs';
 import OwnerSettings from './OwnerSettings';
 import OwnerReturns from './OwnerReturns';
 import OwnerExpenses from './OwnerExpenses';
+import OwnerShowroom from './OwnerShowroom';
 import { 
   LayoutDashboard, 
   Plus, 
@@ -24,7 +25,8 @@ import {
   Menu,
   Settings,
   Undo2,
-  Receipt
+  Receipt,
+  Store
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -34,6 +36,7 @@ const NAV_ITEMS = [
   { key: 'warehouse', label: 'Main Storage', icon: Warehouse },
   { key: 'checkout', label: 'Checkout', icon: ShoppingCart },
   { key: 'sales', label: 'Sales History', icon: History },
+  { key: 'showroom', label: 'Showroom', icon: Store },
   { key: 'returns', label: 'Returns', icon: Undo2 },
   { key: 'staff', label: 'Manage Staff', icon: Users },
   { key: 'expenses', label: 'Expenses', icon: Receipt },
@@ -208,6 +211,12 @@ export default function OwnerDashboard() {
         {activeTab === 'sales' && (
           <div className="block h-full animate-fade-in">
             <OwnerLedger isActive={true} />
+          </div>
+        )}
+
+        {activeTab === 'showroom' && (
+          <div className="block h-full animate-fade-in">
+            <OwnerShowroom />
           </div>
         )}
 

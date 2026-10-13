@@ -29,6 +29,7 @@ export default function OwnerLedger({ isActive }) {
       .from('bills')
       .select('*')
       .eq('location', 'Store') // Only Sales
+      .neq('status', 'showroom_pending') // Showroom pending are in their own section
       .order('created_at', { ascending: false })
       .range(from, from + SALES_PER_PAGE - 1);
 
@@ -81,7 +82,7 @@ export default function OwnerLedger({ isActive }) {
   const handleExportCSV = async () => {
     try {
       showAlert('Preparing CSV export...', 'Info');
-      let query = supabase.from('bills').select('*').eq('location', 'Store').order('created_at', { ascending: false }).limit(10000);
+    let query = supabase.from('bills').select('*').eq('location', 'Store').neq('status', 'showroom_pending').order('created_at', { ascending: false }).limit(10000);
 
       if (dateFilter !== 'ALL') {
         let start, end;

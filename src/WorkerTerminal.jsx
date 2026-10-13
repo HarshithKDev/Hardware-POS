@@ -1037,6 +1037,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           return;
         }
       }
+      // SHOWROOM: No payment validation needed — customer will pay at the showroom
     }
 
     // --- APPLY CART-LEVEL NEGOTIATED TOTAL DISCOUNT (Proportional) ---
@@ -1352,6 +1353,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                  updatePayload.customer_name = payload.p_customer_name;
                  updatePayload.customer_phone = payload.p_customer_phone;
                }
+               // Mark showroom sales as pending — excluded from revenue until paid
+               if (payload.p_payment_method === 'SHOWROOM') {
+                 updatePayload.status = 'showroom_pending';
+               }
                await supabase.from('bills').update(updatePayload).eq('id', successData.bill_id);
              } catch (e) {
                console.warn("Could not save additional bill data.", e);
@@ -1404,6 +1409,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       queryClient.invalidateQueries({ queryKey: ['sales-trend'] });
       queryClient.invalidateQueries({ queryKey: ['unifiedAuditLogs'] });
       queryClient.invalidateQueries({ queryKey: ['owner-reports'] });
+      queryClient.invalidateQueries({ queryKey: ['showroom-sales'] });
 
       if (navigator.onLine) {
         // Trigger background sync to ensure true consistency with server
@@ -1562,22 +1568,29 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               
               <div className="mb-6">
                 <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Payment Method</label>
-                <div className="flex gap-2 mb-4">
-                  {['CASH', 'UPI', 'SPLIT'].map((method) => (
+                <div className="flex gap-2 mb-2 flex-wrap">
+                  {['CASH', 'UPI', 'SPLIT', 'SHOWROOM'].map((method) => (
                     <button
                       key={method}
                       onClick={() => setCheckoutModal({ ...checkoutModal, paymentMethod: method, error: '' })}
-                      className={`flex-1 h-10 text-sm font-bold uppercase tracking-wider rounded-md transition-colors ${checkoutModal.paymentMethod === method ? 'text-white' : ''}`}
+                      className={`flex-1 min-w-[70px] h-10 text-sm font-bold uppercase tracking-wider rounded-md transition-colors ${checkoutModal.paymentMethod === method ? 'text-white' : ''}`}
                       style={{ 
-                        backgroundColor: checkoutModal.paymentMethod === method ? 'var(--color-accent)' : 'var(--bg-tertiary)',
+                        backgroundColor: method === 'SHOWROOM'
+                          ? (checkoutModal.paymentMethod === 'SHOWROOM' ? 'var(--color-warning)' : 'var(--bg-tertiary)')
+                          : (checkoutModal.paymentMethod === method ? 'var(--color-accent)' : 'var(--bg-tertiary)'),
                         color: checkoutModal.paymentMethod === method ? '#fff' : 'var(--text-primary)',
-                        border: `1px solid ${checkoutModal.paymentMethod === method ? 'var(--color-accent)' : 'var(--border-medium)'}`
+                        border: `1px solid ${method === 'SHOWROOM' && checkoutModal.paymentMethod === 'SHOWROOM' ? 'var(--color-warning)' : checkoutModal.paymentMethod === method ? 'var(--color-accent)' : 'var(--border-medium)'}`
                       }}
                     >
-                      {method === 'SPLIT' ? 'UPI + Cash' : method}
+                      {method === 'SPLIT' ? 'UPI+Cash' : method}
                     </button>
                   ))}
                 </div>
+                {checkoutModal.paymentMethod === 'SHOWROOM' && (
+                  <p className="text-xs font-medium mt-1 px-1" style={{ color: 'var(--color-warning)' }}>
+                    ⚠️ Customer takes goods now, pays at the showroom. This will NOT be counted in sales revenue until marked as paid.
+                  </p>
+                )}
 
                 {checkoutModal.paymentMethod === 'CASH' && (
                   <div className="mb-4">
@@ -1631,8 +1644,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             </div>
             <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
               <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} disabled={isCheckingOut} className="min-h-[44px] md:min-h-0 md:h-10 px-8 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md text-white transition-colors bg-[var(--color-error)] hover:bg-red-600">Cancel</button>
-              <button onClick={handleCompleteTransaction} disabled={isCheckingOut} className="min-h-[44px] md:min-h-0 md:h-10 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 flex justify-center items-center min-w-[120px]" style={{ backgroundColor: 'var(--color-accent)' }}>
-                {isCheckingOut ? <Spinner className="w-4 h-4 text-white" /> : 'Complete Sale'}
+              <button onClick={handleCompleteTransaction} disabled={isCheckingOut} className={`min-h-[44px] md:min-h-0 md:h-10 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 flex justify-center items-center min-w-[120px]`} style={{ backgroundColor: checkoutModal.paymentMethod === 'SHOWROOM' ? 'var(--color-warning)' : 'var(--color-accent)' }}>
+                {isCheckingOut ? <Spinner className="w-4 h-4 text-white" /> : (checkoutModal.paymentMethod === 'SHOWROOM' ? 'Send to Showroom' : 'Complete Sale')}
               </button>
             </div>
           </div>

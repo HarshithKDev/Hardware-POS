@@ -165,7 +165,8 @@ function SalesTrendChart({ timeframe }) {
         .select('total_amount, created_at')
         .gte('created_at', startDate)
         .eq('location', 'Store')
-        .neq('status', 'voided');
+        .neq('status', 'voided')
+        .neq('status', 'showroom_pending');
 
       let maxRev = 0;
       
@@ -212,17 +213,20 @@ function SalesTrendChart({ timeframe }) {
           </div>
         ) : (trend || []).map((point, i) => (
           <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group cursor-crosshair relative">
-            <div
-              className={`w-full relative rounded-t-sm transition-all duration-700 opacity-80 group-hover:opacity-100 ${!isAnimated ? 'ease-in' : 'ease-out'}`}
-              style={{
-                height: isAnimated ? `${point.heightPct}%` : '0%',
-                minHeight: (isAnimated && point.rev > 0) ? '4px' : '0px',
-                backgroundColor: 'var(--color-accent)',
-              }}
-            >
-              <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm flex items-center gap-1" style={{ color: 'var(--text-primary)', backgroundColor: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-light)' }}>
-                ₹{point.rev.toFixed(0)} <span className="font-medium text-[9px]" style={{ color: 'var(--text-tertiary)' }}>({point.label})</span>
-              </span>
+            {/* Background track — always visible so chart looks intentional even with 0 revenue */}
+            <div className="w-full h-full flex flex-col justify-end relative rounded-sm overflow-hidden" style={{ backgroundColor: 'var(--bg-tertiary)', minHeight: '4rem' }}>
+              <div
+                className={`w-full relative rounded-t-sm transition-all duration-700 opacity-80 group-hover:opacity-100 ${!isAnimated ? 'ease-in' : 'ease-out'}`}
+                style={{
+                  height: isAnimated ? `${point.heightPct}%` : '0%',
+                  minHeight: (isAnimated && point.rev > 0) ? '4px' : '0px',
+                  backgroundColor: 'var(--color-accent)',
+                }}
+              >
+                <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm flex items-center gap-1" style={{ color: 'var(--text-primary)', backgroundColor: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-light)' }}>
+                  ₹{point.rev.toFixed(0)} <span className="font-medium text-[9px]" style={{ color: 'var(--text-tertiary)' }}>({point.label})</span>
+                </span>
+              </div>
             </div>
             <span className={`absolute -bottom-4 left-1/2 -translate-x-1/2 text-[6px] sm:text-[7px] md:text-[8px] font-bold uppercase whitespace-nowrap text-center`} style={{ color: 'var(--text-tertiary)' }}>
               {point.label}
@@ -299,14 +303,16 @@ export default function OwnerStats({ isActive }) {
       .select('id, total_amount, created_at')
       .gte('created_at', fetchStart)
       .eq('location', 'Store')
-      .neq('status', 'voided');
+      .neq('status', 'voided')
+      .neq('status', 'showroom_pending');
 
     const dsBillsPromise = supabase
       .from('bills')
       .select('id')
       .gte('created_at', deadStockStartIso)
       .eq('location', 'Store')
-      .neq('status', 'voided');
+      .neq('status', 'voided')
+      .neq('status', 'showroom_pending');
 
     const [{ data: billsData }, { data: dsBillsData }] = await Promise.all([billsPromise, dsBillsPromise]);
 
