@@ -90,7 +90,7 @@ export default function OwnerShowroom() {
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-medium flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-            <Store size={22} className="text-[var(--color-warning)]" />
+            <Store size={22} className="text-[var(--color-accent)]" />
             Showroom Pending
           </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
@@ -98,28 +98,29 @@ export default function OwnerShowroom() {
           </p>
         </div>
         {bills.length > 0 && (
-          <div className="shrink-0 px-4 py-2 rounded-lg border" style={{ backgroundColor: 'rgba(234,179,8,0.08)', borderColor: 'rgba(234,179,8,0.3)' }}>
-            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-warning)' }}>Total Pending</p>
-            <p className="text-2xl font-bold" style={{ color: 'var(--color-warning)' }}>&#8377;{totalPending.toFixed(2)}</p>
+          <div className="shrink-0 px-4 py-2 rounded-lg border" style={{ backgroundColor: 'var(--color-accent-bg)', borderColor: 'rgba(59, 130, 246, 0.3)' }}>
+            <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-accent)' }}>Total Pending</p>
+            <p className="text-2xl font-bold" style={{ color: 'var(--color-accent)' }}>&#8377;{totalPending.toFixed(2)}</p>
           </div>
         )}
       </div>
 
-      {/* Bills list */}
-      <div className="flex-1 overflow-auto rounded-lg border border-[var(--border-light)] min-h-[300px]" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-        {isLoading ? (
-          <div className="h-full flex items-center justify-center p-8">
-            <PageLoader text="Loading showroom sales..." />
-          </div>
-        ) : bills.length === 0 ? (
-          <EmptyState message="No pending showroom sales. All goods have been paid for!" />
-        ) : (
-          <>
-            {/* Desktop header */}
-            <div
-              className="hidden md:grid px-4 py-3 border-b border-[var(--border-light)] text-[11px] font-bold uppercase tracking-wider"
-              style={{ gridTemplateColumns: '1fr 1fr 80px 140px 160px', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-tertiary)' }}
-            >
+      {/* Bills list container */}
+      <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] shadow-sm p-4">
+        <div className="flex-1 overflow-auto hide-x-scrollbar overflow-x-hidden md:overflow-x-hidden md:overflow-x-auto shadow-sm min-h-[300px] md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent' }}>
+          {isLoading ? (
+            <div className="h-full flex items-center justify-center p-8">
+              <PageLoader text="Loading showroom sales..." />
+            </div>
+          ) : bills.length === 0 ? (
+            <EmptyState message="No pending showroom sales. All goods have been paid for!" />
+          ) : (
+            <>
+              {/* Desktop header */}
+              <div
+                className="hidden md:grid px-4 py-3 border-b border-[var(--border-light)] text-[11px] font-bold uppercase tracking-wider sticky top-0 z-10"
+                style={{ gridTemplateColumns: '1fr 1fr 80px 140px 160px', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-tertiary)' }}
+              >
               <span>Date &amp; Time</span>
               <span>Customer / Cashier</span>
               <span className="text-center">Items</span>
@@ -152,8 +153,8 @@ export default function OwnerShowroom() {
                             )}
                           </div>
                           <div className="text-right">
-                            <p className="text-lg font-bold" style={{ color: 'var(--color-warning)' }}>&#8377;{Number(bill.total_amount).toFixed(2)}</p>
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase" style={{ backgroundColor: 'rgba(234,179,8,0.15)', color: 'var(--color-warning)' }}>SHOWROOM</span>
+                            <p className="text-lg font-bold" style={{ color: 'var(--color-accent)' }}>&#8377;{Number(bill.total_amount).toFixed(2)}</p>
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase" style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)' }}>SHOWROOM</span>
                           </div>
                         </div>
                         <div className="flex items-center justify-between mt-2" onClick={e => e.stopPropagation()}>
@@ -199,7 +200,7 @@ export default function OwnerShowroom() {
                           <ChevronDown size={16} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} style={{ color: 'var(--text-tertiary)' }} />
                         </div>
                         <div className="flex justify-end">
-                          <span className="text-sm font-bold" style={{ color: 'var(--color-warning)' }}>&#8377;{Number(bill.total_amount).toFixed(2)}</span>
+                          <span className="text-sm font-bold" style={{ color: 'var(--color-accent)' }}>&#8377;{Number(bill.total_amount).toFixed(2)}</span>
                         </div>
                         <div className="flex justify-center" onClick={e => e.stopPropagation()}>
                           <button
@@ -268,7 +269,7 @@ export default function OwnerShowroom() {
                             <div className="flex justify-end mt-3">
                               <div className="text-right">
                                 <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Pending Total</span>
-                                <p className="text-xl font-bold" style={{ color: 'var(--color-warning)' }}>&#8377;{Number(bill.total_amount).toFixed(2)}</p>
+                                <p className="text-xl font-bold" style={{ color: 'var(--color-accent)' }}>&#8377;{Number(bill.total_amount).toFixed(2)}</p>
                               </div>
                             </div>
                           </>
@@ -279,30 +280,30 @@ export default function OwnerShowroom() {
                 );
               })}
             </div>
+            </>
+          )}
+        </div>
 
-            {/* Pagination */}
-            <div className="flex justify-center gap-3 p-4 border-t border-[var(--border-light)]">
-              <button
-                onClick={() => setPage(p => Math.max(0, p - 1))}
-                disabled={page === 0}
-                className="px-4 py-1.5 text-xs font-bold uppercase rounded-md transition-colors disabled:opacity-40"
-                style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
-              >
-                Prev
-              </button>
-              <span className="flex items-center text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                Page {page + 1}
-              </span>
-              <button
-                onClick={() => setPage(p => p + 1)}
-                disabled={!hasMore}
-                className="px-4 py-1.5 text-xs font-bold uppercase rounded-md transition-colors disabled:opacity-40"
-                style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
-              >
-                Next
-              </button>
-            </div>
-          </>
+        {/* Pagination */}
+        {(!isLoading && bills.length > 0) && (
+          <div className="flex justify-between items-center p-3 mt-auto shadow-sm rounded-lg shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
+            <button
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] btn-press"
+              style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage(p => p + 1)}
+              disabled={!hasMore}
+              className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] btn-press"
+              style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+            >
+              Next
+            </button>
+          </div>
         )}
       </div>
 
