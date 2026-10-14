@@ -148,7 +148,7 @@ export default function InventoryRow({
                     e.stopPropagation(); 
                     onOpenBatchDetails && onOpenBatchDetails(item); 
                   }}
-                  className="px-2.5 py-1 text-[10px] font-bold uppercase rounded-full cursor-pointer transition-all active:scale-95 shadow-sm flex items-center gap-1.5 w-max hover:brightness-110"
+                  className="px-2.5 py-1 text-[10px] font-bold uppercase rounded-full cursor-pointer transition-all active:scale-95 shadow-sm flex items-center justify-center gap-1.5 w-[96px] h-[26px] hover:brightness-110"
                   style={{
                     backgroundColor: item.is_cuttable ? 'var(--color-accent-bg)' : 'rgba(16, 185, 129, 0.1)',
                     color: item.is_cuttable ? 'var(--color-accent)' : 'var(--color-success)',
@@ -212,7 +212,7 @@ export default function InventoryRow({
             e.stopPropagation(); 
             onOpenBatchDetails && onOpenBatchDetails(item); 
           }}
-          className="inline-flex px-2.5 py-1 text-[10px] font-bold uppercase rounded-full whitespace-nowrap cursor-pointer transition-all active:scale-95 shadow-sm items-center justify-center gap-1.5 min-w-[75px] hover:brightness-110"
+          className="inline-flex px-2.5 py-1 text-[10px] font-bold uppercase rounded-full whitespace-nowrap cursor-pointer transition-all active:scale-95 shadow-sm items-center justify-center gap-1.5 w-[96px] h-[26px] hover:brightness-110"
           style={{
             backgroundColor: item.is_cuttable ? 'var(--color-accent-bg)' : 'rgba(16, 185, 129, 0.1)',
             color: item.is_cuttable ? 'var(--color-accent)' : 'var(--color-success)',
