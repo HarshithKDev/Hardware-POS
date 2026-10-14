@@ -13,6 +13,7 @@ import OwnerSettings from './OwnerSettings';
 import OwnerReturns from './OwnerReturns';
 import OwnerExpenses from './OwnerExpenses';
 import OwnerShowroom from './OwnerShowroom';
+import BatchDetailsView from './BatchDetailsView';
 import { 
   LayoutDashboard, 
   Plus, 
@@ -50,10 +51,12 @@ export default function OwnerDashboard() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [selectedBatchBarcode, setSelectedBatchBarcode] = useState(null);
 
   const warehouseSubTab = searchParams.get('wsub') || 'inventory';
 
   const changeTab = (newTab) => {
+    setSelectedBatchBarcode(null);
     navigate(`/owner/${newTab}`);
     setIsSidebarOpen(false);
   };
@@ -152,53 +155,74 @@ export default function OwnerDashboard() {
         {activeTab === 'categories' && <OwnerCategories />}
 
         {activeTab === 'warehouse' && (
-          <div className="flex flex-col flex-1 h-full animate-fade-in">
-            <h1 className="text-2xl font-medium mb-6" style={{ color: 'var(--text-primary)' }}>
-              Main Storage Actions
-            </h1>
-            <div
-              className="flex gap-1 mb-6 pb-0 overflow-x-hidden border-b border-[var(--border-light)]"
-              role="tablist"
-              aria-label="Warehouse tabs"
-            >
-              {[
-                { key: 'inventory', label: 'All Items' },
-                { key: 'receive', label: 'Receive Stock' },
-                { key: 'transfer', label: 'Move to Shop' },
-                { key: 'recycle', label: 'Recycle Bin' },
-              ].map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setSearchParams({ wsub: key })}
-                  className="px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors relative"
-                  style={{
-                    color: warehouseSubTab === key ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    backgroundColor: 'transparent',
-                    borderRadius: 0
-                  }}
-                  role="tab"
-                  aria-selected={warehouseSubTab === key}
-                >
-                  {label}
-                  {warehouseSubTab === key && (
-                    <div className="absolute bottom-0 left-0 w-full h-[2px]" style={{ backgroundColor: 'var(--color-accent)' }} />
-                  )}
-                </button>
-              ))}
+          selectedBatchBarcode ? (
+            <BatchDetailsView
+              barcode={selectedBatchBarcode}
+              onBack={() => setSelectedBatchBarcode(null)}
+              viewType={warehouseSubTab}
+            />
+          ) : (
+            <div className="flex flex-col flex-1 h-full animate-fade-in">
+              <h1 className="text-2xl font-medium mb-6" style={{ color: 'var(--text-primary)' }}>
+                Main Storage Actions
+              </h1>
+              <div
+                className="flex gap-1 mb-6 pb-0 overflow-x-hidden border-b border-[var(--border-light)]"
+                role="tablist"
+                aria-label="Warehouse tabs"
+              >
+                {[
+                  { key: 'inventory', label: 'All Items' },
+                  { key: 'receive', label: 'Receive Stock' },
+                  { key: 'transfer', label: 'Move to Shop' },
+                  { key: 'recycle', label: 'Recycle Bin' },
+                ].map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      setSelectedBatchBarcode(null);
+                      setSearchParams({ wsub: key });
+                    }}
+                    className="px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors relative"
+                    style={{
+                      color: warehouseSubTab === key ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      backgroundColor: 'transparent',
+                      borderRadius: 0
+                    }}
+                    role="tab"
+                    aria-selected={warehouseSubTab === key}
+                  >
+                    {label}
+                    {warehouseSubTab === key && (
+                      <div className="absolute bottom-0 left-0 w-full h-[2px]" style={{ backgroundColor: 'var(--color-accent)' }} />
+                    )}
+                  </button>
+                ))}
+              </div>
+              {warehouseSubTab === 'inventory' && (
+                <OwnerInventory 
+                  viewType="warehouse" 
+                  onOpenBatchDetails={(item) => setSelectedBatchBarcode(item.barcode)}
+                />
+              )}
+              {warehouseSubTab === 'receive' && (
+                <div className="flex-1 rounded-lg overflow-hidden border border-[var(--border-light)] bg-[var(--bg-secondary)]">
+                  <WorkerBilling defaultTab="receive" hideNav={true} />
+                </div>
+              )}
+              {warehouseSubTab === 'transfer' && (
+                <div className="flex-1 rounded-lg overflow-hidden border border-[var(--border-light)] bg-[var(--bg-secondary)]">
+                  <WorkerBilling defaultTab="transfer" hideNav={true} />
+                </div>
+              )}
+              {warehouseSubTab === 'recycle' && (
+                <OwnerInventory 
+                  viewType="recycle" 
+                  onOpenBatchDetails={(item) => setSelectedBatchBarcode(item.barcode)}
+                />
+              )}
             </div>
-            {warehouseSubTab === 'inventory' && <OwnerInventory viewType="warehouse" />}
-            {warehouseSubTab === 'receive' && (
-              <div className="flex-1 rounded-lg overflow-hidden border border-[var(--border-light)] bg-[var(--bg-secondary)]">
-                <WorkerBilling defaultTab="receive" hideNav={true} />
-              </div>
-            )}
-            {warehouseSubTab === 'transfer' && (
-              <div className="flex-1 rounded-lg overflow-hidden border border-[var(--border-light)] bg-[var(--bg-secondary)]">
-                <WorkerBilling defaultTab="transfer" hideNav={true} />
-              </div>
-            )}
-            {warehouseSubTab === 'recycle' && <OwnerInventory viewType="recycle" />}
-          </div>
+          )
         )}
 
         {activeTab === 'checkout' && (

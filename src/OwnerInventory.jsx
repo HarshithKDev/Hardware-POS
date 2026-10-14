@@ -11,8 +11,9 @@ import { useApp } from './AppContext';
 import { escapeIlike, debounce } from './utils';
 import { STALE_TIME_5MIN } from './constants';
 import InventoryRow from './InventoryRow';
+import BatchDetailsModal from './BatchDetailsModal';
 
-export default function OwnerInventory({ viewType }) {
+export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
   const { showAlert, showConfirm } = useApp();
 
   const [inventorySearch, setInventorySearch] = useState('');
@@ -20,7 +21,7 @@ export default function OwnerInventory({ viewType }) {
   const [sortOption, setSortOption] = useState('barcode-asc');
   const [filterCategory, setFilterCategory] = useState('');
   const [selectedBarcodes, setSelectedBarcodes] = useState([]);
-  const [expandedBarcode, setExpandedBarcode] = useState(null);
+  const [batchModalBarcode, setBatchModalBarcode] = useState(null);
   const [isGlobalEditMode, setIsGlobalEditMode] = useState(false);
   const [bulkEditData, setBulkEditData] = useState({});
   const [printModal, setPrintModal] = useState({ isOpen: false, item: null, batch: null });
@@ -282,7 +283,7 @@ export default function OwnerInventory({ viewType }) {
       if (error) throw error;
 
       try {
-        const itemToLog = inventory.find(i => i.batches && i.batches.some(b => b.batch_id === batchToDelete));
+        const itemToLog = items.find(i => i.batches && i.batches.some(b => b.batch_id === batchToDelete));
         const batchNum = itemToLog?.batches?.find(b => b.batch_id === batchToDelete)?.batch_number || 'Unknown';
         await supabase.from('audit_logs').insert([{
           action_type: 'DELETE',
@@ -594,15 +595,35 @@ export default function OwnerInventory({ viewType }) {
                 onEditChange={handleBulkEditChange}
                 onRestore={handleRestore}
                 isSelectionMode={isSelectionMode}
-                expandedBarcode={expandedBarcode}
-                onToggleExpand={(barcode) => setExpandedBarcode(prev => prev === barcode ? null : barcode)}
-                onPrint={(batch) => setPrintModal({ isOpen: true, item, batch: batch || null })}
-                onDeleteBatch={handleDeleteBatch}
+                onOpenBatchDetails={(targetItem) => {
+                  if (onOpenBatchDetails) {
+                    onOpenBatchDetails(targetItem);
+                  } else {
+                    setBatchModalBarcode(targetItem.barcode);
+                  }
+                }}
               />
             )}
           />
         )}
       </div>
+
+      {!onOpenBatchDetails && batchModalBarcode && (
+        <BatchDetailsModal
+          isOpen={!!batchModalBarcode}
+          onClose={() => setBatchModalBarcode(null)}
+          item={items.find(i => i.barcode === batchModalBarcode)}
+          onPrintBatch={(batch) => {
+            const currentItem = items.find(i => i.barcode === batchModalBarcode);
+            setPrintModal({ isOpen: true, item: currentItem, batch });
+          }}
+          onDeleteBatch={handleDeleteBatch}
+          onOpenCreateBatch={(targetItem) => {
+            setCreateBatchModal({ isOpen: true, item: targetItem });
+          }}
+          viewType={viewType}
+        />
+      )}
 
       {printModal.isOpen && printModal.item && (
         <PrintBatchModal 
