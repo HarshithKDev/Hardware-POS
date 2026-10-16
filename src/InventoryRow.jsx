@@ -60,7 +60,7 @@ export default function InventoryRow({
   if (isGlobalEditMode && isSelected && viewType === 'warehouse') {
     const data = editData || item;
     return (
-      <tr {...virtuosoProps} className="transition-none" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+      <>
         {isSelectionMode && (
           <td className="p-3 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
             <input type="checkbox" checked={isSelected} onChange={() => onSelect(item.barcode)} className="w-4 h-4 rounded text-accent focus:ring-accent" />
@@ -95,6 +95,10 @@ export default function InventoryRow({
           </div>
         </td>
 
+        <td className="p-1 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+          <span className="text-xs text-[var(--text-tertiary)]">{item.batches?.length || 0} Batches</span>
+        </td>
+
         {/* Pricing inputs removed from edit mode. Pricing is now batch-level only. */}
         <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}>
           {item.is_cuttable ? (
@@ -114,19 +118,15 @@ export default function InventoryRow({
             <input type="number" step="any" min="0" value={data.stock_store ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_store', e.target.value)} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
           )}
         </td>
-      </tr>
+        <td className="p-1 text-center text-xs text-[var(--text-tertiary)]">
+          Editing
+        </td>
+      </>
     );
   }
 
   return (
     <>
-      <tr 
-        className={`hover-row premium-hover ${isSelectionMode ? 'cursor-pointer' : ''} ${isSelected ? 'selected' : ''} block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none border md:border-b md:border-t-0 md:border-l-0 md:border-r-0 border-[var(--border-medium)] md:border-[var(--border-light)] mb-3 md:mb-0 relative`}
-        style={{ borderBottomWidth: '1px', borderBottomStyle: 'solid' }}
-        onClick={() => {
-          if (isSelectionMode) onSelect(item.barcode);
-        }}
-      >
         {/* MOBILE CARD LAYOUT */}
         <td className="md:hidden block p-4 text-left w-full border-none">
            <div className="flex justify-between items-start mb-2">
@@ -262,7 +262,6 @@ export default function InventoryRow({
           </button>
         )}
       </td>
-      </tr>
     </>
   );
 }

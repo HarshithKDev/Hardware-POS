@@ -532,7 +532,22 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const handleLooseItemSubmit = (e) => {
     if (e) e.preventDefault();
     const { item, qty } = looseItemModal;
-    const addQty = Number(qty) || 0;
+    const isLooseKg = Boolean(
+      item?.is_loose_item && (
+        item?.unit?.toUpperCase() === 'KG' ||
+        item?.unit?.toUpperCase() === 'KGS' ||
+        item?.unit?.toUpperCase() === 'GRAMS' ||
+        item?.unit?.toUpperCase() === 'GRAM' ||
+        item?.unit?.toUpperCase() === 'G' ||
+        item?.unit?.toUpperCase() === 'GM'
+      )
+    );
+    const isCheckout = activeTab === 'checkout';
+
+    // In checkout, loose KG items are entered in grams by the user
+    const addQty = (isCheckout && isLooseKg) ? (Number(qty) / 1000) : (Number(qty) || 0);
+    const enteredGrams = (isCheckout && isLooseKg) ? Math.round(Number(qty)) : null;
+
     if (addQty <= 0) {
       setLooseItemModal({ isOpen: false, item: null, qty: '' });
       return;
@@ -542,8 +557,22 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       const currentCartItem = cart.find(c => c.barcode === item.barcode);
       const currentQty = currentCartItem ? (Number(currentCartItem.quantity) || 0) : 0;
       const proposedQty = currentQty + addQty;
-      if (proposedQty > Number(item.stock_store || 0)) {
-        showAlert(`You only have ${item.stock_store} of ${item.name} in the store.`, "Stock Limit");
+      const maxStock = Number(item.stock_store || 0);
+      if (proposedQty > maxStock) {
+        if (isLooseKg) {
+          showAlert(`You only have ${maxStock} kg of ${item.name} in the store. You tried to add ${enteredGrams} g (${addQty.toFixed(3)} kg).`, "Stock Limit");
+        } else {
+          showAlert(`You only have ${maxStock} of ${item.name} in the store.`, "Stock Limit");
+        }
+        return;
+      }
+    } else if (activeTab === 'transfer') {
+      const currentCartItem = cart.find(c => c.barcode === item.barcode);
+      const currentQty = currentCartItem ? (Number(currentCartItem.quantity) || 0) : 0;
+      const proposedQty = currentQty + addQty;
+      const maxWhse = Number(item.stock_warehouse || 0);
+      if (proposedQty > maxWhse) {
+        showAlert(`You only have ${maxWhse} kg of ${item.name} in the warehouse.`, "Stock Limit");
         return;
       }
     }
@@ -552,7 +581,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       const idx = prev.findIndex(c => c.barcode === item.barcode);
       if (idx >= 0) {
         const up = [...prev];
-        up[idx] = { ...up[idx], quantity: (Number(up[idx].quantity) || 0) + addQty };
+        const newQty = (Number(up[idx].quantity) || 0) + addQty;
+        up[idx] = { 
+          ...up[idx], 
+          quantity: newQty,
+          billableQuantity: newQty,
+          grams: isLooseKg ? Math.round(newQty * 1000) : undefined
+        };
         return up;
       }
       
@@ -576,6 +611,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         msp_price: Number(calculateMSP(targetBatch, item)).toFixed(2),
         discountPct: 0,
         quantity: addQty,
+        billableQuantity: addQty,
+        grams: isLooseKg ? Math.round(addQty * 1000) : undefined,
         unit: item.unit || 'PCS',
         length: '', width: '', rolls: '1'
       }];
@@ -752,12 +789,23 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     setManualInstanceBarcodeModal({ isOpen: false, item: null, batch: null, barcodeInput: '', prefix: '' });
   };
 
-  const updateQuantity = useCallback((id, val) => {
+  const updateQuantity = useCallback((id, val, explicitGrams) => {
     setCart(prev => {
       let limitMsg = '';
       const newCart = prev.map(i => {
         if (i.id === id) {
           let newQty = val === '' ? '' : Math.max(0, Number(val));
+          const isLooseKg = Boolean(
+            i.is_loose_item && (
+              i.unit?.toUpperCase() === 'KG' ||
+              i.unit?.toUpperCase() === 'KGS' ||
+              i.unit?.toUpperCase() === 'GRAMS' ||
+              i.unit?.toUpperCase() === 'GRAM' ||
+              i.unit?.toUpperCase() === 'G' ||
+              i.unit?.toUpperCase() === 'GM'
+            )
+          );
+
           if (activeTab === 'checkout' && val !== '') {
             if (i.is_cuttable && i.instance_barcode && i.unit !== 'SQFT') {
               const maxLength = Number(i.max_available_length || 0);
@@ -766,8 +814,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                 newQty = maxLength;
               }
             } else {
-              const maxStock = i.batch_id && i.batches ? i.batches.find(b => b.batch_id === i.batch_id)?.stock_store : Number(i.stock_store || 0);
-              if (newQty > maxStock) { limitMsg = `You only have ${maxStock} in this batch in the store.`; newQty = maxStock; }
+              const maxStock = i.batch_id && i.batches ? Number(i.batches.find(b => b.batch_id === i.batch_id)?.stock_store || 0) : Number(i.stock_store || 0);
+              if (newQty > maxStock) {
+                limitMsg = isLooseKg 
+                  ? `You only have ${maxStock} kg in this batch in the store.`
+                  : `You only have ${maxStock} in this batch in the store.`;
+                newQty = maxStock;
+              }
             }
           }
           
@@ -777,7 +830,18 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             billableQty = Math.ceil(Number(newQty) * 2) / 2;
           }
           
-          return { ...i, quantity: newQty, billableQuantity: billableQty, pieceLength: (i.is_cuttable && i.unit !== 'SQFT') ? newQty : i.pieceLength, customTotalInput: undefined };
+          const updatedGrams = explicitGrams !== undefined
+            ? explicitGrams
+            : (isLooseKg && newQty !== '' ? Math.round(Number(newQty) * 1000) : i.grams);
+
+          return { 
+            ...i, 
+            quantity: newQty, 
+            billableQuantity: billableQty, 
+            grams: updatedGrams,
+            pieceLength: (i.is_cuttable && i.unit !== 'SQFT') ? newQty : i.pieceLength, 
+            customTotalInput: undefined 
+          };
         }
         return i;
       }).filter(i => i.quantity !== 0);
@@ -1424,7 +1488,16 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         const itemMrp = Number(i.selling_price !== undefined ? i.selling_price : (i.price || 0));
         const finalRate = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : itemMrp;
         const bQty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : Number(i.quantity);
-        return { ...i, quantity: bQty, actual_quantity: Number(i.quantity), finalRate, mrp: itemMrp, lineTotal: finalRate * bQty, pieceCount: 1 };
+        return { 
+          ...i, 
+          quantity: bQty, 
+          actual_quantity: Number(i.quantity), 
+          finalRate, 
+          mrp: itemMrp, 
+          lineTotal: finalRate * bQty, 
+          pieceCount: 1,
+          grams: i.grams !== undefined ? i.grams : ((i.is_loose_item && (i.unit?.toUpperCase() === 'KG' || i.unit?.toUpperCase() === 'KGS' || i.unit?.toUpperCase() === 'GRAMS' || i.unit?.toUpperCase() === 'GRAM' || i.unit?.toUpperCase() === 'G' || i.unit?.toUpperCase() === 'GM')) ? Math.round(Number(i.quantity) * 1000) : undefined)
+        };
       });
 
       const groupedItemsMap = new Map();
@@ -1434,6 +1507,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
            const existing = groupedItemsMap.get(key);
            existing.quantity += item.quantity;
            existing.actual_quantity += item.actual_quantity;
+           if (existing.grams !== undefined && item.grams !== undefined) existing.grams += item.grams;
            existing.lineTotal += item.lineTotal;
            existing.pieceCount += 1;
         } else {
@@ -1709,21 +1783,143 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       {/* Loose Item Quantity Modal */}
       {looseItemModal.isOpen && (
         <div className="fixed inset-0 flex items-center justify-center z-[150] px-4 animate-fade-in" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <div className="w-[85%] max-w-[400px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+          <div className="w-[85%] max-w-[420px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
             <div className="flex justify-between items-center pr-1 pl-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
-              <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Loose Item Quantity</span>
-              <button type="button" onClick={() => setLooseItemModal({ isOpen: false, item: null, qty: '' })} className="p-2 rounded-full transition-colors hover:bg-[var(--bg-hover)]" style={{ color: 'var(--text-tertiary)' }} aria-label="Close modal">
+              <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
+                {activeTab === 'checkout' ? 'Loose Item Quantity' : activeTab === 'receive' ? 'Receive Stock' : 'Move Stock'}
+              </span>
+              <button type="button" onClick={() => setLooseItemModal({ isOpen: false, item: null, qty: '' })} className="p-2 rounded-full transition-colors hover:bg-[var(--bg-hover)] cursor-pointer" style={{ color: 'var(--text-tertiary)' }} aria-label="Close modal">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
             <form onSubmit={handleLooseItemSubmit}>
               <div className="p-6">
-                <p className="text-sm mb-4 font-semibold">{looseItemModal.item?.name}</p>
-                <label htmlFor="loose-qty" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Enter Quantity {looseItemModal.item?.unit ? `(${looseItemModal.item.unit})` : ''}</label>
-                <input id="loose-qty" type="number" step="any" min="0" autoFocus value={looseItemModal.qty} onChange={(e) => { const v = parseFloat(e.target.value); setLooseItemModal({ ...looseItemModal, qty: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder="0" className="w-full h-12 px-4 text-2xl  focus:outline-none rounded-md" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-base font-bold text-[var(--text-primary)]">{looseItemModal.item?.name}</p>
+                  <span className="text-xs font-mono font-semibold text-[var(--color-accent)]">#{looseItemModal.item?.barcode}</span>
+                </div>
+
+                {(() => {
+                  const item = looseItemModal.item;
+                  if (!item) return null;
+                  const isLooseKg = Boolean(
+                    item.is_loose_item && (
+                      item.unit?.toUpperCase() === 'KG' ||
+                      item.unit?.toUpperCase() === 'KGS' ||
+                      item.unit?.toUpperCase() === 'GRAMS' ||
+                      item.unit?.toUpperCase() === 'GRAM' ||
+                      item.unit?.toUpperCase() === 'G' ||
+                      item.unit?.toUpperCase() === 'GM'
+                    )
+                  );
+                  const availableStore = Number(item.stock_store || 0);
+                  const availableWhse = Number(item.stock_warehouse || 0);
+                  const ratePerKg = Number(item.price || 0);
+                  const isCheckout = activeTab === 'checkout';
+
+                  return (
+                    <>
+                      {/* Stock Info Badge */}
+                      <div className="p-2.5 rounded-lg mb-4 flex items-center justify-between text-xs" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
+                        <span className="text-[var(--text-secondary)] font-medium">
+                          {isCheckout ? 'Store Stock' : activeTab === 'transfer' ? 'Warehouse Stock' : 'Current Warehouse'}:
+                        </span>
+                        <span className="font-bold text-[var(--text-primary)]">
+                          {isCheckout ? `${availableStore} kg` : `${availableWhse} kg`}
+                        </span>
+                      </div>
+
+                      {/* Input Label */}
+                      <label htmlFor="loose-qty" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>
+                        {isCheckout && isLooseKg ? 'Enter Quantity in Grams (g)' : `Enter Quantity (${item.unit || 'PCS'})`}
+                      </label>
+
+                      {/* Input Box */}
+                      <div className="relative">
+                        <input
+                          id="loose-qty"
+                          type="number"
+                          step={isCheckout && isLooseKg ? '1' : 'any'}
+                          min="0"
+                          autoFocus
+                          value={looseItemModal.qty}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setLooseItemModal({ ...looseItemModal, qty: (isNaN(v) || v < 0) ? '' : e.target.value });
+                          }}
+                          placeholder={isCheckout && isLooseKg ? 'e.g. 50, 100, 250' : '0'}
+                          className="w-full h-12 pl-4 pr-20 text-2xl font-bold focus:outline-none rounded-md"
+                          style={{
+                            border: '2px solid var(--color-accent)',
+                            backgroundColor: 'var(--bg-input)',
+                            color: 'var(--text-input)'
+                          }}
+                        />
+                        <span className="absolute right-3 top-3.5 text-xs font-bold lowercase tracking-wider text-[var(--text-secondary)]">
+                          {isCheckout && isLooseKg ? 'g' : (item.unit || 'PCS')}
+                        </span>
+                      </div>
+
+                      {/* Quick Preset Buttons for grams during checkout */}
+                      {isCheckout && isLooseKg && (
+                        <div className="flex gap-1.5 mt-3 flex-wrap">
+                          {[50, 100, 250, 500, 1000].map(presetGrams => (
+                            <button
+                              key={presetGrams}
+                              type="button"
+                              onClick={() => setLooseItemModal({ ...looseItemModal, qty: String(presetGrams) })}
+                              className="px-2.5 py-1 text-xs font-bold rounded border transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] cursor-pointer"
+                              style={{
+                                backgroundColor: looseItemModal.qty === String(presetGrams) ? 'var(--color-accent-bg)' : 'var(--bg-tertiary)',
+                                borderColor: looseItemModal.qty === String(presetGrams) ? 'var(--color-accent)' : 'var(--border-medium)',
+                                color: looseItemModal.qty === String(presetGrams) ? 'var(--color-accent)' : 'var(--text-secondary)'
+                              }}
+                            >
+                              {presetGrams >= 1000 ? `${presetGrams / 1000} kg` : `${presetGrams}g`}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Live Price Calculation in Checkout */}
+                      {isCheckout && isLooseKg && looseItemModal.qty && Number(looseItemModal.qty) > 0 && (
+                        <div className="mt-4 p-3 rounded-lg border border-[var(--color-accent)]/30 bg-[var(--color-accent-bg)]/20 text-xs flex flex-col gap-1">
+                          <div className="flex justify-between font-medium text-[var(--text-secondary)]">
+                            <span>Equivalent weight:</span>
+                            <span className="font-bold text-[var(--text-primary)]">{(Number(looseItemModal.qty) / 1000).toFixed(3)} kg</span>
+                          </div>
+                          <div className="flex justify-between font-medium text-[var(--text-secondary)]">
+                            <span>Rate:</span>
+                            <span>₹{ratePerKg.toFixed(2)} / kg</span>
+                          </div>
+                          <div className="flex justify-between text-sm font-bold pt-1.5 border-t border-[var(--border-light)]" style={{ color: 'var(--color-accent)' }}>
+                            <span>Total Price:</span>
+                            <span>₹{((Number(looseItemModal.qty) / 1000) * ratePerKg).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
+
               <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-                <button type="submit" disabled={!looseItemModal.qty} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50" style={{ backgroundColor: 'var(--color-accent)' }}>Add to Cart</button>
+                <button
+                  type="button"
+                  onClick={() => setLooseItemModal({ isOpen: false, item: null, qty: '' })}
+                  className="h-9 px-4 text-sm font-semibold rounded-md border border-[var(--border-medium)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!looseItemModal.qty || Number(looseItemModal.qty) <= 0}
+                  className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 transition-transform active:scale-95 cursor-pointer"
+                  style={{ backgroundColor: 'var(--color-accent)' }}
+                >
+                  Add to Cart
+                </button>
               </div>
             </form>
           </div>

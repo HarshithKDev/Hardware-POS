@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, forwardRef } from 'react';
-import { Virtuoso } from 'react-virtuoso';
+import { TableVirtuoso } from 'react-virtuoso';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import PrintBatchModal from './PrintBatchModal';
 import CreateBatchModal from './CreateBatchModal';
@@ -409,6 +409,129 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
   const items = inventoryData?.items || [];
   const totalInvItems = inventoryData?.total || 0;
 
+  const tableComponents = useMemo(() => ({
+    Table: (props) => (
+      <table
+        {...props}
+        className={`w-full text-center border-collapse table-fixed ${props.className || ''}`}
+        style={{ ...props.style }}
+      />
+    ),
+    TableHead: forwardRef((props, ref) => (
+      <thead
+        ref={ref}
+        {...props}
+        className="hidden md:table-header-group sticky top-0 z-20 glass-header"
+        style={{
+          ...props.style,
+          borderBottom: '1px solid var(--border-medium)',
+          backgroundColor: 'var(--bg-tertiary)'
+        }}
+      />
+    )),
+    TableRow: ({ item, context, ...props }) => {
+      if (!item) return <tr {...props} />;
+      const isSelected = context?.selectedBarcodes?.includes(item.barcode);
+      const isEdit = context?.isGlobalEditMode && isSelected && context?.viewType === 'warehouse';
+      return (
+        <tr
+          {...props}
+          className={`hover-row premium-hover ${context?.isSelectionMode ? 'cursor-pointer' : ''} ${isSelected ? 'selected' : ''} block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none border md:border-b md:border-t-0 md:border-l-0 md:border-r-0 border-[var(--border-medium)] md:border-[var(--border-light)] mb-3 md:mb-0 relative ${isEdit ? 'transition-none' : ''}`}
+          style={{
+            ...props.style,
+            borderBottomWidth: '1px',
+            borderBottomStyle: 'solid',
+            ...(isEdit ? { backgroundColor: 'var(--bg-tertiary)' } : {})
+          }}
+          onClick={() => {
+            if (context?.isSelectionMode && item?.barcode) {
+              context.toggleSelect(item.barcode);
+            }
+          }}
+        >
+          {props.children}
+        </tr>
+      );
+    },
+    FillerRow: ({ height }) => (
+      <tr className="block md:table-row" style={{ height: `${height}px` }}>
+        <td colSpan={10} className="block md:table-cell" style={{ height: `${height}px`, padding: 0, border: 0, margin: 0 }} />
+      </tr>
+    )
+  }), []);
+
+  const fixedHeaderContent = useCallback(() => (
+    <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+      {isSelectionMode && (
+        <th className="p-3 w-12 text-center" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>
+          <input type="checkbox" checked={items.length > 0 && selectedBarcodes.length === items.length} onChange={toggleSelectAll} className="w-4 h-4 rounded text-accent focus:ring-accent cursor-pointer" />
+        </th>
+      )}
+      <th 
+        className="p-3 w-24 lg:w-28 cursor-pointer select-none group" 
+        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
+        onClick={() => handleSortClick('barcode')}
+      >
+        <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
+          Barcode
+          {renderSortIcon('barcode')}
+        </div>
+      </th>
+      <th 
+        className="p-3 w-full min-w-[180px] cursor-pointer select-none group" 
+        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
+        onClick={() => handleSortClick('name')}
+      >
+        <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
+          Item Details
+          {renderSortIcon('name')}
+        </div>
+      </th>
+      <th 
+        className="p-3 w-36 lg:w-48 cursor-pointer select-none text-center group" 
+        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
+        onClick={() => handleSortClick('category')}
+      >
+        <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
+          Category
+          {renderSortIcon('category')}
+        </div>
+      </th>
+      <th 
+        className="p-3 w-32 lg:w-40 cursor-pointer select-none text-center group" 
+        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
+        onClick={() => handleSortClick('subcategory')}
+      >
+        <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
+          SUBCAT
+          {renderSortIcon('subcategory')}
+        </div>
+      </th>
+      <th className="p-3 w-28 lg:w-32 text-center" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>Batches</th>
+      <th 
+        className="p-3 w-24 lg:w-28 text-center whitespace-nowrap cursor-pointer select-none group" 
+        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
+        onClick={() => handleSortClick('whsestock')}
+      >
+        <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
+          Whse Qty
+          {renderSortIcon('whsestock')}
+        </div>
+      </th>
+      <th 
+        className="p-3 w-24 lg:w-28 text-center whitespace-nowrap cursor-pointer select-none group" 
+        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
+        onClick={() => handleSortClick('storestock')}
+      >
+        <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
+          Store Qty
+          {renderSortIcon('storestock')}
+        </div>
+      </th>
+      <th className="p-3 w-28 lg:w-32 text-center">Actions</th>
+    </tr>
+  ), [isSelectionMode, items.length, selectedBarcodes.length, sortOption, handleSortClick, renderSortIcon, toggleSelectAll]);
+
   return (
     <div className="flex flex-col flex-1 h-full animate-fade-in w-full relative">
       {selectedBarcodes.length > 0 ? (
@@ -496,91 +619,22 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
         ) : items.length === 0 ? (
           <EmptyState message="No items found matching the search." icon="search" />
         ) : (
-          <Virtuoso
+          <TableVirtuoso
             data={items}
+            computeItemKey={(index, item) => item?.barcode || index}
             useWindowScroll={false}
-            style={{ height: '100%', width: '100%', overscrollBehavior: 'none' }}
+            style={{ height: '100%', width: '100%' }}
             className="overflow-x-hidden"
-            defaultItemHeight={80}
-            increaseViewportBy={{ top: 400, bottom: 400 }}
-            components={{
-              List: forwardRef((props, ref) => (
-                <table ref={ref} style={{ ...props.style }} className={`block md:table w-full text-center border-collapse table-fixed ${props.className || ''}`}>
-                  <thead className="hidden md:table-header-group sticky top-0 z-20 glass-header" style={{ borderBottom: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}>
-                    <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                      {isSelectionMode && (
-                        <th className="p-3 w-12 text-center" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>
-                          <input type="checkbox" checked={items.length > 0 && selectedBarcodes.length === items.length} onChange={toggleSelectAll} className="w-4 h-4 rounded text-accent focus:ring-accent cursor-pointer" />
-                        </th>
-                      )}
-                      <th 
-                        className="p-3 w-24 lg:w-28 cursor-pointer select-none group" 
-                        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
-                        onClick={() => handleSortClick('barcode')}
-                      >
-                        <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
-                          Barcode
-                          {renderSortIcon('barcode')}
-                        </div>
-                      </th>
-                      <th 
-                        className="p-3 w-full min-w-[180px] cursor-pointer select-none group" 
-                        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
-                        onClick={() => handleSortClick('name')}
-                      >
-                        <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
-                          Item Details
-                          {renderSortIcon('name')}
-                        </div>
-                      </th>
-                      <th 
-                        className="p-3 w-36 lg:w-48 cursor-pointer select-none text-center group" 
-                        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
-                        onClick={() => handleSortClick('category')}
-                      >
-                        <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
-                          Category
-                          {renderSortIcon('category')}
-                        </div>
-                      </th>
-                      <th 
-                        className="p-3 w-32 lg:w-40 cursor-pointer select-none text-center group" 
-                        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
-                        onClick={() => handleSortClick('subcategory')}
-                      >
-                        <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
-                          SUBCAT
-                          {renderSortIcon('subcategory')}
-                        </div>
-                      </th>
-                      <th className="p-3 w-28 lg:w-32 text-center" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>Batches</th>
-                      <th 
-                        className="p-3 w-24 lg:w-28 text-center whitespace-nowrap cursor-pointer select-none group" 
-                        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
-                        onClick={() => handleSortClick('whsestock')}
-                      >
-                        <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
-                          Whse Qty
-                          {renderSortIcon('whsestock')}
-                        </div>
-                      </th>
-                      <th 
-                        className="p-3 w-24 lg:w-28 text-center whitespace-nowrap cursor-pointer select-none group" 
-                        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
-                        onClick={() => handleSortClick('storestock')}
-                      >
-                        <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
-                          Store Qty
-                          {renderSortIcon('storestock')}
-                        </div>
-                      </th>
-                      <th className="p-3 w-28 lg:w-32 text-center">Actions</th>
-                    </tr>
-                  </thead>
-                  {props.children}
-                </table>
-              )),
-              Item: (props) => <tbody {...props} className="block md:table-row-group virtuoso-item-group" />
+            defaultItemHeight={60}
+            increaseViewportBy={{ top: 300, bottom: 300 }}
+            fixedHeaderContent={fixedHeaderContent}
+            components={tableComponents}
+            context={{
+              isSelectionMode,
+              selectedBarcodes,
+              isGlobalEditMode,
+              viewType,
+              toggleSelect
             }}
             itemContent={(index, item) => (
               <InventoryRow

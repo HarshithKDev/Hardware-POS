@@ -1,6 +1,12 @@
 import { createPortal } from 'react-dom';
 import { QRCodeSVG } from 'qrcode.react';
 
+const formatGramRate = (ratePerKg) => {
+  const perGram = Number(ratePerKg || 0) / 1000;
+  const threeDec = perGram.toFixed(3);
+  return threeDec.endsWith('0') ? perGram.toFixed(2) : threeDec;
+};
+
 export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateTime, isPreview = false }) {
   if (!lastReceipt || lastReceipt.type !== 'checkout') return null;
   const totalSavings = lastReceipt.items?.reduce((acc, item) => acc + (Math.max(0, ((Math.round(item.mrp * 100) - Math.round(item.finalRate * 100)) * item.quantity) / 100)), 0) || 0;
@@ -90,15 +96,35 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
           </tr>
         </thead>
         <tbody className="align-top" style={{ backgroundColor: 'transparent' }}>
-          {lastReceipt.items.map((item, i) => (
-            <tr key={i} className="hover:!bg-transparent" style={{ backgroundColor: 'transparent' }}>
-              <td className="py-1 pr-1 text-black break-words" style={{ color: '#000', backgroundColor: 'transparent' }}>{item.name}</td>
-              <td className="py-1 text-center text-black" style={{ color: '#000', backgroundColor: 'transparent' }}>{item.quantity} {item.unit}</td>
-              <td className="py-1 text-right pr-1 text-black" style={{ color: '#000', backgroundColor: 'transparent' }}>{item.mrp.toFixed(2)}</td>
-              <td className="py-1 text-right pr-1 text-black" style={{ color: '#000', backgroundColor: 'transparent' }}>{item.finalRate.toFixed(2)}</td>
-              <td className="py-1 text-right text-black" style={{ color: '#000', backgroundColor: 'transparent' }}>{item.lineTotal.toFixed(2)}</td>
-            </tr>
-          ))}
+          {lastReceipt.items.map((item, i) => {
+            const isLooseKg = Boolean(
+              item.is_loose_item && (
+                item.unit?.toUpperCase() === 'KG' || 
+                item.unit?.toUpperCase() === 'KGS' || 
+                item.unit?.toUpperCase() === 'GRAMS' || 
+                item.unit?.toUpperCase() === 'GRAM' || 
+                item.unit?.toUpperCase() === 'G' || 
+                item.unit?.toUpperCase() === 'GM'
+              )
+            );
+            const displayQty = isLooseKg 
+              ? `${item.grams !== undefined ? item.grams : Math.round(Number(item.quantity) * 1000)} g` 
+              : `${item.quantity} ${item.unit}`;
+            const displayMrp = isLooseKg ? formatGramRate(item.mrp) : item.mrp.toFixed(2);
+            const displayRate = isLooseKg ? formatGramRate(item.finalRate) : item.finalRate.toFixed(2);
+
+            return (
+              <tr key={i} className="hover:!bg-transparent" style={{ backgroundColor: 'transparent' }}>
+                <td className="py-1 pr-1 text-black break-words" style={{ color: '#000', backgroundColor: 'transparent' }}>
+                  {item.name}
+                </td>
+                <td className="py-1 text-center text-black" style={{ color: '#000', backgroundColor: 'transparent' }}>{displayQty}</td>
+                <td className="py-1 text-right pr-1 text-black" style={{ color: '#000', backgroundColor: 'transparent' }}>{displayMrp}</td>
+                <td className="py-1 text-right pr-1 text-black" style={{ color: '#000', backgroundColor: 'transparent' }}>{displayRate}</td>
+                <td className="py-1 text-right text-black" style={{ color: '#000', backgroundColor: 'transparent' }}>{item.lineTotal.toFixed(2)}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
       

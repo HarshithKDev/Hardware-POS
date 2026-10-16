@@ -3,6 +3,7 @@ import React from 'react';
 /** Mobile cart view */
 import { useCart } from '../../contexts/CartContext';
 import { useApp } from '../../AppContext';
+import { formatUnitBadge } from './CartTable';
 
 const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQuantity, onUpdateDimensions, onRemoveItem }) {
   const { cart } = useCart();
@@ -191,7 +192,7 @@ const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQ
             <p className="text-xs mt-1 mb-1" style={{ color: 'var(--color-accent)' }}>#{item.scanned_barcode || item.instance_barcode || item.barcode}</p>
             {activeTab === 'checkout' && (
               <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>
-                MRP: ₹{Number(item.price || 0).toFixed(2)} • <span className="group/msp cursor-help">MSP: {userRole === 'owner' ? `₹${Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}</span></span>}</span>
+                MRP: ₹{Number(item.price || 0).toFixed(2)}{item.is_loose_item && item.unit?.toUpperCase() === 'KG' ? '/kg' : ''} • <span className="group/msp cursor-help">MSP: {userRole === 'owner' ? `₹${Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}${item.is_loose_item && item.unit?.toUpperCase() === 'KG' ? '/kg' : ''}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}{item.is_loose_item && item.unit?.toUpperCase() === 'KG' ? '/kg' : ''}</span></span>}</span>
               </p>
             )}
           </div>
@@ -237,25 +238,100 @@ const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQ
               <div className="flex items-center gap-1.5">
                 {item.instance_barcode ? (
                   <div className="relative inline-flex items-center">
-                    <div className="w-16 h-8 pr-6 flex items-center justify-center text-sm font-bold bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md text-[var(--text-primary)] shadow-sm">
+                    <div className="w-20 h-8 pr-7 flex items-center justify-center text-sm font-bold bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md text-[var(--text-primary)] shadow-sm">
                       1
                     </div>
-                    <span className="absolute right-1.5 text-[9px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>
-                      {item.unit === 'SQFT' && activeTab !== 'checkout' ? 'ROLLS' : (item.unit?.toUpperCase() === 'METER' ? 'M' : item.unit)}
+                    <span className="absolute right-2 text-[10px] font-bold pointer-events-none text-[var(--text-tertiary)]">
+                      {formatUnitBadge(item.unit === 'SQFT' && activeTab !== 'checkout' ? 'ROLLS' : item.unit)}
                     </span>
                   </div>
-                ) : (
-                  <>
-                    <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-8 h-8 flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border border-[var(--border-medium)] rounded-md bg-[var(--bg-tertiary)] shadow-sm" aria-label={`Decrease ${item.name} quantity`}>-</button>
-                    <div className="relative inline-flex items-center">
-                      <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-16 h-8 !p-0 !pl-1 !pr-6 text-sm font-bold text-center bg-[var(--bg-tertiary)] border border-[var(--border-medium)] !rounded-md text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-all shadow-sm" aria-label={`${item.name} quantity`} style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.1) inset' }} />
-                      <span className="absolute right-1.5 text-[9px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>
-                        {item.unit === 'SQFT' && activeTab !== 'checkout' ? 'ROLLS' : (item.unit?.toUpperCase() === 'METER' ? 'M' : item.unit)}
-                      </span>
-                    </div>
-                    <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-8 h-8 flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border border-[var(--border-medium)] rounded-md bg-[var(--bg-tertiary)] shadow-sm" aria-label={`Increase ${item.name} quantity`}>+</button>
-                  </>
-                )}
+                ) : (() => {
+                  const isLooseKg = Boolean(
+                    item.is_loose_item && (
+                      item.unit?.toUpperCase() === 'KG' || 
+                      item.unit?.toUpperCase() === 'KGS' || 
+                      item.unit?.toUpperCase() === 'GRAMS' || 
+                      item.unit?.toUpperCase() === 'GRAM' || 
+                      item.unit?.toUpperCase() === 'G' || 
+                      item.unit?.toUpperCase() === 'GM'
+                    )
+                  );
+
+                  if (activeTab === 'checkout' && isLooseKg) {
+                    const currentGrams = item.grams !== undefined && item.grams !== '' ? item.grams : (item.quantity !== '' ? Math.round(Number(item.quantity) * 1000) : '');
+                    return (
+                      <div className="flex flex-col items-start">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              const nextGrams = Math.max(0, (Number(currentGrams) || 0) - 50);
+                              onUpdateQuantity(item.id, nextGrams === 0 ? 0 : nextGrams / 1000, nextGrams);
+                            }}
+                            className="w-8 h-8 flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border border-[var(--border-medium)] rounded-md bg-[var(--bg-tertiary)] shadow-sm cursor-pointer"
+                            aria-label={`Decrease ${item.name} quantity by 50g`}
+                            title="-50g"
+                          >
+                            -
+                          </button>
+                          <div className="relative inline-flex items-center">
+                            <input
+                              type="number"
+                              step="1"
+                              min="0"
+                              value={currentGrams}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === '') {
+                                  onUpdateQuantity(item.id, '', '');
+                                } else {
+                                  const g = Math.max(0, Number(val));
+                                  onUpdateQuantity(item.id, g / 1000, g);
+                                }
+                              }}
+                              className="w-20 h-8 pl-3 pr-7 text-sm font-bold text-center bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-all shadow-sm"
+                              aria-label={`${item.name} quantity in grams`}
+                              style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.1) inset' }}
+                            />
+                            <span className="absolute right-2 text-[10px] font-bold pointer-events-none text-[var(--text-tertiary)]">
+                              g
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              const nextGrams = (Number(currentGrams) || 0) + 50;
+                              onUpdateQuantity(item.id, nextGrams / 1000, nextGrams);
+                            }}
+                            className="w-8 h-8 flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border border-[var(--border-medium)] rounded-md bg-[var(--bg-tertiary)] shadow-sm cursor-pointer"
+                            aria-label={`Increase ${item.name} quantity by 50g`}
+                            title="+50g"
+                          >
+                            +
+                          </button>
+                        </div>
+                        <span className="text-[10px] text-[var(--text-tertiary)] font-normal mt-0.5">
+                          ({Number(safeQty).toFixed(3)} kg)
+                        </span>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <>
+                      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-8 h-8 flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border border-[var(--border-medium)] rounded-md bg-[var(--bg-tertiary)] shadow-sm cursor-pointer" aria-label={`Decrease ${item.name} quantity`}>-</button>
+                      <div className="relative inline-flex items-center">
+                        <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-20 h-8 pl-3 pr-7 text-sm font-bold text-center bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-all shadow-sm" aria-label={`${item.name} quantity`} style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.1) inset' }} />
+                        <span className="absolute right-2 text-[10px] font-bold pointer-events-none text-[var(--text-tertiary)]">
+                          {formatUnitBadge(item.unit === 'SQFT' && activeTab !== 'checkout' ? 'ROLLS' : item.unit)}
+                        </span>
+                      </div>
+                      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-8 h-8 flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border border-[var(--border-medium)] rounded-md bg-[var(--bg-tertiary)] shadow-sm cursor-pointer" aria-label={`Increase ${item.name} quantity`}>+</button>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           )}

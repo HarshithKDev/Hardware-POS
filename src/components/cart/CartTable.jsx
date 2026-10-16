@@ -1,8 +1,19 @@
 import React from 'react';
 
-/** Desktop cart table */
 import { useCart } from '../../contexts/CartContext';
 import { useApp } from '../../AppContext';
+
+export const formatUnitBadge = (unit) => {
+  if (!unit) return 'pcs';
+  const u = String(unit).trim().toUpperCase();
+  if (u === 'GRAMS' || u === 'GRAM' || u === 'G' || u === 'GM') return 'g';
+  if (u === 'KG' || u === 'KGS' || u === 'KILOGRAM' || u === 'KILOGRAMS') return 'kg';
+  if (u === 'METER' || u === 'METERS' || u === 'M') return 'm';
+  if (u === 'PIECES' || u === 'PIECE' || u === 'PCS') return 'pcs';
+  if (u === 'SQFT') return 'sqft';
+  if (u === 'FEET' || u === 'FOOT' || u === 'FT') return 'ft';
+  return u.length > 3 ? u.substring(0, 3).toLowerCase() : u.toLowerCase();
+};
 
 const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, onUpdateDimensions, onCustomPriceChange, onCustomTotalChange, onCustomPriceBlur, onCustomPriceChangeGroup, onCustomTotalChangeGroup, onCustomPriceBlurGroup, onRemoveItem }) {
   const { cart } = useCart();
@@ -196,12 +207,24 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
             const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
             const billableQty = item.billableQuantity !== undefined && item.billableQuantity !== '' ? Number(item.billableQuantity) : safeQty;
             const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
+            const isLooseKg = Boolean(
+              item.is_loose_item && (
+                item.unit?.toUpperCase() === 'KG' || 
+                item.unit?.toUpperCase() === 'KGS' || 
+                item.unit?.toUpperCase() === 'GRAMS' || 
+                item.unit?.toUpperCase() === 'GRAM' || 
+                item.unit?.toUpperCase() === 'G' || 
+                item.unit?.toUpperCase() === 'GM'
+              )
+            );
+            const hasSubtext = Boolean((activeTab === 'checkout' && isLooseKg) || (safeQty !== billableQty));
+
             return (
               <tr key={item.id} className="animate-fade-in" style={{ borderBottom: '1px solid var(--border-light)' }}>
-                <td className="py-4 px-3 text-center  text-sm font-bold" style={{ color: 'var(--color-accent)' }}>
+                <td className="py-4 px-3 text-center align-middle text-sm font-bold" style={{ color: 'var(--color-accent)' }}>
                   {item.scanned_barcode && item.scanned_barcode.includes('-') ? item.scanned_barcode : (item.batch_number ? `${item.barcode}-${String(item.batch_number).padStart(2, '0')}` : item.scanned_barcode || item.instance_barcode || item.barcode)}
                 </td>
-                <td className="py-4 px-3 text-center" >
+                <td className="py-4 px-3 text-center align-middle" >
                   <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name}</p>
                   {item.pieceLength && (
                     <p className="text-[10px] uppercase font-bold mt-1" style={{ color: 'var(--text-tertiary)' }}>Length per piece: {item.pieceLength} {item.unit}</p>
@@ -209,115 +232,210 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                   {activeTab === 'checkout' && (
                     <div className="flex justify-center gap-2 mt-1">
                       <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
-                        MRP: ₹{Number(item.price || 0).toFixed(2)}
+                        MRP: ₹{Number(item.price || 0).toFixed(2)}{isLooseKg ? '/kg' : ''}
                       </span>
                       <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider group/msp cursor-help rounded-sm" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
-                        MSP: {userRole === 'owner' ? `₹${Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}</span></span>}
+                        MSP: {userRole === 'owner' ? `₹${Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}${isLooseKg ? '/kg' : ''}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}{isLooseKg ? '/kg' : ''}</span></span>}
                       </span>
                     </div>
                   )}
                 </td>
-                <td className="p-2" style={activeTab === 'checkout' ? { } : {}}>
+                <td className="p-2 text-center align-middle">
                   {(item.unit === 'SQFT' && item.is_cuttable && activeTab === 'checkout') || (item.is_cuttable && activeTab === 'receive') ? (
-                    <div className="flex items-center justify-center gap-2">
-                      {item.instance_barcode && activeTab !== 'receive' ? (
-                        <div className="flex items-center gap-2 ml-4">
-                            <span className="font-bold text-sm bg-[var(--bg-tertiary)] px-3 py-2 rounded-sm border border-[var(--border-medium)]" style={{ color: 'var(--text-primary)' }}>
-                              {item.length} ft
-                            </span>
-                            <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
-                            <span className="font-bold text-sm bg-[var(--bg-tertiary)] px-3 py-2 rounded-sm border border-[var(--border-medium)]" style={{ color: 'var(--text-primary)' }}>
-                              {item.width} ft
-                            </span>
-                            <span className="text-[10px] font-bold ml-2" style={{ color: 'var(--color-accent)' }}>{safeQty} sqft</span>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="relative inline-flex items-center">
-                            <input type="number" step="any" placeholder="L" disabled={activeTab === 'receive'} value={activeTab === 'receive' ? (item.pieceLength || item.default_length || '') : (item.length !== undefined ? item.length : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_length', e.target.value) : onUpdateDimensions(item.id, 'length', e.target.value)} className={`w-24 h-10 pl-2 pr-12 text-sm font-semibold text-center focus:outline-none rounded-md ${activeTab === 'receive' ? 'opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]' : ''}`} style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title={activeTab === 'receive' ? "Length is locked during receive" : "Length"} aria-label="Length" />
-                            <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>{item.unit === 'SQFT' ? 'ft' : (item.unit?.toUpperCase() === 'METER' ? 'M' : item.unit)}</span>
-                          </div>
-                          {item.unit === 'SQFT' && (
-                            <>
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="h-8 flex items-center justify-center gap-2">
+                        {item.instance_barcode && activeTab !== 'receive' ? (
+                          <div className="flex items-center gap-2">
+                              <span className="font-bold text-sm bg-[var(--bg-tertiary)] px-3 py-1.5 rounded-md border border-[var(--border-medium)]" style={{ color: 'var(--text-primary)' }}>
+                                {item.length} ft
+                              </span>
                               <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
-                              <div className="relative inline-flex items-center">
-                                <input type="number" step="any" placeholder="H" disabled={activeTab === 'receive'} value={activeTab === 'receive' ? (item.default_width || '') : (item.width !== undefined ? item.width : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_width', e.target.value) : onUpdateDimensions(item.id, 'width', e.target.value)} className={`w-24 h-10 pl-2 pr-12 text-sm font-semibold text-center focus:outline-none rounded-md ${activeTab === 'receive' ? 'opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]' : ''}`} style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title={activeTab === 'receive' ? "Width is locked during receive" : "Height"} aria-label="Height" />
-                                <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>ft</span>
-                              </div>
-                            </>
-                          )}
-                          <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
-                          {item.instance_barcode && activeTab === 'receive' ? (
-                            <div className="w-14 h-10 px-2 text-sm font-bold flex items-center justify-center bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-medium)] rounded" title="Quantity is locked to 1 for specific piece">1</div>
-                          ) : activeTab === 'receive' ? (
-                            <input type="number" step="any" min="1" placeholder="Qty" disabled value={item.quantity} className="w-14 h-10 px-2 text-sm font-semibold text-center focus:outline-none rounded-md opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title="Scan to increase quantity" aria-label="Quantity" />
-                          ) : (
-                            <input type="number" step="any" min="1" placeholder="Qty" value={item.rolls !== undefined ? item.rolls : '1'} onChange={(e) => onUpdateDimensions(item.id, 'rolls', e.target.value)} className="w-14 h-10 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} title="Qty" aria-label="Quantity" />
-                          )}
-                        </>
-                      )}
-                      {activeTab === 'checkout' && (
-                        <div className="flex flex-col ml-3 text-left">
-                          <span className="font-bold text-xl leading-none" style={{ color: 'var(--color-accent)' }}>{safeQty}</span>
-                          <span className="text-[10px] font-bold uppercase mt-1" style={{ color: 'var(--text-secondary)' }}>{item.unit}</span>
-                        </div>
-                      )}
+                              <span className="font-bold text-sm bg-[var(--bg-tertiary)] px-3 py-1.5 rounded-md border border-[var(--border-medium)]" style={{ color: 'var(--text-primary)' }}>
+                                {item.width} ft
+                              </span>
+                              <span className="text-[10px] font-bold ml-2" style={{ color: 'var(--color-accent)' }}>{safeQty} sqft</span>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="relative inline-flex items-center">
+                              <input type="number" step="any" placeholder="L" disabled={activeTab === 'receive'} value={activeTab === 'receive' ? (item.pieceLength || item.default_length || '') : (item.length !== undefined ? item.length : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_length', e.target.value) : onUpdateDimensions(item.id, 'length', e.target.value)} className={`w-24 h-8 pl-2 pr-10 text-sm font-semibold text-center focus:outline-none rounded-md ${activeTab === 'receive' ? 'opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]' : ''}`} style={{ border: '1px solid var(--border-medium)' }} title={activeTab === 'receive' ? "Length is locked during receive" : "Length"} aria-label="Length" />
+                              <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>{item.unit === 'SQFT' ? 'ft' : (item.unit?.toUpperCase() === 'METER' ? 'M' : item.unit)}</span>
+                            </div>
+                            {item.unit === 'SQFT' && (
+                              <>
+                                <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
+                                <div className="relative inline-flex items-center">
+                                  <input type="number" step="any" placeholder="H" disabled={activeTab === 'receive'} value={activeTab === 'receive' ? (item.default_width || '') : (item.width !== undefined ? item.width : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_width', e.target.value) : onUpdateDimensions(item.id, 'width', e.target.value)} className={`w-24 h-8 pl-2 pr-10 text-sm font-semibold text-center focus:outline-none rounded-md ${activeTab === 'receive' ? 'opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]' : ''}`} style={{ border: '1px solid var(--border-medium)' }} title={activeTab === 'receive' ? "Width is locked during receive" : "Height"} aria-label="Height" />
+                                  <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>ft</span>
+                                </div>
+                              </>
+                            )}
+                            <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
+                            {item.instance_barcode && activeTab === 'receive' ? (
+                              <div className="w-14 h-8 px-2 text-sm font-bold flex items-center justify-center bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-medium)] rounded-md" title="Quantity is locked to 1 for specific piece">1</div>
+                            ) : activeTab === 'receive' ? (
+                              <input type="number" step="any" min="1" placeholder="Qty" disabled value={item.quantity} className="w-14 h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]" style={{ border: '1px solid var(--border-medium)' }} title="Scan to increase quantity" aria-label="Quantity" />
+                            ) : (
+                              <input type="number" step="any" min="1" placeholder="Qty" value={item.rolls !== undefined ? item.rolls : '1'} onChange={(e) => onUpdateDimensions(item.id, 'rolls', e.target.value)} className="w-14 h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)' }} title="Qty" aria-label="Quantity" />
+                            )}
+                          </>
+                        )}
+                        {activeTab === 'checkout' && (
+                          <div className="flex flex-col ml-3 text-left">
+                            <span className="font-bold text-base leading-none" style={{ color: 'var(--color-accent)' }}>{safeQty}</span>
+                            <span className="text-[10px] font-bold uppercase mt-0.5" style={{ color: 'var(--text-secondary)' }}>{item.unit}</span>
+                          </div>
+                        )}
+                      </div>
+                      {hasSubtext && <div className="h-4 mt-1" />}
                     </div>
                   ) : (
-                    <div className="flex items-center justify-center gap-1.5">
-                      {item.instance_barcode ? (
-                        <div className="relative inline-flex items-center">
-                          <div className="w-16 h-8 pr-6 flex items-center justify-center text-sm font-bold bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md text-[var(--text-primary)] shadow-sm">
-                            {safeQty}
-                          </div>
-                          <span className="absolute right-1.5 text-[9px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>
-                            {(item.unit === 'SQFT' || item.is_cuttable) && activeTab !== 'checkout' ? 'PCS' : (item.unit?.toUpperCase() === 'METER' ? 'M' : item.unit)}
-                          </span>
-                        </div>
-                      ) : (
-                        <>
-                          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-8 h-8 flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border border-[var(--border-medium)] rounded-md bg-[var(--bg-tertiary)] shadow-sm" aria-label={`Decrease ${item.name} quantity`}>-</button>
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="h-8 flex items-center justify-center gap-1.5">
+                        {item.instance_barcode ? (
                           <div className="relative inline-flex items-center">
-                            <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-16 h-8 !p-0 !pl-1 !pr-6 text-sm font-bold text-center bg-[var(--bg-tertiary)] border border-[var(--border-medium)] !rounded-md text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-all shadow-sm" aria-label={`${item.name} quantity`} style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.1) inset' }} />
-                            <span className="absolute right-1.5 text-[9px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>
-                              {(item.unit === 'SQFT' || item.is_cuttable) && activeTab !== 'checkout' ? 'PCS' : (item.unit?.toUpperCase() === 'METER' ? 'M' : item.unit)}
+                            <div className="w-20 h-8 pr-7 flex items-center justify-center text-sm font-bold bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md text-[var(--text-primary)] shadow-sm">
+                              {safeQty}
+                            </div>
+                            <span className="absolute right-2 text-[10px] font-bold pointer-events-none text-[var(--text-tertiary)]">
+                              {formatUnitBadge((item.unit === 'SQFT' || item.is_cuttable) && activeTab !== 'checkout' ? 'PCS' : item.unit)}
                             </span>
                           </div>
-                          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-8 h-8 flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border border-[var(--border-medium)] rounded-md bg-[var(--bg-tertiary)] shadow-sm" aria-label={`Increase ${item.name} quantity`}>+</button>
-                        </>
+                        ) : activeTab === 'checkout' && isLooseKg ? (
+                          (() => {
+                            const currentGrams = item.grams !== undefined && item.grams !== '' ? item.grams : (item.quantity !== '' ? Math.round(Number(item.quantity) * 1000) : '');
+                            return (
+                              <>
+                                <button
+                                  type="button"
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  onClick={() => {
+                                    const nextGrams = Math.max(0, (Number(currentGrams) || 0) - 50);
+                                    onUpdateQuantity(item.id, nextGrams === 0 ? 0 : nextGrams / 1000, nextGrams);
+                                  }}
+                                  className="w-8 h-8 flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border border-[var(--border-medium)] rounded-md bg-[var(--bg-tertiary)] shadow-sm cursor-pointer"
+                                  aria-label={`Decrease ${item.name} quantity by 50g`}
+                                  title="-50g"
+                                >
+                                  -
+                                </button>
+                                <div className="relative inline-flex items-center">
+                                  <input
+                                    type="number"
+                                    step="1"
+                                    min="0"
+                                    value={currentGrams}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      if (val === '') {
+                                        onUpdateQuantity(item.id, '', '');
+                                      } else {
+                                        const g = Math.max(0, Number(val));
+                                        onUpdateQuantity(item.id, g / 1000, g);
+                                      }
+                                    }}
+                                    className="w-20 h-8 pl-3 pr-7 text-sm font-bold text-center bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-all shadow-sm"
+                                    aria-label={`${item.name} quantity in grams`}
+                                    style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.1) inset' }}
+                                  />
+                                  <span className="absolute right-2 text-[10px] font-bold pointer-events-none text-[var(--text-tertiary)]">
+                                    g
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  onClick={() => {
+                                    const nextGrams = (Number(currentGrams) || 0) + 50;
+                                    onUpdateQuantity(item.id, nextGrams / 1000, nextGrams);
+                                  }}
+                                  className="w-8 h-8 flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border border-[var(--border-medium)] rounded-md bg-[var(--bg-tertiary)] shadow-sm cursor-pointer"
+                                  aria-label={`Increase ${item.name} quantity by 50g`}
+                                  title="+50g"
+                                >
+                                  +
+                                </button>
+                              </>
+                            );
+                          })()
+                        ) : (
+                          <>
+                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-8 h-8 flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border border-[var(--border-medium)] rounded-md bg-[var(--bg-tertiary)] shadow-sm cursor-pointer" aria-label={`Decrease ${item.name} quantity`}>-</button>
+                            <div className="relative inline-flex items-center">
+                              <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-20 h-8 pl-3 pr-7 text-sm font-bold text-center bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-all shadow-sm" aria-label={`${item.name} quantity`} style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.1) inset' }} />
+                              <span className="absolute right-2 text-[10px] font-bold pointer-events-none text-[var(--text-tertiary)]">
+                                {formatUnitBadge((item.unit === 'SQFT' || item.is_cuttable) && activeTab !== 'checkout' ? 'PCS' : item.unit)}
+                              </span>
+                            </div>
+                            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-8 h-8 flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border border-[var(--border-medium)] rounded-md bg-[var(--bg-tertiary)] shadow-sm cursor-pointer" aria-label={`Increase ${item.name} quantity`}>+</button>
+                          </>
+                        )}
+                      </div>
+                      {hasSubtext && (
+                        <div className="h-4 flex items-center justify-center mt-1">
+                          {isLooseKg && activeTab === 'checkout' ? (
+                            <span className="text-[10px] text-[var(--text-tertiary)] font-normal leading-none">
+                              ({Number(safeQty).toFixed(3)} kg)
+                            </span>
+                          ) : null}
+                        </div>
                       )}
                     </div>
                   )}
                 </td>
                 {activeTab === 'checkout' && (<>
-                  <td className="p-2">
-                    <div className="relative inline-flex items-center w-full max-w-[120px] mx-auto">
-                      <span className="absolute left-3 text-[11px] font-bold" style={{ color: 'var(--text-tertiary)' }}>₹</span>
-                      <input type="number" step="0.01" value={item.customPriceInput !== undefined ? (typeof item.customPriceInput === 'number' ? item.customPriceInput.toFixed(2) : item.customPriceInput) : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChange(item.id, e.target.value)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} MRP`} />
+                  <td className="p-2 text-center align-middle">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="h-8 flex items-center justify-center w-full">
+                        <div className="relative flex items-center justify-center w-full max-w-[120px] h-8 mx-auto">
+                          <span className="absolute left-3 text-[11px] font-bold pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>₹</span>
+                          <input type="number" step="0.01" value={item.customPriceInput !== undefined ? (typeof item.customPriceInput === 'number' ? item.customPriceInput.toFixed(2) : item.customPriceInput) : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChange(item.id, e.target.value)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} MRP`} />
+                        </div>
+                      </div>
+                      {hasSubtext && (
+                        <div className="h-4 flex items-center justify-center mt-1">
+                          {isLooseKg ? (
+                            <span className="text-[10px] text-[var(--text-tertiary)] font-normal leading-none">per kg</span>
+                          ) : null}
+                        </div>
+                      )}
                     </div>
                   </td>
-                  <td className="p-2" >
-                    <div className="relative inline-flex items-center w-full max-w-[120px] mx-auto">
-                      <span className="absolute left-3 text-[11px] font-bold" style={{ color: 'var(--text-tertiary)' }}>₹</span>
-                      <input type="number" step="0.01" value={item.customTotalInput !== undefined ? item.customTotalInput : (sellPrice * billableQty).toFixed(2)} onChange={(e) => onCustomTotalChange(item.id, e.target.value, billableQty)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} total`} />
+                  <td className="p-2 text-center align-middle">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="h-8 flex items-center justify-center w-full">
+                        <div className="relative flex items-center justify-center w-full max-w-[120px] h-8 mx-auto">
+                          <span className="absolute left-3 text-[11px] font-bold pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>₹</span>
+                          <input type="number" step="0.01" value={item.customTotalInput !== undefined ? item.customTotalInput : (sellPrice * billableQty).toFixed(2)} onChange={(e) => onCustomTotalChange(item.id, e.target.value, billableQty)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} total`} />
+                        </div>
+                      </div>
+                      {hasSubtext && (
+                        <div className="h-4 flex items-center justify-center mt-1">
+                          {safeQty !== billableQty ? (
+                            <span className="text-[10px] text-[var(--text-tertiary)] font-normal leading-none">Billed: {billableQty} {item.unit}</span>
+                          ) : null}
+                        </div>
+                      )}
                     </div>
-                    {safeQty !== billableQty && (
-                      <div className="text-[10px] text-[var(--text-tertiary)] font-normal mt-1 text-center">Billed: {billableQty} {item.unit}</div>
-                    )}
                   </td>
                 </>)}
                 {activeTab === 'receive' && (<>
-                  <td className="p-2 text-center text-sm font-semibold bg-[var(--bg-tertiary)] group/msp cursor-help" style={{ color: 'var(--text-secondary)' }}>
+                  <td className="p-2 text-center align-middle text-sm font-semibold bg-[var(--bg-tertiary)] group/msp cursor-help" style={{ color: 'var(--text-secondary)' }}>
                     {userRole === 'owner' ? `₹${Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}</span></span>}
                   </td>
-                  <td className="p-2 text-center text-sm font-semibold bg-[var(--bg-tertiary)]" style={{ color: 'var(--text-secondary)' }}>
+                  <td className="p-2 text-center align-middle text-sm font-semibold bg-[var(--bg-tertiary)]" style={{ color: 'var(--text-secondary)' }}>
                     ₹{Number(item.selling_price !== undefined ? item.selling_price : item.price || 0).toFixed(2)}
                   </td>
                 </>)}
                 <td className="p-2 text-center align-middle">
-                  <button type="button" onClick={() => onRemoveItem(item.id)} className=" text-[var(--text-secondary)] hover:bg-red-500/10 hover:text-[var(--color-error)]" aria-label={`Remove ${item.name}`}>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                  </button>
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="h-8 flex items-center justify-center">
+                      <button type="button" onClick={() => onRemoveItem(item.id)} className="w-8 h-8 rounded-md flex items-center justify-center text-[var(--text-secondary)] hover:bg-red-500/10 hover:text-[var(--color-error)] transition-colors cursor-pointer" aria-label={`Remove ${item.name}`}>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      </button>
+                    </div>
+                    {hasSubtext && <div className="h-4 mt-1" />}
+                  </div>
                 </td>
               </tr>
             );
