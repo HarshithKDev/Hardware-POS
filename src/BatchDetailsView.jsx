@@ -87,6 +87,19 @@ export default function BatchDetailsView({
   const [isEditingBatch, setIsEditingBatch] = useState(false);
   const [batchEditForm, setBatchEditForm] = useState({ cost: '', msp: '', mrp: '' });
 
+  // Min quantity inline edit state
+  const [isEditingMinQty, setIsEditingMinQty] = useState(false);
+  const [minQtyForm, setMinQtyForm] = useState({ store: '', warehouse: '' });
+
+  useEffect(() => {
+    if (item) {
+      setMinQtyForm({
+        store: item.min_quantity_store ?? 0,
+        warehouse: item.min_quantity_warehouse ?? 0
+      });
+    }
+  }, [item?.barcode, item?.min_quantity_store, item?.min_quantity_warehouse]);
+
   useEffect(() => {
     setIsEditingBatch(false);
     if (activeBatch) {
@@ -129,14 +142,13 @@ export default function BatchDetailsView({
     staleTime: 10 * 1000
   });
 
-  // Batch pricing update mutation
+  // Batch MSP update mutation
   const updateBatchMutation = useMutation({
-    mutationFn: async ({ batch_id, msp, mrp }) => {
+    mutationFn: async ({ batch_id, msp }) => {
       const { error } = await supabase
         .from('inventory_batches')
         .update({
-          msp: Number(msp),
-          selling_price: Number(mrp)
+          msp: Number(msp)
         })
         .eq('batch_id', batch_id);
       if (error) throw error;
@@ -145,7 +157,6 @@ export default function BatchDetailsView({
       const changes = [];
       if (oldBatch) {
         if (Number(oldBatch.msp) !== Number(msp)) changes.push(`MSP: ₹${oldBatch.msp} -> ₹${msp}`);
-        if (Number(oldBatch.selling_price) !== Number(mrp)) changes.push(`MRP: ₹${oldBatch.selling_price} -> ₹${mrp}`);
       }
 
       if (changes.length > 0) {
@@ -153,7 +164,7 @@ export default function BatchDetailsView({
           action_type: 'UPDATE',
           barcode: item.barcode,
           item_name: item.name,
-          changes: `Updated Batch ${oldBatch?.batch_number || 1} Pricing: ${changes.join(', ')}`,
+          changes: `Updated Batch ${oldBatch?.batch_number || 1} MSP: ${changes.join(', ')}`,
           performed_by: localStorage.getItem('owner_name') || 'Owner'
         }]);
       }
@@ -165,7 +176,6 @@ export default function BatchDetailsView({
           const bIndex = localItem.batches.findIndex(b => b.batch_id === variables.batch_id);
           if (bIndex >= 0) {
             localItem.batches[bIndex].msp = Number(variables.msp);
-            localItem.batches[bIndex].selling_price = Number(variables.mrp);
             await saveInventoryBatch([localItem]);
           }
         }
@@ -175,10 +185,71 @@ export default function BatchDetailsView({
       queryClient.invalidateQueries({ queryKey: ['inventory_item', barcode] });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       setIsEditingBatch(false);
-      showAlert('Batch pricing updated successfully.', 'Success');
+      showAlert('Batch MSP updated successfully.', 'Success');
     },
     onError: (e) => {
-      showAlert('Failed to update batch: ' + e.message, 'Error');
+      showAlert('Failed to update batch MSP: ' + e.message, 'Error');
+    }
+  });
+
+  // Min quantity update mutation
+  const updateMinQtyMutation = useMutation({
+    mutationFn: async ({ storeQty, whseQty }) => {
+      const parsedStore = Math.max(0, Number(storeQty) || 0);
+      const parsedWhse = Math.max(0, Number(whseQty) || 0);
+
+      const { error } = await supabase
+        .from('product_master')
+        .update({
+          min_quantity_store: parsedStore,
+          min_quantity_warehouse: parsedWhse
+        })
+        .eq('barcode', item.barcode);
+
+      if (error) throw error;
+
+      // Audit log
+      const changes = [];
+      if (Number(item.min_quantity_store ?? 0) !== parsedStore) {
+        changes.push(`Min Store: ${item.min_quantity_store ?? 0} -> ${parsedStore}`);
+      }
+      if (Number(item.min_quantity_warehouse ?? 0) !== parsedWhse) {
+        changes.push(`Min Whse: ${item.min_quantity_warehouse ?? 0} -> ${parsedWhse}`);
+      }
+
+      if (changes.length > 0) {
+        await supabase.from('audit_logs').insert([{
+          action_type: 'UPDATE',
+          barcode: item.barcode,
+          item_name: item.name,
+          changes: `Updated Min Stock Thresholds: ${changes.join(', ')}`,
+          performed_by: localStorage.getItem('owner_name') || 'Owner'
+        }]);
+      }
+
+      return { parsedStore, parsedWhse };
+    },
+    onSuccess: async ({ parsedStore, parsedWhse }) => {
+      try {
+        const localItem = await getInventoryItemByBarcode(item.barcode);
+        if (localItem) {
+          localItem.min_quantity_store = parsedStore;
+          localItem.min_quantity_warehouse = parsedWhse;
+          await saveInventoryBatch([localItem]);
+        }
+      } catch (e) {
+        console.error('Failed to update IDB for min quantities', e);
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['inventory_item', barcode] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['product_master'] });
+      queryClient.invalidateQueries({ queryKey: ['stats'] });
+      setIsEditingMinQty(false);
+      showAlert('Minimum quantities updated successfully.', 'Success');
+    },
+    onError: (e) => {
+      showAlert('Failed to update minimum quantities: ' + e.message, 'Error');
     }
   });
 
@@ -333,7 +404,7 @@ export default function BatchDetailsView({
     );
   }
 
-  const displayUnit = item.unit?.toLowerCase() === 'grams' ? 'g' : item.unit?.toLowerCase() === 'meter' ? 'm' : item.unit?.toLowerCase() === 'sqft' ? 'ft' : (item.unit || 'PCS');
+  const displayUnit = (item.unit?.toLowerCase() === 'kg' || item.unit?.toLowerCase() === 'grams') ? 'kg' : item.unit?.toLowerCase() === 'meter' ? 'm' : item.unit?.toLowerCase() === 'sqft' ? 'ft' : (item.unit || 'PCS');
 
   return (
     <div className="flex-1 flex flex-col h-full min-h-0 animate-fade-in">
@@ -349,30 +420,118 @@ export default function BatchDetailsView({
         </button>
       </div>
 
-      {/* ROW 2: ITEM NAME TO THE CORNER AND BARCODE BESIDE IT ON THE RIGHT */}
-      <div className="flex flex-col gap-1 pb-4 mb-4 border-b border-[var(--border-light)] shrink-0">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] truncate" title={item.name}>
-            {item.name}
-          </h1>
+      {/* ROW 2: ITEM NAME, BARCODE, CATEGORY & MIN QUANTITY THRESHOLDS */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 pb-4 mb-4 border-b border-[var(--border-light)] shrink-0">
+        <div className="flex flex-col gap-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] truncate" title={item.name}>
+              {item.name}
+            </h1>
 
-          <span 
-            className="px-2.5 py-0.5 text-xs font-bold rounded tracking-wider shrink-0"
-            style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', border: '1px solid rgba(59, 130, 246, 0.3)' }}
-          >
-            #{item.barcode}
-          </span>
-
-          {item.is_loose_item && (
-            <span className="shrink-0 px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/25">
-              Loose
+            <span 
+              className="px-2.5 py-0.5 text-xs font-bold rounded tracking-wider shrink-0"
+              style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', border: '1px solid rgba(59, 130, 246, 0.3)' }}
+            >
+              #{item.barcode}
             </span>
-          )}
+
+            {item.is_loose_item && (
+              <span className="shrink-0 px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/25">
+                Loose
+              </span>
+            )}
+          </div>
+
+          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+            {item.category || 'General'} {item.sub_category ? `› ${item.sub_category}` : ''}
+          </p>
         </div>
 
-        <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-          {item.category || 'General'} {item.sub_category ? `› ${item.sub_category}` : ''}
-        </p>
+        {/* MIN QUANTITY (STORE & WHSE) THRESHOLDS */}
+        <div className="shrink-0 self-start sm:self-center">
+          {isEditingMinQty ? (
+            <div className="flex items-center gap-2 bg-[var(--bg-secondary)] px-3 py-1.5 rounded-lg border border-[var(--border-medium)] text-xs shadow-sm animate-fade-in">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+                Min Alert:
+              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-[var(--text-secondary)]">Store</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={minQtyForm.store}
+                  onChange={e => setMinQtyForm(prev => ({ ...prev, store: e.target.value }))}
+                  className="w-14 h-7 px-2 text-xs font-bold rounded bg-[var(--bg-input)] border border-[var(--border-medium)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] text-center"
+                  placeholder="0"
+                  autoFocus
+                />
+              </div>
+              <span className="text-[var(--text-tertiary)] opacity-30">•</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-[var(--text-secondary)]">Whse</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={minQtyForm.warehouse}
+                  onChange={e => setMinQtyForm(prev => ({ ...prev, warehouse: e.target.value }))}
+                  className="w-14 h-7 px-2 text-xs font-bold rounded bg-[var(--bg-input)] border border-[var(--border-medium)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] text-center"
+                  placeholder="0"
+                />
+              </div>
+              <span className="text-[11px] text-[var(--text-tertiary)]">{displayUnit}</span>
+
+              <div className="flex items-center gap-1 ml-1.5 pl-1.5 border-l border-[var(--border-light)]">
+                <button
+                  onClick={() => {
+                    updateMinQtyMutation.mutate({
+                      storeQty: minQtyForm.store,
+                      whseQty: minQtyForm.warehouse
+                    });
+                  }}
+                  disabled={updateMinQtyMutation.isPending}
+                  className="h-7 px-2.5 rounded bg-[var(--color-success)] text-white text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 transition-all shadow-sm hover:brightness-110 disabled:opacity-50 cursor-pointer"
+                  title="Save Minimum Quantities"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>{updateMinQtyMutation.isPending ? '...' : 'Save'}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setIsEditingMinQty(false);
+                    setMinQtyForm({
+                      store: item.min_quantity_store ?? 0,
+                      warehouse: item.min_quantity_warehouse ?? 0
+                    });
+                  }}
+                  className="h-7 px-2 rounded border border-red-500/40 text-red-400 hover:bg-red-500/10 text-[11px] font-bold flex items-center justify-center transition-all cursor-pointer"
+                  title="Cancel"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2.5 bg-[var(--bg-secondary)] px-3 py-1.5 rounded-lg border border-[var(--border-light)] text-xs text-[var(--text-secondary)] shadow-sm">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Min Alert:</span>
+              <span className="text-[var(--text-primary)] font-medium">Store <strong className="text-[var(--text-primary)] font-bold">{item.min_quantity_store ?? 0} {displayUnit}</strong></span>
+              <span className="text-[var(--text-tertiary)] opacity-30">•</span>
+              <span className="text-[var(--text-primary)] font-medium">Whse <strong className="text-[var(--text-primary)] font-bold">{item.min_quantity_warehouse ?? 0} {displayUnit}</strong></span>
+              
+              <div className="w-[1px] h-3.5 bg-[var(--border-light)] mx-0.5" />
+              
+              <button
+                onClick={() => setIsEditingMinQty(true)}
+                className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)] hover:text-[var(--color-accent)] transition-colors cursor-pointer"
+                title="Edit Minimum Quantities for Store and Warehouse"
+              >
+                <Edit3 className="w-3 h-3 text-[var(--color-accent)]" />
+                <span>Edit</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* BROWSER-STYLE TAB BAR */}
@@ -495,12 +654,11 @@ export default function BatchDetailsView({
                         onClick={() => {
                           updateBatchMutation.mutate({
                             batch_id: activeBatch.batch_id,
-                            msp: batchEditForm.msp,
-                            mrp: batchEditForm.mrp
+                            msp: batchEditForm.msp
                           });
                         }}
                         disabled={updateBatchMutation.isPending}
-                        className="h-8 px-3 rounded-lg bg-[var(--color-success)] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm hover:brightness-110 disabled:opacity-50"
+                        className="h-8 px-3 rounded-lg bg-[var(--color-success)] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm hover:brightness-110 disabled:opacity-50 cursor-pointer"
                       >
                         <Check className="w-3.5 h-3.5" />
                         {updateBatchMutation.isPending ? 'Saving...' : 'Save'}
@@ -514,7 +672,7 @@ export default function BatchDetailsView({
                             mrp: activeBatch.selling_price ?? item?.price ?? 0
                           });
                         }}
-                        className="h-8 px-3 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all"
+                        className="h-8 px-3 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
                       >
                         <X className="w-3.5 h-3.5" />
                         Cancel
@@ -525,16 +683,16 @@ export default function BatchDetailsView({
                       {viewType !== 'recycle' && (
                         <button
                           onClick={() => setIsEditingBatch(true)}
-                          className="h-8 px-3 rounded-lg border border-[var(--border-medium)] text-[var(--text-primary)] hover:bg-white/5 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all"
-                          title="Edit Batch MSP & MRP"
+                          className="h-8 px-3 rounded-lg border border-[var(--border-medium)] hover:border-[var(--color-accent)] text-[var(--text-primary)] hover:bg-white/5 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
+                          title="Edit Batch Floor Price (MSP)"
                         >
-                          <Edit3 className="w-3.5 h-3.5" />
-                          Edit Pricing
+                          <Edit3 className="w-3.5 h-3.5 text-[var(--color-accent)]" />
+                          Edit Price
                         </button>
                       )}
                       <button
                         onClick={() => setPrintBatchModal({ isOpen: true, batch: activeBatch })}
-                        className="h-8 px-3 rounded-lg border border-[var(--color-accent)] text-[var(--color-accent)] hover:bg-[var(--color-accent-bg)] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all"
+                        className="h-8 px-3 rounded-lg border border-[var(--color-accent)] text-[var(--color-accent)] hover:bg-[var(--color-accent-bg)] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
                         title="Print Barcode Labels for this batch"
                       >
                         <Printer className="w-3.5 h-3.5" />
@@ -594,6 +752,7 @@ export default function BatchDetailsView({
                       value={batchEditForm.msp}
                       onChange={e => setBatchEditForm(prev => ({ ...prev, msp: e.target.value }))}
                       className="w-full h-7 px-2 text-sm font-bold rounded bg-[var(--bg-input)] border border-[var(--color-accent)] text-[var(--text-primary)] focus:outline-none"
+                      autoFocus
                     />
                   ) : (
                     <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
@@ -608,19 +767,9 @@ export default function BatchDetailsView({
                   <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1">
                     Selling Price (MRP)
                   </span>
-                  {isEditingBatch ? (
-                    <input
-                      type="number"
-                      step="any"
-                      value={batchEditForm.mrp}
-                      onChange={e => setBatchEditForm(prev => ({ ...prev, mrp: e.target.value }))}
-                      className="w-full h-7 px-2 text-sm font-bold rounded bg-[var(--bg-input)] border border-[var(--color-accent)] text-[var(--text-primary)] focus:outline-none"
-                    />
-                  ) : (
-                    <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
-                      ₹{Number(activeBatch.selling_price ?? item.price ?? 0).toFixed(2)}
-                    </span>
-                  )}
+                  <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                    ₹{Number(activeBatch.selling_price ?? item.price ?? 0).toFixed(2)}
+                  </span>
                   <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">List Price</span>
                 </div>
 

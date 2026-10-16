@@ -580,12 +580,12 @@ tbody tr:hover {
   opacity: 1 !important;
 }
 
-thead,
+thead:not(.thermal-receipt thead):not(#printable-receipt thead),
 thead.sticky,
 thead[class*="sticky"],
 .sticky thead,
 thead.glass-header,
-table thead {
+table:not(.thermal-receipt table):not(#printable-receipt table) thead {
   position: sticky !important;
   top: 0 !important;
   z-index: 20 !important;
@@ -595,10 +595,10 @@ table thead {
   opacity: 1 !important;
 }
 
-table thead th,
-table thead tr th,
-thead th,
-thead tr th,
+table:not(.thermal-receipt table):not(#printable-receipt table) thead th,
+table:not(.thermal-receipt table):not(#printable-receipt table) thead tr th,
+thead:not(.thermal-receipt thead):not(#printable-receipt thead) th,
+thead:not(.thermal-receipt thead):not(#printable-receipt thead) tr th,
 thead.sticky th,
 thead[class*="sticky"] th,
 thead.sticky tr th,
@@ -616,6 +616,52 @@ th[class*="sticky"] {
   opacity: 1 !important;
   box-shadow: 0 1px 0 var(--border-medium) !important;
   background-clip: padding-box !important;
+}
+
+/* ---------------------------------------------------------------
+   BILL & THERMAL RECEIPT TABLE OVERRIDES
+   Ensure bill headers and rows are always crisp, transparent/white, and non-sticky
+   --------------------------------------------------------------- */
+.thermal-receipt,
+.thermal-receipt *,
+#printable-receipt,
+#printable-receipt * {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+}
+
+.thermal-receipt table,
+.thermal-receipt table thead,
+.thermal-receipt thead,
+.thermal-receipt thead tr,
+.thermal-receipt thead th,
+.thermal-receipt thead tr th,
+.thermal-receipt table thead th,
+.thermal-receipt table thead tr th,
+.thermal-receipt th,
+.thermal-receipt td,
+.thermal-receipt tr,
+.thermal-receipt tbody,
+#printable-receipt table,
+#printable-receipt table thead,
+#printable-receipt thead,
+#printable-receipt thead tr,
+#printable-receipt thead th,
+#printable-receipt thead tr th,
+#printable-receipt table thead th,
+#printable-receipt table thead tr th,
+#printable-receipt th,
+#printable-receipt td,
+#printable-receipt tr,
+#printable-receipt tbody {
+  background-color: transparent !important;
+  background: transparent !important;
+  position: static !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
 }
 
 .premium-hover {

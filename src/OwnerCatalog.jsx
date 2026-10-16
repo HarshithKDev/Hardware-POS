@@ -271,7 +271,8 @@ export default function OwnerCatalog() {
         const rowType = String(row.type || row.Type || 'Standard').trim().toLowerCase();
         const isLoose = rowType === 'loose';
         const isCuttable = rowType === 'cuttable';
-        const unit = String(row.unit || row.Unit || 'PCS').trim();
+        let unit = String(row.unit || row.Unit || 'PCS').trim().toUpperCase();
+        if (unit === 'GRAMS' || unit === 'GRAM' || unit === 'G') unit = 'KG';
         
         return {
           barcode: String(row.barcode || row.Barcode || '').trim(),
@@ -543,14 +544,14 @@ export default function OwnerCatalog() {
               <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-min-qty-whse">Min Qty (Warehouse)</label>
               <div className="relative">
                 <input id="item-min-qty-whse" type="number" required step="1" min="0" value={form.min_quantity_warehouse} onChange={(e) => setForm({ ...form, min_quantity_warehouse: e.target.value })} placeholder="e.g. 10" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-                <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{form.item_type === 'cuttable' ? 'PCS' : (UNIT_TYPES.find(u => u.value === form.unit)?.label || form.unit)}</span>
+                <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{form.item_type === 'cuttable' ? 'PCS' : (form.unit === 'KG' ? 'KG' : (UNIT_TYPES.find(u => u.value === form.unit)?.label || form.unit))}</span>
               </div>
             </div>
             <div className="flex-1">
               <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-min-qty-store">Min Qty (Store)</label>
               <div className="relative">
                 <input id="item-min-qty-store" type="number" required step="1" min="0" value={form.min_quantity_store} onChange={(e) => setForm({ ...form, min_quantity_store: e.target.value })} placeholder="e.g. 5" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-                <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{form.item_type === 'cuttable' ? 'PCS' : (UNIT_TYPES.find(u => u.value === form.unit)?.label || form.unit)}</span>
+                <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{form.item_type === 'cuttable' ? 'PCS' : (form.unit === 'KG' ? 'KG' : (UNIT_TYPES.find(u => u.value === form.unit)?.label || form.unit))}</span>
               </div>
             </div>
           </div>

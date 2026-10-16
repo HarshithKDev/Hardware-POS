@@ -13,7 +13,7 @@ export default function BarcodePrinter() {
     const u = unit.toUpperCase();
     if (u === 'METER') return 'm';
     if (u === 'SQFT') return 'sqft';
-    if (u === 'GRAMS') return 'g';
+    if (u === 'KG' || u === 'KGS' || u === 'GRAMS' || u === 'GRAM' || u === 'G') return 'kg';
     if (u === 'PCS') return 'pcs';
     return unit.toLowerCase();
   };

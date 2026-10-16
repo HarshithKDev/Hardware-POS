@@ -26,7 +26,7 @@ export const getWorkerEmail = (name) =>
 // --- Unit Types ---
 export const UNIT_TYPES = [
   { value: 'PCS', label: 'Pieces' },
-  { value: 'GRAMS', label: 'Grams' },
+  { value: 'KG', label: 'KG (per kg)' },
   { value: 'SQFT', label: 'Sq Ft' },
   { value: 'METER', label: 'Meters (m)' },
   { value: 'FT', label: 'Feet (FT)' },

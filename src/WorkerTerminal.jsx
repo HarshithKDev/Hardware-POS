@@ -1458,6 +1458,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         paymentMethod: paymentMethod,
         cashAmount: cashAmount,
         upiAmount: upiAmount,
+        customerName: checkoutModal.customerName || null,
+        customerPhone: checkoutModal.customerPhone || null,
       });
 
       if (activeCartTab.startsWith('held_')) {
@@ -1717,7 +1719,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             <form onSubmit={handleLooseItemSubmit}>
               <div className="p-6">
                 <p className="text-sm mb-4 font-semibold">{looseItemModal.item?.name}</p>
-                <label htmlFor="loose-qty" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Enter Quantity</label>
+                <label htmlFor="loose-qty" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Enter Quantity {looseItemModal.item?.unit ? `(${looseItemModal.item.unit})` : ''}</label>
                 <input id="loose-qty" type="number" step="any" min="0" autoFocus value={looseItemModal.qty} onChange={(e) => { const v = parseFloat(e.target.value); setLooseItemModal({ ...looseItemModal, qty: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder="0" className="w-full h-12 px-4 text-2xl  focus:outline-none rounded-md" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
               </div>
               <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>

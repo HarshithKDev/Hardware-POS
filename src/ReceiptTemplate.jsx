@@ -11,7 +11,50 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
       className={`${isPreview ? 'mx-auto shadow-md border border-gray-300 w-full p-4 md:p-6 bg-white box-border' : 'hidden print:block'} thermal-receipt font-bold`} 
       style={{ fontFamily: "'Courier New', Courier, monospace", color: '#000000', backgroundColor: '#ffffff', lineHeight: 1.2, fontWeight: 'bold' }}
     >
-      <style>{`@media print { @page { margin: 0; } body { min-width: 100% !important; font-weight: bold !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } * { font-weight: bold !important; } }`}</style>
+      <style>{`
+        .thermal-receipt, .thermal-receipt * {
+          color: #000000 !important;
+          -webkit-text-fill-color: #000000 !important;
+        }
+        .thermal-receipt table,
+        .thermal-receipt table thead,
+        .thermal-receipt thead,
+        .thermal-receipt thead tr,
+        .thermal-receipt thead th,
+        .thermal-receipt thead tr th,
+        .thermal-receipt table thead th,
+        .thermal-receipt table thead tr th,
+        .thermal-receipt th,
+        .thermal-receipt td,
+        .thermal-receipt tr,
+        .thermal-receipt tbody,
+        #printable-receipt table,
+        #printable-receipt table thead,
+        #printable-receipt thead,
+        #printable-receipt thead tr,
+        #printable-receipt thead th,
+        #printable-receipt thead tr th,
+        #printable-receipt table thead th,
+        #printable-receipt table thead tr th,
+        #printable-receipt th,
+        #printable-receipt td,
+        #printable-receipt tr,
+        #printable-receipt tbody {
+          background-color: transparent !important;
+          background: transparent !important;
+          position: static !important;
+          box-shadow: none !important;
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
+          color: #000000 !important;
+          -webkit-text-fill-color: #000000 !important;
+        }
+        @media print { 
+          @page { margin: 0; } 
+          body { min-width: 100% !important; font-weight: bold !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } 
+          * { font-weight: bold !important; } 
+        }
+      `}</style>
       <div className="text-center mb-3">
         <h1 className="font-bold uppercase text-black whitespace-pre-line mx-auto break-words" style={{ color: '#000', fontSize: '16px' }}>
           {(shopSettings?.shop_name || 'STORE RECEIPT').replace(/ AND DECOR/i, ' AND\nDECOR')}
@@ -27,31 +70,33 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
         <div>
           <p>Txn ID: {lastReceipt.id}</p>
           <p>Date: {formatDateTime(lastReceipt.date).datePart}</p>
+          {lastReceipt.customerName && <p>Customer: {lastReceipt.customerName}</p>}
         </div>
         <div className="text-right">
           <p>Type: POS SALE</p>
           <p>Time: {formatDateTime(lastReceipt.date).timePart}</p>
+          {lastReceipt.customerPhone && <p>Phone: {lastReceipt.customerPhone}</p>}
         </div>
       </div>
       
-      <table className="w-full table-fixed mb-3 text-black" style={{ color: '#000', fontSize: '10px' }}>
-        <thead>
-          <tr className="border-b border-black border-dashed">
-            <th className="text-left font-semibold pb-1 w-4/12 text-black" style={{ color: '#000' }}>Item</th>
-            <th className="text-center font-semibold pb-1 w-2/12 text-black" style={{ color: '#000' }}>Qty</th>
-            <th className="text-right font-semibold pb-1 w-2/12 pr-1 text-black" style={{ color: '#000' }}>MRP</th>
-            <th className="text-right font-semibold pb-1 w-2/12 pr-1 text-black" style={{ color: '#000' }}>Rate</th>
-            <th className="text-right font-semibold pb-1 w-2/12 text-black" style={{ color: '#000' }}>Amt</th>
+      <table className="w-full table-fixed mb-3 text-black" style={{ color: '#000', fontSize: '10px', backgroundColor: 'transparent' }}>
+        <thead style={{ backgroundColor: 'transparent', position: 'static' }}>
+          <tr className="border-b border-black border-dashed" style={{ backgroundColor: 'transparent' }}>
+            <th className="text-left font-semibold pb-1 w-4/12 text-black" style={{ color: '#000', backgroundColor: 'transparent', boxShadow: 'none', position: 'static' }}>Item</th>
+            <th className="text-center font-semibold pb-1 w-2/12 text-black" style={{ color: '#000', backgroundColor: 'transparent', boxShadow: 'none', position: 'static' }}>Qty</th>
+            <th className="text-right font-semibold pb-1 w-2/12 pr-1 text-black" style={{ color: '#000', backgroundColor: 'transparent', boxShadow: 'none', position: 'static' }}>MRP</th>
+            <th className="text-right font-semibold pb-1 w-2/12 pr-1 text-black" style={{ color: '#000', backgroundColor: 'transparent', boxShadow: 'none', position: 'static' }}>Rate</th>
+            <th className="text-right font-semibold pb-1 w-2/12 text-black" style={{ color: '#000', backgroundColor: 'transparent', boxShadow: 'none', position: 'static' }}>Amt</th>
           </tr>
         </thead>
-        <tbody className="align-top">
+        <tbody className="align-top" style={{ backgroundColor: 'transparent' }}>
           {lastReceipt.items.map((item, i) => (
-            <tr key={i} className="hover:!bg-transparent">
-              <td className="py-1 pr-1 text-black break-words" style={{ color: '#000' }}>{item.name}</td>
-              <td className="py-1 text-center text-black" style={{ color: '#000' }}>{item.quantity} {item.unit}</td>
-              <td className="py-1 text-right pr-1 text-black" style={{ color: '#000' }}>{item.mrp.toFixed(2)}</td>
-              <td className="py-1 text-right pr-1 text-black" style={{ color: '#000' }}>{item.finalRate.toFixed(2)}</td>
-              <td className="py-1 text-right text-black" style={{ color: '#000' }}>{item.lineTotal.toFixed(2)}</td>
+            <tr key={i} className="hover:!bg-transparent" style={{ backgroundColor: 'transparent' }}>
+              <td className="py-1 pr-1 text-black break-words" style={{ color: '#000', backgroundColor: 'transparent' }}>{item.name}</td>
+              <td className="py-1 text-center text-black" style={{ color: '#000', backgroundColor: 'transparent' }}>{item.quantity} {item.unit}</td>
+              <td className="py-1 text-right pr-1 text-black" style={{ color: '#000', backgroundColor: 'transparent' }}>{item.mrp.toFixed(2)}</td>
+              <td className="py-1 text-right pr-1 text-black" style={{ color: '#000', backgroundColor: 'transparent' }}>{item.finalRate.toFixed(2)}</td>
+              <td className="py-1 text-right text-black" style={{ color: '#000', backgroundColor: 'transparent' }}>{item.lineTotal.toFixed(2)}</td>
             </tr>
           ))}
         </tbody>
