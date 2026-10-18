@@ -9,7 +9,7 @@ import { AlertDialog, ConfirmDialog } from './Dialog';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from './AppContext';
 import { startBackgroundSync, stopBackgroundSync } from './services/sync';
-import { WifiOff, ScanBarcode, LayoutDashboard, Printer, Moon, Sun, LogOut } from 'lucide-react';
+import { WifiOff, ScanBarcode, LayoutDashboard, Moon, Sun, LogOut } from 'lucide-react';
 
 import { useQuery } from '@tanstack/react-query';
 
