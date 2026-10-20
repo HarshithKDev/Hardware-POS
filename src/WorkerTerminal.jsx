@@ -30,11 +30,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const { 
     cart, setCart,
     removeItem: handleRemoveItem,
-    customPriceChange: onCustomPriceChange,
-    customPriceBlur: onCustomPriceBlur,
-    customPriceChangeGroup: onCustomPriceChangeGroup,
-    customPriceBlurGroup: onCustomPriceBlurGroup, 
-    activeCartTab, switchCartTab,
+    activeCartTab, setActiveCartTab, switchCartTab,
     cartSessions, setCartSessions, 
     heldCarts, setHeldCarts,
     clearCart
@@ -1068,6 +1064,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   };
 
   const handleCompleteTransaction = async () => {
+    if (isCheckingOut) return;
     let finalCart = cart.filter(i => Number(i.quantity) > 0);
     if (finalCart.length === 0) return;
 
@@ -1081,14 +1078,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       const activeTotalCents = Math.round(activeTotal * 100);
 
       if (checkoutModal.paymentMethod === 'CASH') {
-        if (checkoutModal.cashGiven === '') {
-          setCheckoutModal(prev => ({ ...prev, error: "Please enter the Cash Given by the customer." }));
-          return;
-        }
-        const cashGivenCents = Math.round(Number(checkoutModal.cashGiven) * 100);
-        if (cashGivenCents < activeTotalCents) {
-          setCheckoutModal(prev => ({ ...prev, error: "Cash given is less than the total due." }));
-          return;
+        if (checkoutModal.cashGiven !== '') {
+          const cashGivenCents = Math.round(Number(checkoutModal.cashGiven) * 100);
+          if (cashGivenCents < activeTotalCents) {
+            setCheckoutModal(prev => ({ ...prev, error: "Cash given is less than the total due." }));
+            return;
+          }
         }
       } else if (checkoutModal.paymentMethod === 'SPLIT') {
         if (checkoutModal.splitCash === '' || checkoutModal.splitUpi === '') {
@@ -1543,20 +1538,23 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           delete next[activeCartTab];
           return next;
         });
-        setActiveCartTab('local');
-        setCart(cartSessions['local'] || []);
+        switchCartTab('local');
       } else if (activeCartTab !== 'local') {
         // Delete the remote cart
         supabase.from('pending_carts').delete().eq('id', activeCartTab).then().catch(console.error);
         // Clear local session for this tab and switch to local
-        setCartSessions(prev => ({ ...prev, [activeCartTab]: [] }));
-        setActiveCartTab('local');
-        setCart(cartSessions['local'] || []);
+        setCartSessions(prev => {
+          const next = { ...prev };
+          delete next[activeCartTab];
+          return next;
+        });
+        switchCartTab('local');
       } else {
         setCart([]);
+        setCartSessions(prev => ({ ...prev, local: [] }));
       }
       
-      setCheckoutModal({ isOpen: false, cashGiven: '' });
+      setCheckoutModal(prev => ({ ...prev, isOpen: false, cashGiven: '', negotiatedTotal: '', error: '' }));
 
       if (activeTab === 'checkout') {
         setPrintPreviewOpen(true);
@@ -1592,10 +1590,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   
   const cashGivenCents = checkoutModal.paymentMethod === 'CASH' ? Math.round(Number(checkoutModal.cashGiven || 0) * 100) : 0;
   const splitTotalCents = Math.round(Number(checkoutModal.splitUpi || 0) * 100) + Math.round(Number(checkoutModal.splitCash || 0) * 100);
-  const differenceCents = Math.abs(cashGivenCents - activeTotalCents);
   const isShortfall = checkoutModal.paymentMethod === 'SPLIT' 
     ? splitTotalCents !== activeTotalCents
-    : (checkoutModal.paymentMethod === 'CASH' && cashGivenCents > 0 && cashGivenCents < activeTotalCents);
+    : (checkoutModal.paymentMethod === 'CASH' && checkoutModal.cashGiven !== '' && cashGivenCents > 0 && cashGivenCents < activeTotalCents);
 
   const isMobileScannerTab = window.innerWidth < 768 && (activeTab === 'receive' || activeTab === 'transfer');
 
@@ -1670,7 +1667,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
                 {checkoutModal.paymentMethod === 'CASH' && (
                   <div className="mb-4">
-                    <label htmlFor="cash-given" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Cash Given (₹)</label>
+                    <label htmlFor="cash-given" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>
+                      Cash Given (₹) <span className="text-[10px] font-normal normal-case opacity-70 ml-1">(Optional)</span>
+                    </label>
                     <input 
                       id="cash-given" 
                       type="number" 
@@ -1681,7 +1680,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                         const v = parseFloat(e.target.value); 
                         setCheckoutModal({ ...checkoutModal, error: '', cashGiven: (isNaN(v) || v < 0) && e.target.value !== '' ? checkoutModal.cashGiven : e.target.value }) 
                       }} 
-                      placeholder={`e.g. ${Math.ceil(activeTotal / 100) * 100 || 500}`} 
+                      placeholder={`e.g. ${Math.ceil(activeTotal / 100) * 100 || 500} (optional)`} 
                       className="w-full h-12 px-4 text-2xl focus:outline-none rounded-md" 
                       style={{ border: checkoutModal.error && isShortfall ? '1px solid var(--color-error)' : '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} 
                     />

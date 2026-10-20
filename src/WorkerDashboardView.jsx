@@ -151,12 +151,12 @@ export default function WorkerDashboardView({ isBillable = true }) {
               <span className="font-bold text-xs md:text-sm lg:text-base leading-tight">Checkout<br/>Customer</span>
             </button>
             <button 
-              onClick={() => navigate('/terminal/returns')}
+              onClick={() => navigate('/terminal/sales')}
               className="p-3 md:p-4 lg:p-5 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
               style={{ backgroundColor: '#ef4444', color: 'white' }}
             >
               <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
-              <span className="font-bold text-xs md:text-sm lg:text-base leading-tight">Process<br/>Returns</span>
+              <span className="font-bold text-xs md:text-sm lg:text-base leading-tight">Sales &<br/>Returns</span>
             </button>
             <button 
               onClick={() => navigate('/terminal/expenses')}

@@ -3,6 +3,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { CartProvider, useCart } from '../contexts/CartContext';
 import React from 'react';
 
+import { AppProvider } from '../AppContext';
+
 // Mock localStorage
 const localStorageMock = (() => {
   let store = {};
@@ -20,7 +22,11 @@ describe('CartContext Financial Math', () => {
     vi.useFakeTimers();
   });
 
-  const wrapper = ({ children }) => <CartProvider activeTab="test">{children}</CartProvider>;
+  const wrapper = ({ children }) => (
+    <AppProvider>
+      <CartProvider activeTab="test">{children}</CartProvider>
+    </AppProvider>
+  );
 
   it('calculates total for empty cart', () => {
     const { result } = renderHook(() => useCart(), { wrapper });
@@ -115,5 +121,25 @@ describe('CartContext Financial Math', () => {
     expect(validateSplitPayment(100, 10)).toBe(false);
     // Edge case empty inputs
     expect(validateSplitPayment('', 100)).toBe(true);
+  });
+
+  it('exposes setActiveCartTab and handles switching between held carts and local', () => {
+    const { result } = renderHook(() => useCart(), { wrapper });
+
+    expect(typeof result.current.setActiveCartTab).toBe('function');
+    expect(typeof result.current.switchCartTab).toBe('function');
+    expect(result.current.activeCartTab).toBe('local');
+
+    // Simulate switching to a held cart
+    act(() => {
+      result.current.setActiveCartTab('held_test_123');
+    });
+    expect(result.current.activeCartTab).toBe('held_test_123');
+
+    // Simulate completing or returning to local
+    act(() => {
+      result.current.switchCartTab('local');
+    });
+    expect(result.current.activeCartTab).toBe('local');
   });
 });

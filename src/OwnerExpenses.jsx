@@ -23,13 +23,10 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDbConnected, setIsDbConnected] = useState(true);
-  const [showSqlHelp, setShowSqlHelp] = useState(false);
-  const [copiedSql, setCopiedSql] = useState(false);
 
   // New Expense Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedWorkerId, setSelectedWorkerId] = useState('');
-  const [customWorkerName, setCustomWorkerName] = useState('');
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
 
@@ -109,24 +106,19 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
     }
 
     if (!reason.trim()) {
-      showAlert('Please enter a reason or purpose for this advance.', 'Reason Required');
+      showAlert('Please enter a description or reason.', 'Description Required');
       return;
     }
 
     let finalWorkerName = 'General Shop';
     let finalWorkerId = null;
 
-    if (selectedWorkerId === 'GENERAL') {
-      finalWorkerName = customWorkerName.trim() || 'General Shop';
-    } else if (selectedWorkerId) {
+    if (selectedWorkerId && selectedWorkerId !== 'GENERAL') {
       const found = workers.find(w => w.id === selectedWorkerId);
       if (found) {
         finalWorkerName = found.name;
         finalWorkerId = found.id;
       }
-    } else {
-      showAlert('Please select a worker or choose General Shop.', 'Worker Required');
-      return;
     }
 
     setIsSaving(true);
@@ -159,7 +151,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
           action_type: 'EXPENSE',
           barcode: 'CASH',
           item_name: finalWorkerName,
-          changes: `Advance: ₹${numAmount} given to ${finalWorkerName} for "${reason.trim()}" (Deducted from salary)`,
+          changes: `Expense: ₹${numAmount} for "${reason.trim()}" (${finalWorkerName})`,
           performed_by: currentCashier
         }]);
       } catch (auditErr) {
@@ -171,39 +163,18 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
       setExpenses(updatedExpenses);
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedExpenses));
 
-      showAlert(`Recorded ₹${numAmount.toFixed(2)} given to ${finalWorkerName}.`, 'Recorded');
+      showAlert(`Recorded ₹${numAmount.toFixed(2)} for ${reason.trim()}.`, 'Recorded');
 
       // Reset form
       setAmount('');
       setReason('');
       setSelectedWorkerId('');
-      setCustomWorkerName('');
       setIsModalOpen(false);
     } catch (err) {
-      showAlert(err.message || 'Failed to record advance.', 'Error');
+      showAlert(err.message || 'Failed to record expense.', 'Error');
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const sqlSnippet = `CREATE TABLE IF NOT EXISTS public.expenses (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    worker_id UUID REFERENCES public.workers(id) ON DELETE SET NULL,
-    worker_name TEXT NOT NULL,
-    amount NUMERIC NOT NULL,
-    reason TEXT NOT NULL,
-    notes TEXT,
-    recorded_by TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all on expenses" ON public.expenses FOR ALL USING (true) WITH CHECK (true);`;
-
-  const copySql = () => {
-    navigator.clipboard.writeText(sqlSnippet);
-    setCopiedSql(true);
-    setTimeout(() => setCopiedSql(false), 2500);
   };
 
   const totalExpenses = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
@@ -211,74 +182,35 @@ CREATE POLICY "Allow all on expenses" ON public.expenses FOR ALL USING (true) WI
   return (
     <div className="h-full flex flex-col relative w-full animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-5">
         <div>
           <h1 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>
-            Expenses &amp; Advances
+            Expenses
           </h1>
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
           {totalExpenses > 0 && (
             <div 
-              className="h-11 px-4 rounded-lg border hidden sm:flex flex-col justify-center text-center shrink-0 min-w-[140px]" 
+              className="h-10 px-4 rounded-lg border hidden sm:flex flex-col justify-center text-center shrink-0 min-w-[130px]" 
               style={{ backgroundColor: 'var(--color-accent-bg)', borderColor: 'rgba(59, 130, 246, 0.3)' }}
             >
-              <span className="text-[10px] font-bold uppercase tracking-wider leading-none" style={{ color: 'var(--color-accent)' }}>Total Advances</span>
-              <span className="text-base font-bold leading-tight mt-0.5" style={{ color: 'var(--color-accent)' }}>₹{totalExpenses.toFixed(2)}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider leading-none" style={{ color: 'var(--color-accent)' }}>Total Expenses</span>
+              <span className="text-sm font-bold leading-tight mt-0.5" style={{ color: 'var(--color-accent)' }}>₹{totalExpenses.toFixed(2)}</span>
             </div>
           )}
           <button
             onClick={() => setIsModalOpen(true)}
-            className="h-11 px-5 rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 text-white shadow-sm transition-all active:scale-95 shrink-0"
+            className="h-10 px-4 rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 text-white shadow-sm transition-all active:scale-95 shrink-0"
             style={{ backgroundColor: 'var(--color-accent)' }}
           >
             <Plus size={16} strokeWidth={2.5} />
-            <span>Record Advance</span>
+            <span>Add Expense</span>
           </button>
         </div>
       </div>
 
-      {/* Cloud DB Notice if table not yet in Supabase */}
-      {!isDbConnected && (
-        <div className="p-3.5 mb-4 rounded-xl border border-blue-500/30 bg-blue-500/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs shrink-0">
-          <div className="flex items-center gap-2.5 text-blue-400 font-medium">
-            <AlertCircle size={18} className="shrink-0" />
-            <span>
-              <strong>Local Mode Active:</strong> Expenses are saving locally &amp; logged to Audit Logs. To enable full cloud sync across devices, run the 1-click SQL snippet in your Supabase SQL Editor.
-            </span>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={copySql}
-              className="px-3 py-1.5 rounded-lg font-bold bg-[var(--color-accent)] text-white flex items-center gap-1.5 transition-transform active:scale-95"
-            >
-              <Copy size={13} />
-              {copiedSql ? 'Copied SQL!' : 'Copy SQL Script'}
-            </button>
-            <button
-              onClick={() => setShowSqlHelp(!showSqlHelp)}
-              className="px-2.5 py-1.5 rounded-lg font-bold border border-blue-500/40 text-blue-300 hover:bg-blue-500/20"
-            >
-              {showSqlHelp ? 'Hide SQL' : 'View SQL'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {showSqlHelp && (
-        <div className="p-4 mb-4 rounded-xl bg-black/60 border border-[var(--border-light)] text-xs font-mono relative shrink-0">
-          <button onClick={() => setShowSqlHelp(false)} className="absolute top-3 right-3 text-gray-400 hover:text-white">
-            <X size={16} />
-          </button>
-          <p className="text-[var(--color-accent)] font-bold mb-2">Paste this in your Supabase SQL Editor:</p>
-          <pre className="p-3 bg-zinc-900 rounded text-emerald-400 overflow-x-auto text-[11px] leading-relaxed">
-            {sqlSnippet}
-          </pre>
-        </div>
-      )}
-
-      {/* Main Table Container */}
+      {/* Main Container */}
       <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] shadow-sm p-4">
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center p-8">
@@ -286,26 +218,26 @@ CREATE POLICY "Allow all on expenses" ON public.expenses FOR ALL USING (true) WI
           </div>
         ) : expenses.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-            <div className="w-14 h-14 rounded-full flex items-center justify-center mb-3 bg-[var(--color-accent-bg)] text-[var(--color-accent)]">
-              <Receipt size={28} />
+            <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3 bg-[var(--color-accent-bg)] text-[var(--color-accent)]">
+              <Receipt size={24} />
             </div>
             <h3 className="text-base font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-primary)' }}>
               No Expenses Recorded
             </h3>
-            <p className="text-xs font-medium max-w-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
-              No staff salary advances or shop expenses have been recorded yet. Click below to add one.
+            <p className="text-xs font-medium mb-4" style={{ color: 'var(--text-secondary)' }}>
+              No expenses recorded yet.
             </p>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="h-9 px-4 rounded-lg text-xs font-semibold uppercase tracking-wider text-white shadow-sm"
+              className="h-9 px-4 rounded-lg text-xs font-semibold uppercase tracking-wider text-white shadow-sm cursor-pointer"
               style={{ backgroundColor: 'var(--color-accent)' }}
             >
-              + Record Advance
+              + Add Expense
             </button>
           </div>
         ) : (
           <>
-            {/* Mobile Card List (md:hidden) */}
+            {/* Mobile Card List */}
             <div className="md:hidden flex-1 overflow-y-auto space-y-3">
               {expenses.map((exp) => {
                 const totalAmt = Number(exp.amount) || 0;
@@ -316,45 +248,34 @@ CREATE POLICY "Allow all on expenses" ON public.expenses FOR ALL USING (true) WI
                     className="rounded-xl border border-[var(--border-light)] p-3.5 flex flex-col gap-2 shadow-sm"
                     style={{ backgroundColor: 'var(--bg-tertiary)' }}
                   >
-                    {/* Worker & Amount */}
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>
-                        {exp.worker_name || 'General Shop'}
+                        {exp.reason || 'Expense'}
                       </span>
                       <span className="text-base font-bold" style={{ color: 'var(--color-accent)' }}>
                         ₹{totalAmt.toFixed(2)}
                       </span>
                     </div>
 
-                    {/* Reason */}
-                    <p className="text-xs font-medium text-[var(--text-secondary)] truncate" title={exp.reason}>
-                      {exp.reason}
-                    </p>
-
-                    {/* Date / Time & Given By */}
-                    <div className="flex items-center justify-between text-[11px] pt-2 border-t border-[var(--border-light)]" style={{ color: 'var(--text-tertiary)' }}>
-                      <span>
-                        {formatDateTime(exp.created_at).full}
-                      </span>
-                      <span>
-                        By: <strong style={{ color: 'var(--text-secondary)' }}>{exp.recorded_by || 'Staff'}</strong>
-                      </span>
+                    <div className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
+                      <span>{exp.worker_name || 'General'}</span>
+                      <span>{formatDateTime(exp.created_at).full}</span>
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            {/* Desktop Table (hidden md:block) */}
+            {/* Desktop Table */}
             <div className="hidden md:block flex-1 overflow-x-hidden overflow-y-auto shadow-sm min-h-[300px] md:rounded-lg border border-[var(--border-light)]" style={{ backgroundColor: 'transparent', overscrollBehavior: 'none' }}>
               <table className="w-full text-center border-collapse">
                 <thead className="sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                   <tr className="text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>
-                    <th className="p-3.5 md:p-4 text-center w-[22%]">Date &amp; Time</th>
-                    <th className="p-3.5 md:p-4 text-center w-[20%]">Worker</th>
-                    <th className="p-3.5 md:p-4 text-center w-[28%]">Reason / Purpose</th>
-                    <th className="p-3.5 md:p-4 text-center w-[15%]">Amount</th>
-                    <th className="p-3.5 md:p-4 text-center w-[15%]">Given By</th>
+                    <th className="p-3.5 text-center w-[25%]">Date &amp; Time</th>
+                    <th className="p-3.5 text-center w-[30%]">Description</th>
+                    <th className="p-3.5 text-center w-[20%]">Staff / Category</th>
+                    <th className="p-3.5 text-center w-[15%]">Amount</th>
+                    <th className="p-3.5 text-center w-[10%]">By</th>
                   </tr>
                 </thead>
                 <tbody className="text-sm font-medium">
@@ -367,28 +288,23 @@ CREATE POLICY "Allow all on expenses" ON public.expenses FOR ALL USING (true) WI
                         className="hover:bg-[var(--bg-hover)] transition-colors border-b border-[var(--border-light)]"
                         style={{ borderBottom: '1px solid var(--border-light)' }}
                       >
-                        {/* Date & Time */}
-                        <td className="p-3.5 md:p-4 text-center align-middle whitespace-nowrap text-sm" style={{ color: 'var(--text-primary)' }}>
+                        <td className="p-3.5 text-center align-middle whitespace-nowrap text-sm" style={{ color: 'var(--text-primary)' }}>
                           {formatDateTime(exp.created_at).full}
                         </td>
 
-                        {/* Worker */}
-                        <td className="p-3.5 md:p-4 text-center align-middle whitespace-nowrap text-sm font-medium capitalize" style={{ color: 'var(--text-primary)' }}>
-                          {exp.worker_name || 'General Shop'}
-                        </td>
-
-                        {/* Reason */}
-                        <td className="p-3.5 md:p-4 text-center align-middle text-sm font-medium" style={{ color: 'var(--text-secondary)' }} title={exp.reason}>
+                        <td className="p-3.5 text-center align-middle text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                           {exp.reason || '—'}
                         </td>
 
-                        {/* Amount */}
-                        <td className="p-3.5 md:p-4 text-center align-middle whitespace-nowrap font-bold text-sm" style={{ color: 'var(--color-accent)' }}>
+                        <td className="p-3.5 text-center align-middle whitespace-nowrap text-sm font-medium capitalize" style={{ color: 'var(--text-secondary)' }}>
+                          {exp.worker_name || 'General'}
+                        </td>
+
+                        <td className="p-3.5 text-center align-middle whitespace-nowrap font-bold text-sm" style={{ color: 'var(--color-accent)' }}>
                           ₹{totalAmt.toFixed(2)}
                         </td>
 
-                        {/* Given By */}
-                        <td className="p-3.5 md:p-4 text-center align-middle whitespace-nowrap text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                        <td className="p-3.5 text-center align-middle whitespace-nowrap text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
                           {exp.recorded_by || 'Staff'}
                         </td>
                       </tr>
@@ -401,25 +317,20 @@ CREATE POLICY "Allow all on expenses" ON public.expenses FOR ALL USING (true) WI
         )}
       </div>
 
-      {/* Record Advance Modal */}
+      {/* Add Expense Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md rounded-xl border border-[var(--border-light)] shadow-2xl overflow-hidden flex flex-col bg-[var(--bg-primary)]">
+          <div className="w-full max-w-sm rounded-xl border border-[var(--border-light)] shadow-2xl overflow-hidden flex flex-col bg-[var(--bg-primary)]">
             {/* Header */}
-            <div className="p-4 md:p-5 border-b border-[var(--border-light)] flex justify-between items-center glass-header sticky top-0 z-10">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-md bg-[var(--color-accent-bg)] text-[var(--color-accent)]">
-                  <Receipt size={18} />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-[var(--text-primary)]">Record Money Given</h2>
-                  <p className="text-xs text-[var(--text-tertiary)] font-medium">Logged by: {currentCashier}</p>
-                </div>
+            <div className="p-4 border-b border-[var(--border-light)] flex justify-between items-center bg-[var(--bg-tertiary)]">
+              <div className="flex items-center gap-2">
+                <Receipt size={18} className="text-[var(--color-accent)]" />
+                <h2 className="text-base font-bold text-[var(--text-primary)]">Add Expense</h2>
               </div>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
+                className="p-1 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
               >
                 <X size={16} />
               </button>
@@ -427,49 +338,28 @@ CREATE POLICY "Allow all on expenses" ON public.expenses FOR ALL USING (true) WI
 
             {/* Form */}
             <form onSubmit={handleSaveExpense} className="p-5 flex flex-col gap-4">
-              {/* 1. Worker Selection */}
+              {/* Description */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-secondary)]">
-                  Who is taking the money? <span className="text-[var(--color-accent)]">*</span>
+                  Description <span className="text-[var(--color-accent)]">*</span>
                 </label>
-                <select
-                  value={selectedWorkerId}
-                  onChange={(e) => setSelectedWorkerId(e.target.value)}
+                <input
+                  type="text"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="e.g. Tea & Snacks, Delivery, Shop Repair"
                   required
-                  className="w-full h-10 px-3 text-sm font-medium rounded-md bg-[var(--bg-input)] text-[var(--text-input)] border border-[var(--border-input)] focus:outline-none focus:border-[var(--color-accent)] cursor-pointer"
-                >
-                  <option value="" disabled>-- Select Worker / Staff Member --</option>
-                  {workers.map(w => (
-                    <option key={w.id} value={w.id}>
-                      {w.name} (Staff)
-                    </option>
-                  ))}
-                  <option value="GENERAL">General Shop Expense (No Worker)</option>
-                </select>
+                  autoFocus
+                  className="w-full h-10 px-3 text-sm rounded-md bg-[var(--bg-input)] text-[var(--text-input)] border border-[var(--border-input)] focus:outline-none focus:border-[var(--color-accent)]"
+                />
               </div>
 
-              {/* Custom Name if General */}
-              {selectedWorkerId === 'GENERAL' && (
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-secondary)]">
-                    Expense Payee / Description
-                  </label>
-                  <input
-                    type="text"
-                    value={customWorkerName}
-                    onChange={(e) => setCustomWorkerName(e.target.value)}
-                    placeholder="e.g. Tea stall, Electrician, Auto / Tempo driver"
-                    className="w-full h-10 px-3 text-sm rounded-md bg-[var(--bg-input)] text-[var(--text-input)] border border-[var(--border-input)] focus:outline-none focus:border-[var(--color-accent)]"
-                  />
-                </div>
-              )}
-
-              {/* 2. Amount Input */}
+              {/* Amount Input */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-secondary)]">
-                  Amount Taken (₹) <span className="text-[var(--color-accent)]">*</span>
+                  Amount (₹) <span className="text-[var(--color-accent)]">*</span>
                 </label>
-                <div className="flex items-center rounded-md bg-[var(--bg-input)] border border-[var(--border-input)] focus-within:border-[var(--color-accent)] transition-colors px-3 h-11">
+                <div className="flex items-center rounded-md bg-[var(--bg-input)] border border-[var(--border-input)] focus-within:border-[var(--color-accent)] transition-colors px-3 h-10">
                   <span className="text-base font-bold text-[var(--color-accent)] mr-2 select-none shrink-0">₹</span>
                   <input
                     type="number"
@@ -479,49 +369,52 @@ CREATE POLICY "Allow all on expenses" ON public.expenses FOR ALL USING (true) WI
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="0.00"
                     required
-                    autoFocus
                     style={{ outline: 'none', border: 'none', boxShadow: 'none' }}
                     className="w-full h-full bg-transparent text-base font-bold text-[var(--text-input)] placeholder:text-[var(--text-tertiary)] p-0"
                   />
                 </div>
               </div>
 
-              {/* 3. Reason */}
+              {/* Optional Staff / Category */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-secondary)]">
-                  Reason / Purpose <span className="text-[var(--color-accent)]">*</span>
+                  Staff / Paid To (Optional)
                 </label>
-                <input
-                  type="text"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="e.g. Lunch advance, Petrol for delivery, Emergency"
-                  required
-                  className="w-full h-10 px-3 text-sm rounded-md bg-[var(--bg-input)] text-[var(--text-input)] border border-[var(--border-input)] focus:outline-none focus:border-[var(--color-accent)]"
-                />
+                <select
+                  value={selectedWorkerId}
+                  onChange={(e) => setSelectedWorkerId(e.target.value)}
+                  className="w-full h-10 px-3 text-sm font-medium rounded-md bg-[var(--bg-input)] text-[var(--text-input)] border border-[var(--border-input)] focus:outline-none focus:border-[var(--color-accent)] cursor-pointer"
+                >
+                  <option value="">General Shop Expense</option>
+                  {workers.map(w => (
+                    <option key={w.id} value={w.id}>
+                      {w.name} (Staff)
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Submit Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[var(--border-light)] mt-2">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[var(--border-light)] mt-1">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="h-10 px-4 text-sm font-semibold rounded-md border border-[var(--border-medium)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors"
+                  className="h-9 px-4 text-xs font-semibold rounded-md border border-[var(--border-medium)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="h-10 px-5 text-sm font-bold uppercase tracking-wider rounded-md text-white shadow-sm transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="h-9 px-4 text-xs font-bold uppercase tracking-wider rounded-md text-white shadow-sm transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
                   style={{ backgroundColor: 'var(--color-accent)' }}
                 >
                   {isSaving ? (
-                    <Spinner size="sm" />
+                    <Spinner className="w-3.5 h-3.5 text-white" />
                   ) : (
                     <>
-                      <CheckCircle size={15} />
-                      <span>Confirm &amp; Record</span>
+                      <CheckCircle size={14} />
+                      <span>Save Expense</span>
                     </>
                   )}
                 </button>

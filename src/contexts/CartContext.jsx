@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { generateId } from '../utils';
 import { useApp } from '../AppContext';
 
 const CartContext = createContext(null);
@@ -160,7 +159,7 @@ export function CartProvider({ children, activeTab }) {
 
   const value = {
     cart, setCart,
-    activeCartTab, switchCartTab,
+    activeCartTab, setActiveCartTab, switchCartTab,
     cartSessions, setCartSessions,
     heldCarts, setHeldCarts,
     clearCart,

@@ -7,7 +7,7 @@ import WorkerDashboardView from './WorkerDashboardView';
 import WorkerTerminal from './WorkerTerminal';
 import WorkerScanner from './WorkerScanner';
 import WorkerPriceCheck from './WorkerPriceCheck';
-import OwnerReturns from './OwnerReturns';
+import OwnerLedger from './OwnerLedger';
 import OwnerExpenses from './OwnerExpenses';
 import { CartProvider } from './contexts/CartContext';
 import { PageLoader } from './SharedUI';
@@ -47,7 +47,7 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
   ];
   if (isBillable) {
     tabs.push({ key: 'checkout', label: 'Terminal' });
-    tabs.push({ key: 'returns', label: 'Returns' });
+    tabs.push({ key: 'sales', label: 'Sales & Returns' });
     tabs.push({ key: 'expenses', label: 'Expenses' });
   } else {
     tabs.push({ key: 'receive', label: 'Inbound' });
@@ -99,8 +99,10 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
               <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Expenses are only accessible by billable accounts.</p>
             </div>
           )
-        ) : activeTab === 'returns' && isBillable ? (
-          <OwnerReturns />
+        ) : (activeTab === 'sales' || activeTab === 'returns') && isBillable ? (
+          <div className="h-full p-4 overflow-y-auto">
+            <OwnerLedger isActive={true} />
+          </div>
         ) : activeTab === 'checkout' && !isBillable ? (
           <div className="flex flex-col items-center justify-center h-full flex-1">
             <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>

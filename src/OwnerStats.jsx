@@ -75,6 +75,18 @@ function AnimatedNumber({ valueStr, duration = 1000 }) {
 /** Reusable stat card */
 function StatCard({ title, value, accentColor, borderColor, onClick, clickLabel, children }) {
   const Tag = onClick ? 'button' : 'div';
+  const strVal = String(value ?? '');
+  const valLen = strVal.length;
+
+  // Responsive scalable font sizing based on character length so numbers scale cleanly without dots
+  const fontSizeClass = valLen > 12
+    ? 'text-base sm:text-lg xl:text-xl'
+    : valLen > 9
+      ? 'text-lg sm:text-xl xl:text-2xl'
+      : valLen > 6
+        ? 'text-xl sm:text-2xl 2xl:text-3xl'
+        : 'text-2xl sm:text-3xl 2xl:text-4xl';
+
   return (
     <Tag
       onClick={onClick}
@@ -84,23 +96,27 @@ function StatCard({ title, value, accentColor, borderColor, onClick, clickLabel,
       }}
       aria-label={onClick ? clickLabel : undefined}
     >
-      {/* Title Header - Full name, never truncated */}
-      <div className="w-full mb-2 min-h-[1.75rem] flex items-start">
+      {/* Title Header with View action in top right */}
+      <div className="w-full mb-1.5 flex items-start justify-between gap-1 min-h-[1.75rem]">
         <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider leading-snug break-words" style={{ color: 'var(--text-secondary)' }}>
           {title}
         </p>
-      </div>
-
-      {/* Value & View Button Row */}
-      <div className="flex items-baseline justify-between gap-2 mt-auto w-full min-w-0">
-        <p className="text-lg sm:text-xl md:text-2xl 2xl:text-3xl font-semibold truncate tracking-tight" style={{ color: accentColor || 'var(--text-primary)' }} title={value}>
-          <AnimatedNumber valueStr={value} duration={1200} />
-        </p>
         {onClick && (
-          <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider shrink-0 text-[var(--color-accent)] opacity-80 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 pb-0.5">
+          <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider shrink-0 text-[var(--color-accent)] opacity-80 group-hover:opacity-100 transition-opacity inline-flex items-center gap-0.5 mt-0.5">
             View ↗
           </span>
         )}
+      </div>
+
+      {/* Value Row - Scalable, responsive, never truncated with dots */}
+      <div className="w-full mt-auto min-w-0">
+        <p 
+          className={`${fontSizeClass} font-bold tracking-tight whitespace-nowrap overflow-visible tabular-nums leading-tight`} 
+          style={{ color: accentColor || 'var(--text-primary)' }} 
+          title={strVal}
+        >
+          <AnimatedNumber valueStr={value} duration={1200} />
+        </p>
       </div>
       {children}
     </Tag>

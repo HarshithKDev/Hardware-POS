@@ -36,9 +36,8 @@ const NAV_ITEMS = [
   { key: 'categories', label: 'Categories', icon: Tags },
   { key: 'warehouse', label: 'Main Storage', icon: Warehouse },
   { key: 'checkout', label: 'Checkout', icon: ShoppingCart },
-  { key: 'sales', label: 'Sales History', icon: History },
+  { key: 'sales', label: 'Sales & Returns', icon: History },
   { key: 'showroom', label: 'Showroom', icon: Store },
-  { key: 'returns', label: 'Returns', icon: Undo2 },
   { key: 'staff', label: 'Manage Staff', icon: Users },
   { key: 'expenses', label: 'Expenses', icon: Receipt },
   { key: 'audit', label: 'Audit Logs', icon: Search },
@@ -246,8 +245,8 @@ export default function OwnerDashboard() {
         )}
 
         { activeTab === 'returns' && (
-          <div className="block h-full animate-fade-in overflow-hidden relative">
-            <OwnerReturns />
+          <div className="block h-full animate-fade-in">
+            <OwnerLedger isActive={true} />
           </div>
         )}
 

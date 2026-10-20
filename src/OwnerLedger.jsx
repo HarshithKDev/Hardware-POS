@@ -1,12 +1,14 @@
-import { useState, Fragment, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, Fragment, useCallback } from 'react';
 import { supabase } from './supabaseClient';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
-import { formatDateTime } from './utils';
+import { formatDateTime, escapeIlike } from './utils';
 import { SALES_PER_PAGE } from './constants';
-import { ConfirmDialog, DialogOverlay } from './Dialog';
+import { DialogOverlay } from './Dialog';
+import { Search, Undo2, X, Phone, User, ChevronRight } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import BillDetailsView from './BillDetailsView';
 
 export default function OwnerLedger({ isActive }) {
   const { showAlert } = useApp();
@@ -18,10 +20,70 @@ export default function OwnerLedger({ isActive }) {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  const [expandedBillId, setExpandedBillId] = useState(null);
+  // Customer search & suggestions
+  const [searchQuery, setSearchQuery] = useState('');
+  const [customers, setCustomers] = useState([]);
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const searchContainerRef = useRef(null);
+
+  const [selectedBill, setSelectedBill] = useState(null);
   const [billItemsCache, setBillItemsCache] = useState({});
   const [isLoadingItems, setIsLoadingItems] = useState(false);
   const [returnModalState, setReturnModalState] = useState(null); // { bill, items }
+
+  // Fetch recent customer records for quick search suggestions (phone prioritized)
+  useEffect(() => {
+    async function fetchRecentCustomers() {
+      try {
+        const { data, error } = await supabase
+          .from('bills')
+          .select('customer_name, customer_phone')
+          .eq('location', 'Store')
+          .order('created_at', { ascending: false })
+          .limit(300);
+
+        if (data && !error) {
+          const map = new Map();
+          const list = [];
+          for (const row of data) {
+            const phone = (row.customer_phone || '').trim();
+            const name = (row.customer_name || '').trim();
+            if (!phone && !name) continue;
+            const key = `${phone}:::${name.toLowerCase()}`;
+            if (!map.has(key)) {
+              map.set(key, true);
+              list.push({ phone, name });
+            }
+          }
+          setCustomers(list);
+        }
+      } catch (err) {
+        console.error('Error fetching recent customers:', err);
+      }
+    }
+    fetchRecentCustomers();
+  }, []);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setShowCustomerDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Filter suggestions prioritizing phone numbers, then customer names
+  const filteredSuggestions = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return customers.slice(0, 8);
+    return customers.filter(c => 
+      (c.phone && c.phone.includes(q)) || 
+      (c.name && c.name.toLowerCase().includes(q))
+    ).slice(0, 8);
+  }, [customers, searchQuery]);
 
   const fetchBills = useCallback(async () => {
     const from = salesPage * SALES_PER_PAGE;
@@ -32,6 +94,15 @@ export default function OwnerLedger({ isActive }) {
       .neq('status', 'showroom_pending') // Showroom pending are in their own section
       .order('created_at', { ascending: false })
       .range(from, from + SALES_PER_PAGE - 1);
+
+    // Apply customer phone, name, or bill ID search filter
+    if (searchQuery.trim()) {
+      const raw = searchQuery.trim().replace(/^#/, '').replace(/[,()]/g, '');
+      if (raw) {
+        const cleanQ = escapeIlike(raw);
+        query = query.or(`customer_phone.ilike.%${cleanQ}%,customer_name.ilike.%${cleanQ}%,id.ilike.%${cleanQ}%`);
+      }
+    }
 
     if (dateFilter !== 'ALL') {
       let start, end;
@@ -54,10 +125,10 @@ export default function OwnerLedger({ isActive }) {
     const { data, error } = await query;
     if (error) throw error;
     return data || [];
-  }, [salesPage, dateFilter, customDate, startDate, endDate]);
+  }, [salesPage, dateFilter, customDate, startDate, endDate, searchQuery]);
 
   const { data: bills = [], isLoading: isLoadingBills } = useQuery({
-    queryKey: ['bills', salesPage, dateFilter, customDate, startDate, endDate, isActive],
+    queryKey: ['bills', salesPage, dateFilter, customDate, startDate, endDate, searchQuery, isActive],
     queryFn: fetchBills,
     enabled: isActive,
     staleTime: 1000 * 60 * 2,
@@ -65,24 +136,18 @@ export default function OwnerLedger({ isActive }) {
 
   const hasMoreBills = bills.length === SALES_PER_PAGE;
 
-  const toggleRow = async (bill) => {
-    if (expandedBillId === bill.id) { setExpandedBillId(null); return; }
-    setExpandedBillId(bill.id);
-    if (!billItemsCache[bill.id]) {
-      setIsLoadingItems(true);
-      try {
-        const { data } = await supabase.from('bill_items').select('*').eq('bill_id', bill.id);
-        if (data) setBillItemsCache(prev => ({ ...prev, [bill.id]: data }));
-      } finally {
-        setIsLoadingItems(false);
-      }
-    }
-  };
-
   const handleExportCSV = async () => {
     try {
       showAlert('Preparing CSV export...', 'Info');
-    let query = supabase.from('bills').select('*').eq('location', 'Store').neq('status', 'showroom_pending').order('created_at', { ascending: false }).limit(10000);
+      let query = supabase.from('bills').select('*').eq('location', 'Store').neq('status', 'showroom_pending').order('created_at', { ascending: false }).limit(10000);
+
+      if (searchQuery.trim()) {
+        const raw = searchQuery.trim().replace(/^#/, '').replace(/[,()]/g, '');
+        if (raw) {
+          const cleanQ = escapeIlike(raw);
+          query = query.or(`customer_phone.ilike.%${cleanQ}%,customer_name.ilike.%${cleanQ}%,id.ilike.%${cleanQ}%`);
+        }
+      }
 
       if (dateFilter !== 'ALL') {
         let start, end;
@@ -112,8 +177,12 @@ export default function OwnerLedger({ isActive }) {
          'Bill ID': b.id,
          'Date': formatDateTime(b.created_at).datePart,
          'Time': formatDateTime(b.created_at).timePart,
+         'Customer Phone': b.customer_phone || '',
+         'Customer Name': b.customer_name || 'Walk-in',
          'Cashier': b.cashier_name || 'System',
-         'Activity Type': 'Sale',
+         'Activity Type': b.status === 'voided' ? 'Voided / Returned' : 'Sale',
+         'Status': b.status || 'completed',
+         'Payment Method': b.payment_method || '',
          'Total Amount': b.total_amount || 0,
          'Total Profit': b.total_profit || 0
       }));
@@ -123,8 +192,8 @@ export default function OwnerLedger({ isActive }) {
       XLSX.utils.book_append_sheet(workbook, worksheet, "Sales_Ledger");
       
       worksheet['!cols'] = [
-        { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 20 },
-        { wch: 15 }, { wch: 15 }, { wch: 15 },
+        { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 18 }, { wch: 20 },
+        { wch: 15 }, { wch: 18 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
       ];
 
       XLSX.writeFile(workbook, `Sales_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -133,8 +202,33 @@ export default function OwnerLedger({ isActive }) {
     }
   };
 
-  const handleOpenReturnModal = (bill) => {
-    const items = billItemsCache[bill.id] || [];
+  const handleOpenReturnModal = async (bill) => {
+    if (bill.status === 'voided') {
+      showAlert('This bill has already been fully returned.', 'Info');
+      return;
+    }
+
+    let items = billItemsCache[bill.id];
+    if (!items) {
+      try {
+        setIsLoadingItems(true);
+        const { data, error } = await supabase.from('bill_items').select('*').eq('bill_id', bill.id);
+        if (error) throw error;
+        items = data || [];
+        setBillItemsCache(prev => ({ ...prev, [bill.id]: items }));
+      } catch (err) {
+        showAlert(`Failed to load items: ${err.message}`, 'Error');
+        return;
+      } finally {
+        setIsLoadingItems(false);
+      }
+    }
+
+    if (items.length === 0) {
+      showAlert('No items found for this bill.', 'Warning');
+      return;
+    }
+
     setReturnModalState({ bill, items });
   };
 
@@ -143,6 +237,7 @@ export default function OwnerLedger({ isActive }) {
       if (itemsToReturn.length === 0) return;
 
       const shopId = localStorage.getItem('shop_id');
+      const performedBy = localStorage.getItem('owner_name') || localStorage.getItem('cashier_name') || 'Staff';
 
       if (isAll) {
         // Mark entire bill as voided
@@ -158,6 +253,7 @@ export default function OwnerLedger({ isActive }) {
         const { error: billError } = await supabase.from('bills').update({ total_amount: newTotal }).eq('id', bill.id);
         if (billError) throw billError;
       }
+
       // Restore stock for selected items
       for (const item of itemsToReturn) {
         const qtyToRestore = item.returnQuantity;
@@ -190,7 +286,7 @@ export default function OwnerLedger({ isActive }) {
           changes: isAll 
             ? `Restored ${qtyToRestore} ${item.unit} (Bill #${bill.id.split('-')[0]})` 
             : `Returned ${qtyToRestore} ${item.unit} of ${item.name} from Bill #${bill.id.split('-')[0]}`,
-          performed_by: localStorage.getItem('owner_name') || 'Owner'
+          performed_by: performedBy
         }]);
 
         if (!isAll) {
@@ -213,6 +309,10 @@ export default function OwnerLedger({ isActive }) {
       
       showAlert(`Successfully returned ${isAll ? 'full bill' : 'selected items'}.`, "Success");
       queryClient.invalidateQueries({ queryKey: ['bills'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['piece_counts'] });
+      queryClient.invalidateQueries({ queryKey: ['stock_instances'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       
       if (!isAll) {
          // re-fetch bill items to update cache correctly for partial qtys
@@ -221,8 +321,13 @@ export default function OwnerLedger({ isActive }) {
            ...prev,
            [bill.id]: updatedItems || []
          }));
+         if (selectedBill && selectedBill.id === bill.id) {
+           setSelectedBill(prev => prev ? { ...prev, total_amount: newTotal } : null);
+         }
       } else {
-         setExpandedBillId(null);
+         if (selectedBill && selectedBill.id === bill.id) {
+           setSelectedBill(prev => prev ? { ...prev, status: 'voided' } : null);
+         }
       }
       setReturnModalState(null);
     } catch (e) {
@@ -231,20 +336,121 @@ export default function OwnerLedger({ isActive }) {
     }
   };
 
+  if (selectedBill) {
+    return (
+      <div className="h-full flex flex-col relative w-full">
+        <BillDetailsView
+          bill={selectedBill}
+          onBack={() => setSelectedBill(null)}
+          onProcessReturn={(bill) => handleOpenReturnModal(bill)}
+          cachedItems={billItemsCache[selectedBill.id]}
+        />
+        {returnModalState && (
+          <ReturnItemsModal 
+            isOpen={true}
+            onClose={() => setReturnModalState(null)}
+            bill={returnModalState.bill}
+            items={returnModalState.items}
+            onReturnItems={executeReturnItems}
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col relative w-full">
-      <div className="flex justify-between items-end mb-6">
-        <h1 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>Sales History</h1>
+      <div className="flex justify-between items-end mb-4">
+        <div>
+          <h1 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>Sales History</h1>
+          <p className="text-xs text-[var(--text-secondary)] mt-0.5">Search past sales by customer phone or name, view receipts, and process returns.</p>
+        </div>
       </div>
 
       <div className="flex flex-col flex-1 min-h-0">
-        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-4 mb-6 pb-4" style={{ borderBottom: '1px solid var(--border-light)' }}>
-          <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto">
-            <span className="text-xs font-semibold uppercase whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>Date Filter:</span>
+        <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-3 mb-4 pb-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
+          {/* Customer Search Bar with Phone prioritized */}
+          <div className="relative w-full lg:w-96" ref={searchContainerRef}>
+            <div className="relative flex items-center">
+              <Search className="w-4 h-4 absolute left-3.5 text-[var(--text-secondary)] pointer-events-none shrink-0 z-10" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setSalesPage(0);
+                  setShowCustomerDropdown(true);
+                }}
+                onFocus={() => setShowCustomerDropdown(true)}
+                placeholder="Search Phone, Name, or Bill #..."
+                className="w-full h-10 text-sm rounded-lg focus:outline-none shadow-sm transition-all"
+                style={{
+                  paddingLeft: '2.5rem',
+                  paddingRight: '2.5rem',
+                  border: '1px solid var(--border-medium)',
+                  backgroundColor: 'var(--bg-input)',
+                  color: 'var(--text-input)'
+                }}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSalesPage(0);
+                  }}
+                  className="absolute right-2.5 p-1 rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] z-10"
+                  title="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Customer suggestion dropdown (Phone number shown first in bold) */}
+            {showCustomerDropdown && filteredSuggestions.length > 0 && (
+              <div
+                className="absolute top-full left-0 right-0 mt-1 rounded-lg shadow-xl z-50 overflow-hidden border border-[var(--border-medium)] bg-[var(--bg-secondary)] py-1 max-h-64 overflow-y-auto"
+              >
+                <div className="px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] border-b border-[var(--border-light)]">
+                  Customer Suggestions (Phone / Name)
+                </div>
+                {filteredSuggestions.map((cust, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery(cust.phone || cust.name);
+                      setShowCustomerDropdown(false);
+                      setSalesPage(0);
+                    }}
+                    className="w-full text-left px-3.5 py-2.5 text-sm flex items-center justify-between hover:bg-[var(--bg-hover)] transition-colors border-b border-[var(--border-light)] last:border-none"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-3.5 h-3.5 text-[var(--color-accent)] shrink-0" />
+                      <span className="font-bold text-[var(--text-primary)]">
+                        {cust.phone || 'No Phone'}
+                      </span>
+                      {cust.name && (
+                        <span className="text-xs text-[var(--text-secondary)]">
+                          • {cust.name}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-[var(--color-accent)] font-semibold uppercase">Filter</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Date Filter & Export Options */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold uppercase whitespace-nowrap text-[var(--text-secondary)]">Date:</span>
             <div className="relative shrink-0">
               <select
                 value={dateFilter}
-                onChange={(e) => { setDateFilter(e.target.value); setSalesPage(0); setExpandedBillId(null); }}
+                onChange={(e) => { setDateFilter(e.target.value); setSalesPage(0); }}
                 className="py-2 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer shadow-sm leading-normal"
                 style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
                 aria-label="Date filter"
@@ -257,19 +463,19 @@ export default function OwnerLedger({ isActive }) {
               </select>
             </div>
             {dateFilter === 'CUSTOM' && (
-              <input type="date" value={customDate} onChange={(e) => { setCustomDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-11 md:h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+              <input type="date" value={customDate} onChange={(e) => { setCustomDate(e.target.value); setSalesPage(0); }} className="h-10 md:h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
             )}
             {dateFilter === 'RANGE' && (
               <div className="flex items-center gap-2 shrink-0">
-                <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-11 md:h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-                <span className="font-bold text-xs uppercase" style={{ color: 'var(--text-tertiary)' }}>to</span>
-                <input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setSalesPage(0); setExpandedBillId(null); }} className="h-11 md:h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setSalesPage(0); }} className="h-10 md:h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <span className="font-bold text-xs uppercase text-[var(--text-tertiary)]">to</span>
+                <input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setSalesPage(0); }} className="h-10 md:h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
               </div>
             )}
             
             <button
               onClick={handleExportCSV}
-              className="h-11 md:h-9 px-4 ml-auto xl:ml-2 text-xs font-semibold uppercase tracking-wider flex items-center gap-1 shadow-sm transition-colors shrink-0 rounded-md"
+              className="h-10 md:h-9 px-4 ml-auto lg:ml-2 text-xs font-semibold uppercase tracking-wider flex items-center gap-1 shadow-sm transition-colors shrink-0 rounded-md"
               style={{ backgroundColor: 'var(--color-success)', color: 'var(--text-primary)' }}
               title="Download Excel"
             >
@@ -281,169 +487,187 @@ export default function OwnerLedger({ isActive }) {
           </div>
         </div>
 
+        {/* Ledger Table */}
         <div className="flex-1 overflow-x-hidden overflow-y-auto shadow-sm min-h-[400px] md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent', overscrollBehavior: 'none' }}>
           <div className="w-full max-w-full h-full">
-            <table className={`block md:table w-full text-left border-collapse ${(isLoadingBills && bills.length === 0 || bills.length === 0) ? 'h-full' : ''}`}>
+            <table className={`block md:table w-full md:table-fixed text-left border-collapse ${(isLoadingBills && bills.length === 0 || bills.length === 0) ? 'h-full' : ''}`}>
             <thead className="hidden md:table-header-group sticky top-0 z-20 glass-header" style={{ borderBottom: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}>
               <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                <th className="py-4 px-3 w-48 text-left border-none">Date &amp; Time</th>
-                <th className="py-4 px-3 text-left border-none">Cashier</th>
-                <th className="py-4 px-3 w-28 text-center border-none">Payment</th>
-                <th className="py-4 px-3 w-28 text-right border-none">Total (₹)</th>
-                <th className="py-4 px-3 text-center w-14 border-none">Details</th>
+                <th className="py-4 px-3 w-[18%] text-center border-none">Date &amp; Time</th>
+                <th className="py-4 px-3 w-[20%] text-center border-none">Customer</th>
+                <th className="py-4 px-3 w-[14%] text-center border-none">Cashier</th>
+                <th className="py-4 px-3 w-[12%] text-center border-none">Payment</th>
+                <th className="py-4 px-3 w-[14%] text-center border-none">Total (₹)</th>
+                <th className="py-4 px-3 w-[12%] text-center border-none">Action</th>
+                <th className="py-4 px-3 w-[10%] text-center border-none">Details</th>
               </tr>
             </thead>
             <tbody className="block md:table-row-group p-2 md:p-0">
               {isLoadingBills && bills.length === 0 ? (
-                <tr className="block md:table-row border-none" style={{ borderBottom: 'none' }}><td colSpan="5" className="block md:table-cell h-[300px] text-center p-4 border-none" style={{ borderBottom: 'none' }}><PageLoader text="Loading sales..." /></td></tr>
+                <tr className="block md:table-row border-none" style={{ borderBottom: 'none' }}><td colSpan="7" className="block md:table-cell h-[300px] text-center p-4 border-none" style={{ borderBottom: 'none' }}><PageLoader text="Loading sales..." /></td></tr>
               ) : bills.length === 0 ? (
-                <tr className="block md:table-row border-none" style={{ borderBottom: 'none' }}><td colSpan="5" className="block md:table-cell h-[300px] p-0 border-none" style={{ borderBottom: 'none' }}><EmptyState message="No sales found for this period." /></td></tr>
-              ) : bills.map(bill => {
-                const isExpanded = expandedBillId === bill.id;
-                const items = billItemsCache[bill.id] || [];
-                return (
-                  <Fragment key={bill.id}>
-                    <tr
-                      onClick={() => toggleRow(bill)}
-                      className={`cursor-pointer premium-hover block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none border md:border-b md:border-t-0 md:border-l-0 md:border-r-0 border-[var(--border-medium)] md:border-[var(--border-light)] mb-3 md:mb-0 relative ${isExpanded ? 'bg-[var(--bg-hover)]' : ''}`}
-                      style={{
-                        backgroundColor: isExpanded ? 'var(--color-accent-bg)' : 'var(--bg-secondary)',
-                      }}
-                    >
-                      <td className="md:hidden block p-4 border-none">
-                        <div className="flex justify-between items-center mb-2">
-                          <div className="text-[11px] font-bold text-[var(--text-secondary)]">{formatDateTime(bill.created_at).full}</div>
-                          <div className={`text-base font-bold ${bill.status === 'voided' ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--color-accent)]'}`}>₹{Number(bill.total_amount).toFixed(2)}</div>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-2">
-                            <div className="text-sm font-medium capitalize" style={{ color: 'var(--text-primary)' }}>Cashier: {bill.cashier_name}</div>
-                            {bill.payment_method && (
-                              <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded" style={{ backgroundColor: bill.payment_method === 'CASH' ? 'rgba(16, 185, 129, 0.15)' : bill.payment_method === 'UPI' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(234, 179, 8, 0.15)', color: bill.payment_method === 'CASH' ? 'var(--color-success)' : bill.payment_method === 'UPI' ? 'var(--color-accent)' : 'var(--color-warning)' }}>{bill.payment_method}</span>
+                <tr className="block md:table-row border-none" style={{ borderBottom: 'none' }}><td colSpan="7" className="block md:table-cell h-[300px] p-0 border-none" style={{ borderBottom: 'none' }}><EmptyState message="No sales found for this period." /></td></tr>
+              ) : bills.map(bill => (
+                <tr
+                  key={bill.id}
+                  onClick={() => setSelectedBill(bill)}
+                  className="cursor-pointer premium-hover block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none border md:border-b md:border-t-0 md:border-l-0 md:border-r-0 border-[var(--border-medium)] md:border-[var(--border-light)] mb-3 md:mb-0 relative transition-colors"
+                  style={{
+                    backgroundColor: 'var(--bg-secondary)',
+                  }}
+                >
+                  {/* Mobile Row Card */}
+                  <td className="md:hidden block p-4 border-none">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <div className="text-[11px] font-bold text-[var(--text-secondary)]">{formatDateTime(bill.created_at).full}</div>
+                        {(bill.customer_phone || bill.customer_name) ? (
+                          <div className="text-xs font-semibold text-[var(--text-primary)] mt-1 flex items-center gap-1.5 flex-wrap">
+                            {bill.customer_phone && (
+                              <span className="font-bold flex items-center gap-1">
+                                <Phone className="w-3 h-3 text-[var(--color-accent)]" />
+                                {bill.customer_phone}
+                              </span>
+                            )}
+                            {bill.customer_name && (
+                              <span className="text-[var(--text-secondary)]">({bill.customer_name})</span>
                             )}
                           </div>
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={`w-5 h-5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`} style={{ color: isExpanded ? 'var(--color-accent)' : 'var(--text-secondary)' }}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                          </svg>
-                        </div>
-                      </td>
-
-                      <td className="hidden md:table-cell py-4 px-3 text-sm text-left border-none" style={{ color: 'var(--text-primary)' }}>
-                        {formatDateTime(bill.created_at).full}
-                      </td>
-                      <td className="hidden md:table-cell py-4 px-3 text-sm text-left capitalize border-none" style={{ color: 'var(--text-secondary)' }}>
-                        {bill.cashier_name}
-                      </td>
-                      <td className="hidden md:table-cell py-4 px-3 text-center border-none">
-                        {bill.status === 'voided' ? (
-                          <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded" style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}>RETURNED</span>
-                        ) : bill.payment_method ? (
-                          <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded" style={{ backgroundColor: bill.payment_method === 'CASH' ? 'rgba(16, 185, 129, 0.15)' : bill.payment_method === 'UPI' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(234, 179, 8, 0.15)', color: bill.payment_method === 'CASH' ? 'var(--color-success)' : bill.payment_method === 'UPI' ? 'var(--color-accent)' : 'var(--color-warning)' }}>{bill.payment_method}</span>
                         ) : (
-                          <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>--</span>
+                          <div className="mt-1">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--bg-hover)] text-[var(--text-secondary)] border border-[var(--border-light)]">
+                              Walk-in Customer
+                            </span>
+                          </div>
                         )}
-                      </td>
-                      <td className="hidden md:table-cell py-4 px-3 text-right text-sm font-bold border-none" style={{ color: bill.status === 'voided' ? 'var(--text-tertiary)' : 'var(--text-primary)', textDecoration: bill.status === 'voided' ? 'line-through' : 'none' }}>
-                        ₹{Number(bill.total_amount).toFixed(2)}
-                      </td>
-                      <td className="hidden md:table-cell py-4 px-3 text-center h-full border-none">
-                        <div className="flex justify-center items-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={`w-5 h-5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`} style={{ color: isExpanded ? 'var(--color-accent)' : 'var(--text-secondary)' }}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                          </svg>
-                        </div>
-                      </td>
-                    </tr>
-                    {isExpanded && (
-                      <tr className="block md:table-row" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-                        <td colSpan="5" className="block md:table-cell p-0" style={{ borderBottom: '2px solid var(--color-accent)' }}>
-                          {isLoadingItems ? (
-                            <div className="p-6 flex justify-center"><PageLoader text="" /></div>
-                          ) : (
-                            <div className="p-6 px-8">
-                              <div className="flex justify-between items-center mb-3 pb-2" style={{ borderBottom: '1px solid var(--border-light)' }}>
-                                <div className="flex items-center gap-4 flex-wrap">
-                                  <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>
-                                    Bill #{bill.id.split('-')[0]} Items
-                                  </p>
-                                  {(bill.customer_name || bill.customer_phone) && (
-                                    <div className="flex items-center gap-3 px-3 py-1 rounded bg-[var(--bg-hover)] border border-[var(--border-light)]">
-                                      {bill.customer_name && (
-                                        <div className="flex items-center gap-1.5">
-                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                                          <span className="text-xs font-semibold text-[var(--text-primary)]">{bill.customer_name}</span>
-                                        </div>
-                                      )}
-                                      {bill.customer_phone && (
-                                        <div className="flex items-center gap-1.5">
-                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                                          <span className="text-xs font-semibold text-[var(--text-primary)]">{bill.customer_phone}</span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="overflow-x-hidden overflow-y-hidden w-full rounded-lg shadow-sm" style={{ border: '1px solid var(--border-light)', overscrollBehavior: 'none' }}>
-                                <table className="block md:table w-full text-left border-collapse" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-                                  <thead className="hidden md:table-header-group sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
-                                    <tr className="text-xs font-semibold uppercase" style={{ color: 'var(--text-secondary)' }}>
-                                      <th className="py-3 px-4 text-left border-none">Item Name</th>
-                                      <th className="py-3 px-4 text-center w-24 border-none">Qty</th>
-                                      <th className="py-3 px-4 text-center w-24 border-none">MRP</th>
-                                      <th className="py-3 px-4 text-center w-24 border-none">Sold At</th>
-                                      <th className="py-3 px-4 text-center w-24 border-none">Disc %</th>
-                                      <th className="py-3 px-4 text-center w-24 border-none">Total</th>
-                                      <th className="py-3 px-4 text-right w-24 border-none" style={{ color: 'var(--color-success)' }}>Profit</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="block md:table-row-group">
-                                    {items.map(item => (
-                                      <tr key={item.id} className="block md:table-row" style={{ borderBottom: '1px solid var(--border-light)' }}>
-                                        <td className="md:hidden block p-3 border-none">
-                                          <div className="flex justify-between items-center mb-1">
-                                            <div className="text-sm font-semibold text-[var(--text-primary)]">{item.name}</div>
-                                            <div className="text-sm font-bold text-[var(--text-primary)]">₹{(item.price_at_sale * item.quantity).toFixed(2)}</div>
-                                          </div>
-                                          <div className="text-xs text-[var(--text-secondary)]">
-                                            {item.quantity} {item.unit} × ₹{Number(item.price_at_sale).toFixed(2)} <span className="opacity-70">(MRP: ₹{Number(item.selling_price || item.system_price || item.price_at_sale).toFixed(2)})</span>
-                                          </div>
-                                        </td>
-                                        <td className="hidden md:table-cell py-3 px-4 text-sm font-medium text-left border-none" style={{ color: 'var(--text-primary)' }}>{item.name}</td>
-                                        <td className="hidden md:table-cell py-3 px-4 text-sm text-center border-none">
-                                          {Number(item.actual_quantity) !== Number(item.billable_quantity) && (
-                                             <div className="text-[10px] text-[var(--text-tertiary)]">Act: {item.actual_quantity}</div>
-                                          )}
-                                          {item.billable_quantity || item.quantity} {item.unit}
-                                        </td>
-                                        <td className="hidden md:table-cell py-3 px-4 text-sm text-center border-none">
-                                          ₹{Number(item.selling_price || item.system_price || item.price_at_sale).toFixed(2)}
-                                        </td>
-                                        <td className="hidden md:table-cell py-3 px-4 text-sm text-center border-none" style={{ color: Number(item.price_at_sale) < Number(item.selling_price || item.system_price || item.price_at_sale) ? 'var(--color-accent)' : 'inherit' }}>
-                                          ₹{Number(item.price_at_sale).toFixed(2)}
-                                        </td>
-                                        <td className="hidden md:table-cell py-3 px-4 text-sm text-center border-none">
-                                          {Number(item.negotiated_discount || 0).toFixed(1)}%
-                                        </td>
-                                        <td className="hidden md:table-cell py-3 px-4 text-sm text-center font-bold border-none" style={{ color: 'var(--text-primary)' }}>₹{(item.price_at_sale * (item.billable_quantity || item.quantity)).toFixed(2)}</td>
-                                        <td className="hidden md:table-cell py-3 px-4 text-sm text-right font-bold border-none" style={{ color: bill.status === 'voided' ? 'var(--text-secondary)' : 'var(--color-success)' }}>
-                                          <div className="flex flex-col items-end gap-1">
-                                            {bill.status === 'voided' ? '₹0.00' : `₹${Number(item.profit || 0).toFixed(2)}`}
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                  </table>
-                                </div>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
+                      </div>
+                      <div className="text-right">
+                        <div className={`text-base font-bold ${bill.status === 'voided' ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--color-accent)]'}`}>₹{Number(bill.total_amount).toFixed(2)}</div>
+                        {bill.payment_method && (
+                          <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded inline-block mt-0.5" style={{ backgroundColor: bill.payment_method === 'CASH' ? 'rgba(16, 185, 129, 0.15)' : bill.payment_method === 'UPI' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(234, 179, 8, 0.15)', color: bill.payment_method === 'CASH' ? 'var(--color-success)' : bill.payment_method === 'UPI' ? 'var(--color-accent)' : 'var(--color-warning)' }}>{bill.payment_method}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center pt-2 border-t border-[var(--border-light)] mt-2">
+                      <div className="text-xs font-medium capitalize" style={{ color: 'var(--text-secondary)' }}>Cashier: {bill.cashier_name}</div>
+                      <div className="flex items-center gap-2">
+                        {bill.status === 'voided' ? (
+                          <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-red-500/15 text-red-500">RETURNED</span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenReturnModal(bill);
+                            }}
+                            className="px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1 shadow-sm text-red-600 bg-red-50 border border-red-200 dark:bg-red-950/40 dark:border-red-900/50 dark:text-red-400 active:scale-95 transition-all"
+                          >
+                            <Undo2 className="w-3.5 h-3.5" />
+                            <span>Return</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedBill(bill);
+                          }}
+                          className="px-2.5 py-1 text-xs font-medium rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <span>View</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* Desktop Table Cells - Center Aligned */}
+                  <td className="hidden md:table-cell py-4 px-3 text-sm text-center border-none" style={{ color: 'var(--text-primary)' }}>
+                    <div className="font-semibold text-xs text-[var(--text-primary)]">{formatDateTime(bill.created_at).datePart}</div>
+                    <div className="text-[11px] text-[var(--text-secondary)]">{formatDateTime(bill.created_at).timePart}</div>
+                  </td>
+
+                  <td className="hidden md:table-cell py-4 px-3 text-sm text-center border-none">
+                    {bill.customer_phone || bill.customer_name ? (
+                      <div className="flex flex-col items-center justify-center">
+                        {bill.customer_phone && (
+                          <span className="font-bold text-xs flex items-center justify-center gap-1 text-[var(--text-primary)]">
+                            <Phone className="w-3 h-3 text-[var(--color-accent)] shrink-0" />
+                            {bill.customer_phone}
+                          </span>
+                        )}
+                        {bill.customer_name && (
+                          <span className="text-xs text-[var(--text-secondary)]">
+                            {bill.customer_name}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[var(--bg-hover)] text-[var(--text-secondary)] border border-[var(--border-light)]">
+                        Walk-in Customer
+                      </span>
                     )}
-                  </Fragment>
-                );
-              })}
+                  </td>
+
+                  <td className="hidden md:table-cell py-4 px-3 text-sm text-center capitalize border-none" style={{ color: 'var(--text-secondary)' }}>
+                    <span className="font-medium">{bill.cashier_name}</span>
+                  </td>
+
+                  <td className="hidden md:table-cell py-4 px-3 text-center border-none">
+                    {bill.status === 'voided' ? (
+                      <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-red-500/15 text-red-500 inline-block">VOIDED</span>
+                    ) : bill.payment_method ? (
+                      <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded inline-block" style={{ backgroundColor: bill.payment_method === 'CASH' ? 'rgba(16, 185, 129, 0.15)' : bill.payment_method === 'UPI' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(234, 179, 8, 0.15)', color: bill.payment_method === 'CASH' ? 'var(--color-success)' : bill.payment_method === 'UPI' ? 'var(--color-accent)' : 'var(--color-warning)' }}>{bill.payment_method}</span>
+                    ) : (
+                      <span className="text-xs text-[var(--text-tertiary)]">--</span>
+                    )}
+                  </td>
+
+                  <td className="hidden md:table-cell py-4 px-3 text-center text-sm font-bold border-none" style={{ color: bill.status === 'voided' ? 'var(--text-tertiary)' : 'var(--text-primary)', textDecoration: bill.status === 'voided' ? 'line-through' : 'none' }}>
+                    ₹{Number(bill.total_amount).toFixed(2)}
+                  </td>
+
+                  {/* Dedicated Return Button on ALL Rows */}
+                  <td className="hidden md:table-cell py-4 px-3 text-center border-none">
+                    {bill.status === 'voided' ? (
+                      <span className="px-2.5 py-1 text-[10px] font-bold uppercase rounded bg-red-500/15 text-red-500 inline-block">
+                        RETURNED
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenReturnModal(bill);
+                        }}
+                        className="px-3 py-1.5 text-xs font-semibold rounded-md inline-flex items-center justify-center gap-1.5 transition-all shadow-sm text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 dark:bg-red-950/40 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/60 active:scale-95"
+                        title="Process Return for this Bill"
+                      >
+                        <Undo2 className="w-3.5 h-3.5" />
+                        <span>Return</span>
+                      </button>
+                    )}
+                  </td>
+
+                  {/* View Details Button to open Full-Screen View */}
+                  <td className="hidden md:table-cell py-4 px-3 text-center h-full border-none">
+                    <div className="flex justify-center items-center">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedBill(bill);
+                        }}
+                        className="px-2.5 py-1 text-xs font-medium rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors inline-flex items-center gap-1 cursor-pointer"
+                        title="View Full Bill Details"
+                      >
+                        <span>View</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -474,10 +698,14 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
 
   if (!isOpen || !bill) return null;
 
+  const returnableItems = items.filter(item => 
+    !(item.instance_barcode || item.cut_length !== null || ['SQFT', 'FT', 'METER', 'M'].includes((item.unit || '').toUpperCase()))
+  );
+
   const handleQtyChange = (item, delta) => {
     setReturnQuantities(prev => {
       const current = prev[item.id] || 0;
-      const maxQty = Number(item.billable_quantity || item.quantity);
+      const maxQty = Number(item.billable_quantity || item.actual_quantity || item.quantity);
       let newQty = current + delta;
       if (newQty < 0) newQty = 0;
       if (newQty > maxQty) newQty = maxQty;
@@ -495,18 +723,32 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
         delete updated[item.id];
         return updated;
       } else {
-        return { ...prev, [item.id]: Number(item.billable_quantity || item.quantity) };
+        return { ...prev, [item.id]: Number(item.billable_quantity || item.actual_quantity || item.quantity) };
       }
+    });
+  };
+
+  const handleSelectAll = () => {
+    setReturnQuantities(prev => {
+      const allSelected = returnableItems.length > 0 && returnableItems.every(i => prev[i.id] === Number(i.billable_quantity || i.actual_quantity || i.quantity));
+      if (allSelected) {
+        return {};
+      }
+      const updated = {};
+      returnableItems.forEach(i => {
+        updated[i.id] = Number(i.billable_quantity || i.actual_quantity || i.quantity);
+      });
+      return updated;
     });
   };
 
   const itemsToReturn = Object.keys(returnQuantities).map(id => {
     const item = items.find(i => i.id === id);
     return { ...item, returnQuantity: returnQuantities[id] };
-  });
+  }).filter(Boolean);
 
   const refundAmount = itemsToReturn.reduce((sum, item) => sum + (Number(item.price_at_sale) * item.returnQuantity), 0);
-  const isAll = items.length === itemsToReturn.length && items.every(item => returnQuantities[item.id] === Number(item.billable_quantity || item.quantity));
+  const isAll = items.length > 0 && items.length === itemsToReturn.length && items.every(item => returnQuantities[item.id] === Number(item.billable_quantity || item.actual_quantity || item.quantity));
 
   const handleConfirm = async () => {
     setIsReturning(true);
@@ -518,70 +760,110 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
   };
 
   return (
-    <DialogOverlay isOpen={isOpen} onClose={onClose} labelId="return-items-title" maxWidth="500px">
+    <DialogOverlay isOpen={isOpen} onClose={onClose} labelId="return-items-title" maxWidth="520px">
       <div className="flex justify-between items-center px-6 pt-6 pb-4 border-b border-[var(--border-light)]">
-        <span id="return-items-title" className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Return Items
-        </span>
-        <button onClick={onClose} className="p-2 hover:bg-[var(--bg-hover)] rounded-full transition-colors" style={{ color: 'var(--text-secondary)' }}>
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
+        <div>
+          <span id="return-items-title" className="text-lg font-semibold text-[var(--text-primary)]">
+            Process Return &amp; Refund
+          </span>
+          <div className="text-xs text-[var(--text-secondary)] mt-0.5">
+            Bill #{bill.id.split('-')[0]} • {formatDateTime(bill.created_at).datePart}
+            {bill.customer_phone && ` • Phone: ${bill.customer_phone}`}
+          </div>
+        </div>
+        <button onClick={onClose} className="p-2 hover:bg-[var(--bg-hover)] rounded-full transition-colors text-[var(--text-secondary)]">
+          <X className="w-5 h-5" />
         </button>
       </div>
 
       <div className="p-6 max-h-[60vh] overflow-y-auto">
-        <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>Select the quantity you want to return from Bill #{bill.id.split('-')[0]}:</p>
+        <div className="flex justify-between items-center mb-3">
+          <p className="text-sm text-[var(--text-secondary)]">Select items and quantities to return:</p>
+          {returnableItems.length > 1 && (
+            <button
+              type="button"
+              onClick={handleSelectAll}
+              className="text-xs font-bold text-[var(--color-accent)] hover:underline"
+            >
+              {returnableItems.every(i => returnQuantities[i.id] === Number(i.billable_quantity || i.actual_quantity || i.quantity)) ? 'Deselect All' : 'Select All'}
+            </button>
+          )}
+        </div>
         
         <div className="flex flex-col gap-3">
           {items.map(item => {
-            const maxQty = Number(item.billable_quantity || item.quantity);
+            const maxQty = Number(item.billable_quantity || item.actual_quantity || item.quantity);
             const returnQty = returnQuantities[item.id] || 0;
             const isSelected = returnQty > 0;
             const isCuttable = item.instance_barcode || item.cut_length !== null || ['SQFT', 'FT', 'METER', 'M'].includes((item.unit || '').toUpperCase());
 
             return (
-              <div key={item.id} className="flex flex-col gap-3 p-3 rounded-lg border border-[var(--border-light)] transition-colors" style={{ backgroundColor: isSelected ? 'var(--color-accent-bg)' : 'transparent', borderColor: isSelected ? 'var(--color-accent)' : 'var(--border-light)' }}>
+              <div key={item.id} className="flex flex-col gap-2 p-3 rounded-lg border transition-colors" style={{ backgroundColor: isSelected ? 'var(--color-accent-bg)' : 'var(--bg-secondary)', borderColor: isSelected ? 'var(--color-accent)' : 'var(--border-light)' }}>
                 <div className="flex items-center justify-between">
                   <label className={`flex items-center gap-3 flex-1 ${isCuttable ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`} onClick={(e) => { e.preventDefault(); if (!isCuttable) handleCheckbox(item); }}>
                     <input 
                       type="checkbox" 
                       checked={isSelected} 
                       readOnly
-                      className="w-5 h-5 rounded cursor-pointer pointer-events-none"
+                      disabled={isCuttable}
+                      className="w-4 h-4 rounded cursor-pointer pointer-events-none"
                       style={{ accentColor: 'var(--color-accent)' }}
                     />
                     <div>
-                      <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name}</div>
-                      <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>Paid: ₹{Number(item.price_at_sale).toFixed(2)}/ea</div>
+                      <div className="text-sm font-semibold text-[var(--text-primary)]">{item.name}</div>
+                      <div className="text-xs text-[var(--text-secondary)]">Sold at: ₹{Number(item.price_at_sale).toFixed(2)}/{item.unit || 'pc'}</div>
                     </div>
                   </label>
 
                   {isCuttable ? (
                     <div className="flex items-center">
-                      <span className="text-xs font-semibold px-3 py-1.5 rounded" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-light)', color: 'var(--text-secondary)' }}>
+                      <span className="text-[11px] font-semibold px-2.5 py-1 rounded bg-[var(--bg-tertiary)] border border-[var(--border-light)] text-[var(--text-secondary)]">
                         Non-returnable (Cut Item)
                       </span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <button onClick={() => handleQtyChange(item, -1)} disabled={returnQty <= 0} className="w-8 h-8 rounded-full border border-[var(--border-medium)] flex items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-primary)] disabled:opacity-50 hover:bg-[var(--bg-hover)] transition-colors">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
+                      <button 
+                        type="button"
+                        onClick={() => handleQtyChange(item, -1)} 
+                        disabled={returnQty <= 0} 
+                        className="w-7 h-7 rounded border border-[var(--border-medium)] flex items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-primary)] disabled:opacity-40 hover:bg-[var(--bg-hover)] transition-colors text-sm font-bold"
+                      >
+                        -
                       </button>
-                      <div className="w-10 text-center font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
-                        {returnQty}
-                      </div>
-                      <button onClick={() => handleQtyChange(item, 1)} disabled={returnQty >= maxQty} className="w-8 h-8 rounded-full border border-[var(--border-medium)] flex items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-primary)] disabled:opacity-50 hover:bg-[var(--bg-hover)] transition-colors">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                      <input
+                        type="number"
+                        min="0"
+                        max={maxQty}
+                        value={returnQty}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          if (val >= 0 && val <= maxQty) {
+                            setReturnQuantities(prev => {
+                              const updated = { ...prev, [item.id]: val };
+                              if (val === 0) delete updated[item.id];
+                              return updated;
+                            });
+                          }
+                        }}
+                        className="w-12 h-7 text-center font-bold text-sm rounded border border-[var(--border-medium)] bg-[var(--bg-input)] text-[var(--text-primary)] focus:outline-none"
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => handleQtyChange(item, 1)} 
+                        disabled={returnQty >= maxQty} 
+                        className="w-7 h-7 rounded border border-[var(--border-medium)] flex items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-primary)] disabled:opacity-40 hover:bg-[var(--bg-hover)] transition-colors text-sm font-bold"
+                      >
+                        +
                       </button>
                     </div>
                   )}
                 </div>
                 
                 <div className="flex justify-between items-center text-xs pt-2 border-t border-[var(--border-light)]">
-                  <span style={{ color: 'var(--text-secondary)' }}>Purchased: {maxQty} {item.unit}</span>
+                  <span className="text-[var(--text-secondary)]">Purchased: {maxQty} {item.unit}</span>
                   {!isCuttable && (
-                    <span className="font-bold" style={{ color: 'var(--text-primary)' }}>Refund: ₹{(Number(item.price_at_sale) * returnQty).toFixed(2)}</span>
+                    <span className="font-bold text-[var(--text-primary)]">Item Refund: ₹{(Number(item.price_at_sale) * returnQty).toFixed(2)}</span>
                   )}
                 </div>
               </div>
@@ -592,25 +874,27 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
 
       <div className="px-6 py-4 border-t border-[var(--border-light)] bg-[var(--bg-tertiary)] flex flex-col gap-4">
         <div className="flex justify-between items-center">
-          <span className="text-sm font-medium uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Total Refund:</span>
+          <span className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Total Refund Amount:</span>
           <span className="text-2xl font-bold" style={{ color: 'var(--color-error)' }}>₹{refundAmount.toFixed(2)}</span>
         </div>
         <div className="flex justify-end gap-2">
           <button
+            type="button"
             onClick={onClose}
             disabled={isReturning}
-            className="h-10 px-6 text-sm font-medium rounded-md border border-[var(--border-light)] hover:bg-[var(--bg-hover)] transition-colors disabled:opacity-50"
-            style={{ backgroundColor: 'transparent', color: 'var(--text-primary)' }}
+            className="h-10 px-5 text-sm font-medium rounded-md border border-[var(--border-light)] hover:bg-[var(--bg-hover)] transition-colors disabled:opacity-50 text-[var(--text-primary)]"
+            style={{ backgroundColor: 'transparent' }}
           >
             Cancel
           </button>
           <button
+            type="button"
             onClick={handleConfirm}
             disabled={itemsToReturn.length === 0 || isReturning}
-            className="h-10 px-6 text-sm font-medium rounded-md transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[120px]"
+            className="h-10 px-6 text-sm font-semibold rounded-md transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[130px] shadow-sm"
             style={{ backgroundColor: 'var(--color-error)', color: '#fff' }}
           >
-            {isReturning ? <Spinner className="w-5 h-5 text-white" /> : (isAll ? 'Return Full Bill' : 'Confirm Return')}
+            {isReturning ? <Spinner className="w-5 h-5 text-white" /> : (isAll ? 'Void Full Bill' : 'Confirm Return')}
           </button>
         </div>
       </div>
