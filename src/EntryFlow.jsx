@@ -409,9 +409,24 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4" style={{ backgroundColor: 'var(--bg-primary)' }}>
       <div className="w-full max-w-md p-8 md:p-10 rounded-xl overflow-hidden border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-
         <div className="text-center mb-8 pb-4" style={{ borderBottom: '1px solid var(--border-medium)' }}>
-          <img src={shopSettings?.logo_url || "/logo.png"} alt="Shop Logo" className="mx-auto mb-4 object-cover h-24 w-24 rounded-full border border-[var(--border-light)] shadow-sm" />
+          {shopSettings?.logo_url ? (
+            <img
+              src={shopSettings.logo_url}
+              alt={shopSettings.shop_name || "Shop Logo"}
+              className="mx-auto mb-4 object-cover h-24 w-24 rounded-full border border-[var(--border-light)] shadow-sm"
+            />
+          ) : (
+            <div
+              className="mx-auto mb-4 flex items-center justify-center h-24 w-24 rounded-full border border-[var(--border-light)] shadow-sm font-bold text-3xl uppercase tracking-wider"
+              style={{
+                backgroundColor: 'var(--bg-tertiary)',
+                color: 'var(--color-accent)',
+              }}
+            >
+              {(shopSettings?.shop_name || 'H').trim().charAt(0).toUpperCase()}
+            </div>
+          )}
           <h1 className="text-xl font-bold uppercase tracking-widest leading-snug w-[85%] max-w-[320px] mx-auto" style={{ color: 'var(--text-primary)' }}>
             {shopSettings?.shop_name}
           </h1>

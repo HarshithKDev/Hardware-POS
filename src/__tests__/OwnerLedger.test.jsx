@@ -52,6 +52,18 @@ const mockItems = [
     actual_quantity: 5,
     price_at_sale: 20,
     unit: 'pc'
+  },
+  {
+    id: 'item-2',
+    bill_id: 'bill-101',
+    name: 'Copper Wire Cut',
+    barcode: 'WIR-001',
+    instance_barcode: 'WIR-001-01',
+    quantity: 1,
+    billable_quantity: 1,
+    actual_quantity: 1,
+    price_at_sale: 150,
+    unit: 'm'
   }
 ];
 
@@ -67,6 +79,7 @@ const createMockBuilder = (resultData) => {
     lte: vi.fn(() => builder),
     or: vi.fn(() => builder),
     single: vi.fn(() => Promise.resolve({ data: Array.isArray(resultData) ? resultData[0] : resultData, error: null })),
+    in: vi.fn(() => builder),
     update: vi.fn(() => builder),
     delete: vi.fn(() => builder),
     insert: vi.fn(() => Promise.resolve({ error: null })),
@@ -84,6 +97,9 @@ vi.mock('../supabaseClient', () => {
         }
         if (table === 'bill_items') {
           return createMockBuilder(mockItems);
+        }
+        if (table === 'product_master') {
+          return createMockBuilder([{ barcode: 'SCR-001', is_cuttable: false }]);
         }
         if (table === 'inventory_batches') {
           return createMockBuilder({ stock_store: 20 });
@@ -152,6 +168,12 @@ describe('OwnerLedger (Sales History & Merged Returns)', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/process return & refund/i)).toBeInTheDocument();
+      expect(screen.getByText('Stainless Steel Screws')).toBeInTheDocument();
+      expect(screen.getByText('Copper Wire Cut')).toBeInTheDocument();
+      expect(screen.getByText(/non-returnable \(cut item\)/i)).toBeInTheDocument();
+      const checkboxes = screen.getAllByRole('checkbox');
+      expect(checkboxes[0]).not.toBeDisabled();
+      expect(checkboxes[1]).toBeDisabled();
     });
   });
 

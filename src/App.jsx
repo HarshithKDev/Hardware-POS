@@ -103,28 +103,48 @@ function App() {
 
     if (!shopSettings?.shop_name) {
       document.title = 'Hardware POS System';
-      if (link) link.href = 'data:image/x-icon;,';
+      if (link) link.href = '/favicon.ico';
       return;
     }
 
     document.title = shopSettings.shop_name;
-    const logoSrc = shopSettings?.logo_url || '/logo.png';
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
+
+    if (shopSettings.logo_url) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const size = 64;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(img, 0, 0, size, size);
+        if (link) link.href = canvas.toDataURL('image/png');
+      };
+      img.src = shopSettings.logo_url;
+    } else {
+      // Clean, dynamic shop-initial avatar when no custom logo is uploaded
       const size = 64;
       const canvas = document.createElement('canvas');
       canvas.width = size;
       canvas.height = size;
       const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#2563eb';
       ctx.beginPath();
       ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
-      ctx.closePath();
-      ctx.clip();
-      ctx.drawImage(img, 0, 0, size, size);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 34px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const initial = (shopSettings.shop_name || 'H').trim().charAt(0).toUpperCase();
+      ctx.fillText(initial, size / 2, size / 2 + 2);
       if (link) link.href = canvas.toDataURL('image/png');
-    };
-    img.src = logoSrc;
+    }
   }, [shopSettings?.shop_name, shopSettings?.logo_url]);
 
   const fetchInitialData = useCallback(async () => {

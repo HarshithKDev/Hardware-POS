@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
-import { Save, Upload, Eye, EyeOff, Edit2 } from 'lucide-react';
+import { Save, Upload, Eye, EyeOff, Edit2, Trash2 } from 'lucide-react';
 
 export default function OwnerSettings() {
   const { shopSettings, setShopSettings, showAlert } = useApp();
@@ -89,7 +89,7 @@ export default function OwnerSettings() {
 
     setIsLoading(true);
     try {
-      let updatedLogoUrl = shopSettings.logo_url;
+      let updatedLogoUrl = logoPreview ? shopSettings.logo_url : null;
 
       // 1. Upload Logo if changed
       if (logoFile) {
@@ -191,7 +191,23 @@ export default function OwnerSettings() {
             <div>
               <h3 className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>Shop Logo</h3>
               {isEditing && (
-                <p className="text-xs mt-1 max-w-xs" style={{ color: 'var(--text-secondary)' }}>Click the image to upload a new logo (Max 2MB). Re-login for favicon changes to take effect.</p>
+                <>
+                  <p className="text-xs mt-1 max-w-xs" style={{ color: 'var(--text-secondary)' }}>Click the image to upload a new logo (Max 2MB). Re-login for favicon changes to take effect.</p>
+                  {logoPreview && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setLogoFile(null);
+                        setLogoPreview(null);
+                      }}
+                      className="text-xs text-red-500 hover:text-red-400 mt-1.5 font-semibold inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 size={12} />
+                      <span>Remove Logo</span>
+                    </button>
+                  )}
+                </>
               )}
               <input 
                 type="file" 

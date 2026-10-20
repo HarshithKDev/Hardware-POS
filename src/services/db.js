@@ -88,10 +88,12 @@ export const getInventoryByQuery = async ({ limit, offset, search, category, sub
     );
   }
   if (category) {
-    allItems = allItems.filter(i => i.category === category);
+    const catLower = category.trim().toLowerCase();
+    allItems = allItems.filter(i => i.category === category || (i.category && i.category.trim().toLowerCase() === catLower));
   }
   if (subcategory) {
-    allItems = allItems.filter(i => i.sub_category === subcategory);
+    const subLower = subcategory.trim().toLowerCase();
+    allItems = allItems.filter(i => i.sub_category === subcategory || (i.sub_category && i.sub_category.trim().toLowerCase() === subLower));
   }
 
   const compareBarcodes = (a, b) => {

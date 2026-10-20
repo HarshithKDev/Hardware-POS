@@ -20,6 +20,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortOption, setSortOption] = useState('barcode-asc');
   const [filterCategory, setFilterCategory] = useState('');
+  const [filterSubcategory, setFilterSubcategory] = useState('');
   const [selectedBarcodes, setSelectedBarcodes] = useState([]);
   const [batchModalBarcode, setBatchModalBarcode] = useState(null);
   const [isGlobalEditMode, setIsGlobalEditMode] = useState(false);
@@ -68,8 +69,26 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
     staleTime: STALE_TIME_5MIN,
   });
 
+  const handleCategoryChange = useCallback((e) => {
+    setFilterCategory(e.target.value);
+    setFilterSubcategory('');
+  }, []);
+
+  const availableSubcategories = useMemo(() => {
+    if (!subcategories || !Array.isArray(subcategories)) return [];
+    if (filterCategory) {
+      return subcategories.filter(s => s.category_name === filterCategory);
+    }
+    const seen = new Set();
+    return subcategories.filter(s => {
+      if (!s.name || seen.has(s.name)) return false;
+      seen.add(s.name);
+      return true;
+    });
+  }, [subcategories, filterCategory]);
+
   const { data: inventoryData, isLoading } = useQuery({
-    queryKey: ['inventory', viewType, debouncedSearch, sortOption, filterCategory],
+    queryKey: ['inventory', viewType, debouncedSearch, sortOption, filterCategory, filterSubcategory],
     queryFn: async () => {
       if (!navigator.onLine) {
         // Fallback or primarily use local IDB
@@ -80,6 +99,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
         offset: 0,
         search: debouncedSearch,
         category: filterCategory,
+        subcategory: filterSubcategory,
         sortOption: sortOption,
         viewType: viewType === 'recycle' ? 'warehouse' : viewType,
         status: viewType === 'recycle' ? 'deactivated' : 'active'
@@ -578,13 +598,30 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
             
             <select
               value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
+              onChange={handleCategoryChange}
               className="h-11 md:h-10 px-3 text-sm focus:outline-none rounded-md cursor-pointer"
               style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
+              aria-label="Filter by category"
             >
               <option value="">All Categories</option>
               {categories?.map((c) => (
                 <option key={c.name} value={c.name}>{c.name}</option>
+              ))}
+            </select>
+
+            <select
+              value={filterSubcategory}
+              onChange={(e) => setFilterSubcategory(e.target.value)}
+              className="h-11 md:h-10 px-3 text-sm focus:outline-none rounded-md cursor-pointer disabled:opacity-50"
+              style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
+              aria-label="Filter by subcategory"
+              disabled={availableSubcategories.length === 0}
+            >
+              <option value="">
+                {availableSubcategories.length === 0 && filterCategory ? 'No Subcategories' : 'All Subcategories'}
+              </option>
+              {availableSubcategories.map((s) => (
+                <option key={s.name} value={s.name}>{s.name}</option>
               ))}
             </select>
 

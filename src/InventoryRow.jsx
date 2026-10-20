@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 
@@ -57,6 +58,177 @@ export default function InventoryRow({
   const totalWhse = item.batches ? item.batches.reduce((sum, b) => sum + Number(b.stock_warehouse), 0) : Number(item.stock_warehouse || 0);
   const totalStore = item.batches ? item.batches.reduce((sum, b) => sum + Number(b.stock_store), 0) : Number(item.stock_store || 0);
 
+  const [popoverPos, setPopoverPos] = useState(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const hoverTimeoutRef = useRef(null);
+
+  const activeBatches = useMemo(() => {
+    return (item.batches || [])
+      .filter(b => b.is_active !== false)
+      .sort((a, b) => (a.batch_number || 1) - (b.batch_number || 1));
+  }, [item.batches]);
+
+  const handleMouseEnter = useCallback((e) => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const showAbove = spaceBelow < 260 && rect.top > 260;
+    
+    const tooltipWidth = 290;
+    const buttonCenterX = rect.left + rect.width / 2;
+    let finalLeft = Math.round(buttonCenterX - tooltipWidth / 2);
+    if (finalLeft < 16) {
+      finalLeft = 16;
+    } else if (finalLeft + tooltipWidth > window.innerWidth - 16) {
+      finalLeft = window.innerWidth - 16 - tooltipWidth;
+    }
+
+    hoverTimeoutRef.current = setTimeout(() => {
+      setPopoverPos({
+        top: Math.round(showAbove ? rect.top - 8 : rect.bottom + 8),
+        left: finalLeft,
+        showAbove
+      });
+      setIsHovered(true);
+    }, 60);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    setIsHovered(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isHovered) return;
+    const handleScrollOrResize = () => {
+      setIsHovered(false);
+    };
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [isHovered]);
+
+  const renderBatchTooltip = () => {
+    if (!isHovered || !popoverPos) return null;
+
+    return createPortal(
+      <div
+        className="fixed z-[99999] pointer-events-none animate-fade-in"
+        style={{
+          top: `${popoverPos.top}px`,
+          left: `${popoverPos.left}px`,
+          width: '290px',
+          transform: popoverPos.showAbove ? 'translateY(-100%)' : 'none',
+        }}
+      >
+        <div
+          className="rounded-lg p-3 w-full text-left border relative"
+          style={{
+            backgroundColor: 'var(--bg-secondary)',
+            borderColor: 'var(--border-medium)',
+            boxShadow: '0 12px 36px -4px rgba(0, 0, 0, 0.7), 0 4px 12px rgba(0, 0, 0, 0.4)',
+          }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-[var(--border-light)]">
+            <div className="min-w-0 pr-2">
+              <span className="text-xs font-bold text-[var(--text-primary)] block truncate" title={item.name}>
+                {item.name}
+              </span>
+              <span className="text-[10px] text-[var(--text-tertiary)] font-mono">
+                Barcode: {item.barcode}
+              </span>
+            </div>
+            <span
+              className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase shrink-0"
+              style={{
+                backgroundColor: item.is_cuttable ? 'var(--color-accent-bg)' : 'rgba(16, 185, 129, 0.15)',
+                color: item.is_cuttable ? 'var(--color-accent)' : 'var(--color-success)',
+                border: `1px solid ${item.is_cuttable ? 'rgba(59, 130, 246, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
+              }}
+            >
+              {activeBatches.length} {activeBatches.length === 1 ? 'Batch' : 'Batches'}
+            </span>
+          </div>
+
+          {/* Batches & MRP List */}
+          {activeBatches.length === 0 ? (
+            <div className="py-2.5 text-center">
+              <div className="text-xs text-[var(--text-tertiary)]">No batches initialized yet</div>
+              <div className="text-xs mt-1 font-medium text-[var(--text-secondary)]">
+                Default MRP: <span className="font-bold text-[var(--color-success)]">₹{Number(item.price || 0).toFixed(2)}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto pr-0.5 custom-scrollbar">
+              {activeBatches.map((b) => {
+                const bNum = b.batch_number || 1;
+                const bCode = `${item.barcode}-${String(bNum).padStart(2, '0')}`;
+                const mrpVal = Number(b.selling_price !== undefined && b.selling_price !== null ? b.selling_price : (item.price || 0));
+                const whseQty = Number(b.stock_warehouse || 0);
+                const storeQty = Number(b.stock_store || 0);
+
+                return (
+                  <div
+                    key={b.batch_id || bCode}
+                    className="p-2 rounded flex items-center justify-between gap-2.5"
+                    style={{
+                      backgroundColor: 'var(--bg-tertiary)',
+                      border: '1px solid var(--border-light)'
+                    }}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-[var(--text-primary)]">
+                          Batch #{bNum}
+                        </span>
+                        <span className="text-[10px] font-mono text-[var(--text-tertiary)]">
+                          ({bCode})
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-[var(--text-secondary)] mt-0.5">
+                        Whse: <span className="font-semibold text-[var(--text-primary)]">{whseQty}</span>
+                        {' • '}
+                        Store: <span className="font-semibold text-[var(--text-primary)]">{storeQty}</span>
+                        {displayUnit ? ` ${displayUnit}` : ''}
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <div className="text-[9px] uppercase tracking-wider font-semibold text-[var(--text-tertiary)]">
+                        MRP
+                      </div>
+                      <div className="text-xs font-extrabold text-[var(--color-success)]">
+                        ₹{mrpVal.toFixed(2)}
+                        {item.is_loose_item && item.unit?.toUpperCase() === 'KG' ? '/kg' : ''}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Footer info */}
+          <div className="mt-2 pt-1.5 border-t border-[var(--border-light)] text-[10px] text-center text-[var(--text-tertiary)] flex items-center justify-center gap-1">
+            <span>Click button to view batch details</span>
+            <span>↗</span>
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  };
+
   if (isGlobalEditMode && isSelected && viewType === 'warehouse') {
     const data = editData || item;
     return (
@@ -95,8 +267,13 @@ export default function InventoryRow({
           </div>
         </td>
 
-        <td className="p-1 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
-          <span className="text-xs text-[var(--text-tertiary)]">{item.batches?.length || 0} Batches</span>
+        <td 
+          className="p-1 text-center cursor-pointer" 
+          style={{ borderRight: '1px solid var(--border-light)' }}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
+          <span className="text-xs text-[var(--text-tertiary)] hover:text-[var(--color-accent)] transition-colors">{item.batches?.length || 0} Batches</span>
         </td>
 
         {/* Pricing inputs removed from edit mode. Pricing is now batch-level only. */}
@@ -121,6 +298,7 @@ export default function InventoryRow({
         <td className="p-1 text-center text-xs text-[var(--text-tertiary)]">
           Editing
         </td>
+        {renderBatchTooltip()}
       </>
     );
   }
@@ -146,15 +324,17 @@ export default function InventoryRow({
                   type="button"
                   onClick={(e) => { 
                     e.stopPropagation(); 
+                    setIsHovered(false);
                     onOpenBatchDetails && onOpenBatchDetails(item); 
                   }}
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
                   className="px-2.5 py-1 text-[10px] font-bold uppercase rounded-full cursor-pointer transition-all active:scale-95 shadow-sm flex items-center justify-center gap-1.5 w-[96px] h-[26px] hover:brightness-110"
                   style={{
                     backgroundColor: item.is_cuttable ? 'var(--color-accent-bg)' : 'rgba(16, 185, 129, 0.1)',
                     color: item.is_cuttable ? 'var(--color-accent)' : 'var(--color-success)',
                     border: `1px solid ${item.is_cuttable ? 'rgba(59, 130, 246, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
                   }}
-                  title="Open Batch Details & Pieces"
                 >
                   <span>{item.batches?.length || 0} {item.batches?.length === 1 ? 'Batch' : 'Batches'}</span>
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3">
@@ -210,15 +390,17 @@ export default function InventoryRow({
           type="button"
           onClick={(e) => { 
             e.stopPropagation(); 
+            setIsHovered(false);
             onOpenBatchDetails && onOpenBatchDetails(item); 
           }}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
           className="inline-flex px-2.5 py-1 text-[10px] font-bold uppercase rounded-full whitespace-nowrap cursor-pointer transition-all active:scale-95 shadow-sm items-center justify-center gap-1.5 w-[96px] h-[26px] hover:brightness-110"
           style={{
             backgroundColor: item.is_cuttable ? 'var(--color-accent-bg)' : 'rgba(16, 185, 129, 0.1)',
             color: item.is_cuttable ? 'var(--color-accent)' : 'var(--color-success)',
             border: `1px solid ${item.is_cuttable ? 'rgba(59, 130, 246, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
           }}
-          title="Open Batch Details & Pieces"
         >
           <span>{item.batches?.length || 0} {item.batches?.length === 1 ? 'Batch' : 'Batches'}</span>
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3">
@@ -262,6 +444,7 @@ export default function InventoryRow({
           </button>
         )}
       </td>
+      {renderBatchTooltip()}
     </>
   );
 }

@@ -9,6 +9,59 @@ import { DialogOverlay } from './Dialog';
 import { Search, Undo2, X, Phone, User, ChevronRight } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import BillDetailsView from './BillDetailsView';
+import { getInventoryItemByBarcode } from './services/db';
+
+const isItemCuttable = (item) => {
+  return Boolean(
+    item?.is_cuttable === true ||
+    item?.instance_barcode ||
+    (item?.cut_length !== null && item?.cut_length !== undefined && Number(item?.cut_length) > 0)
+  );
+};
+
+const enrichBillItems = async (rawItems) => {
+  if (!rawItems || rawItems.length === 0) return [];
+  const barcodes = [...new Set(rawItems.map(i => i.barcode).filter(Boolean))];
+  const productMap = {};
+  if (barcodes.length > 0) {
+    try {
+      const { data: prodData } = await supabase
+        .from('product_master')
+        .select('barcode, is_cuttable')
+        .in('barcode', barcodes);
+      if (prodData) {
+        prodData.forEach(p => {
+          productMap[p.barcode] = p.is_cuttable;
+        });
+      }
+    } catch (pErr) {
+      console.warn("Could not fetch product_master for returns:", pErr);
+    }
+  }
+
+  return Promise.all(rawItems.map(async (it) => {
+    let isCut = Boolean(
+      it.is_cuttable ||
+      productMap[it.barcode] ||
+      it.instance_barcode ||
+      (it.cut_length !== null && it.cut_length !== undefined && Number(it.cut_length) > 0)
+    );
+
+    if (!isCut && it.barcode && productMap[it.barcode] === undefined) {
+      try {
+        const localProd = await getInventoryItemByBarcode(it.barcode);
+        if (localProd?.is_cuttable) isCut = true;
+      } catch (e) {
+        // Ignore local lookup failure
+      }
+    }
+
+    return {
+      ...it,
+      is_cuttable: isCut
+    };
+  }));
+};
 
 export default function OwnerLedger({ isActive }) {
   const { showAlert } = useApp();
@@ -214,7 +267,7 @@ export default function OwnerLedger({ isActive }) {
         setIsLoadingItems(true);
         const { data, error } = await supabase.from('bill_items').select('*').eq('bill_id', bill.id);
         if (error) throw error;
-        items = data || [];
+        items = await enrichBillItems(data || []);
         setBillItemsCache(prev => ({ ...prev, [bill.id]: items }));
       } catch (err) {
         showAlert(`Failed to load items: ${err.message}`, 'Error');
@@ -317,9 +370,10 @@ export default function OwnerLedger({ isActive }) {
       if (!isAll) {
          // re-fetch bill items to update cache correctly for partial qtys
          const { data: updatedItems } = await supabase.from('bill_items').select('*').eq('bill_id', bill.id);
+         const enrichedUpdated = await enrichBillItems(updatedItems || []);
          setBillItemsCache(prev => ({
            ...prev,
-           [bill.id]: updatedItems || []
+           [bill.id]: enrichedUpdated
          }));
          if (selectedBill && selectedBill.id === bill.id) {
            setSelectedBill(prev => prev ? { ...prev, total_amount: newTotal } : null);
@@ -698,9 +752,7 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
 
   if (!isOpen || !bill) return null;
 
-  const returnableItems = items.filter(item => 
-    !(item.instance_barcode || item.cut_length !== null || ['SQFT', 'FT', 'METER', 'M'].includes((item.unit || '').toUpperCase()))
-  );
+  const returnableItems = items.filter(item => !isItemCuttable(item));
 
   const handleQtyChange = (item, delta) => {
     setReturnQuantities(prev => {
@@ -795,7 +847,7 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
             const maxQty = Number(item.billable_quantity || item.actual_quantity || item.quantity);
             const returnQty = returnQuantities[item.id] || 0;
             const isSelected = returnQty > 0;
-            const isCuttable = item.instance_barcode || item.cut_length !== null || ['SQFT', 'FT', 'METER', 'M'].includes((item.unit || '').toUpperCase());
+            const isCuttable = isItemCuttable(item);
 
             return (
               <div key={item.id} className="flex flex-col gap-2 p-3 rounded-lg border transition-colors" style={{ backgroundColor: isSelected ? 'var(--color-accent-bg)' : 'var(--bg-secondary)', borderColor: isSelected ? 'var(--color-accent)' : 'var(--border-light)' }}>
