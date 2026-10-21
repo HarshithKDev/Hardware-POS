@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { supabase } from '../supabaseClient';
 import React from 'react';
 import '@testing-library/jest-dom';
+import { AppProvider } from '../AppContext';
 
 vi.mock('../supabaseClient', () => {
   return {
@@ -50,9 +51,11 @@ describe('WorkerDashboardView Multi-Store Isolation', () => {
 
     render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <WorkerDashboardView isBillable={true} />
-        </MemoryRouter>
+        <AppProvider>
+          <MemoryRouter>
+            <WorkerDashboardView isBillable={true} />
+          </MemoryRouter>
+        </AppProvider>
       </QueryClientProvider>
     );
 

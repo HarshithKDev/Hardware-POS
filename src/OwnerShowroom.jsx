@@ -172,7 +172,7 @@ export default function OwnerShowroom() {
       </div>
 
       {/* Bills list container */}
-      <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] shadow-sm p-4">
+      <div className="flex-1 flex flex-col min-h-0">
         <div className="flex-1 overflow-x-hidden overflow-y-auto shadow-sm min-h-[300px] md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent', overscrollBehavior: 'none' }}>
           {isLoading ? (
             <div className="h-full flex items-center justify-center p-8">
@@ -184,11 +184,11 @@ export default function OwnerShowroom() {
             <table className="block md:table w-full text-center border-collapse">
               <thead className="hidden md:table-header-group sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                 <tr className="text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>
-                  <th className="p-3.5 text-center">Date &amp; Time</th>
-                  <th className="p-3.5 text-center">Customer Name</th>
-                  <th className="p-3.5 text-center">Phone Number</th>
-                  <th className="p-3.5 text-center w-28">Items</th>
-                  <th className="p-3.5 text-center w-36">Amount</th>
+                  <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Date &amp; Time</th>
+                  <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Customer Name</th>
+                  <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Phone Number</th>
+                  <th className="p-3.5 text-center w-28" style={{ borderRight: '1px solid var(--border-medium)' }}>Items</th>
+                  <th className="p-3.5 text-center w-36" style={{ borderRight: '1px solid var(--border-medium)' }}>Amount</th>
                   <th className="p-3.5 text-center w-40">Action</th>
                 </tr>
               </thead>
@@ -258,20 +258,20 @@ export default function OwnerShowroom() {
 
                     {/* Desktop layout */}
                     <tr
-                      className="hidden md:table-row cursor-pointer transition-colors hover:bg-[var(--bg-hover)] border-b border-[var(--border-light)]"
-                      style={{ borderBottom: '1px solid var(--border-light)' }}
+                      className="hidden md:table-row cursor-pointer transition-colors hover:bg-[var(--bg-hover)] border-b border-[var(--border-medium)]"
+                      style={{ borderBottom: '1px solid var(--border-medium)' }}
                       onClick={() => setSelectedBill(bill)}
                     >
-                      <td className="p-3.5 text-sm text-center align-middle" style={{ color: 'var(--text-primary)' }}>
+                      <td className="p-3.5 text-sm text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
                         {formatDateTime(bill.created_at).full}
                       </td>
-                      <td className="p-3.5 text-sm font-medium text-center align-middle" style={{ color: 'var(--text-primary)' }}>
+                      <td className="p-3.5 text-sm font-medium text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
                         {bill.customer_name || '—'}
                       </td>
-                      <td className="p-3.5 text-sm text-center align-middle" style={{ color: 'var(--text-secondary)' }}>
+                      <td className="p-3.5 text-sm text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}>
                         {bill.customer_phone || '—'}
                       </td>
-                      <td className="p-3.5 text-center align-middle">
+                      <td className="p-3.5 text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); setSelectedBill(bill); }}
@@ -282,7 +282,7 @@ export default function OwnerShowroom() {
                           <ChevronRight className="w-3.5 h-3.5" />
                         </button>
                       </td>
-                      <td className="p-3.5 text-sm font-bold text-center align-middle" style={{ color: 'var(--color-accent)' }}>
+                      <td className="p-3.5 text-sm font-bold text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--color-accent)' }}>
                         &#8377;{Number(bill.total_amount).toFixed(2)}
                       </td>
                       <td className="p-3.5 text-center align-middle" onClick={e => e.stopPropagation()}>

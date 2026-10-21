@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
+import { useApp } from './AppContext';
 
 export default function InventoryRow({ 
   item, 
@@ -17,7 +18,7 @@ export default function InventoryRow({
   isSelectionMode, 
   onOpenBatchDetails 
 }) {
-
+  const { isWarehouseDisabled } = useApp();
   const shopId = item.shop_id || localStorage.getItem('shop_id');
   const { data: pieceCounts } = useQuery({
     queryKey: ['piece_counts', shopId, item.barcode],
@@ -295,9 +296,13 @@ export default function InventoryRow({
                           </span>
                         </div>
                         <div className="text-[10px] text-[var(--text-secondary)] mt-0.5">
-                          Whse: <span className="font-semibold text-[var(--text-primary)]">{whseQty}</span>
-                          {' • '}
-                          Store: <span className="font-semibold text-[var(--text-primary)]">{storeQty}</span>
+                          {!isWarehouseDisabled && (
+                            <>
+                              Whse: <span className="font-semibold text-[var(--text-primary)]">{whseQty}</span>
+                              {' • '}
+                            </>
+                          )}
+                          {isWarehouseDisabled ? 'Stock: ' : 'Store: '}<span className="font-semibold text-[var(--text-primary)]">{storeQty}</span>
                           {displayUnit ? ` ${displayUnit}` : ''}
                         </div>
                       </div>
@@ -328,42 +333,32 @@ export default function InventoryRow({
     return (
       <>
         {isSelectionMode && (
-          <td className="p-3 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+          <td className="p-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
             <input type="checkbox" checked={isSelected} onChange={() => onSelect(item.barcode)} className="w-4 h-4 rounded text-accent focus:ring-accent" />
           </td>
         )}
-        <td className="p-3 text-sm font-semibold tracking-wider" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--color-accent)' }}>{item.barcode}</td>
-        <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}>
+        <td className="p-3 text-sm font-semibold tracking-wider" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--color-accent)' }}>{item.barcode}</td>
+        <td className="p-1" style={{ borderRight: '1px solid var(--border-medium)' }}>
           <input type="text" value={data.name || ''} onChange={e=>onEditChange(item.barcode, 'name', e.target.value)} className="h-8 px-2 w-full text-sm focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
         </td>
         
-        <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}>
-          <div className="relative w-full">
-            <select value={data.category || ''} onChange={e=>{onEditChange(item.barcode, 'category', e.target.value); onEditChange(item.barcode, 'sub_category', '');}} className="h-auto py-1.5 pl-2 pr-8 w-full text-xs focus:outline-none appearance-none truncate cursor-pointer rounded-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
-              <option value="">None</option>
-              {categories?.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2" style={{ color: 'var(--text-secondary)' }}>
-              <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-            </div>
-          </div>
+        <td className="p-1" style={{ borderRight: '1px solid var(--border-medium)' }}>
+          <select value={data.category || ''} onChange={e=>{onEditChange(item.barcode, 'category', e.target.value); onEditChange(item.barcode, 'sub_category', '');}} className="h-auto py-1.5 pl-2 pr-8 w-full text-xs focus:outline-none truncate cursor-pointer rounded-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
+            <option value="">None</option>
+            {categories?.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+          </select>
         </td>
 
-        <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}>
-          <div className="relative w-full">
-            <select value={data.sub_category || ''} onChange={e=>onEditChange(item.barcode, 'sub_category', e.target.value)} disabled={!data.category} className="h-auto py-1.5 pl-2 pr-8 w-full text-xs focus:outline-none appearance-none truncate cursor-pointer rounded-sm disabled:opacity-50" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
-              <option value="">None</option>
-              {availableSubcategories.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2" style={{ color: 'var(--text-secondary)' }}>
-              <svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-            </div>
-          </div>
+        <td className="p-1" style={{ borderRight: '1px solid var(--border-medium)' }}>
+          <select value={data.sub_category || ''} onChange={e=>onEditChange(item.barcode, 'sub_category', e.target.value)} disabled={!data.category} className="h-auto py-1.5 pl-2 pr-8 w-full text-xs focus:outline-none truncate cursor-pointer rounded-sm disabled:opacity-50" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
+            <option value="">None</option>
+            {availableSubcategories.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
+          </select>
         </td>
 
         <td 
           className="p-1 text-center cursor-pointer" 
-          style={{ borderRight: '1px solid var(--border-light)' }}
+          style={{ borderRight: '1px solid var(--border-medium)' }}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
@@ -371,16 +366,18 @@ export default function InventoryRow({
         </td>
 
         {/* Pricing inputs removed from edit mode. Pricing is now batch-level only. */}
-        <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}>
-          {item.is_cuttable ? (
-            <div className="h-8 px-2 w-full text-sm flex justify-center items-center" title="Cannot edit warehouse aggregate directly" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-tertiary)', cursor: 'not-allowed' }}>
-              {pieceCounts ? pieceCounts.warehouse : '...'} <span className="ml-1 text-[10px]">PCS</span>
-            </div>
-          ) : (
-            <input type="number" step="any" min="0" value={data.stock_warehouse ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_warehouse', e.target.value)} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-          )}
-        </td>
-        <td className="p-1" style={{ borderRight: '1px solid var(--border-light)' }}>
+        {!isWarehouseDisabled && (
+          <td className="p-1" style={{ borderRight: '1px solid var(--border-medium)' }}>
+            {item.is_cuttable ? (
+              <div className="h-8 px-2 w-full text-sm flex justify-center items-center" title="Cannot edit warehouse aggregate directly" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-tertiary)', cursor: 'not-allowed' }}>
+                {pieceCounts ? pieceCounts.warehouse : '...'} <span className="ml-1 text-[10px]">PCS</span>
+              </div>
+            ) : (
+              <input type="number" step="any" min="0" value={data.stock_warehouse ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_warehouse', e.target.value)} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+            )}
+          </td>
+        )}
+        <td className="p-1" style={{ borderRight: '1px solid var(--border-medium)' }}>
           {item.is_cuttable ? (
             <div className="h-8 px-2 w-full text-sm flex justify-center items-center" title="Cannot edit store aggregate directly" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-tertiary)', cursor: 'not-allowed' }}>
               {pieceCounts ? pieceCounts.store : '...'} <span className="ml-1 text-[10px]">PCS</span>
@@ -446,15 +443,17 @@ export default function InventoryRow({
              
            </div>
            
-             <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-[var(--border-medium)]">
-               <div>
-                 <div className="text-[10px] uppercase text-[var(--text-secondary)] font-semibold mb-0.5">Whse Qty</div>
-                 <div className="text-sm font-bold text-[var(--text-primary)]">
-                   {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : totalWhse} <span className="text-[10px] font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : displayUnit}</span>
+             <div className={`grid ${isWarehouseDisabled ? 'grid-cols-1' : 'grid-cols-2'} gap-2 mt-3 pt-3 border-t border-[var(--border-medium)]`}>
+               {!isWarehouseDisabled && (
+                 <div>
+                   <div className="text-[10px] uppercase text-[var(--text-secondary)] font-semibold mb-0.5">Whse Qty</div>
+                   <div className="text-sm font-bold text-[var(--text-primary)]">
+                     {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : totalWhse} <span className="text-[10px] font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : displayUnit}</span>
+                   </div>
                  </div>
-               </div>
+               )}
                <div>
-                 <div className="text-[10px] uppercase text-[var(--text-secondary)] font-semibold mb-0.5">Store Qty</div>
+                 <div className="text-[10px] uppercase text-[var(--text-secondary)] font-semibold mb-0.5">{isWarehouseDisabled ? 'Stock Qty' : 'Store Qty'}</div>
                  <div className="text-sm font-bold text-[var(--text-primary)]">
                    {item.is_cuttable ? (pieceCounts ? pieceCounts.store : '...') : totalStore} <span className="text-[10px] font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : displayUnit}</span>
                  </div>
@@ -464,12 +463,12 @@ export default function InventoryRow({
 
         {/* DESKTOP TABLE LAYOUT */}
         {isSelectionMode && (
-          <td className="hidden md:table-cell p-3 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+          <td className="hidden md:table-cell p-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
             <input type="checkbox" checked={isSelected} onChange={() => onSelect(item.barcode)} onClick={e => e.stopPropagation()} className="w-4 h-4 rounded text-accent focus:ring-accent" />
           </td>
         )}
-        <td className="hidden md:table-cell p-3 w-24 lg:w-28 text-sm font-semibold tracking-wider" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--color-accent)' }}>{item.barcode}</td>
-      <td className="hidden md:table-cell p-3 w-full min-w-[180px] text-sm font-medium" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
+        <td className="hidden md:table-cell p-3 w-24 lg:w-28 text-sm font-semibold tracking-wider" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--color-accent)' }}>{item.barcode}</td>
+      <td className="hidden md:table-cell p-3 w-full min-w-[180px] text-sm font-medium" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
         <div className="flex items-center justify-center gap-2 w-full min-h-[1.5rem] px-1">
           <span className="truncate text-center" title={item.name}>{item.name}</span>
           {item.is_loose_item && (
@@ -477,9 +476,9 @@ export default function InventoryRow({
           )}
         </div>
       </td>
-      <td className="hidden md:table-cell p-3 w-36 lg:w-48 text-sm whitespace-nowrap overflow-hidden text-ellipsis text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }} title={item.category || '-'}>{item.category || '-'}</td>
-      <td className="hidden md:table-cell p-3 w-32 lg:w-40 text-sm whitespace-nowrap overflow-hidden text-ellipsis text-center" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-secondary)' }} title={item.sub_category || '-'}>{item.sub_category || '-'}</td>
-      <td className="hidden md:table-cell p-3 w-28 lg:w-32 text-sm text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+      <td className="hidden md:table-cell p-3 w-36 lg:w-48 text-sm whitespace-nowrap overflow-hidden text-ellipsis text-center" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }} title={item.category || '-'}>{item.category || '-'}</td>
+      <td className="hidden md:table-cell p-3 w-32 lg:w-40 text-sm whitespace-nowrap overflow-hidden text-ellipsis text-center" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }} title={item.sub_category || '-'}>{item.sub_category || '-'}</td>
+      <td className="hidden md:table-cell p-3 w-28 lg:w-32 text-sm text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
         <button
           type="button"
           onClick={(e) => { 
@@ -503,10 +502,12 @@ export default function InventoryRow({
         </button>
       </td>
       {/* Pricing removed from parent row */}
-      <td className="hidden md:table-cell p-3 w-24 lg:w-28 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
-        {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : totalWhse} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : displayUnit}</span>
-      </td>
-      <td className="hidden md:table-cell p-3 w-24 lg:w-28 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-light)', color: 'var(--text-primary)' }}>
+      {!isWarehouseDisabled && (
+        <td className="hidden md:table-cell p-3 w-24 lg:w-28 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
+          {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : totalWhse} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : displayUnit}</span>
+        </td>
+      )}
+      <td className="hidden md:table-cell p-3 w-24 lg:w-28 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
         {item.is_cuttable ? (pieceCounts ? pieceCounts.store : '...') : totalStore} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : displayUnit}</span>
       </td>
       <td className="hidden md:table-cell p-3 w-28 lg:w-32 text-center">

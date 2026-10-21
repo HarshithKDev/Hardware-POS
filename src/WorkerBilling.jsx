@@ -16,9 +16,24 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
   const { tab } = useParams();
   const activeTab = hideNav ? defaultTab : (tab || 'dashboard');
   const navigate = useNavigate();
-  const { shopSettings, cashierName, userRole } = useApp();
+  const { shopSettings, cashierName, userRole, isWarehouseDisabled } = useApp();
 
   const shopId = shopSettings?.id || localStorage.getItem('shop_id');
+
+  useEffect(() => {
+    if (!hideNav && activeTab === 'transfer' && isWarehouseDisabled) {
+      navigate('/terminal/dashboard', { replace: true });
+    }
+
+    const handleKeyDown = (e) => {
+      if (e.altKey && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault();
+        handleTabSwitch('dashboard');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab, isWarehouseDisabled, hideNav, navigate]);
 
   const { data: workerData, isLoading } = useQuery({
     queryKey: ['workerPermissions', shopId, cashierName],
@@ -57,7 +72,9 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
     tabs.push({ key: 'expenses', label: 'Expenses' });
   } else {
     tabs.push({ key: 'receive', label: 'Inbound' });
-    tabs.push({ key: 'transfer', label: 'Transfer' });
+    if (!isWarehouseDisabled) {
+      tabs.push({ key: 'transfer', label: 'Transfer' });
+    }
     tabs.push({ key: 'lookup', label: 'Item Lookup' });
     tabs.push({ key: 'scanner', label: 'Scanner' });
   }
@@ -69,9 +86,10 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
           <div className="pt-3 px-4 md:pt-2 md:px-0 mb-2">
             <button
               onClick={() => handleTabSwitch('dashboard')}
-              className="inline-flex items-center gap-2 px-4 py-2.5 text-xs md:text-sm font-bold uppercase tracking-wider rounded-xl text-[var(--color-accent)] bg-[var(--color-accent-bg)] border border-[var(--color-accent)]/20 hover:opacity-80 active:scale-95 transition-all shadow-sm"
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs md:text-sm font-bold uppercase tracking-wider rounded-xl text-[var(--color-accent)] bg-[var(--color-accent-bg)] border border-[var(--color-accent)]/20 hover:opacity-80 active:scale-95 transition-all shadow-sm cursor-pointer"
             >
-              ← Back to Dashboard
+              <span>← Back to Dashboard</span>
+              <kbd className="hidden sm:inline px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-[var(--bg-secondary)] border border-[var(--border-medium)] text-[var(--text-secondary)]">Alt+D</kbd>
             </button>
           </div>
         )}

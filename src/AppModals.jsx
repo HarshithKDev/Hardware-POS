@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { supabase } from './supabaseClient';
+import { useApp } from './AppContext';
 
 
 
@@ -81,6 +82,7 @@ export function MobileScannerModal({ onClose, setScannedProduct, onScan }) {
 
 export function ProductInfoModal({ product, onClose }) {
   if (!product) return null;
+  const { isWarehouseDisabled } = useApp();
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[500] px-4 print:hidden animate-fade-in">
@@ -92,12 +94,14 @@ export function ProductInfoModal({ product, onClose }) {
           <p className="text-xs font-semibold uppercase mb-1" style={{ color: 'var(--text-secondary)' }}>Item Name</p>
           <p className="text-xl font-light mb-6" style={{ color: 'var(--text-primary)' }}>{product.name}</p>
           <div className="flex gap-4">
-            <div className="flex-1 p-4 text-center" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
-              <p className="text-xs font-semibold uppercase mb-1" style={{ color: 'var(--text-secondary)' }}>Warehouse</p>
-              <p className="text-3xl font-light" style={{ color: 'var(--text-primary)' }}>{product.stock_warehouse || 0}</p>
-            </div>
+            {!isWarehouseDisabled && (
+              <div className="flex-1 p-4 text-center" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
+                <p className="text-xs font-semibold uppercase mb-1" style={{ color: 'var(--text-secondary)' }}>Warehouse</p>
+                <p className="text-3xl font-light" style={{ color: 'var(--text-primary)' }}>{product.stock_warehouse || 0}</p>
+              </div>
+            )}
             <div className="flex-1 p-4 text-center" style={{ backgroundColor: 'var(--bg-secondary)', border: '2px solid var(--color-accent)' }}>
-              <p className="text-xs font-semibold uppercase mb-1" style={{ color: 'var(--color-accent)' }}>Store Floor</p>
+              <p className="text-xs font-semibold uppercase mb-1" style={{ color: 'var(--color-accent)' }}>{isWarehouseDisabled ? 'Current Stock' : 'Store Floor'}</p>
               <p className="text-3xl font-light" style={{ color: 'var(--color-accent)' }}>{product.stock_store || 0}</p>
             </div>
           </div>

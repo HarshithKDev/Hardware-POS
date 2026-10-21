@@ -30,7 +30,7 @@ export default function BatchDetailsView({
   onBack,
   viewType = 'warehouse'
 }) {
-  const { showAlert, showConfirm } = useApp();
+  const { showAlert, showConfirm, isWarehouseDisabled } = useApp();
   const queryClient = useQueryClient();
 
   // Modals inside this view
@@ -423,7 +423,7 @@ export default function BatchDetailsView({
           onClick={onBack}
           className="px-4 py-2 rounded-lg bg-[var(--color-accent)] text-white text-xs font-bold uppercase"
         >
-          Back to Warehouse
+          Back to {isWarehouseDisabled ? 'Inventory' : 'Warehouse'}
         </button>
       </div>
     );
@@ -438,7 +438,7 @@ export default function BatchDetailsView({
         <button
           onClick={onBack}
           className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] hover:text-white bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] border border-[var(--border-medium)] transition-all cursor-pointer shadow-sm hover:border-[var(--color-accent)]"
-          title="Back to Warehouse Items"
+          title={isWarehouseDisabled ? "Back to Items" : "Back to Warehouse Items"}
         >
           <ArrowLeft className="w-4 h-4 text-[var(--color-accent)]" />
           <span>Back</span>
@@ -480,7 +480,7 @@ export default function BatchDetailsView({
                 Min Alert:
               </span>
               <div className="flex items-center gap-1.5">
-                <span className="text-[11px] text-[var(--text-secondary)]">Store</span>
+                <span className="text-[11px] text-[var(--text-secondary)]">{isWarehouseDisabled ? 'Min Qty' : 'Store'}</span>
                 <input
                   type="number"
                   min="0"
@@ -492,19 +492,23 @@ export default function BatchDetailsView({
                   autoFocus
                 />
               </div>
-              <span className="text-[var(--text-tertiary)] opacity-30">•</span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] text-[var(--text-secondary)]">Whse</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={minQtyForm.warehouse}
-                  onChange={e => setMinQtyForm(prev => ({ ...prev, warehouse: e.target.value }))}
-                  className="w-14 h-7 px-2 text-xs font-bold rounded bg-[var(--bg-input)] border border-[var(--border-medium)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] text-center"
-                  placeholder="0"
-                />
-              </div>
+              {!isWarehouseDisabled && (
+                <>
+                  <span className="text-[var(--text-tertiary)] opacity-30">•</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-[var(--text-secondary)]">Whse</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={minQtyForm.warehouse}
+                      onChange={e => setMinQtyForm(prev => ({ ...prev, warehouse: e.target.value }))}
+                      className="w-14 h-7 px-2 text-xs font-bold rounded bg-[var(--bg-input)] border border-[var(--border-medium)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] text-center"
+                      placeholder="0"
+                    />
+                  </div>
+                </>
+              )}
               <span className="text-[11px] text-[var(--text-tertiary)]">{displayUnit}</span>
 
               <div className="flex items-center gap-1 ml-1.5 pl-1.5 border-l border-[var(--border-light)]">
@@ -512,7 +516,7 @@ export default function BatchDetailsView({
                   onClick={() => {
                     updateMinQtyMutation.mutate({
                       storeQty: minQtyForm.store,
-                      whseQty: minQtyForm.warehouse
+                      whseQty: isWarehouseDisabled ? 0 : minQtyForm.warehouse
                     });
                   }}
                   disabled={updateMinQtyMutation.isPending}
@@ -540,16 +544,20 @@ export default function BatchDetailsView({
           ) : (
             <div className="flex items-center gap-2.5 bg-[var(--bg-secondary)] px-3 py-1.5 rounded-lg border border-[var(--border-light)] text-xs text-[var(--text-secondary)] shadow-sm">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">Min Alert:</span>
-              <span className="text-[var(--text-primary)] font-medium">Store <strong className="text-[var(--text-primary)] font-bold">{item.min_quantity_store ?? 0} {displayUnit}</strong></span>
-              <span className="text-[var(--text-tertiary)] opacity-30">•</span>
-              <span className="text-[var(--text-primary)] font-medium">Whse <strong className="text-[var(--text-primary)] font-bold">{item.min_quantity_warehouse ?? 0} {displayUnit}</strong></span>
+              <span className="text-[var(--text-primary)] font-medium">{isWarehouseDisabled ? '' : 'Store '}<strong className="text-[var(--text-primary)] font-bold">{item.min_quantity_store ?? 0} {displayUnit}</strong></span>
+              {!isWarehouseDisabled && (
+                <>
+                  <span className="text-[var(--text-tertiary)] opacity-30">•</span>
+                  <span className="text-[var(--text-primary)] font-medium">Whse <strong className="text-[var(--text-primary)] font-bold">{item.min_quantity_warehouse ?? 0} {displayUnit}</strong></span>
+                </>
+              )}
               
               <div className="w-[1px] h-3.5 bg-[var(--border-light)] mx-0.5" />
               
               <button
                 onClick={() => setIsEditingMinQty(true)}
                 className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)] hover:text-[var(--color-accent)] transition-colors cursor-pointer"
-                title="Edit Minimum Quantities for Store and Warehouse"
+                title={isWarehouseDisabled ? "Edit Minimum Stock Alert" : "Edit Minimum Quantities for Store and Warehouse"}
               >
                 <Edit3 className="w-3 h-3 text-[var(--color-accent)]" />
                 <span>Edit</span>
@@ -588,6 +596,8 @@ export default function BatchDetailsView({
             if (item.is_cuttable) {
               const bCount = instances.filter(i => i.is_active && (i.batch_id === batch.batch_id || (!i.batch_id && i.instance_barcode?.startsWith(batchCode)))).length;
               tabCountLabel = `${bCount} pcs`;
+            } else if (isWarehouseDisabled) {
+              tabCountLabel = `${Number(batch.stock_store || 0)} ${displayUnit}`;
             } else {
               tabCountLabel = `${Number(batch.stock_warehouse || 0) + Number(batch.stock_store || 0)} ${displayUnit}`;
             }
@@ -732,19 +742,19 @@ export default function BatchDetailsView({
                       {viewType !== 'recycle' && (
                         <button
                           onClick={() => {
-                            const canDelete = Number(activeBatch.stock_warehouse) === 0 && Number(activeBatch.stock_store) === 0 && activeBatchPieceStats.totalCount === 0;
+                            const canDelete = (isWarehouseDisabled || Number(activeBatch.stock_warehouse) === 0) && Number(activeBatch.stock_store) === 0 && activeBatchPieceStats.totalCount === 0;
                             if (canDelete) {
                               setBatchToDelete(activeBatch.batch_id);
                             }
                           }}
-                          disabled={!(Number(activeBatch.stock_warehouse) === 0 && Number(activeBatch.stock_store) === 0 && activeBatchPieceStats.totalCount === 0)}
+                          disabled={!((isWarehouseDisabled || Number(activeBatch.stock_warehouse) === 0) && Number(activeBatch.stock_store) === 0 && activeBatchPieceStats.totalCount === 0)}
                           className={`h-8 px-3 rounded-lg border text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all ${
-                            Number(activeBatch.stock_warehouse) === 0 && Number(activeBatch.stock_store) === 0 && activeBatchPieceStats.totalCount === 0
+                            (isWarehouseDisabled || Number(activeBatch.stock_warehouse) === 0) && Number(activeBatch.stock_store) === 0 && activeBatchPieceStats.totalCount === 0
                               ? 'border-red-500/50 text-red-400 hover:bg-red-500/10 cursor-pointer'
                               : 'border-white/10 text-[var(--text-tertiary)] opacity-40 cursor-not-allowed'
                           }`}
                           title={
-                            Number(activeBatch.stock_warehouse) === 0 && Number(activeBatch.stock_store) === 0 && activeBatchPieceStats.totalCount === 0
+                            (isWarehouseDisabled || Number(activeBatch.stock_warehouse) === 0) && Number(activeBatch.stock_store) === 0 && activeBatchPieceStats.totalCount === 0
                               ? 'Delete empty batch'
                               : 'Cannot delete batch with existing stock or pieces'
                           }
@@ -759,7 +769,7 @@ export default function BatchDetailsView({
               </div>
 
               {/* Metrics Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              <div className={`grid grid-cols-2 sm:grid-cols-3 ${isWarehouseDisabled ? 'lg:grid-cols-4' : 'lg:grid-cols-5'} gap-3`}>
                 {/* Cost Price */}
                 <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)]">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1">
@@ -805,27 +815,29 @@ export default function BatchDetailsView({
                 </div>
 
                 {/* Warehouse Stock */}
-                <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)]">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1">
-                    Warehouse Stock
-                  </span>
-                  <span className="text-sm sm:text-base font-bold text-[var(--color-accent)]">
-                    {item.is_cuttable ? activeBatchPieceStats.whseCount : (activeBatch.stock_warehouse ?? 0)}
-                    <span className="text-xs font-normal text-[var(--text-secondary)] ml-1">
-                      {item.is_cuttable ? 'PCS' : displayUnit}
+                {!isWarehouseDisabled && (
+                  <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)]">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1">
+                      Warehouse Stock
                     </span>
-                  </span>
-                  {item.is_cuttable && activeBatchPieceStats.whseLen > 0 && (
-                    <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">
-                      {activeBatchPieceStats.whseLen.toFixed(1)} {item.unit === 'SQFT' ? 'ft' : item.unit} total
+                    <span className="text-sm sm:text-base font-bold text-[var(--color-accent)]">
+                      {item.is_cuttable ? activeBatchPieceStats.whseCount : (activeBatch.stock_warehouse ?? 0)}
+                      <span className="text-xs font-normal text-[var(--text-secondary)] ml-1">
+                        {item.is_cuttable ? 'PCS' : displayUnit}
+                      </span>
                     </span>
-                  )}
-                </div>
+                    {item.is_cuttable && activeBatchPieceStats.whseLen > 0 && (
+                      <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">
+                        {activeBatchPieceStats.whseLen.toFixed(1)} {item.unit === 'SQFT' ? 'ft' : item.unit} total
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {/* Store Stock */}
                 <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)]">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1">
-                    Store Stock
+                    {isWarehouseDisabled ? 'Current Stock' : 'Store Stock'}
                   </span>
                   <span className="text-sm sm:text-base font-bold text-[var(--color-success)]">
                     {item.is_cuttable ? activeBatchPieceStats.storeCount : (activeBatch.stock_store ?? 0)}
@@ -876,21 +888,23 @@ export default function BatchDetailsView({
                   >
                     Store ({activeBatchPieceStats.storeCount})
                   </button>
-                  <button
-                    onClick={() => setLocationFilter('WAREHOUSE')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
-                      locationFilter === 'WAREHOUSE'
-                        ? 'bg-[var(--bg-tertiary)] text-[var(--color-accent)] shadow-sm border border-[var(--border-light)]'
-                        : 'text-[var(--text-secondary)] hover:text-white'
-                    }`}
-                  >
-                    Whse ({activeBatchPieceStats.whseCount})
-                  </button>
+                  {!isWarehouseDisabled && (
+                    <button
+                      onClick={() => setLocationFilter('WAREHOUSE')}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
+                        locationFilter === 'WAREHOUSE'
+                          ? 'bg-[var(--bg-tertiary)] text-[var(--color-accent)] shadow-sm border border-[var(--border-light)]'
+                          : 'text-[var(--text-secondary)] hover:text-white'
+                      }`}
+                    >
+                      Whse ({activeBatchPieceStats.whseCount})
+                    </button>
+                  )}
                 </div>
 
                 {/* Instances Table */}
                 <div 
-                  className="overflow-x-auto rounded-xl border border-[var(--border-light)] shadow-sm"
+                  className="overflow-x-auto rounded-xl border border-[var(--border-medium)] shadow-sm"
                   style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}
                 >
                   <div className="max-h-[420px] overflow-y-auto">
@@ -900,27 +914,27 @@ export default function BatchDetailsView({
                         style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}
                       >
                         <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                          <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Piece Barcode</th>
-                          <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Original Length</th>
-                          <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Current Length</th>
+                          <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Piece Barcode</th>
+                          <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Original Length</th>
+                          <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Current Length</th>
                           {item.unit === 'SQFT' && (
-                            <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Width & Area</th>
+                            <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Width & Area</th>
                           )}
-                          <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Location</th>
-                          <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Status</th>
+                          <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Location</th>
+                          <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Status</th>
                           <th className="p-3.5 text-center">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {isLoadingInstances ? (
                           <tr>
-                            <td colSpan={item.unit === 'SQFT' ? 7 : 6} className="p-8 text-center" style={{ borderBottom: '1px solid var(--border-light)' }}>
+                            <td colSpan={item.unit === 'SQFT' ? 7 : 6} className="p-8 text-center" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                               <Spinner className="w-6 h-6 text-[var(--color-accent)] mx-auto" />
                             </td>
                           </tr>
                         ) : displayedInstances.length === 0 ? (
                           <tr>
-                            <td colSpan={item.unit === 'SQFT' ? 7 : 6} className="p-8 text-center text-xs text-[var(--text-tertiary)] font-medium" style={{ borderBottom: '1px solid var(--border-light)' }}>
+                            <td colSpan={item.unit === 'SQFT' ? 7 : 6} className="p-8 text-center text-xs text-[var(--text-tertiary)] font-medium" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                               No cut pieces recorded under this batch for this filter.
                             </td>
                           </tr>
@@ -934,10 +948,10 @@ export default function BatchDetailsView({
                               <tr 
                                 key={piece.id || piece.instance_barcode}
                                 className="transition-colors hover:bg-[var(--bg-hover)]"
-                                style={{ borderBottom: '1px solid var(--border-light)' }}
+                                style={{ borderBottom: '1px solid var(--border-medium)' }}
                               >
                                 {/* PIECE BARCODE */}
-                                <td className="p-3.5 text-center text-sm font-medium" style={{ borderRight: '1px solid var(--border-light)' }}>
+                                <td className="p-3.5 text-center text-sm font-medium" style={{ borderRight: '1px solid var(--border-medium)' }}>
                                   <div className="flex items-center justify-center gap-1.5 font-bold text-[var(--color-accent)]">
                                     <span>{piece.instance_barcode}</span>
                                     <button
@@ -955,12 +969,12 @@ export default function BatchDetailsView({
                                 </td>
 
                                 {/* ORIGINAL LENGTH */}
-                                <td className="p-3.5 text-center text-sm font-medium text-[var(--text-secondary)]" style={{ borderRight: '1px solid var(--border-light)' }}>
+                                <td className="p-3.5 text-center text-sm font-medium text-[var(--text-secondary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
                                   {piece.original_length} {unitName}
                                 </td>
 
                                 {/* CURRENT LENGTH */}
-                                <td className="p-3.5 text-center text-sm" style={{ borderRight: '1px solid var(--border-light)' }}>
+                                <td className="p-3.5 text-center text-sm" style={{ borderRight: '1px solid var(--border-medium)' }}>
                                   <div className="flex items-center justify-center gap-1.5">
                                     <span className="font-bold text-[var(--text-primary)]">
                                       {piece.current_length} {unitName}
@@ -975,7 +989,7 @@ export default function BatchDetailsView({
 
                                 {/* SQFT WIDTH & AREA */}
                                 {item.unit === 'SQFT' && (
-                                  <td className="p-3.5 text-center text-sm text-[var(--text-secondary)]" style={{ borderRight: '1px solid var(--border-light)' }}>
+                                  <td className="p-3.5 text-center text-sm text-[var(--text-secondary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
                                     <span>
                                       {item.default_width || 0} ft × {piece.current_length} ft = {' '}
                                       <strong className="text-[var(--text-primary)]">
@@ -986,7 +1000,7 @@ export default function BatchDetailsView({
                                 )}
 
                                 {/* LOCATION */}
-                                <td className="p-3.5 text-center text-sm" style={{ borderRight: '1px solid var(--border-light)' }}>
+                                <td className="p-3.5 text-center text-sm" style={{ borderRight: '1px solid var(--border-medium)' }}>
                                   <span 
                                     className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border ${
                                       isStore 
@@ -999,7 +1013,7 @@ export default function BatchDetailsView({
                                 </td>
 
                                 {/* STATUS */}
-                                <td className="p-3.5 text-center text-sm" style={{ borderRight: '1px solid var(--border-light)' }}>
+                                <td className="p-3.5 text-center text-sm" style={{ borderRight: '1px solid var(--border-medium)' }}>
                                   <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-400">
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                                     Available

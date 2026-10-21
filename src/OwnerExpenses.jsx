@@ -292,14 +292,14 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
             </div>
 
             {/* Desktop Table */}
-            <div className="hidden md:block flex-1 overflow-x-hidden overflow-y-auto shadow-sm min-h-[300px] md:rounded-lg border border-[var(--border-light)]" style={{ backgroundColor: 'transparent', overscrollBehavior: 'none' }}>
+            <div className="hidden md:block flex-1 overflow-x-hidden overflow-y-auto shadow-sm min-h-[300px] md:rounded-lg border border-[var(--border-medium)]" style={{ backgroundColor: 'transparent', overscrollBehavior: 'none' }}>
               <table className="w-full text-center border-collapse">
                 <thead className="sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                   <tr className="text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>
-                    <th className="p-3.5 text-center w-[25%]">Date &amp; Time</th>
-                    <th className="p-3.5 text-center w-[30%]">Description</th>
-                    <th className="p-3.5 text-center w-[20%]">Staff / Category</th>
-                    <th className="p-3.5 text-center w-[15%]">Amount</th>
+                    <th className="p-3.5 text-center w-[25%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Date &amp; Time</th>
+                    <th className="p-3.5 text-center w-[30%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Description</th>
+                    <th className="p-3.5 text-center w-[20%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Staff / Category</th>
+                    <th className="p-3.5 text-center w-[15%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Amount</th>
                     <th className="p-3.5 text-center w-[10%]">By</th>
                   </tr>
                 </thead>
@@ -310,22 +310,22 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
                     return (
                       <tr 
                         key={exp.id} 
-                        className="hover:bg-[var(--bg-hover)] transition-colors border-b border-[var(--border-light)]"
-                        style={{ borderBottom: '1px solid var(--border-light)' }}
+                        className="hover:bg-[var(--bg-hover)] transition-colors border-b border-[var(--border-medium)]"
+                        style={{ borderBottom: '1px solid var(--border-medium)' }}
                       >
-                        <td className="p-3.5 text-center align-middle whitespace-nowrap text-sm" style={{ color: 'var(--text-primary)' }}>
+                        <td className="p-3.5 text-center align-middle whitespace-nowrap text-sm" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
                           {formatDateTime(exp.created_at).full}
                         </td>
 
-                        <td className="p-3.5 text-center align-middle text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        <td className="p-3.5 text-center align-middle text-sm font-semibold" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
                           {exp.reason || '—'}
                         </td>
 
-                        <td className="p-3.5 text-center align-middle whitespace-nowrap text-sm font-medium capitalize" style={{ color: 'var(--text-secondary)' }}>
+                        <td className="p-3.5 text-center align-middle whitespace-nowrap text-sm font-medium capitalize" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}>
                           {exp.worker_name || 'General'}
                         </td>
 
-                        <td className="p-3.5 text-center align-middle whitespace-nowrap font-bold text-sm" style={{ color: 'var(--color-accent)' }}>
+                        <td className="p-3.5 text-center align-middle whitespace-nowrap font-bold text-sm" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--color-accent)' }}>
                           ₹{totalAmt.toFixed(2)}
                         </td>
 

@@ -28,6 +28,7 @@ export default function OwnerSettings() {
 
   const [showAddress, setShowAddress] = useState(true);
   const [showUpi, setShowUpi] = useState(true);
+  const [disableWarehouse, setDisableWarehouse] = useState(false);
 
   useEffect(() => {
     if (shopSettings) {
@@ -55,6 +56,11 @@ export default function OwnerSettings() {
       });
       setShowAddress(sAddr);
       setShowUpi(sUpi);
+      setDisableWarehouse(Boolean(
+        shopSettings.disable_warehouse ??
+        (localStorage.getItem(`disable_warehouse_${shopSettings.id}`) === 'true' ||
+         localStorage.getItem('disable_warehouse') === 'true')
+      ));
       setLogoPreview(shopSettings.logo_url);
     }
   }, [shopSettings]);
@@ -120,9 +126,11 @@ export default function OwnerSettings() {
         shop_address: formData.shop_address.trim() ? (!showAddress ? 'HIDDEN::' + formData.shop_address.trim() : formData.shop_address.trim()) : null,
         phone: formData.phone.trim() || null,
         upi_id: formData.upi_id.trim() ? (!showUpi ? 'HIDDEN::' + formData.upi_id.trim() : formData.upi_id.trim()) : null,
-        logo_url: updatedLogoUrl
+        logo_url: updatedLogoUrl,
+        disable_warehouse: disableWarehouse
       };
 
+      let savedRecord = null;
       const { data, error } = await supabase
         .from('shop_settings')
         .update(updates)
@@ -130,14 +138,30 @@ export default function OwnerSettings() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error && (error.code === '42703' || error.message?.includes('disable_warehouse'))) {
+        delete updates.disable_warehouse;
+        const retry = await supabase
+          .from('shop_settings')
+          .update(updates)
+          .eq('id', shopSettings.id)
+          .select()
+          .single();
+        if (retry.error) throw retry.error;
+        savedRecord = { ...retry.data, disable_warehouse: disableWarehouse };
+      } else if (error) {
+        throw error;
+      } else {
+        savedRecord = { ...data, disable_warehouse: disableWarehouse };
+      }
 
-      setShopSettings(data);
-      localStorage.setItem('owner_name', data.owner_name);
+      localStorage.setItem(`disable_warehouse_${shopSettings.id}`, String(disableWarehouse));
+      localStorage.setItem('disable_warehouse', String(disableWarehouse));
+      setShopSettings(savedRecord);
+      localStorage.setItem('owner_name', savedRecord.owner_name);
       setPassword('');
       setConfirmPassword('');
       setIsEditing(false);
-      showAlert('Profile updated successfully!', 'success');
+      showAlert('Profile & settings updated successfully!', 'success');
 
     } catch (error) {
       showAlert(error.message, 'error');
@@ -319,6 +343,40 @@ export default function OwnerSettings() {
             </div>
           </div>
 
+          {/* WAREHOUSE & INVENTORY PREFERENCES */}
+          <div className="pt-2">
+            <h3 className="font-bold text-xs uppercase tracking-wider mb-2 pb-2 border-b" style={{ color: 'var(--text-tertiary)', borderColor: 'var(--border-light)' }}>Storage & Operations</h3>
+            <div 
+              className={`p-4 rounded-xl border flex items-start justify-between gap-4 transition-all ${disableWarehouse ? 'border-amber-500/40 bg-amber-500/5' : 'border-[var(--border-light)] bg-[var(--bg-tertiary)]'}`}
+            >
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+                    Disable Warehouse (Direct to Store Stock)
+                  </span>
+                  {disableWarehouse && (
+                    <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded-md bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                      Disabled
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                  When checked, the warehouse is completely turned off and bypassed. All warehouse metrics, columns, and &ldquo;Move to Shop&rdquo; transfer actions are hidden from the UI, and newly received stock goes directly into store stock.
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                <input 
+                  type="checkbox" 
+                  checked={disableWarehouse} 
+                  onChange={(e) => setDisableWarehouse(e.target.checked)} 
+                  disabled={!isEditing}
+                  className="sr-only peer"
+                />
+                <div className={`w-11 h-6 bg-[var(--border-medium)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${isEditing ? 'peer-checked:bg-[var(--color-accent)] cursor-pointer' : 'opacity-60 cursor-default'}`} />
+              </label>
+            </div>
+          </div>
+
           {isEditing && (
             <>
               <div className="pt-2 space-y-3">
@@ -386,6 +444,11 @@ export default function OwnerSettings() {
                       });
                       setShowAddress(sAddr);
                       setShowUpi(sUpi);
+                      setDisableWarehouse(Boolean(
+                        shopSettings.disable_warehouse ??
+                        (localStorage.getItem(`disable_warehouse_${shopSettings.id}`) === 'true' ||
+                         localStorage.getItem('disable_warehouse') === 'true')
+                      ));
                       setLogoPreview(shopSettings.logo_url);
                       setLogoFile(null);
                     }

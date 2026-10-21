@@ -15,7 +15,20 @@ export const formatUnitBadge = (unit) => {
   return u.length > 3 ? u.substring(0, 3).toLowerCase() : u.toLowerCase();
 };
 
-const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, onUpdateDimensions, onCustomPriceChange, onCustomTotalChange, onCustomPriceBlur, onCustomPriceChangeGroup, onCustomTotalChangeGroup, onCustomPriceBlurGroup, onRemoveItem }) {
+const CartTable = React.memo(function CartTable({ 
+  activeTab, 
+  selectedCartIndex = null,
+  onSelectCartIndex = null,
+  onUpdateQuantity, 
+  onUpdateDimensions, 
+  onCustomPriceChange, 
+  onCustomTotalChange, 
+  onCustomPriceBlur, 
+  onCustomPriceChangeGroup, 
+  onCustomTotalChangeGroup, 
+  onCustomPriceBlurGroup, 
+  onRemoveItem 
+}) {
   const { cart } = useCart();
   const { userRole } = useApp();
   const [expandedGroups, setExpandedGroups] = React.useState({});
@@ -33,28 +46,30 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
   }
 
   return (
-    <table className="w-full min-w-[760px] xl:min-w-[900px] text-center whitespace-nowrap border-collapse" role="table">
+    <div className="flex flex-col min-h-full">
+      <div className="flex-1 overflow-x-auto">
+        <table className="w-full min-w-[760px] xl:min-w-[900px] text-center whitespace-nowrap border-collapse" role="table">
       <thead className="sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
         <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-          <th className="py-4 px-3 w-28 text-center">Barcode</th>
-          <th className="py-4 px-3 w-1/3 min-w-[160px] text-center">Item Name</th>
-          <th className={`p-3 text-center w-60 lg:w-72 ${activeTab === 'checkout' || activeTab === 'receive' ? '' : ''}`} style={activeTab === 'checkout' || activeTab === 'receive' ? { } : {}}>Quantity</th>
+          <th className="py-4 px-3 w-28 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Barcode</th>
+          <th className="py-4 px-3 w-1/3 min-w-[160px] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Item Name</th>
+          <th className="p-3 text-center w-60 lg:w-72" style={{ borderRight: '1px solid var(--border-medium)' }}>Quantity</th>
           {activeTab === 'checkout' && (
             <>
-              <th className="py-4 px-3 text-center w-28 lg:w-36">MRP (₹)</th>
-              <th className="py-4 px-3 text-center w-28 lg:w-32">Total</th>
+              <th className="py-4 px-3 text-center w-28 lg:w-36" style={{ borderRight: '1px solid var(--border-medium)' }}>MRP (₹)</th>
+              <th className="py-4 px-3 text-center w-28 lg:w-32" style={{ borderRight: '1px solid var(--border-medium)' }}>Total</th>
             </>
           )}
           {activeTab === 'receive' && (
             <>
-              <th className="py-4 px-3 text-center w-28 lg:w-32">MSP (₹)</th>
-              <th className="py-4 px-3 text-center w-28 lg:w-32">MRP (₹)</th>
+              <th className="py-4 px-3 text-center w-28 lg:w-32" style={{ borderRight: '1px solid var(--border-medium)' }}>MSP (₹)</th>
+              <th className="py-4 px-3 text-center w-28 lg:w-32" style={{ borderRight: '1px solid var(--border-medium)' }}>MRP (₹)</th>
             </>
           )}
           <th className="py-4 px-2 w-12"></th>
         </tr>
       </thead>
-      <tbody style={{ borderBottom: '1px solid var(--border-light)' }}>
+      <tbody style={{ borderBottom: '1px solid var(--border-medium)' }}>
         {(() => {
           const groupedCart = [];
           const groupMap = new Map();
@@ -159,9 +174,21 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                     const safeQty = child.quantity === '' ? 0 : Number(child.quantity);
                     const billableQty = child.billableQuantity !== undefined && child.billableQuantity !== '' ? Number(child.billableQuantity) : safeQty;
                     const isLast = idx === item.children.length - 1;
+                    const isChildSelected = cart[selectedCartIndex]?.id === child.id;
                     return (
-                      <tr key={child.id} className="animate-fade-in bg-[var(--bg-primary)]" style={{ borderBottom: isLast ? '1px solid var(--border-light)' : '1px dashed var(--border-medium)' }}>
-                        <td className="py-4 px-3 text-center" >
+                      <tr 
+                        key={child.id} 
+                        onClick={() => {
+                          const cIdx = cart.findIndex(c => c.id === child.id);
+                          if (cIdx >= 0 && onSelectCartIndex) onSelectCartIndex(cIdx);
+                        }}
+                        className={`animate-fade-in cursor-pointer transition-colors ${isChildSelected ? 'bg-[var(--bg-hover)]' : 'bg-[var(--bg-primary)]'}`} 
+                        style={{ 
+                          borderBottom: isLast ? '1px solid var(--border-medium)' : '1px dashed var(--border-medium)',
+                          boxShadow: isChildSelected ? 'inset 4px 0 0 var(--color-accent)' : undefined
+                        }}
+                      >
+                        <td className="py-4 px-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
                           <div className="flex items-center justify-center gap-2">
                             <svg className="w-4 h-4" style={{ color: 'var(--border-heavy)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5v8a2 2 0 002 2h7M14 11l4 4-4 4" />
@@ -169,10 +196,10 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                             <span className="text-xs  font-bold" style={{ color: 'var(--text-tertiary)' }}>{child.instance_barcode || 'Unknown'}</span>
                           </div>
                         </td>
-                        <td className="py-4 px-3 text-center" >
+                        <td className="py-4 px-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
                            <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>Cut Piece</span>
                         </td>
-                        <td className="p-2 text-center" >
+                        <td className="p-2 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
                           {child.unit === 'SQFT' ? (
                               <div className="flex items-center justify-center gap-2">
                                 <span className="font-bold text-sm bg-[var(--bg-tertiary)] px-3 py-1 rounded-sm border border-[var(--border-medium)]" style={{ color: 'var(--text-primary)' }}>{child.pieceLength || child.length} ft</span>
@@ -187,8 +214,8 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                               </div>
                           )}
                         </td>
-                        <td className="p-2" ></td>
-                        <td className="p-2 text-center text-sm font-bold" >
+                        <td className="p-2" style={{ borderRight: '1px solid var(--border-medium)' }}></td>
+                        <td className="p-2 text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-medium)' }}>
                           ₹{(sellPrice * billableQty).toFixed(2)}
                           {safeQty !== billableQty && (
                              <div className="text-[10px] text-[var(--text-tertiary)] font-normal">Billed for {billableQty} sqft</div>
@@ -219,12 +246,25 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
             );
             const hasSubtext = Boolean((activeTab === 'checkout' && isLooseKg) || (safeQty !== billableQty));
 
+            const isRowSelected = cart[selectedCartIndex]?.id === item.id;
+
             return (
-              <tr key={item.id} className="animate-fade-in" style={{ borderBottom: '1px solid var(--border-light)' }}>
-                <td className="py-4 px-3 text-center align-middle text-sm font-bold" style={{ color: 'var(--color-accent)' }}>
+              <tr 
+                key={item.id} 
+                onClick={() => {
+                  const rIdx = cart.findIndex(c => c.id === item.id);
+                  if (rIdx >= 0 && onSelectCartIndex) onSelectCartIndex(rIdx);
+                }}
+                className={`animate-fade-in cursor-pointer transition-colors ${isRowSelected ? 'bg-[var(--bg-hover)]' : ''}`} 
+                style={{ 
+                  borderBottom: '1px solid var(--border-medium)',
+                  boxShadow: isRowSelected ? 'inset 4px 0 0 var(--color-accent)' : undefined
+                }}
+              >
+                <td className="py-4 px-3 text-center align-middle text-sm font-bold" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--color-accent)' }}>
                   {item.scanned_barcode && item.scanned_barcode.includes('-') ? item.scanned_barcode : (item.batch_number ? `${item.barcode}-${String(item.batch_number).padStart(2, '0')}` : item.scanned_barcode || item.instance_barcode || item.barcode)}
                 </td>
-                <td className="py-4 px-3 text-center align-middle" >
+                <td className="py-4 px-3 text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>
                   <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name}</p>
                   {item.pieceLength && (
                     <p className="text-[10px] uppercase font-bold mt-1" style={{ color: 'var(--text-tertiary)' }}>Length per piece: {item.pieceLength} {item.unit}</p>
@@ -240,7 +280,7 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                     </div>
                   )}
                 </td>
-                <td className="p-2 text-center align-middle">
+                <td className="p-2 text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>
                   {(item.unit === 'SQFT' && item.is_cuttable && activeTab === 'checkout') || (item.is_cuttable && activeTab === 'receive') ? (
                     <div className="flex flex-col items-center justify-center">
                       <div className="h-8 flex items-center justify-center gap-2">
@@ -384,7 +424,7 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                   )}
                 </td>
                 {activeTab === 'checkout' && (<>
-                  <td className="p-2 text-center align-middle">
+                  <td className="p-2 text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>
                     <div className="flex flex-col items-center justify-center">
                       <div className="h-8 flex items-center justify-center w-full">
                         <div className="relative flex items-center justify-center w-full max-w-[120px] h-8 mx-auto">
@@ -401,7 +441,7 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                       )}
                     </div>
                   </td>
-                  <td className="p-2 text-center align-middle">
+                  <td className="p-2 text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>
                     <div className="flex flex-col items-center justify-center">
                       <div className="h-8 flex items-center justify-center w-full">
                         <div className="relative flex items-center justify-center w-full max-w-[120px] h-8 mx-auto">
@@ -420,10 +460,10 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
                   </td>
                 </>)}
                 {activeTab === 'receive' && (<>
-                  <td className="p-2 text-center align-middle text-sm font-semibold bg-[var(--bg-tertiary)] group/msp cursor-help" style={{ color: 'var(--text-secondary)' }}>
+                  <td className="p-2 text-center align-middle text-sm font-semibold bg-[var(--bg-tertiary)] group/msp cursor-help" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}>
                     {userRole === 'owner' ? `₹${Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}</span></span>}
                   </td>
-                  <td className="p-2 text-center align-middle text-sm font-semibold bg-[var(--bg-tertiary)]" style={{ color: 'var(--text-secondary)' }}>
+                  <td className="p-2 text-center align-middle text-sm font-semibold bg-[var(--bg-tertiary)]" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}>
                     ₹{Number(item.selling_price !== undefined ? item.selling_price : item.price || 0).toFixed(2)}
                   </td>
                 </>)}
@@ -441,8 +481,30 @@ const CartTable = React.memo(function CartTable({ activeTab, onUpdateQuantity, o
             );
           });
         })()}
-      </tbody>
-    </table>
+          </tbody>
+        </table>
+      </div>
+      <div 
+        className="sticky bottom-0 z-10 px-4 py-2 border-t flex flex-wrap items-center justify-between gap-3 text-xs shrink-0" 
+        style={{ 
+          backgroundColor: 'var(--bg-tertiary)', 
+          borderColor: 'var(--border-medium)', 
+          color: 'var(--text-secondary)' 
+        }}
+      >
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <span className="font-bold text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Hotkeys:</span>
+          <span className="inline-flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border bg-[var(--bg-secondary)] border-[var(--border-medium)] text-[var(--text-primary)]">↑</kbd><kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border bg-[var(--bg-secondary)] border-[var(--border-medium)] text-[var(--text-primary)]">↓</kbd> Select</span>
+          <span className="inline-flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border bg-[var(--bg-secondary)] border-[var(--border-medium)] text-[var(--text-primary)]">+</kbd><kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border bg-[var(--bg-secondary)] border-[var(--border-medium)] text-[var(--text-primary)]">-</kbd> Qty</span>
+          <span className="inline-flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border bg-[var(--bg-secondary)] border-[var(--border-medium)] text-[var(--text-primary)]">Del</kbd> Remove</span>
+        </div>
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <span className="inline-flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border bg-[var(--bg-secondary)] border-[var(--border-medium)] text-[var(--text-primary)]">F2</kbd> Search</span>
+          <span className="inline-flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border bg-[var(--bg-secondary)] border-[var(--border-medium)] text-[var(--text-primary)]">F4</kbd> Pay</span>
+          <span className="inline-flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border bg-[var(--bg-secondary)] border-[var(--border-medium)] text-[var(--text-primary)]">F1</kbd> Cheatsheet</span>
+        </div>
+      </div>
+    </div>
   );
 });
 

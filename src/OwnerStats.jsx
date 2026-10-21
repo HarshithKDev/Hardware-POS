@@ -196,20 +196,23 @@ function SalesTrendChart({ trend, isLoading }) {
 /** Top products list */
 function TopProductsList({ products }) {
   return (
-    <div className="p-5 rounded-lg border border-[var(--border-light)] flex flex-col h-full" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-      <p className="text-xs font-semibold uppercase tracking-wider mb-4 pb-2 shrink-0" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-light)' }}>
-        Top 5 Profit Makers
+    <div className="p-4 sm:p-5 rounded-lg border border-[var(--border-light)] flex flex-col h-full min-w-0" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+      <p className="text-xs font-semibold uppercase tracking-wider mb-3 pb-2 shrink-0 flex items-center justify-between" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-light)' }}>
+        <span>Top 10 Profit Makers</span>
+        {products.length > 0 && (
+          <span className="text-[10px] font-bold text-[var(--color-success)]">{products.length} Items</span>
+        )}
       </p>
-      <ul className="flex-1 overflow-y-auto">
+      <ul className="flex-1 overflow-y-auto modal-scroll pr-1 divide-y divide-[var(--border-light)]">
         {products.length === 0 ? (
           <li className="text-sm py-4 text-center" style={{ color: 'var(--text-tertiary)' }}>Not enough data.</li>
         ) : products.map((p, idx) => (
-          <li key={p.name} className="py-2 flex justify-between items-center" style={{ borderBottom: '1px solid var(--border-light)' }}>
-            <div className="flex items-center gap-3 overflow-hidden pr-2">
-              <span className="text-xs font-bold w-3" style={{ color: 'var(--text-tertiary)' }}>{idx + 1}.</span>
-              <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{p.name}</span>
+          <li key={p.name} className="py-1.5 sm:py-2 flex justify-between items-center hover:bg-white/[0.02] px-1 rounded transition-colors">
+            <div className="flex items-center gap-2.5 overflow-hidden pr-2 min-w-0">
+              <span className="text-xs font-bold w-5 shrink-0 text-right" style={{ color: 'var(--text-tertiary)' }}>{idx + 1}.</span>
+              <span className="text-xs sm:text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }} title={p.name}>{p.name}</span>
             </div>
-            <span className="text-sm font-bold shrink-0" style={{ color: 'var(--color-success)' }}>
+            <span className="text-xs sm:text-sm font-bold shrink-0 tabular-nums ml-2" style={{ color: 'var(--color-success)' }}>
               <AnimatedNumber valueStr={`₹${p.profit.toFixed(0)}`} duration={250} />
             </span>
           </li>
@@ -624,7 +627,7 @@ function DashboardDateFilter({
 // Main OwnerStats component
 // ---------------------------------------------------------------
 export default function OwnerStats({ isActive }) {
-  const { showAlert, shopSettings } = useApp();
+  const { showAlert, shopSettings, isWarehouseDisabled } = useApp();
   const shopId = shopSettings?.id || localStorage.getItem('shop_id');
   const [globalTimeframe, setGlobalTimeframe] = useState('today');
   const [customDate, setCustomDate] = useState(() => new Date().toLocaleDateString('en-CA'));
@@ -866,7 +869,7 @@ export default function OwnerStats({ isActive }) {
       tfGrossProfit = tProfitCents / 100;
       tfTotalCost = tCostCents / 100;
       tfSalesDetails = Object.values(salesMap).sort((a, b) => b.lineProfit - a.lineProfit);
-      topProducts = Object.values(productStats).sort((a, b) => b.profit - a.profit).slice(0, 5);
+      topProducts = Object.values(productStats).sort((a, b) => b.profit - a.profit).slice(0, 10);
     }
 
     return {
@@ -1123,7 +1126,7 @@ export default function OwnerStats({ isActive }) {
       )}
 
       {/* ROW 1: TODAY'S VITALS */}
-      <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-3 lg:gap-4 mb-4 shrink-0">
+      <div className={`grid grid-cols-2 md:grid-cols-3 ${isWarehouseDisabled ? '2xl:grid-cols-5' : '2xl:grid-cols-6'} gap-3 lg:gap-4 mb-4 shrink-0`}>
         <StatCard title="Revenue" value={`₹${tfTrueRevenue.toFixed(2)}`} borderColor="var(--color-success)" />
         <StatCard
           title="Profit"
@@ -1139,21 +1142,23 @@ export default function OwnerStats({ isActive }) {
           borderColor="var(--color-warning)"
         />
         <StatCard
-          title="Shop Low Stock"
+          title={isWarehouseDisabled ? "Low Stock" : "Shop Low Stock"}
           value={lowStoreItems.length}
           accentColor={lowStoreItems.length > 0 ? 'var(--color-error)' : undefined}
           borderColor={lowStoreItems.length > 0 ? 'var(--color-error)' : 'var(--color-accent)'}
           onClick={() => setActiveModal('low-store')}
           clickLabel="View low stock items"
         />
-        <StatCard
-          title="Warehouse Low Stock"
-          value={lowWarehouseItems.length}
-          accentColor={lowWarehouseItems.length > 0 ? 'var(--color-error)' : undefined}
-          borderColor={lowWarehouseItems.length > 0 ? 'var(--color-error)' : 'var(--color-accent)'}
-          onClick={() => setActiveModal('low-warehouse')}
-          clickLabel="View warehouse low stock"
-        />
+        {!isWarehouseDisabled && (
+          <StatCard
+            title="Warehouse Low Stock"
+            value={lowWarehouseItems.length}
+            accentColor={lowWarehouseItems.length > 0 ? 'var(--color-error)' : undefined}
+            borderColor={lowWarehouseItems.length > 0 ? 'var(--color-error)' : 'var(--color-accent)'}
+            onClick={() => setActiveModal('low-warehouse')}
+            clickLabel="View warehouse low stock"
+          />
+        )}
         <StatCard
           title="Dead Stock Value"
           value={`₹${deadStockValue.toFixed(0)}`}
@@ -1174,11 +1179,13 @@ export default function OwnerStats({ isActive }) {
       </div>
 
       {/* ROW 3: CAPITAL */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 lg:gap-4 shrink-0">
+      <div className={`grid ${isWarehouseDisabled ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-3'} gap-3 lg:gap-4 shrink-0`}>
         <StatCard title="Total Asset Value" value={`₹${totalInventoryValue.toFixed(2)}`} borderColor="var(--text-tertiary)" />
-        <StatCard title="Warehouse Capital" value={`₹${warehouseCapital.toFixed(2)}`} borderColor="var(--color-accent)" />
-        <div className="col-span-2 md:col-span-1">
-          <StatCard title="Store Capital" value={`₹${storeCapital.toFixed(2)}`} borderColor="var(--color-accent)" />
+        {!isWarehouseDisabled && (
+          <StatCard title="Warehouse Capital" value={`₹${warehouseCapital.toFixed(2)}`} borderColor="var(--color-accent)" />
+        )}
+        <div className={isWarehouseDisabled ? '' : 'col-span-2 md:col-span-1'}>
+          <StatCard title={isWarehouseDisabled ? "Stock Capital" : "Store Capital"} value={`₹${storeCapital.toFixed(2)}`} borderColor="var(--color-accent)" />
         </div>
       </div>
 
@@ -1202,7 +1209,7 @@ export default function OwnerStats({ isActive }) {
             >
               <span id="stats-modal-title" className="text-xs sm:text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
                 {activeModal === 'profit' && 'Profit & Sales Breakdown'}
-                {activeModal === 'low-store' && `Items Running Low in Store Front`}
+                {activeModal === 'low-store' && (isWarehouseDisabled ? 'Items Running Low in Stock' : 'Items Running Low in Store Front')}
                 {activeModal === 'low-warehouse' && `Items Running Low in Warehouse`}
                 {activeModal === 'dead-stock' && `Dead Stock`}
                 {activeModal === 'failed-syncs' && 'Failed Offline Transactions'}
@@ -1219,12 +1226,12 @@ export default function OwnerStats({ isActive }) {
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               {activeModal === 'profit' && (
                 <>
-                  <div className="grid grid-cols-3 p-4 shrink-0" style={{ backgroundColor: 'var(--color-success-bg)', borderBottom: '1px solid var(--border-light)' }}>
-                    <div className="text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+                  <div className="grid grid-cols-3 p-4 shrink-0" style={{ backgroundColor: 'var(--color-success-bg)', borderBottom: '1px solid var(--border-medium)' }}>
+                    <div className="text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
                       <p className="text-xs font-bold uppercase mb-1" style={{ color: 'var(--text-secondary)' }}>Total Cost of Goods</p>
                       <p className="text-xl font-medium" style={{ color: 'var(--text-primary)' }}>₹{tfTotalCost.toFixed(2)}</p>
                     </div>
-                    <div className="text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+                    <div className="text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
                       <p className="text-xs font-bold uppercase mb-1" style={{ color: 'var(--text-secondary)' }}>Total Sold For</p>
                       <p className="text-xl font-medium" style={{ color: 'var(--text-primary)' }}>₹{tfTrueRevenue.toFixed(2)}</p>
                     </div>
@@ -1235,12 +1242,12 @@ export default function OwnerStats({ isActive }) {
                   </div>
                   <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto w-full modal-scroll">
                     <table className="w-full text-left border-collapse">
-                      <thead className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-light)' }}>
+                      <thead className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                         <tr className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                          <th className="p-3" style={{ borderRight: '1px solid var(--border-light)' }}>Item Sold</th>
-                          <th className="p-3 text-left" style={{ borderRight: '1px solid var(--border-light)' }}>Total Qty</th>
-                          <th className="p-3 text-left" style={{ borderRight: '1px solid var(--border-light)' }}>Total Cost</th>
-                          <th className="p-3 text-left" style={{ borderRight: '1px solid var(--border-light)' }}>Total Sold For</th>
+                          <th className="p-3" style={{ borderRight: '1px solid var(--border-medium)' }}>Item Sold</th>
+                          <th className="p-3 text-left" style={{ borderRight: '1px solid var(--border-medium)' }}>Total Qty</th>
+                          <th className="p-3 text-left" style={{ borderRight: '1px solid var(--border-medium)' }}>Total Cost</th>
+                          <th className="p-3 text-left" style={{ borderRight: '1px solid var(--border-medium)' }}>Total Sold For</th>
                           <th className="p-3 text-left">Profit Generated</th>
                         </tr>
                       </thead>
@@ -1248,11 +1255,11 @@ export default function OwnerStats({ isActive }) {
                         {tfSalesDetails.length === 0 ? (
                           <tr><td colSpan="5" className="h-48 align-middle text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No sales recorded.</td></tr>
                         ) : tfSalesDetails.map((item, idx) => (
-                          <tr key={idx} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-light)' }}>
-                            <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
-                            <td className="p-3 text-sm text-left" style={{ borderRight: '1px solid var(--border-light)' }}>{item.qty} {item.unit}</td>
-                            <td className="p-3 text-sm text-left" style={{ borderRight: '1px solid var(--border-light)' }}>₹{item.lineCost.toFixed(2)}</td>
-                            <td className="p-3 text-sm text-left" style={{ borderRight: '1px solid var(--border-light)' }}>₹{item.lineRev.toFixed(2)}</td>
+                          <tr key={idx} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>
+                            <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.name}</td>
+                            <td className="p-3 text-sm text-left" style={{ borderRight: '1px solid var(--border-medium)' }}>{item.qty} {item.unit}</td>
+                            <td className="p-3 text-sm text-left" style={{ borderRight: '1px solid var(--border-medium)' }}>₹{item.lineCost.toFixed(2)}</td>
+                            <td className="p-3 text-sm text-left" style={{ borderRight: '1px solid var(--border-medium)' }}>₹{item.lineRev.toFixed(2)}</td>
                             <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-success)' }}>₹{item.lineProfit.toFixed(2)}</td>
                           </tr>
                         ))}
@@ -1265,32 +1272,32 @@ export default function OwnerStats({ isActive }) {
               {(activeModal === 'low-store' || activeModal === 'low-warehouse' || activeModal === 'dead-stock') && (
                 <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto w-full modal-scroll">
                   <table className="w-full text-left border-collapse">
-                    <thead className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-light)' }}>
+                    <thead className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                       <tr className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                        <th className="p-3 w-32" style={{ borderRight: '1px solid var(--border-light)' }}>Barcode</th>
-                        <th className="p-3" style={{ borderRight: '1px solid var(--border-light)' }}>Item Name</th>
+                        <th className="p-3 w-32" style={{ borderRight: '1px solid var(--border-medium)' }}>Barcode</th>
+                        <th className="p-3" style={{ borderRight: '1px solid var(--border-medium)' }}>Item Name</th>
                         {activeModal === 'dead-stock' ? (
                           <>
-                            <th className="p-3 text-left w-32" style={{ borderRight: '1px solid var(--border-light)' }}>Locked Qty</th>
+                            <th className="p-3 text-left w-32" style={{ borderRight: '1px solid var(--border-medium)' }}>Locked Qty</th>
                             <th className="p-3 text-left whitespace-nowrap">Capital Tied Up</th>
                           </>
                         ) : (
                           <>
-                            <th className="p-3 text-left w-32" style={{ borderRight: '1px solid var(--border-light)' }}>Min Qty</th>
+                            <th className="p-3 text-left w-32" style={{ borderRight: '1px solid var(--border-medium)' }}>Min Qty</th>
                             <th className="p-3 text-left w-32">Current Qty</th>
                           </>
                         )}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[var(--border-light)]">
+                    <tbody className="divide-y divide-[var(--border-medium)]">
                       {activeModal === 'low-store' && lowStoreItems.length === 0 && (
                         <tr><td colSpan="4" className="h-48 align-middle text-center text-sm font-semibold" style={{ color: 'var(--color-success)' }}>Nothing in low stock.</td></tr>
                       )}
                       {activeModal === 'low-store' && lowStoreItems.map(item => (
-                        <tr key={item.barcode} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-light)' }}>
-                          <td className="p-3 text-sm font-semibold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{item.barcode}</td>
-                          <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
-                          <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--text-tertiary)', borderRight: '1px solid var(--border-light)' }}>{item.min_quantity_store ?? 10}</td>
+                        <tr key={item.barcode} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>
+                          <td className="p-3 text-sm font-semibold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-medium)' }}>{item.barcode}</td>
+                          <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.name}</td>
+                          <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--text-tertiary)', borderRight: '1px solid var(--border-medium)' }}>{item.min_quantity_store ?? 10}</td>
                           <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-error)' }}>{item.stock_store}</td>
                         </tr>
                       ))}
@@ -1298,10 +1305,10 @@ export default function OwnerStats({ isActive }) {
                         <tr><td colSpan="4" className="h-48 align-middle text-center text-sm font-semibold" style={{ color: 'var(--color-success)' }}>Nothing in low stock.</td></tr>
                       )}
                       {activeModal === 'low-warehouse' && lowWarehouseItems.map(item => (
-                        <tr key={item.barcode} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-light)' }}>
-                          <td className="p-3 text-sm font-semibold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{item.barcode}</td>
-                          <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
-                          <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--text-tertiary)', borderRight: '1px solid var(--border-light)' }}>{item.min_quantity_warehouse ?? 50}</td>
+                        <tr key={item.barcode} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>
+                          <td className="p-3 text-sm font-semibold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-medium)' }}>{item.barcode}</td>
+                          <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.name}</td>
+                          <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--text-tertiary)', borderRight: '1px solid var(--border-medium)' }}>{item.min_quantity_warehouse ?? 50}</td>
                           <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-error)' }}>{item.stock_warehouse}</td>
                         </tr>
                       ))}
@@ -1309,10 +1316,10 @@ export default function OwnerStats({ isActive }) {
                         <tr><td colSpan="4" className="h-48 align-middle text-center text-sm font-semibold" style={{ color: 'var(--color-success)' }}>Great job! All your stock is active and moving.</td></tr>
                       )}
                       {activeModal === 'dead-stock' && deadStockItems.map(item => (
-                        <tr key={item.barcode} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-light)' }}>
-                          <td className="p-3 text-sm font-semibold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)' }}>{item.barcode}</td>
-                          <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>{item.name}</td>
-                          <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-warning)', borderRight: '1px solid var(--border-light)' }}>{item.totalQty}</td>
+                        <tr key={item.barcode} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>
+                          <td className="p-3 text-sm font-semibold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-medium)' }}>{item.barcode}</td>
+                          <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.name}</td>
+                          <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-warning)', borderRight: '1px solid var(--border-medium)' }}>{item.totalQty}</td>
                           <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-error)' }}>₹{item.deadValue.toFixed(2)}</td>
                         </tr>
                       ))}

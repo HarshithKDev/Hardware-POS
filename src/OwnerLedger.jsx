@@ -3,10 +3,10 @@ import { supabase } from './supabaseClient';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
-import { formatDateTime, escapeIlike } from './utils';
+import { formatDateTime, escapeIlike, formatDayHeader } from './utils';
 import { SALES_PER_PAGE } from './constants';
 import { DialogOverlay } from './Dialog';
-import { Search, Undo2, X, Phone, User, ChevronRight } from 'lucide-react';
+import { Search, Undo2, X, Phone, User, ChevronRight, Calendar } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import BillDetailsView from './BillDetailsView';
 import { getInventoryItemByBarcode } from './services/db';
@@ -68,10 +68,8 @@ export default function OwnerLedger({ isActive }) {
   const queryClient = useQueryClient();
 
   const [salesPage, setSalesPage] = useState(0);
-  const [dateFilter, setDateFilter] = useState('ALL');
+  const [datePageIndex, setDatePageIndex] = useState(0);
   const [customDate, setCustomDate] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
 
   // Customer search & suggestions
   const [searchQuery, setSearchQuery] = useState('');
@@ -83,6 +81,50 @@ export default function OwnerLedger({ isActive }) {
   const [billItemsCache, setBillItemsCache] = useState({});
   const [isLoadingItems, setIsLoadingItems] = useState(false);
   const [returnModalState, setReturnModalState] = useState(null); // { bill, items }
+
+  // Query distinct dates with store sales for day-by-day pagination
+  const shopId = localStorage.getItem('shop_id');
+  const { data: availableDates = [] } = useQuery({
+    queryKey: ['billAvailableDates', shopId, isActive],
+    queryFn: async () => {
+      let query = supabase
+        .from('bills')
+        .select('created_at')
+        .eq('location', 'Store')
+        .neq('status', 'showroom_pending')
+        .order('created_at', { ascending: false })
+        .limit(2000);
+      if (shopId) {
+        query = query.eq('shop_id', shopId);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      const dates = [];
+      const seen = new Set();
+      for (const row of (data || [])) {
+        if (!row.created_at) continue;
+        const d = new Date(row.created_at).toLocaleDateString('en-CA');
+        if (!seen.has(d)) {
+          seen.add(d);
+          dates.push(d);
+        }
+      }
+      return dates;
+    },
+    enabled: isActive,
+    staleTime: 1000 * 60 * 2,
+  });
+
+  const isSearching = Boolean(searchQuery.trim());
+
+  // Active day: custom selected date, or date at current page index, or latest available date
+  const currentDay = useMemo(() => {
+    if (customDate) return customDate;
+    if (availableDates && availableDates.length > 0) {
+      return availableDates[datePageIndex] || availableDates[0];
+    }
+    return new Date().toLocaleDateString('en-CA');
+  }, [customDate, availableDates, datePageIndex]);
 
   // Fetch recent customer records for quick search suggestions (phone prioritized)
   useEffect(() => {
@@ -143,10 +185,7 @@ export default function OwnerLedger({ isActive }) {
     ).slice(0, 8);
   }, [customers, searchQuery]);
 
-  const shopId = localStorage.getItem('shop_id');
-
   const fetchBills = useCallback(async () => {
-    const from = salesPage * SALES_PER_PAGE;
     let query = supabase
       .from('bills')
       .select('*')
@@ -155,50 +194,51 @@ export default function OwnerLedger({ isActive }) {
     if (shopId) {
       query = query.eq('shop_id', shopId);
     }
-    query = query
-      .order('created_at', { ascending: false })
-      .range(from, from + SALES_PER_PAGE - 1);
 
-    // Apply customer phone, name, or bill ID search filter
-    if (searchQuery.trim()) {
+    if (isSearching) {
+      // GLOBAL SEARCH: Search all available data across all time
       const raw = searchQuery.trim().replace(/^#/, '').replace(/[,()]/g, '');
       if (raw) {
         const cleanQ = escapeIlike(raw);
         query = query.or(`customer_phone.ilike.%${cleanQ}%,customer_name.ilike.%${cleanQ}%,id.ilike.%${cleanQ}%`);
       }
-    }
-
-    if (dateFilter !== 'ALL') {
-      let start, end;
-      const now = new Date();
-      if (dateFilter === 'TODAY') {
-        const s = now.toLocaleDateString('en-CA');
-        start = `${s}T00:00:00`; end = `${s}T23:59:59.999`;
-      } else if (dateFilter === 'YESTERDAY') {
-        now.setDate(now.getDate() - 1);
-        const s = now.toLocaleDateString('en-CA');
-        start = `${s}T00:00:00`; end = `${s}T23:59:59.999`;
-      } else if (dateFilter === 'CUSTOM' && customDate) {
-        start = `${customDate}T00:00:00`; end = `${customDate}T23:59:59.999`;
-      } else if (dateFilter === 'RANGE' && startDate && endDate) {
-        start = `${startDate}T00:00:00`; end = `${endDate}T23:59:59.999`;
-      }
-      if (start && end) query = query.gte('created_at', start).lte('created_at', end);
+      const from = salesPage * SALES_PER_PAGE;
+      query = query
+        .order('created_at', { ascending: false })
+        .range(from, from + SALES_PER_PAGE - 1);
+    } else {
+      // DAY-BY-DAY MODE: Load records strictly of currentDay
+      const start = `${currentDay}T00:00:00`;
+      const end = `${currentDay}T23:59:59.999`;
+      query = query
+        .gte('created_at', start)
+        .lte('created_at', end)
+        .order('created_at', { ascending: false });
     }
 
     const { data, error } = await query;
     if (error) throw error;
-    return data || [];
-  }, [shopId, salesPage, dateFilter, customDate, startDate, endDate, searchQuery]);
+    
+    // Auto-clean any non-sale (inbound stock receiving) records that mistakenly had location set to Store with 0 total & no payment
+    const rawBills = data || [];
+    const inboundOrphans = rawBills.filter(b => !b.payment_method && Number(b.total_amount) === 0);
+    if (inboundOrphans.length > 0) {
+      inboundOrphans.forEach(b => {
+        supabase.from('bills').update({ location: 'Warehouse-Inbound' }).eq('id', b.id).then(() => {});
+      });
+    }
+
+    return rawBills.filter(b => b.payment_method || Number(b.total_amount) > 0 || b.status === 'voided');
+  }, [shopId, isSearching, salesPage, searchQuery, currentDay]);
 
   const { data: bills = [], isLoading: isLoadingBills } = useQuery({
-    queryKey: ['bills', shopId, salesPage, dateFilter, customDate, startDate, endDate, searchQuery, isActive],
+    queryKey: ['bills', shopId, isSearching, salesPage, searchQuery, currentDay, isActive],
     queryFn: fetchBills,
     enabled: isActive,
     staleTime: 1000 * 60 * 2,
   });
 
-  const hasMoreBills = bills.length === SALES_PER_PAGE;
+  const hasMoreBills = isSearching ? bills.length === SALES_PER_PAGE : (datePageIndex < availableDates.length - 1);
 
   const handleExportCSV = async () => {
     try {
@@ -208,41 +248,30 @@ export default function OwnerLedger({ isActive }) {
       if (shopId) {
         query = query.eq('shop_id', shopId);
       }
-      query = query.order('created_at', { ascending: false }).limit(10000);
 
-      if (searchQuery.trim()) {
+      if (isSearching) {
         const raw = searchQuery.trim().replace(/^#/, '').replace(/[,()]/g, '');
         if (raw) {
           const cleanQ = escapeIlike(raw);
           query = query.or(`customer_phone.ilike.%${cleanQ}%,customer_name.ilike.%${cleanQ}%,id.ilike.%${cleanQ}%`);
         }
+      } else {
+        const start = `${currentDay}T00:00:00`;
+        const end = `${currentDay}T23:59:59.999`;
+        query = query.gte('created_at', start).lte('created_at', end);
       }
 
-      if (dateFilter !== 'ALL') {
-        let start, end;
-        const now = new Date();
-        if (dateFilter === 'TODAY') {
-          const s = now.toLocaleDateString('en-CA');
-          start = `${s}T00:00:00`; end = `${s}T23:59:59.999`;
-        } else if (dateFilter === 'YESTERDAY') {
-          now.setDate(now.getDate() - 1);
-          const s = now.toLocaleDateString('en-CA');
-          start = `${s}T00:00:00`; end = `${s}T23:59:59.999`;
-        } else if (dateFilter === 'CUSTOM' && customDate) {
-          start = `${customDate}T00:00:00`; end = `${customDate}T23:59:59.999`;
-        } else if (dateFilter === 'RANGE' && startDate && endDate) {
-          start = `${startDate}T00:00:00`; end = `${endDate}T23:59:59.999`;
-        }
-        if (start && end) query = query.gte('created_at', start).lte('created_at', end);
-      }
+      query = query.order('created_at', { ascending: false }).limit(5000);
 
       const { data, error } = await query;
       if (error) throw error;
       
-      if (!data || data.length === 0) {
+      const rawData = data || [];
+      const cleanData = rawData.filter(b => b.payment_method || Number(b.total_amount) > 0 || b.status === 'voided');
+      if (cleanData.length === 0) {
          return showAlert('No data to export for this filter.', 'Warning');
       }
-      const exportData = data.map(b => ({
+      const exportData = cleanData.map(b => ({
          'Bill ID': b.id,
          'Date': formatDateTime(b.created_at).datePart,
          'Time': formatDateTime(b.created_at).timePart,
@@ -328,7 +357,8 @@ export default function OwnerLedger({ isActive }) {
         // Calculate partial refund
         const refundAmount = itemsToReturn.reduce((sum, item) => sum + (Number(item.price_at_sale) * item.returnQuantity), 0);
         const newTotal = Math.max(0, Number(bill.total_amount) - refundAmount);
-        let billUpdateQuery = supabase.from('bills').update({ total_amount: newTotal }).eq('id', bill.id);
+        const newStatus = newTotal <= 0.001 ? 'voided' : bill.status;
+        let billUpdateQuery = supabase.from('bills').update({ total_amount: newTotal, status: newStatus }).eq('id', bill.id);
         if (shopId) {
           billUpdateQuery = billUpdateQuery.eq('shop_id', shopId);
         }
@@ -559,32 +589,49 @@ export default function OwnerLedger({ isActive }) {
             )}
           </div>
 
-          {/* Date Filter & Export Options */}
+          {/* Day Navigation / Jump & Export */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold uppercase whitespace-nowrap text-[var(--text-secondary)]">Date:</span>
-            <div className="relative shrink-0">
-              <select
-                value={dateFilter}
-                onChange={(e) => { setDateFilter(e.target.value); setSalesPage(0); }}
-                className="py-2 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer shadow-sm leading-normal"
-                style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
-                aria-label="Date filter"
-              >
-                <option value="ALL">All Time</option>
-                <option value="TODAY">Today</option>
-                <option value="YESTERDAY">Yesterday</option>
-                <option value="CUSTOM">Specific Date...</option>
-                <option value="RANGE">Date Range...</option>
-              </select>
-            </div>
-            {dateFilter === 'CUSTOM' && (
-              <input type="date" value={customDate} max={new Date().toLocaleDateString('en-CA')} onChange={(e) => { setCustomDate(e.target.value); setSalesPage(0); }} className="h-10 md:h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-            )}
-            {dateFilter === 'RANGE' && (
-              <div className="flex items-center gap-2 shrink-0">
-                <input type="date" value={startDate} max={endDate || new Date().toLocaleDateString('en-CA')} onChange={(e) => { setStartDate(e.target.value); setSalesPage(0); }} className="h-10 md:h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-                <span className="font-bold text-xs uppercase text-[var(--text-tertiary)]">to</span>
-                <input type="date" value={endDate} max={new Date().toLocaleDateString('en-CA')} min={startDate} onChange={(e) => { setEndDate(e.target.value); setSalesPage(0); }} className="h-10 md:h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+            {!isSearching ? (
+              <>
+                <span className="text-xs font-semibold uppercase whitespace-nowrap text-[var(--text-secondary)]">Date:</span>
+                <input
+                  type="date"
+                  value={currentDay}
+                  max={new Date().toLocaleDateString('en-CA')}
+                  onChange={(e) => {
+                    const selected = e.target.value;
+                    if (!selected) return;
+                    const idx = availableDates.indexOf(selected);
+                    if (idx >= 0) {
+                      setDatePageIndex(idx);
+                      setCustomDate('');
+                    } else {
+                      setCustomDate(selected);
+                    }
+                  }}
+                  className="h-10 md:h-9 px-2 text-xs font-semibold focus:outline-none rounded-md shadow-sm cursor-pointer"
+                  style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
+                  aria-label="Date filter"
+                  title="Jump to date"
+                />
+                {(datePageIndex > 0 || customDate) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomDate('');
+                      setDatePageIndex(0);
+                    }}
+                    className="h-10 md:h-9 px-2.5 text-[11px] font-bold uppercase tracking-wider rounded-md transition-colors hover:bg-[var(--bg-hover)]"
+                    style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--color-accent)' }}
+                    title="Return to latest active day"
+                  >
+                    Latest Day
+                  </button>
+                )}
+              </>
+            ) : (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold" style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--color-accent)' }}>
+                <span>Searching all dates across all history</span>
               </div>
             )}
             
@@ -606,15 +653,24 @@ export default function OwnerLedger({ isActive }) {
         <div className="flex-1 overflow-x-hidden overflow-y-auto shadow-sm min-h-[400px] md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent', overscrollBehavior: 'none' }}>
           <div className="w-full max-w-full h-full">
             <table className={`block md:table w-full md:table-fixed text-left border-collapse ${(isLoadingBills && bills.length === 0 || bills.length === 0) ? 'h-full' : ''}`}>
+            <colgroup className="hidden md:table-column-group">
+              <col style={{ width: '18%' }} />
+              <col style={{ width: '20%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '10%' }} />
+            </colgroup>
             <thead className="hidden md:table-header-group sticky top-0 z-20 glass-header" style={{ borderBottom: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}>
               <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                <th className="py-4 px-3 w-[18%] text-center border-none">Date &amp; Time</th>
-                <th className="py-4 px-3 w-[20%] text-center border-none">Customer</th>
-                <th className="py-4 px-3 w-[14%] text-center border-none">Cashier</th>
-                <th className="py-4 px-3 w-[12%] text-center border-none">Payment</th>
-                <th className="py-4 px-3 w-[14%] text-center border-none">Total (₹)</th>
-                <th className="py-4 px-3 w-[12%] text-center border-none">Action</th>
-                <th className="py-4 px-3 w-[10%] text-center border-none">Details</th>
+                <th className="py-4 px-3 w-[18%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Date &amp; Time</th>
+                <th className="py-4 px-3 w-[20%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Customer</th>
+                <th className="py-4 px-3 w-[14%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Cashier</th>
+                <th className="py-4 px-3 w-[12%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Payment</th>
+                <th className="py-4 px-3 w-[14%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Total (₹)</th>
+                <th className="py-4 px-3 w-[12%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Action</th>
+                <th className="py-4 px-3 w-[10%] text-center">Details</th>
               </tr>
             </thead>
             <tbody className="block md:table-row-group p-2 md:p-0">
@@ -626,9 +682,10 @@ export default function OwnerLedger({ isActive }) {
                 <tr
                   key={bill.id}
                   onClick={() => setSelectedBill(bill)}
-                  className="cursor-pointer premium-hover block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none border md:border-b md:border-t-0 md:border-l-0 md:border-r-0 border-[var(--border-medium)] md:border-[var(--border-light)] mb-3 md:mb-0 relative transition-colors"
+                  className="cursor-pointer premium-hover block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none border md:border-b md:border-t-0 md:border-l-0 md:border-r-0 border-[var(--border-medium)] md:border-[var(--border-medium)] mb-3 md:mb-0 relative transition-colors"
                   style={{
                     backgroundColor: 'var(--bg-secondary)',
+                    borderBottom: '1px solid var(--border-medium)',
                   }}
                 >
                   {/* Mobile Row Card */}
@@ -637,7 +694,7 @@ export default function OwnerLedger({ isActive }) {
                       <div>
                         <div className="text-[11px] font-bold text-[var(--text-secondary)]">{formatDateTime(bill.created_at).full}</div>
                         {(bill.customer_phone || bill.customer_name) ? (
-                          <div className="text-xs font-semibold text-[var(--text-primary)] mt-1 flex items-center gap-1.5 flex-wrap">
+                           <div className="text-xs font-semibold text-[var(--text-primary)] mt-1 flex items-center gap-1.5 flex-wrap">
                             {bill.customer_phone && (
                               <span className="font-bold flex items-center gap-1">
                                 <Phone className="w-3 h-3 text-[var(--color-accent)]" />
@@ -697,12 +754,12 @@ export default function OwnerLedger({ isActive }) {
                   </td>
 
                   {/* Desktop Table Cells - Center Aligned */}
-                  <td className="hidden md:table-cell py-4 px-3 text-sm text-center border-none" style={{ color: 'var(--text-primary)' }}>
+                  <td className="hidden md:table-cell py-4 px-3 w-[18%] text-sm text-center" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
                     <div className="font-semibold text-xs text-[var(--text-primary)]">{formatDateTime(bill.created_at).datePart}</div>
                     <div className="text-[11px] text-[var(--text-secondary)]">{formatDateTime(bill.created_at).timePart}</div>
                   </td>
 
-                  <td className="hidden md:table-cell py-4 px-3 text-sm text-center border-none">
+                  <td className="hidden md:table-cell py-4 px-3 w-[20%] text-sm text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
                     {bill.customer_phone || bill.customer_name ? (
                       <div className="flex flex-col items-center justify-center">
                         {bill.customer_phone && (
@@ -724,11 +781,11 @@ export default function OwnerLedger({ isActive }) {
                     )}
                   </td>
 
-                  <td className="hidden md:table-cell py-4 px-3 text-sm text-center capitalize border-none" style={{ color: 'var(--text-secondary)' }}>
+                  <td className="hidden md:table-cell py-4 px-3 w-[14%] text-sm text-center capitalize" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}>
                     <span className="font-medium">{bill.cashier_name}</span>
                   </td>
 
-                  <td className="hidden md:table-cell py-4 px-3 text-center border-none">
+                  <td className="hidden md:table-cell py-4 px-3 w-[12%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
                     {bill.status === 'voided' ? (
                       <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-red-500/15 text-red-500 inline-block">VOIDED</span>
                     ) : bill.payment_method ? (
@@ -738,12 +795,12 @@ export default function OwnerLedger({ isActive }) {
                     )}
                   </td>
 
-                  <td className="hidden md:table-cell py-4 px-3 text-center text-sm font-bold border-none" style={{ color: bill.status === 'voided' ? 'var(--text-tertiary)' : 'var(--text-primary)', textDecoration: bill.status === 'voided' ? 'line-through' : 'none' }}>
+                  <td className="hidden md:table-cell py-4 px-3 w-[14%] text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-medium)', color: bill.status === 'voided' ? 'var(--text-tertiary)' : 'var(--text-primary)', textDecoration: bill.status === 'voided' ? 'line-through' : 'none' }}>
                     ₹{Number(bill.total_amount).toFixed(2)}
                   </td>
 
                   {/* Dedicated Return Button on ALL Rows */}
-                  <td className="hidden md:table-cell py-4 px-3 text-center border-none">
+                  <td className="hidden md:table-cell py-4 px-3 w-[12%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
                     {bill.status === 'voided' ? (
                       <span className="px-2.5 py-1 text-[10px] font-bold uppercase rounded bg-red-500/15 text-red-500 inline-block">
                         RETURNED
@@ -765,7 +822,7 @@ export default function OwnerLedger({ isActive }) {
                   </td>
 
                   {/* View Details Button to open Full-Screen View */}
-                  <td className="hidden md:table-cell py-4 px-3 text-center h-full border-none">
+                  <td className="hidden md:table-cell py-4 px-3 w-[10%] text-center h-full">
                     <div className="flex justify-center items-center">
                       <button
                         type="button"
@@ -788,9 +845,77 @@ export default function OwnerLedger({ isActive }) {
         </div>
         </div>
 
-        <div className="flex justify-between items-center p-3 mt-auto shadow-sm rounded-lg shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
-          <button onClick={() => setSalesPage(p => Math.max(0, p - 1))} disabled={salesPage === 0} className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] btn-press" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>Previous</button>
-          <button onClick={() => setSalesPage(p => p + 1)} disabled={!hasMoreBills} className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] btn-press" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>Next</button>
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-3 p-3 mt-auto shadow-sm rounded-lg shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
+          {!isSearching ? (
+            <>
+              <button 
+                onClick={() => {
+                  setCustomDate('');
+                  setDatePageIndex(p => Math.max(0, p - 1));
+                }} 
+                disabled={datePageIndex === 0 && (!customDate || customDate === availableDates[0])} 
+                className="h-8 px-4 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] flex items-center gap-1.5"
+                style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+                title="View newer day"
+              >
+                <span>&larr; Previous (Newer)</span>
+              </button>
+
+              <div className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)] text-center">
+                <span className="font-bold text-[var(--text-primary)] px-2.5 py-1 rounded-md inline-flex items-center gap-1.5" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-light)' }}>
+                  <Calendar className="w-3.5 h-3.5 text-[var(--color-accent)] shrink-0" />
+                  <span>{formatDayHeader(currentDay)}</span>
+                </span>
+                <span>•</span>
+                <span>{bills.length} {bills.length === 1 ? 'sale' : 'sales'}</span>
+                {availableDates.length > 0 && (
+                  <>
+                    <span>•</span>
+                    <span className="text-[11px] text-[var(--text-tertiary)]">
+                      Day {availableDates.indexOf(currentDay) >= 0 ? availableDates.indexOf(currentDay) + 1 : datePageIndex + 1} of {availableDates.length}
+                    </span>
+                  </>
+                )}
+              </div>
+
+              <button 
+                onClick={() => {
+                  setCustomDate('');
+                  setDatePageIndex(p => Math.min(Math.max(0, availableDates.length - 1), p + 1));
+                }} 
+                disabled={availableDates.length === 0 || (datePageIndex >= availableDates.length - 1 && (!customDate || customDate === availableDates[availableDates.length - 1]))} 
+                className="h-8 px-4 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] flex items-center gap-1.5"
+                style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+                title="View older day (yesterday & before)"
+              >
+                <span>Next (Older Day) &rarr;</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button 
+                onClick={() => setSalesPage(p => Math.max(0, p - 1))} 
+                disabled={salesPage === 0} 
+                className="h-8 px-5 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)]"
+                style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+              >
+                Previous
+              </button>
+
+              <div className="text-xs text-[var(--text-secondary)] text-center">
+                <span className="font-semibold text-[var(--color-accent)]">Global Search:</span> Results for "{searchQuery}" • Page {salesPage + 1} ({bills.length} items)
+              </div>
+
+              <button 
+                onClick={() => setSalesPage(p => p + 1)} 
+                disabled={bills.length < SALES_PER_PAGE} 
+                className="h-8 px-5 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)]"
+                style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+              >
+                Next
+              </button>
+            </>
+          )}
         </div>
       </div>
 

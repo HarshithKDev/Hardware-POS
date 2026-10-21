@@ -122,13 +122,13 @@ export default function ShowroomDetailsView({
             <table className="w-full text-left border-collapse table-auto md:table-fixed">
               <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                 <tr className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                  <th className="py-3.5 px-5 text-left border-none md:w-[48%]">Item</th>
-                  <th className="py-3.5 px-4 text-center border-none md:w-[18%]">Qty</th>
-                  <th className="py-3.5 px-4 text-right border-none md:w-[17%]">Price</th>
-                  <th className="py-3.5 px-5 text-right border-none md:w-[17%]">Total</th>
+                  <th className="py-3.5 px-5 text-left md:w-[48%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Item</th>
+                  <th className="py-3.5 px-4 text-center md:w-[18%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Qty</th>
+                  <th className="py-3.5 px-4 text-right md:w-[17%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Price</th>
+                  <th className="py-3.5 px-5 text-right md:w-[17%]">Total</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--border-light)]">
+              <tbody className="divide-y divide-[var(--border-medium)]">
                 {items.map((it, idx) => {
                   const unitPrice = Number(it.price_at_sale || 0);
                   const qty = Number(it.billable_quantity || it.quantity || 1);
@@ -138,25 +138,25 @@ export default function ShowroomDetailsView({
                     <tr
                       key={it.id || idx}
                       className="hover:bg-[var(--bg-hover)] transition-colors"
-                      style={{ borderBottom: '1px solid var(--border-light)' }}
+                      style={{ borderBottom: '1px solid var(--border-medium)' }}
                     >
-                      <td className="py-4 px-5 border-none">
+                      <td className="py-4 px-5" style={{ borderRight: '1px solid var(--border-medium)' }}>
                         <div className="font-bold text-base sm:text-lg text-[var(--text-primary)]">
                           {it.name}
                         </div>
                       </td>
 
-                      <td className="py-4 px-4 text-center border-none">
+                      <td className="py-4 px-4 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
                         <div className="font-bold text-base sm:text-lg text-[var(--text-primary)]">
                           {qty} <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase">{it.unit || 'PCS'}</span>
                         </div>
                       </td>
 
-                      <td className="py-4 px-4 text-right border-none font-semibold text-base sm:text-lg text-[var(--text-secondary)]">
+                      <td className="py-4 px-4 text-right font-semibold text-base sm:text-lg text-[var(--text-secondary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
                         ₹{unitPrice.toFixed(2)}
                       </td>
 
-                      <td className="py-4 px-5 text-right border-none font-bold text-base sm:text-lg text-[var(--text-primary)]">
+                      <td className="py-4 px-5 text-right font-bold text-base sm:text-lg text-[var(--text-primary)]">
                         ₹{lineTotal.toFixed(2)}
                       </td>
                     </tr>

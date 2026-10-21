@@ -646,8 +646,29 @@ th[class*="sticky"] {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   opacity: 1 !important;
-  box-shadow: 0 1px 0 var(--border-medium) !important;
   background-clip: padding-box !important;
+}
+
+/* Table header inner vertical dividers and bottom borders */
+table:not(.thermal-receipt table):not(#printable-receipt table) thead th,
+table:not(.thermal-receipt table):not(#printable-receipt table) thead tr th,
+thead:not(.thermal-receipt thead):not(#printable-receipt thead) th,
+thead:not(.thermal-receipt thead):not(#printable-receipt thead) tr th {
+  box-shadow: 0 1px 0 var(--border-medium) !important;
+}
+
+table:not(.thermal-receipt table):not(#printable-receipt table) thead th:not(:last-child),
+table:not(.thermal-receipt table):not(#printable-receipt table) thead tr th:not(:last-child),
+thead:not(.thermal-receipt thead):not(#printable-receipt thead) th:not(:last-child),
+thead:not(.thermal-receipt thead):not(#printable-receipt thead) tr th:not(:last-child) {
+  border-right: 1px solid var(--border-medium) !important;
+}
+
+table:not(.thermal-receipt table):not(#printable-receipt table) thead th:last-child,
+table:not(.thermal-receipt table):not(#printable-receipt table) thead tr th:last-child,
+thead:not(.thermal-receipt thead):not(#printable-receipt thead) th:last-child,
+thead:not(.thermal-receipt thead):not(#printable-receipt thead) tr th:last-child {
+  border-right: none !important;
 }
 
 /* ---------------------------------------------------------------

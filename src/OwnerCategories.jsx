@@ -193,12 +193,11 @@ export default function OwnerCategories() {
           <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-secondary)' }}>Add Sub-category</h2>
           <form onSubmit={handleAddSubcategory} className="flex flex-col gap-2">
             <label htmlFor="parent-cat" className="sr-only">Parent Category</label>
-            <div className="relative">
-              <select id="parent-cat" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none appearance-none cursor-pointer rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
+            <div>
+              <select id="parent-cat" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none cursor-pointer rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
                 <option value="">-- Select Category --</option>
                 {categories.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
               </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3" style={{ color: 'var(--text-tertiary)' }}><svg className="fill-current h-4 w-4" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg></div>
             </div>
             <div className="flex gap-2">
               <label htmlFor="new-subcat" className="sr-only">Sub-category Name</label>
@@ -209,12 +208,12 @@ export default function OwnerCategories() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-x-hidden overflow-y-auto shadow-sm rounded-lg border border-[var(--border-light)]" style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}>
+      <div className="flex-1 overflow-x-hidden overflow-y-auto shadow-sm rounded-lg border border-[var(--border-medium)]" style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}>
         <table className={`w-full text-left border-collapse ${categories.length === 0 ? 'h-full' : ''}`}>
           <thead className="sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
               <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                <th className="p-4" style={{ borderRight: '1px solid var(--border-light)' }}>Category Name</th>
-                <th className="p-4 w-32 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>Actions</th>
+                <th className="p-4" style={{ borderRight: '1px solid var(--border-medium)' }}>Category Name</th>
+                <th className="p-4 w-32 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Actions</th>
                 <th className="p-4 text-center w-16">Details</th>
               </tr>
             </thead>
@@ -230,15 +229,15 @@ export default function OwnerCategories() {
                     <tr
                       onClick={() => toggleCategory(cat.name)}
                       className="cursor-pointer group transition-colors"
-                      style={{ backgroundColor: isExpanded ? 'var(--color-accent-bg)' : 'var(--bg-secondary)', borderBottom: '1px solid var(--border-light)' }}
+                      style={{ backgroundColor: isExpanded ? 'var(--color-accent-bg)' : 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}
                     >
-                      <td className="p-4 text-sm" style={{ borderRight: '1px solid var(--border-light)' }}>
+                      <td className="p-4 text-sm" style={{ borderRight: '1px solid var(--border-medium)' }}>
                         <div className="flex items-center justify-start w-full text-left">
                           <span className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>{cat.name}</span>
                           <span className="ml-2 text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>({catSubcategories.length} sub-categories)</span>
                         </div>
                       </td>
-                      <td className="p-2 text-center" style={{ borderRight: '1px solid var(--border-light)' }}>
+                      <td className="p-2 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.name, cat.name); }}
                           className="h-8 px-4 text-xs font-semibold uppercase tracking-wider focus:outline-none transition-colors"

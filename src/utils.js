@@ -95,3 +95,41 @@ export function calculateMSP(batch, item) {
   const iCost = item && !isNaN(Number(item.cost_price)) ? Number(item.cost_price) : 0;
   return iCost > 0 ? iCost : 0;
 }
+
+/**
+ * Formats a YYYY-MM-DD date string into a friendly, human-readable display
+ * with (Today) or (Yesterday) tags.
+ *
+ * @param {string} dateStr - 'YYYY-MM-DD'
+ * @returns {string} e.g. "Wed, 21 Oct 2026 (Today)"
+ */
+export function formatDayHeader(dateStr) {
+  if (!dateStr) return '';
+  try {
+    const cleanStr = String(dateStr).split('T')[0];
+    const parts = cleanStr.split('-').map(Number);
+    if (parts.length < 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) {
+      return dateStr;
+    }
+    const [y, m, d] = parts;
+    const dateObj = new Date(y, m - 1, d);
+    const now = new Date();
+    const todayStr = now.toLocaleDateString('en-CA');
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toLocaleDateString('en-CA');
+
+    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+    const formatted = `${dateObj.getDate()} ${dateObj.toLocaleDateString('en-US', { month: 'short' })} ${dateObj.getFullYear()}`;
+
+    if (cleanStr === todayStr) {
+      return `${dayName}, ${formatted} (Today)`;
+    }
+    if (cleanStr === yesterdayStr) {
+      return `${dayName}, ${formatted} (Yesterday)`;
+    }
+    return `${dayName}, ${formatted}`;
+  } catch (e) {
+    return dateStr;
+  }
+}

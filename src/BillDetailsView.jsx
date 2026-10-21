@@ -190,17 +190,17 @@ export default function BillDetailsView({
             <table className="w-full text-left border-collapse table-auto md:table-fixed">
               <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                 <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                  <th className="py-3 px-3 text-center w-12 border-none">#</th>
-                  <th className="py-3 px-4 text-left border-none md:w-[32%]">Item Details</th>
-                  <th className="py-3 px-3 text-center border-none md:w-[12%]">Quantity</th>
-                  <th className="py-3 px-3 text-center border-none md:w-[12%]">MRP</th>
-                  <th className="py-3 px-3 text-center border-none md:w-[12%]">Sold At</th>
-                  <th className="py-3 px-3 text-center border-none md:w-[10%]">Discount</th>
-                  <th className="py-3 px-4 text-center border-none md:w-[12%]">Total</th>
-                  <th className="py-3 px-4 text-right border-none md:w-[10%]" style={{ color: 'var(--color-success)' }}>Profit</th>
+                  <th className="py-3 px-3 text-center w-12" style={{ borderRight: '1px solid var(--border-medium)' }}>#</th>
+                  <th className="py-3 px-4 text-left md:w-[32%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Item Details</th>
+                  <th className="py-3 px-3 text-center md:w-[12%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Quantity</th>
+                  <th className="py-3 px-3 text-center md:w-[12%]" style={{ borderRight: '1px solid var(--border-medium)' }}>MRP</th>
+                  <th className="py-3 px-3 text-center md:w-[12%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Sold At</th>
+                  <th className="py-3 px-3 text-center md:w-[10%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Discount</th>
+                  <th className="py-3 px-4 text-center md:w-[12%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Total</th>
+                  <th className="py-3 px-4 text-right md:w-[10%]" style={{ color: 'var(--color-success)' }}>Profit</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--border-light)]">
+              <tbody className="divide-y divide-[var(--border-medium)]">
                 {items.map((it, idx) => {
                   const mrp = Number(it.selling_price || it.system_price || it.price_at_sale || 0);
                   const soldPrice = Number(it.price_at_sale || 0);
@@ -213,13 +213,13 @@ export default function BillDetailsView({
                     <tr
                       key={it.id || idx}
                       className="hover:bg-[var(--bg-hover)] transition-colors text-sm"
-                      style={{ borderBottom: '1px solid var(--border-light)' }}
+                      style={{ borderBottom: '1px solid var(--border-medium)' }}
                     >
-                      <td className="py-3 px-3 text-center text-xs text-[var(--text-tertiary)] border-none">
+                      <td className="py-3 px-3 text-center text-xs text-[var(--text-tertiary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
                         {idx + 1}
                       </td>
 
-                      <td className="py-3 px-4 border-none">
+                      <td className="py-3 px-4" style={{ borderRight: '1px solid var(--border-medium)' }}>
                         <div className="font-semibold text-sm text-[var(--text-primary)]">
                           {it.name}
                         </div>
@@ -237,7 +237,7 @@ export default function BillDetailsView({
                         </div>
                       </td>
 
-                      <td className="py-3 px-3 text-center border-none font-medium">
+                      <td className="py-3 px-3 text-center font-medium" style={{ borderRight: '1px solid var(--border-medium)' }}>
                         <div>
                           {qty} <span className="text-xs text-[var(--text-secondary)]">{it.unit || 'PCS'}</span>
                         </div>
@@ -248,23 +248,23 @@ export default function BillDetailsView({
                         )}
                       </td>
 
-                      <td className="py-3 px-3 text-center border-none text-[var(--text-secondary)]">
+                      <td className="py-3 px-3 text-center text-[var(--text-secondary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
                         ₹{mrp.toFixed(2)}
                       </td>
 
-                      <td className="py-3 px-3 text-center border-none font-medium text-[var(--text-primary)]">
+                      <td className="py-3 px-3 text-center font-medium text-[var(--text-primary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
                         ₹{soldPrice.toFixed(2)}
                       </td>
 
-                      <td className="py-3 px-3 text-center border-none text-xs text-[var(--text-secondary)]">
+                      <td className="py-3 px-3 text-center text-xs text-[var(--text-secondary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
                         {discountPct > 0 ? `${discountPct.toFixed(1)}%` : '—'}
                       </td>
 
-                      <td className="py-3 px-4 text-center border-none font-bold text-[var(--text-primary)]">
+                      <td className="py-3 px-4 text-center font-bold text-[var(--text-primary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
                         ₹{lineTotal.toFixed(2)}
                       </td>
 
-                      <td className="py-3 px-4 text-right border-none font-semibold" style={{ color: isVoided ? 'var(--text-secondary)' : 'var(--color-success)' }}>
+                      <td className="py-3 px-4 text-right font-semibold" style={{ color: isVoided ? 'var(--text-secondary)' : 'var(--color-success)' }}>
                         {isVoided ? '₹0.00' : `₹${profit.toFixed(2)}`}
                       </td>
                     </tr>

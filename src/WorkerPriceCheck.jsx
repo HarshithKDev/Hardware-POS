@@ -8,7 +8,7 @@ import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD } from './cons
 import { AlertTriangle, Camera, RefreshCw, Eye } from 'lucide-react';
 
 export default function WorkerPriceCheck() {
-  const { showAlert, userRole } = useApp();
+  const { showAlert, userRole, isWarehouseDisabled } = useApp();
   const [isScanning, setIsScanning] = useState(true);
   const [scannedItem, setScannedItem] = useState(null);
   const [availableInstances, setAvailableInstances] = useState([]);
@@ -269,7 +269,7 @@ export default function WorkerPriceCheck() {
 
   const storeStock = activeBatch ? activeBatch.stock_store : (scannedItem?.stock_store ?? 0);
   const whseStock = activeBatch ? activeBatch.stock_warehouse : (scannedItem?.stock_warehouse ?? 0);
-  const totalStock = Number(storeStock || 0) + Number(whseStock || 0);
+  const totalStock = isWarehouseDisabled ? Number(storeStock || 0) : (Number(storeStock || 0) + Number(whseStock || 0));
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[var(--bg-primary)] overflow-y-auto px-4 pb-6 pt-1 md:px-6 md:pb-6 md:pt-2 animate-fade-in">
@@ -348,11 +348,11 @@ export default function WorkerPriceCheck() {
                     <span>Total: <strong className="text-[var(--text-primary)] font-extrabold text-sm">{totalStock}</strong> {displayUnit || 'pcs'}</span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className={`grid ${isWarehouseDisabled ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
                     {/* Store */}
                     <div className="p-4 md:p-5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-light)] flex flex-col justify-between">
                       <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                        Store
+                        {isWarehouseDisabled ? 'Current Stock' : 'Store'}
                       </span>
                       <div className="flex items-baseline gap-1.5 my-2">
                         <span className={`text-3xl md:text-5xl font-black ${Number(storeStock) < STORE_LOW_STOCK_THRESHOLD ? 'text-amber-500' : 'text-[var(--text-primary)]'}`}>
@@ -370,24 +370,26 @@ export default function WorkerPriceCheck() {
                     </div>
 
                     {/* Warehouse */}
-                    <div className="p-4 md:p-5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-light)] flex flex-col justify-between">
-                      <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                        Warehouse
-                      </span>
-                      <div className="flex items-baseline gap-1.5 my-2">
-                        <span className={`text-3xl md:text-5xl font-black ${Number(whseStock) < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'text-amber-500' : 'text-[var(--text-primary)]'}`}>
-                          {whseStock}
+                    {!isWarehouseDisabled && (
+                      <div className="p-4 md:p-5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-light)] flex flex-col justify-between">
+                        <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                          Warehouse
                         </span>
-                        <span className="text-xs font-semibold text-[var(--text-tertiary)]">{displayUnit || 'pcs'}</span>
+                        <div className="flex items-baseline gap-1.5 my-2">
+                          <span className={`text-3xl md:text-5xl font-black ${Number(whseStock) < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'text-amber-500' : 'text-[var(--text-primary)]'}`}>
+                            {whseStock}
+                          </span>
+                          <span className="text-xs font-semibold text-[var(--text-tertiary)]">{displayUnit || 'pcs'}</span>
+                        </div>
+                        {Number(whseStock) < WAREHOUSE_LOW_STOCK_THRESHOLD ? (
+                          <span className="text-[10px] font-bold text-amber-500 flex items-center gap-1">
+                            <AlertTriangle size={11} /> Low stock
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-medium text-[var(--color-success)]">In Stock</span>
+                        )}
                       </div>
-                      {Number(whseStock) < WAREHOUSE_LOW_STOCK_THRESHOLD ? (
-                        <span className="text-[10px] font-bold text-amber-500 flex items-center gap-1">
-                          <AlertTriangle size={11} /> Low stock
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-medium text-[var(--color-success)]">In Stock</span>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>

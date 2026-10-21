@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, Fragment } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 import { Spinner } from './SharedUI';
 import ReceiptTemplate from './ReceiptTemplate';
@@ -24,8 +25,15 @@ import CartMobileView from './components/cart/CartMobileView';
 // Main WorkerTerminal component (orchestrator)
 // ---------------------------------------------------------------
 export default function WorkerTerminal({ activeTab, shopSettings, cashierName }) {
-  const { showAlert, showConfirm, alertConfig, confirmConfig, userRole } = useApp();
+  const { showAlert, showConfirm, alertConfig, confirmConfig, userRole, isWarehouseDisabled } = useApp();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (activeTab === 'transfer' && isWarehouseDisabled) {
+      navigate('/terminal/checkout', { replace: true });
+    }
+  }, [activeTab, isWarehouseDisabled, navigate]);
 
   const { 
     cart, setCart,
@@ -44,6 +52,18 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [looseItemModal, setLooseItemModal] = useState({ isOpen: false, item: null, qty: '' });
+  const [selectedCartIndex, setSelectedCartIndex] = useState(null);
+
+  useEffect(() => {
+    if (cart.length === 0) {
+      setSelectedCartIndex(null);
+    } else {
+      setSelectedCartIndex(prev => {
+        if (prev === null || prev >= cart.length) return cart.length - 1;
+        return prev;
+      });
+    }
+  }, [cart.length]);
 
   // Cuttable item states
   const [selectPieceModal, setSelectPieceModal] = useState({ isOpen: false, item: null, instances: [], isLoading: false, action: 'checkout' });
@@ -526,23 +546,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     }
   }, []);
 
-  useEffect(() => {
-    const isModalOpen = alertConfig.isOpen || confirmConfig.isOpen || checkoutModal.isOpen || printPreviewOpen || looseItemModal.isOpen || selectPieceModal.isOpen || cutLengthModal.isOpen || receiveLengthModal.isOpen;
-    const handleGlobalKeyDown = (e) => {
-      if (isModalOpen) return;
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
-      const currentTime = Date.now();
-      if (currentTime - lastKeyTime.current > SCAN_TIMEOUT_MS) barcodeBuffer.current = '';
-      lastKeyTime.current = currentTime;
-      if (e.key === 'Enter') {
-        if (barcodeBuffer.current.length > 0) { e.preventDefault(); processScan(barcodeBuffer.current); barcodeBuffer.current = ''; }
-      } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        barcodeBuffer.current += e.key;
-      }
-    };
-    window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [alertConfig.isOpen, confirmConfig.isOpen, checkoutModal.isOpen, printPreviewOpen, looseItemModal.isOpen, selectPieceModal.isOpen, cutLengthModal.isOpen, receiveLengthModal.isOpen, processScan]);
+
 
   const handleLooseItemSubmit = (e) => {
     if (e) e.preventDefault();
@@ -1485,7 +1489,11 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         const localItem = await getInventoryItemByBarcode(item.barcode);
         if (localItem) {
           if (activeTab === 'receive') {
-            localItem.stock_warehouse = (Number(localItem.stock_warehouse) || 0) + Number(item.quantity);
+            if (isWarehouseDisabled) {
+              localItem.stock_store = (Number(localItem.stock_store) || 0) + Number(item.quantity);
+            } else {
+              localItem.stock_warehouse = (Number(localItem.stock_warehouse) || 0) + Number(item.quantity);
+            }
           } else if (activeTab === 'transfer') {
             localItem.stock_warehouse = Math.max(0, (Number(localItem.stock_warehouse) || 0) - Number(item.quantity));
             localItem.stock_store = (Number(localItem.stock_store) || 0) + Number(item.quantity);
@@ -1493,6 +1501,41 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             localItem.stock_store = Math.max(0, (Number(localItem.stock_store) || 0) - Number(item.quantity));
           }
           await saveInventoryBatch([localItem]);
+        }
+      }
+
+      // Safeguard: When warehouse is disabled, ensure server batch and cuttable instances are routed to Store
+      if (activeTab === 'receive' && isWarehouseDisabled && navigator.onLine) {
+        try {
+          for (const item of finalCart) {
+            const { data: bData } = await supabase
+              .from('inventory_batches')
+              .select('batch_id, stock_warehouse, stock_store')
+              .eq('barcode', item.barcode)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (bData && Number(bData.stock_warehouse) > 0) {
+              const transferQty = Math.min(Number(bData.stock_warehouse), Number(item.quantity));
+              await supabase
+                .from('inventory_batches')
+                .update({
+                  stock_warehouse: Math.max(0, Number(bData.stock_warehouse) - transferQty),
+                  stock_store: Number(bData.stock_store || 0) + transferQty
+                })
+                .eq('batch_id', bData.batch_id);
+
+              if (item.is_cuttable) {
+                await supabase
+                  .from('stock_instances')
+                  .update({ location: 'Store' })
+                  .eq('parent_barcode', item.barcode)
+                  .eq('location', 'Warehouse');
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("Auto-route warehouse to store fallback:", e);
         }
       }
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
@@ -1617,6 +1660,298 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     }
   };
 
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      // 1. If alertConfig or confirmConfig is open, let them handle Esc/Enter
+      if (alertConfig.isOpen || confirmConfig.isOpen || printPreviewOpen) {
+        return;
+      }
+
+      const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT';
+
+      // 2. CHECKOUT MODAL KEYBOARD CONTROLS
+      if (checkoutModal.isOpen) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setCheckoutModal(prev => ({ ...prev, isOpen: false }));
+          return;
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleCompleteTransaction();
+          return;
+        }
+        if (!isInput) {
+          if (e.key === '1' || e.key.toUpperCase() === 'C') {
+            e.preventDefault();
+            setCheckoutModal(prev => ({ ...prev, paymentMethod: 'CASH', error: '' }));
+            return;
+          }
+          if (e.key === '2' || e.key.toUpperCase() === 'U') {
+            e.preventDefault();
+            setCheckoutModal(prev => ({ ...prev, paymentMethod: 'UPI', error: '' }));
+            return;
+          }
+          if (e.key === '3' || e.key.toUpperCase() === 'S') {
+            e.preventDefault();
+            setCheckoutModal(prev => ({ ...prev, paymentMethod: 'SPLIT', error: '' }));
+            return;
+          }
+          if (e.key === '4' || e.key.toUpperCase() === 'H') {
+            e.preventDefault();
+            setCheckoutModal(prev => ({ ...prev, paymentMethod: 'SHOWROOM', error: '' }));
+            return;
+          }
+        }
+        return;
+      }
+
+      // If other modals are open, skip hotkeys
+      if (looseItemModal.isOpen || selectPieceModal.isOpen || cutLengthModal.isOpen || receiveLengthModal.isOpen) {
+        return;
+      }
+
+      // 3. FUNCTION KEYS (Work everywhere, even if an input is focused)
+      if (e.key === 'F2') {
+        e.preventDefault();
+        const barcodeInput = document.getElementById('manual-barcode');
+        if (barcodeInput) {
+          barcodeInput.focus();
+          barcodeInput.select();
+        }
+        return;
+      }
+
+      if (e.key === 'F4') {
+        e.preventDefault();
+        if (cart.length > 0) {
+          if (activeTab === 'checkout') {
+            setCheckoutModal(prev => ({
+              ...prev,
+              isOpen: true,
+              cashGiven: '',
+              negotiatedTotal: '',
+              error: '',
+              paymentMethod: 'CASH',
+              splitUpi: '',
+              splitCash: ''
+            }));
+          } else {
+            handleCompleteTransaction();
+          }
+        }
+        return;
+      }
+
+      if (e.key === 'F7') {
+        e.preventDefault();
+        if (cart.length > 0 && activeTab === 'checkout' && activeCartTab === 'local') {
+          handleHoldCart();
+        }
+        return;
+      }
+
+      if (e.key === 'F8') {
+        e.preventDefault();
+        if (cart.length > 0) {
+          showConfirm(
+            "Clear all items?",
+            handleCancelSale,
+            activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items',
+            'Clear',
+            'Cancel',
+            true
+          );
+        }
+        return;
+      }
+
+      // Alt + Number tab switches
+      if (e.altKey && !e.ctrlKey && !e.metaKey) {
+        if (e.key === '1') {
+          e.preventDefault();
+          navigate('/terminal/checkout');
+          return;
+        }
+        if (e.key === '2') {
+          e.preventDefault();
+          navigate('/terminal/receive');
+          return;
+        }
+        if (e.key === '3' && !isWarehouseDisabled) {
+          e.preventDefault();
+          navigate('/terminal/transfer');
+          return;
+        }
+      }
+
+      // 4. HARDWARE BARCODE SCANNER LOGIC (Must capture scanner burst even when not in an input)
+      const currentTime = Date.now();
+      if (currentTime - lastKeyTime.current > SCAN_TIMEOUT_MS) {
+        barcodeBuffer.current = '';
+      }
+      lastKeyTime.current = currentTime;
+
+      if (!isInput) {
+        if (e.key === 'Enter') {
+          if (barcodeBuffer.current.length > 0) {
+            e.preventDefault();
+            processScan(barcodeBuffer.current);
+            barcodeBuffer.current = '';
+            return;
+          }
+        } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          barcodeBuffer.current += e.key;
+        }
+      }
+
+      // 5. TERMINAL & CART NAVIGATION KEYS (Only when NOT typing inside an input)
+      if (isInput) return;
+
+      // Focus barcode search on /
+      if (e.key === '/') {
+        e.preventDefault();
+        const barcodeInput = document.getElementById('manual-barcode');
+        if (barcodeInput) {
+          barcodeInput.focus();
+          barcodeInput.select();
+        }
+        return;
+      }
+
+      // Space to open Pay modal when cart has items
+      if (e.key === ' ' && cart.length > 0 && activeTab === 'checkout' && barcodeBuffer.current.length === 0) {
+        e.preventDefault();
+        setCheckoutModal(prev => ({
+          ...prev,
+          isOpen: true,
+          cashGiven: '',
+          negotiatedTotal: '',
+          error: '',
+          paymentMethod: 'CASH',
+          splitUpi: '',
+          splitCash: ''
+        }));
+        return;
+      }
+
+      // Arrow Down: Navigate cart items down
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (cart.length > 0) {
+          setSelectedCartIndex(prev => {
+            if (prev === null || prev >= cart.length - 1) return 0;
+            return prev + 1;
+          });
+        }
+        return;
+      }
+
+      // Arrow Up: Navigate cart items up
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (cart.length > 0) {
+          setSelectedCartIndex(prev => {
+            if (prev === null || prev <= 0) return cart.length - 1;
+            return prev - 1;
+          });
+        }
+        return;
+      }
+
+      // Adjust Quantity on selected item (+ / =)
+      if ((e.key === '+' || e.key === '=') && selectedCartIndex !== null && cart[selectedCartIndex]) {
+        e.preventDefault();
+        const item = cart[selectedCartIndex];
+        const isLooseKg = Boolean(
+          item.is_loose_item && (
+            item.unit?.toUpperCase() === 'KG' ||
+            item.unit?.toUpperCase() === 'KGS' ||
+            item.unit?.toUpperCase() === 'GRAMS' ||
+            item.unit?.toUpperCase() === 'GRAM' ||
+            item.unit?.toUpperCase() === 'G' ||
+            item.unit?.toUpperCase() === 'GM'
+          )
+        );
+        if (activeTab === 'checkout' && isLooseKg) {
+          const currentGrams = item.grams !== undefined && item.grams !== '' ? Number(item.grams) : (item.quantity !== '' ? Math.round(Number(item.quantity) * 1000) : 0);
+          const nextGrams = currentGrams + 50;
+          updateQuantity(item.id, nextGrams / 1000, nextGrams);
+        } else {
+          const curQty = Number(item.quantity) || 0;
+          updateQuantity(item.id, curQty + 1);
+        }
+        return;
+      }
+
+      // Adjust Quantity on selected item (-)
+      if (e.key === '-' && selectedCartIndex !== null && cart[selectedCartIndex]) {
+        e.preventDefault();
+        const item = cart[selectedCartIndex];
+        const isLooseKg = Boolean(
+          item.is_loose_item && (
+            item.unit?.toUpperCase() === 'KG' ||
+            item.unit?.toUpperCase() === 'KGS' ||
+            item.unit?.toUpperCase() === 'GRAMS' ||
+            item.unit?.toUpperCase() === 'GRAM' ||
+            item.unit?.toUpperCase() === 'G' ||
+            item.unit?.toUpperCase() === 'GM'
+          )
+        );
+        if (activeTab === 'checkout' && isLooseKg) {
+          const currentGrams = item.grams !== undefined && item.grams !== '' ? Number(item.grams) : (item.quantity !== '' ? Math.round(Number(item.quantity) * 1000) : 0);
+          const nextGrams = Math.max(0, currentGrams - 50);
+          if (nextGrams <= 0) {
+            handleRemoveItem(item.id);
+          } else {
+            updateQuantity(item.id, nextGrams / 1000, nextGrams);
+          }
+        } else {
+          const curQty = Number(item.quantity) || 0;
+          if (curQty <= 1) {
+            handleRemoveItem(item.id);
+          } else {
+            updateQuantity(item.id, curQty - 1);
+          }
+        }
+        return;
+      }
+
+      // Delete / Backspace: Remove selected item from cart
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedCartIndex !== null && cart[selectedCartIndex]) {
+        e.preventDefault();
+        const item = cart[selectedCartIndex];
+        handleRemoveItem(item.id);
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [
+    alertConfig.isOpen,
+    confirmConfig.isOpen,
+    checkoutModal.isOpen,
+    printPreviewOpen,
+    looseItemModal.isOpen,
+    selectPieceModal.isOpen,
+    cutLengthModal.isOpen,
+    receiveLengthModal.isOpen,
+    cart,
+    selectedCartIndex,
+    activeTab,
+    activeCartTab,
+    isWarehouseDisabled,
+    navigate,
+    processScan,
+    handleCompleteTransaction,
+    handleHoldCart,
+    handleCancelSale,
+    updateQuantity,
+    handleRemoveItem,
+    showConfirm
+  ]);
+
   const cartTotal = calculateTotal();
   const cartUnits = calculateTotalUnits();
   
@@ -1648,7 +1983,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           aria-modal="true"
           aria-labelledby="checkout-title"
         >
-          <div className="w-[85%] max-w-[450px] max-h-[90dvh] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+          <div className="w-[92%] sm:w-full max-w-[480px] max-h-[90dvh] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
             <div className="flex justify-between items-center pr-1 pl-4 py-1" style={{ borderBottom: '1px solid var(--border-light)' }}>
               <span id="checkout-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Checkout Payment</span>
             </div>
@@ -1682,28 +2017,53 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               
               <div className="mb-6">
                 <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Payment Method</label>
-                <div className="flex gap-2 mb-2 flex-wrap">
-                  {['CASH', 'UPI', 'SPLIT', 'SHOWROOM'].map((method) => (
-                    <button
-                      key={method}
-                      onClick={() => setCheckoutModal({ ...checkoutModal, paymentMethod: method, error: '' })}
-                      className={`flex-1 min-w-[70px] h-10 text-sm font-bold uppercase tracking-wider rounded-md transition-colors ${checkoutModal.paymentMethod === method ? 'text-white' : ''}`}
-                      style={{ 
-                        backgroundColor: method === 'SHOWROOM'
-                          ? (checkoutModal.paymentMethod === 'SHOWROOM' ? 'var(--color-warning)' : 'var(--bg-tertiary)')
-                          : (checkoutModal.paymentMethod === method ? 'var(--color-accent)' : 'var(--bg-tertiary)'),
-                        color: checkoutModal.paymentMethod === method ? '#fff' : 'var(--text-primary)',
-                        border: `1px solid ${method === 'SHOWROOM' && checkoutModal.paymentMethod === 'SHOWROOM' ? 'var(--color-warning)' : checkoutModal.paymentMethod === method ? 'var(--color-accent)' : 'var(--border-medium)'}`
-                      }}
-                    >
-                      {method === 'SPLIT' ? 'UPI+Cash' : method}
-                    </button>
-                  ))}
+                <div className="grid grid-cols-2 gap-2.5 mb-2">
+                  {[
+                    { key: 'CASH', label: 'Cash', shortcut: '1' },
+                    { key: 'UPI', label: 'UPI', shortcut: '2' },
+                    { key: 'SPLIT', label: 'UPI + Cash', shortcut: '3' },
+                    { key: 'SHOWROOM', label: 'Showroom', shortcut: '4' },
+                  ].map(({ key: method, label, shortcut }) => {
+                    const isSelected = checkoutModal.paymentMethod === method;
+                    const isShowroom = method === 'SHOWROOM';
+                    return (
+                      <button
+                        key={method}
+                        type="button"
+                        onClick={() => setCheckoutModal({ ...checkoutModal, paymentMethod: method, error: '' })}
+                        className={`h-11 px-3 sm:px-4 text-xs sm:text-sm font-bold uppercase tracking-wide rounded-md transition-all flex items-center justify-between ${isSelected ? 'shadow-sm' : 'hover:border-[var(--border-heavy)]'}`}
+                        style={{ 
+                          backgroundColor: isShowroom
+                            ? (isSelected ? 'var(--color-warning)' : 'var(--bg-tertiary)')
+                            : (isSelected ? 'var(--color-accent)' : 'var(--bg-tertiary)'),
+                          color: isSelected
+                            ? (isShowroom ? '#000' : '#fff')
+                            : 'var(--text-primary)',
+                          border: `1px solid ${isShowroom && isSelected ? 'var(--color-warning)' : isSelected ? 'var(--color-accent)' : 'var(--border-medium)'}`
+                        }}
+                      >
+                        <span>{label}</span>
+                        <kbd 
+                          className="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded"
+                          style={{
+                            backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : 'var(--bg-secondary)',
+                            color: isSelected ? (isShowroom ? '#000' : '#fff') : 'var(--text-secondary)',
+                            border: isSelected ? '1px solid rgba(255,255,255,0.3)' : '1px solid var(--border-medium)'
+                          }}
+                        >
+                          {shortcut}
+                        </kbd>
+                      </button>
+                    );
+                  })}
                 </div>
                 {checkoutModal.paymentMethod === 'SHOWROOM' && (
-                  <p className="text-xs font-medium mt-1 px-1" style={{ color: 'var(--color-warning)' }}>
-                    ⚠️ Customer takes goods now, pays at the showroom. This will NOT be counted in sales revenue until marked as paid.
-                  </p>
+                  <div className="p-3 mt-2 rounded-md border flex items-start gap-2.5 animate-fade-in" style={{ backgroundColor: 'rgba(234, 179, 8, 0.08)', borderColor: 'rgba(234, 179, 8, 0.3)', color: 'var(--color-warning)' }}>
+                    <span className="text-sm shrink-0">⚠️</span>
+                    <p className="text-xs font-medium leading-relaxed">
+                      Customer takes goods now, pays at the showroom. This will NOT be counted in sales revenue until marked as paid.
+                    </p>
+                  </div>
                 )}
 
                 {checkoutModal.paymentMethod === 'CASH' && (
@@ -1759,9 +2119,17 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               )}
             </div>
             <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-              <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} disabled={isCheckingOut} className="min-h-[44px] md:min-h-0 md:h-10 px-8 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md text-white transition-colors bg-[var(--color-error)] hover:bg-red-600">Cancel</button>
-              <button onClick={handleCompleteTransaction} disabled={isCheckingOut} className={`min-h-[44px] md:min-h-0 md:h-10 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 flex justify-center items-center min-w-[120px]`} style={{ backgroundColor: checkoutModal.paymentMethod === 'SHOWROOM' ? 'var(--color-warning)' : 'var(--color-accent)' }}>
-                {isCheckingOut ? <Spinner className="w-4 h-4 text-white" /> : (checkoutModal.paymentMethod === 'SHOWROOM' ? 'Send to Showroom' : 'Complete Sale')}
+              <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} disabled={isCheckingOut} className="min-h-[44px] md:min-h-0 md:h-10 px-6 sm:px-8 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md text-white transition-colors bg-[var(--color-error)] hover:bg-red-600 flex items-center justify-center gap-2">
+                <span>Cancel</span>
+                <kbd className="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded bg-black/20 text-white/90">Esc</kbd>
+              </button>
+              <button onClick={handleCompleteTransaction} disabled={isCheckingOut} className={`min-h-[44px] md:min-h-0 md:h-10 px-6 sm:px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 flex justify-center items-center gap-2 min-w-[140px]`} style={{ backgroundColor: checkoutModal.paymentMethod === 'SHOWROOM' ? 'var(--color-warning)' : 'var(--color-accent)' }}>
+                {isCheckingOut ? <Spinner className="w-4 h-4 text-white" /> : (
+                  <>
+                    <span>{checkoutModal.paymentMethod === 'SHOWROOM' ? 'Send to Showroom' : 'Complete Sale'}</span>
+                    <kbd className="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded bg-white/25 text-white">↵ Enter</kbd>
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -1801,9 +2169,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                    <div className="text-right">
                      <div className="flex items-center justify-end gap-3">
                        <p className="text-xs " style={{ color: 'var(--color-accent)' }}>#{selectBatchModal.item.barcode}-{String(batch.batch_number).padStart(2,'0')}</p>
-                       <div className="text-sm font-bold" style={{ color: 'var(--color-accent)' }}>{activeTab === 'receive' ? batch.stock_warehouse : batch[stockField]} {selectBatchModal.item.unit}</div>
+                       <div className="text-sm font-bold" style={{ color: 'var(--color-accent)' }}>{activeTab === 'receive' ? (isWarehouseDisabled ? batch.stock_store : batch.stock_warehouse) : batch[stockField]} {selectBatchModal.item.unit}</div>
                      </div>
-                     <div className="text-xs uppercase tracking-wider mt-1" style={{ color: 'var(--text-tertiary)' }}>In {activeTab === 'checkout' ? 'Store' : 'Warehouse'}</div>
+                     <div className="text-xs uppercase tracking-wider mt-1" style={{ color: 'var(--text-tertiary)' }}>In {activeTab === 'checkout' || (activeTab === 'receive' && isWarehouseDisabled) ? 'Store' : 'Warehouse'}</div>
                    </div>
                  </button>
                  );
@@ -1862,10 +2230,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                       {/* Stock Info Badge */}
                       <div className="p-2.5 rounded-lg mb-4 flex items-center justify-between text-xs" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
                         <span className="text-[var(--text-secondary)] font-medium">
-                          {isCheckout ? 'Store Stock' : activeTab === 'transfer' ? 'Warehouse Stock' : 'Current Warehouse'}:
+                          {isCheckout ? 'Store Stock' : activeTab === 'transfer' ? 'Warehouse Stock' : (isWarehouseDisabled ? 'Current Store Stock' : 'Current Warehouse')}:
                         </span>
                         <span className="font-bold text-[var(--text-primary)]">
-                          {isCheckout ? `${availableStore} kg` : `${availableWhse} kg`}
+                          {isCheckout || (activeTab === 'receive' && isWarehouseDisabled) ? `${availableStore} kg` : `${availableWhse} kg`}
                         </span>
                       </div>
 
@@ -2305,17 +2673,18 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             ))}
           </div>
         )}
-        <div className={`p-4 flex flex-col md:flex-row justify-between gap-4 ${(activeTab === 'receive' || activeTab === 'transfer') ? 'hidden md:flex' : ''} ${activeTab === 'receive' ? 'pos-receive-bg' : activeTab === 'transfer' ? 'pos-transfer-bg' : ''}`} style={{ borderBottom: '1px solid var(--border-medium)', ...(activeTab !== 'receive' && activeTab !== 'transfer' ? { backgroundColor: 'var(--bg-tertiary)' } : {}) }}>
+        <div className={`p-4 flex flex-col md:flex-row justify-between gap-4 ${(activeTab === 'receive' || activeTab === 'transfer') ? 'hidden md:flex' : ''}`} style={{ borderBottom: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}>
           <div className="flex flex-col w-full md:w-auto flex-1 md:flex-none">
             <h2 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>
-              {activeTab === 'receive' ? 'Receive New Stock' : activeTab === 'transfer' ? 'Move Stock to Store' : 'Checkout Counter'}
+              {activeTab === 'receive' ? 'Receive Stock' : activeTab === 'transfer' ? 'Move Stock to Store' : 'Checkout Counter'}
             </h2>
             
             <form onSubmit={(e) => { e.preventDefault(); processScan(manualBarcode); setManualBarcode(''); setShowSuggestions(false); }} className="mt-3 relative w-full md:w-auto">
               <div className="flex items-center w-full md:w-72 h-10 md:h-9 rounded-md overflow-hidden transition-colors focus-within:border-[var(--color-accent)] focus-within:ring-1 focus-within:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)' }}>
                 <label htmlFor="manual-barcode" className="sr-only">Barcode</label>
                 <input id="manual-barcode" type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} onFocus={() => { setIsInputFocused(true); manualBarcode.trim().length >= 2 && setShowSuggestions(true); }} onBlur={() => { setIsInputFocused(false); setTimeout(() => setShowSuggestions(false), 200); }} placeholder="Search barcode or name..." className="h-full w-full px-3 text-sm focus:outline-none flex-1 bg-transparent border-none outline-none rounded-none focus:ring-0 focus:border-transparent focus:shadow-none" style={{ color: 'var(--text-input)', outline: 'none', border: 'none', boxShadow: 'none' }} autoComplete="off" />
-                <button type="submit" className="h-full px-4 text-sm font-bold focus:outline-none transition-colors border-none rounded-none bg-transparent hover:bg-white/5 focus:ring-0 focus:outline-none" style={{ color: 'var(--color-accent)', outline: 'none', border: 'none' }}>ADD</button>
+                <kbd className="hidden sm:inline px-1.5 py-0.5 mr-1 text-[10px] font-mono font-bold rounded border bg-[var(--bg-secondary)] border-[var(--border-medium)] text-[var(--text-tertiary)] pointer-events-none shrink-0" title="Shortcut: F2 or /">F2</kbd>
+                <button type="submit" className="h-full px-3 text-sm font-bold focus:outline-none transition-colors border-none rounded-none bg-transparent hover:bg-white/5 focus:ring-0 focus:outline-none shrink-0" style={{ color: 'var(--color-accent)', outline: 'none', border: 'none' }}>ADD</button>
               </div>
                 {showSuggestions && suggestions.length > 0 && (
                   <ul className="absolute top-[100%] left-0 w-full md:w-64 bg-[var(--bg-secondary)] border border-[var(--border-medium)] z-50 max-h-60 overflow-y-auto shadow-lg mt-1 rounded-sm">
@@ -2355,6 +2724,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         <div className="hidden md:block flex-1 overflow-y-auto overflow-x-hidden" style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}>
           <CartTable
             cart={cart}
+            selectedCartIndex={selectedCartIndex}
+            onSelectCartIndex={setSelectedCartIndex}
             activeTab={activeTab}
             onUpdateQuantity={updateQuantity}
             onUpdateDimensions={updateDimensions}
@@ -2387,27 +2758,30 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             <div className="flex w-full sm:w-auto gap-2 md:gap-3">
               <button
                 onClick={() => showConfirm("Clear all items?", handleCancelSale, activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items', 'Clear', 'Cancel', true)}
-                className="flex-1 sm:flex-none min-h-[40px] md:h-10 px-4 md:px-6 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md"
+                className="flex-1 sm:flex-none min-h-[40px] md:h-10 px-4 md:px-5 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md flex items-center justify-center gap-2"
                 style={{ backgroundColor: 'transparent', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
               >
-                {activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items'}
+                <span>{activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items'}</span>
+                <kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border border-[var(--color-error)]/40 opacity-80">F8</kbd>
               </button>
               {activeTab === 'checkout' && activeCartTab === 'local' && (
                 <button
                   onClick={handleHoldCart}
-                  className="flex-1 sm:flex-none min-h-[40px] md:h-10 px-4 md:px-6 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md"
+                  className="flex-1 sm:flex-none min-h-[40px] md:h-10 px-4 md:px-5 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md flex items-center justify-center gap-2"
                   style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--color-accent)', border: '1px solid var(--color-accent)' }}
                 >
-                  Hold Cart
+                  <span>Hold Cart</span>
+                  <kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border border-[var(--color-accent)]/40 opacity-80">F7</kbd>
                 </button>
               )}
             </div>
             <button
               onClick={() => activeTab === 'checkout' ? setCheckoutModal(prev => ({ ...prev, isOpen: true, cashGiven: '', negotiatedTotal: '', error: '', paymentMethod: 'CASH', splitUpi: '', splitCash: '' })) : handleCompleteTransaction()}
-              className="w-full sm:w-auto min-h-[40px] md:h-10 px-8 md:px-10 text-white text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md focus:ring-2 focus:ring-offset-1 flex justify-center items-center"
+              className="w-full sm:w-auto min-h-[40px] md:h-10 px-6 md:px-8 text-white text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md focus:ring-2 focus:ring-offset-1 flex justify-center items-center gap-2"
               style={{ backgroundColor: 'var(--color-accent)', border: '1px solid transparent' }}
             >
-              {isCheckingOut ? 'Saving...' : 'Complete'}
+              <span>{isCheckingOut ? 'Saving...' : (activeTab === 'checkout' ? 'Pay / Complete' : 'Complete')}</span>
+              <kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-white/25 text-white">F4</kbd>
             </button>
           </div>
         )}

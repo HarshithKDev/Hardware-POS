@@ -12,7 +12,7 @@ import { Spinner, CreatableDropdown } from './SharedUI';
 import { saveInventoryBatch } from './services/db';
 
 export default function OwnerCatalog() {
-  const { showAlert } = useApp();
+  const { showAlert, isWarehouseDisabled } = useApp();
   const queryClient = useQueryClient();
 
   const [form, setForm] = useState({
@@ -81,7 +81,7 @@ export default function OwnerCatalog() {
           category: itemData.category || null,
           sub_category: itemData.sub_category || null,
           unit: itemData.unit,
-          min_quantity_warehouse: Number(itemData.min_quantity_warehouse) || 0,
+          min_quantity_warehouse: isWarehouseDisabled ? 0 : (Number(itemData.min_quantity_warehouse) || 0),
           min_quantity_store: Number(itemData.min_quantity_store) || 0,
           is_loose_item: itemData.item_type === 'loose',
           is_cuttable: itemData.item_type === 'cuttable',
@@ -556,15 +556,17 @@ export default function OwnerCatalog() {
           {/* Pricing fields removed. Pricing is now exclusively handled at the batch level in the Inventory tab. */}
 
           <div className="flex gap-4 lg:col-span-2">
-            <div className="flex-1">
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-min-qty-whse">Min Qty (Warehouse)</label>
-              <div className="relative">
-                <input id="item-min-qty-whse" type="number" required step="1" min="0" value={form.min_quantity_warehouse} onChange={(e) => setForm({ ...form, min_quantity_warehouse: e.target.value })} placeholder="e.g. 10" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-                <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{form.item_type === 'cuttable' ? 'PCS' : (form.unit === 'KG' ? 'KG' : (UNIT_TYPES.find(u => u.value === form.unit)?.label || form.unit))}</span>
+            {!isWarehouseDisabled && (
+              <div className="flex-1">
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-min-qty-whse">Min Qty (Warehouse)</label>
+                <div className="relative">
+                  <input id="item-min-qty-whse" type="number" required step="1" min="0" value={form.min_quantity_warehouse} onChange={(e) => setForm({ ...form, min_quantity_warehouse: e.target.value })} placeholder="e.g. 10" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                  <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{form.item_type === 'cuttable' ? 'PCS' : (form.unit === 'KG' ? 'KG' : (UNIT_TYPES.find(u => u.value === form.unit)?.label || form.unit))}</span>
+                </div>
               </div>
-            </div>
+            )}
             <div className="flex-1">
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-min-qty-store">Min Qty (Store)</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-min-qty-store">{isWarehouseDisabled ? 'Min Stock Alert' : 'Min Qty (Store)'}</label>
               <div className="relative">
                 <input id="item-min-qty-store" type="number" required step="1" min="0" value={form.min_quantity_store} onChange={(e) => setForm({ ...form, min_quantity_store: e.target.value })} placeholder="e.g. 5" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                 <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{form.item_type === 'cuttable' ? 'PCS' : (form.unit === 'KG' ? 'KG' : (UNIT_TYPES.find(u => u.value === form.unit)?.label || form.unit))}</span>

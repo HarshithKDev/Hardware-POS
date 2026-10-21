@@ -3,26 +3,139 @@ import { createPortal } from 'react-dom';
 import { supabase } from './supabaseClient';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { useApp } from './AppContext';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import { escapeIlike, debounce } from './utils';
 import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD, INV_PER_PAGE, STALE_TIME_5MIN } from './constants';
 import { getInventoryByQuery } from './services/db';
 
 export default function WorkerDashboardView({ isBillable = true }) {
+  const { isWarehouseDisabled } = useApp();
   const navigate = useNavigate();
   const [inventorySearch, setInventorySearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [lowStockModal, setLowStockModal] = useState({ isOpen: false, type: null });
 
+  const actionCards = useMemo(() => {
+    const list = [
+      {
+        key: 'receive',
+        path: '/terminal/receive',
+        title: `Receiving Stock\n${isWarehouseDisabled ? 'Into Store' : 'From Wholesaler'}`,
+        bg: '#3b82f6',
+        icon: (
+          <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+        )
+      }
+    ];
+
+    if (!isWarehouseDisabled) {
+      list.push({
+        key: 'transfer',
+        path: '/terminal/transfer',
+        title: 'Sending Stock\nWarehouse to Shop',
+        bg: '#f59e0b',
+        icon: (
+          <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+        )
+      });
+    }
+
+    if (isBillable) {
+      list.push(
+        {
+          key: 'checkout',
+          path: '/terminal/checkout',
+          title: 'Checkout\nCustomer',
+          bg: '#10b981',
+          icon: (
+            <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+          )
+        },
+        {
+          key: 'sales',
+          path: '/terminal/sales',
+          title: 'Sales &\nReturns',
+          bg: '#ef4444',
+          icon: (
+            <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+          )
+        },
+        {
+          key: 'expenses',
+          path: '/terminal/expenses',
+          title: 'Expenses &\nAdvances',
+          bg: '#e11d48',
+          icon: (
+            <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" /></svg>
+          )
+        }
+      );
+    } else {
+      list.push(
+        {
+          key: 'lookup',
+          path: '/terminal/lookup',
+          title: 'Item & Stock\nLookup',
+          bg: '#8b5cf6',
+          icon: (
+            <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          )
+        },
+        {
+          key: 'scanner',
+          path: '/terminal/scanner',
+          title: 'Floor\nScanner',
+          bg: '#06b6d4',
+          icon: (
+            <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+            </svg>
+          )
+        }
+      );
+    }
+
+    return list.map((card, idx) => ({ ...card, shortcut: String(idx + 1) }));
+  }, [isWarehouseDisabled, isBillable]);
+
   useEffect(() => {
-    if (!lowStockModal.isOpen) return;
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setLowStockModal({ isOpen: false, type: null });
+      if (lowStockModal.isOpen) {
+        if (e.key === 'Escape') setLowStockModal({ isOpen: false, type: null });
+        return;
+      }
+
+      const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT';
+
+      if (e.key === 'F2') {
+        e.preventDefault();
+        document.getElementById('dashboard-inventory-search')?.focus();
+        return;
+      }
+
+      if (isInput) return;
+
+      if (e.key === '/') {
+        e.preventDefault();
+        document.getElementById('dashboard-inventory-search')?.focus();
+        return;
+      }
+
+      // Check numbers 1-5 or Alt+1-5
+      const numKey = e.key;
+      const matched = actionCards.find(c => c.shortcut === numKey);
+      if (matched) {
+        e.preventDefault();
+        navigate(matched.path);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [lowStockModal.isOpen]);
+  }, [lowStockModal.isOpen, actionCards, navigate]);
 
   const shopId = localStorage.getItem('shop_id');
 
@@ -33,16 +146,23 @@ export default function WorkerDashboardView({ isBillable = true }) {
   );
 
   const { data: lowStockCounts } = useQuery({
-    queryKey: ['lowStockCounts', shopId],
+    queryKey: ['lowStockCounts', shopId, isWarehouseDisabled],
     queryFn: async () => {
       let storeQuery = supabase.from('product_master_public').select('*', { count: 'exact', head: true }).eq('is_active', true).lt('stock_store', STORE_LOW_STOCK_THRESHOLD);
-      let whseQuery = supabase.from('product_master_public').select('*', { count: 'exact', head: true }).eq('is_active', true).lt('stock_warehouse', WAREHOUSE_LOW_STOCK_THRESHOLD);
       if (shopId) {
         storeQuery = storeQuery.eq('shop_id', shopId);
-        whseQuery = whseQuery.eq('shop_id', shopId);
       }
       const { count: storeCount } = await storeQuery;
-      const { count: whseCount } = await whseQuery;
+      
+      let whseCount = 0;
+      if (!isWarehouseDisabled) {
+        let whseQuery = supabase.from('product_master_public').select('*', { count: 'exact', head: true }).eq('is_active', true).lt('stock_warehouse', WAREHOUSE_LOW_STOCK_THRESHOLD);
+        if (shopId) {
+          whseQuery = whseQuery.eq('shop_id', shopId);
+        }
+        const { count } = await whseQuery;
+        whseCount = count || 0;
+      }
       return { store: storeCount || 0, warehouse: whseCount || 0 };
     },
     staleTime: STALE_TIME_5MIN,
@@ -168,96 +288,46 @@ export default function WorkerDashboardView({ isBillable = true }) {
       {/* Big Action Buttons */}
       <div className={`grid gap-2.5 md:gap-4 mb-3 md:mb-4 ${
         isBillable 
-          ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5' 
-          : 'grid-cols-2 sm:grid-cols-4'
+          ? (isWarehouseDisabled ? 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5')
+          : (isWarehouseDisabled ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-4')
       }`}>
-        <button 
-          onClick={() => navigate('/terminal/receive')}
-          className="p-3 md:p-4 lg:p-5 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
-          style={{ backgroundColor: '#3b82f6', color: 'white' }}
-        >
-          <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-          <span className="font-bold text-xs md:text-sm lg:text-base leading-tight">Receiving Stock<br/>From Wholesaler</span>
-        </button>
-        
-        <button 
-          onClick={() => navigate('/terminal/transfer')}
-          className="p-3 md:p-4 lg:p-5 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
-          style={{ backgroundColor: '#f59e0b', color: 'white' }}
-        >
-          <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-          <span className="font-bold text-xs md:text-sm lg:text-base leading-tight">Sending Stock<br/>Warehouse to Shop</span>
-        </button>
-
-        {isBillable ? (
-          <>
-            <button 
-              onClick={() => navigate('/terminal/checkout')}
-              className="p-3 md:p-4 lg:p-5 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
-              style={{ backgroundColor: '#10b981', color: 'white' }}
-            >
-              <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-              <span className="font-bold text-xs md:text-sm lg:text-base leading-tight">Checkout<br/>Customer</span>
-            </button>
-            <button 
-              onClick={() => navigate('/terminal/sales')}
-              className="p-3 md:p-4 lg:p-5 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
-              style={{ backgroundColor: '#ef4444', color: 'white' }}
-            >
-              <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
-              <span className="font-bold text-xs md:text-sm lg:text-base leading-tight">Sales &<br/>Returns</span>
-            </button>
-            <button 
-              onClick={() => navigate('/terminal/expenses')}
-              className="p-3 md:p-4 lg:p-5 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
-              style={{ backgroundColor: '#e11d48', color: 'white' }}
-            >
-              <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" /></svg>
-              <span className="font-bold text-xs md:text-sm lg:text-base leading-tight">Expenses &<br/>Advances</span>
-            </button>
-          </>
-        ) : (
-          <>
-            <button 
-              onClick={() => navigate('/terminal/lookup')}
-              className="p-3 md:p-4 lg:p-5 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
-              style={{ backgroundColor: '#8b5cf6', color: 'white' }}
-            >
-              <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <span className="font-bold text-xs md:text-sm lg:text-base leading-tight">Item & Stock<br/>Lookup</span>
-            </button>
-            <button 
-              onClick={() => navigate('/terminal/scanner')}
-              className="p-3 md:p-4 lg:p-5 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md"
-              style={{ backgroundColor: '#06b6d4', color: 'white' }}
-            >
-              <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-              </svg>
-              <span className="font-bold text-xs md:text-sm lg:text-base leading-tight">Floor<br/>Scanner</span>
-            </button>
-          </>
-        )}
+        {actionCards.map((card) => (
+          <button 
+            key={card.key}
+            onClick={() => navigate(card.path)}
+            className="p-3 md:p-4 lg:p-5 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md relative group cursor-pointer"
+            style={{ backgroundColor: card.bg, color: 'white' }}
+          >
+            <kbd className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-black/25 text-white/90 border border-white/20 shadow-xs">
+              {card.shortcut}
+            </kbd>
+            {card.icon}
+            <span className="font-bold text-xs md:text-sm lg:text-base leading-tight whitespace-pre-line">
+              {card.title}
+            </span>
+          </button>
+        ))}
       </div>
       
-      <div className="grid grid-cols-2 gap-3 md:gap-4 mb-3 md:mb-4">
+      <div className={`grid ${isWarehouseDisabled ? 'grid-cols-1' : 'grid-cols-2'} gap-3 md:gap-4 mb-3 md:mb-4`}>
         <button onClick={() => setLowStockModal({ isOpen: true, type: 'store' })} className="p-3 md:p-4 rounded-lg border border-[var(--border-light)] text-left cursor-pointer flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
           <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full" style={{ backgroundColor: storeAlerts > 0 ? 'var(--color-error)' : 'var(--color-accent)' }} />
-          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider mb-1 ml-3" style={{ color: 'var(--text-secondary)' }}>Low Store Stock</p>
+          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider mb-1 ml-3" style={{ color: 'var(--text-secondary)' }}>{isWarehouseDisabled ? 'Low Stock Alerts' : 'Low Store Stock'}</p>
           <p className="text-xl md:text-2xl font-semibold ml-3" style={{ color: storeAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{storeAlerts} Items</p>
         </button>
-        <button onClick={() => setLowStockModal({ isOpen: true, type: 'warehouse' })} className="p-3 md:p-4 rounded-lg border border-[var(--border-light)] text-left cursor-pointer flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-          <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full" style={{ backgroundColor: whseAlerts > 0 ? 'var(--color-error)' : 'var(--color-accent)' }} />
-          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider mb-1 ml-3" style={{ color: 'var(--text-secondary)' }}>Low Whse Stock</p>
-          <p className="text-xl md:text-2xl font-semibold ml-3" style={{ color: whseAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{whseAlerts} Items</p>
-        </button>
+        {!isWarehouseDisabled && (
+          <button onClick={() => setLowStockModal({ isOpen: true, type: 'warehouse' })} className="p-3 md:p-4 rounded-lg border border-[var(--border-light)] text-left cursor-pointer flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full" style={{ backgroundColor: whseAlerts > 0 ? 'var(--color-error)' : 'var(--color-accent)' }} />
+            <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider mb-1 ml-3" style={{ color: 'var(--text-secondary)' }}>Low Whse Stock</p>
+            <p className="text-xl md:text-2xl font-semibold ml-3" style={{ color: whseAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{whseAlerts} Items</p>
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-2 md:gap-4 mb-2.5 md:mb-3">
-        <div className="w-full">
+        <div className="w-full relative flex items-center">
           <input 
+            id="dashboard-inventory-search"
             type="text" 
             placeholder="Search Barcode or Name..." 
             value={inventorySearch}
@@ -265,9 +335,10 @@ export default function WorkerDashboardView({ isBillable = true }) {
               setInventorySearch(e.target.value);
               debouncedSetSearch(e.target.value);
             }}
-            className="w-full h-10 px-2.5 sm:px-3 text-[11px] sm:text-xs md:text-sm border shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 rounded-lg leading-normal"
+            className="w-full h-10 pl-2.5 pr-9 sm:pl-3 sm:pr-10 text-[11px] sm:text-xs md:text-sm border shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 rounded-lg leading-normal"
             style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)', colorScheme: 'dark' }}
           />
+          <kbd className="absolute right-2.5 hidden sm:inline px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border bg-[var(--bg-tertiary)] border-[var(--border-medium)] text-[var(--text-tertiary)] pointer-events-none" title="Press F2 or / to focus">F2</kbd>
         </div>
 
         <div className="w-full">
@@ -309,30 +380,34 @@ export default function WorkerDashboardView({ isBillable = true }) {
             }}
           >
             <tr className="text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>
-              <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-light)', borderBottom: '1px solid var(--border-medium)' }}>BC</th>
-              <th className="p-2 md:p-3 w-[40%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-light)', borderBottom: '1px solid var(--border-medium)' }}>Name</th>
-              <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-light)', borderBottom: '1px solid var(--border-medium)' }}>MRP</th>
-              <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-light)', borderBottom: '1px solid var(--border-medium)' }}>WHS</th>
-              <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>STR</th>
+              <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>BC</th>
+              <th className={`p-2 md:p-3 ${isWarehouseDisabled ? 'w-[55%]' : 'w-[40%]'} md:w-auto align-middle`} style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Name</th>
+              <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>MRP</th>
+              {!isWarehouseDisabled && (
+                <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>WHS</th>
+              )}
+              <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>{isWarehouseDisabled ? 'Stock' : 'STR'}</th>
             </tr>
           </thead>
           <tbody style={{ borderBottom: '1px solid var(--border-medium)' }}>
             {isLoading ? (
-               <tr><td colSpan="5" className="h-full text-center py-6 align-middle"><PageLoader text="Loading items..." /></td></tr>
+               <tr><td colSpan={isWarehouseDisabled ? 4 : 5} className="h-full text-center py-6 align-middle"><PageLoader text="Loading items..." /></td></tr>
             ) : paginatedInventory.length === 0 ? (
-              <tr className="border-none"><td colSpan="5" className="h-full p-0 border-none"><EmptyState message="No items found." /></td></tr>
+              <tr className="border-none"><td colSpan={isWarehouseDisabled ? 4 : 5} className="h-full p-0 border-none"><EmptyState message="No items found." /></td></tr>
             ) : paginatedInventory.map(item => (
-              <tr key={item.id} className="transition-colors hover:bg-[var(--bg-hover)] text-center" style={{ borderBottom: '1px solid var(--border-light)' }}>
-                <td className="p-1.5 md:p-3 font-semibold tracking-wider truncate align-middle" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-light)', borderBottom: '1px solid var(--border-light)' }}>{item.barcode}</td>
-                <td className="p-1.5 md:p-3 font-medium leading-tight break-words align-middle" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)', borderBottom: '1px solid var(--border-light)' }}>{item.name}</td>
-                <td className="p-1.5 md:p-3 align-middle" style={{ borderRight: '1px solid var(--border-light)', borderBottom: '1px solid var(--border-light)' }}>₹{Number(item.price).toFixed(2)}</td>
-                <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: item.stock_warehouse < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)', borderRight: '1px solid var(--border-light)', borderBottom: '1px solid var(--border-light)' }}>{item.stock_warehouse}</td>
-                <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: item.stock_store < STORE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)', borderBottom: '1px solid var(--border-light)' }}>{item.stock_store}</td>
+              <tr key={item.id} className="transition-colors hover:bg-[var(--bg-hover)] text-center" style={{ borderBottom: '1px solid var(--border-medium)' }}>
+                <td className="p-1.5 md:p-3 font-semibold tracking-wider truncate align-middle" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>{item.barcode}</td>
+                <td className="p-1.5 md:p-3 font-medium leading-tight break-words align-middle" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>{item.name}</td>
+                <td className="p-1.5 md:p-3 align-middle" style={{ borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>₹{Number(item.price).toFixed(2)}</td>
+                {!isWarehouseDisabled && (
+                  <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: item.stock_warehouse < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>{item.stock_warehouse}</td>
+                )}
+                <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: item.stock_store < STORE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)', borderBottom: '1px solid var(--border-medium)' }}>{item.stock_store}</td>
               </tr>
             ))}
             {isFetchingNextPage && (
               <tr>
-                <td colSpan="5" className="py-3 text-center text-xs font-semibold align-middle" style={{ color: 'var(--text-tertiary)' }}>
+                <td colSpan={isWarehouseDisabled ? 4 : 5} className="py-3 text-center text-xs font-semibold align-middle" style={{ color: 'var(--text-tertiary)' }}>
                   Loading more...
                 </td>
               </tr>
@@ -358,7 +433,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
               style={{ backgroundColor: 'var(--bg-tertiary)' }}
             >
               <span className="text-xs sm:text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
-                {lowStockModal.type === 'store' ? 'Low Store Stock Items' : 'Low Warehouse Stock Items'}
+                {isWarehouseDisabled ? 'Low Stock Items' : (lowStockModal.type === 'store' ? 'Low Store Stock Items' : 'Low Warehouse Stock Items')}
               </span>
               <button
                 onClick={() => setLowStockModal({ isOpen: false, type: null })}
@@ -385,18 +460,22 @@ export default function WorkerDashboardView({ isBillable = true }) {
                       </div>
                       <div className="flex items-center gap-4 md:gap-6">
                         <div className="flex flex-col items-center">
-                          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Store</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{isWarehouseDisabled ? 'Stock' : 'Store'}</span>
                           <span className={`text-lg font-bold ${lowStockModal.type === 'store' ? 'text-[var(--color-error)]' : 'text-[var(--text-primary)]'}`}>
                             {item.stock_store}
                           </span>
                         </div>
-                        <div className="w-[1px] h-8 bg-[var(--border-light)]"></div>
-                        <div className="flex flex-col items-center">
-                          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Warehouse</span>
-                          <span className={`text-lg font-bold ${lowStockModal.type === 'warehouse' ? 'text-[var(--color-error)]' : 'text-[var(--text-primary)]'}`}>
-                            {item.stock_warehouse}
-                          </span>
-                        </div>
+                        {!isWarehouseDisabled && (
+                          <>
+                            <div className="w-[1px] h-8 bg-[var(--border-light)]"></div>
+                            <div className="flex flex-col items-center">
+                              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Warehouse</span>
+                              <span className={`text-lg font-bold ${lowStockModal.type === 'warehouse' ? 'text-[var(--color-error)]' : 'text-[var(--text-primary)]'}`}>
+                                {item.stock_warehouse}
+                              </span>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}

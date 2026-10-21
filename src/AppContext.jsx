@@ -97,6 +97,33 @@ export function AppProvider({ children }) {
     }, duration);
   }, []);
 
+  // --- Warehouse Settings ---
+  const [warehouseDisabledState, setWarehouseDisabledState] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const s1 = localStorage.getItem(`disable_warehouse_${localStorage.getItem('shop_id') || 'default'}`);
+      const s2 = localStorage.getItem('disable_warehouse');
+      if (s1 !== null) return s1 === 'true';
+      if (s2 !== null) return s2 === 'true';
+    }
+    return false;
+  });
+
+  const isWarehouseDisabled = Boolean(
+    (shopSettings && shopSettings.disable_warehouse !== undefined && shopSettings.disable_warehouse !== null)
+      ? shopSettings.disable_warehouse
+      : warehouseDisabledState
+  );
+
+  const setWarehouseDisabled = useCallback((disabled) => {
+    const shopId = shopSettings?.id || (typeof window !== 'undefined' ? localStorage.getItem('shop_id') : 'default');
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`disable_warehouse_${shopId}`, String(disabled));
+      localStorage.setItem('disable_warehouse', String(disabled));
+    }
+    setWarehouseDisabledState(Boolean(disabled));
+    setShopSettings((prev) => prev ? { ...prev, disable_warehouse: disabled } : { disable_warehouse: disabled });
+  }, [shopSettings?.id]);
+
   const value = {
     // Shop & auth
     shopSettings,
@@ -105,6 +132,8 @@ export function AppProvider({ children }) {
     setUserRole,
     cashierName,
     setCashierName,
+    isWarehouseDisabled,
+    setWarehouseDisabled,
 
     // Dark mode
     isDarkMode,

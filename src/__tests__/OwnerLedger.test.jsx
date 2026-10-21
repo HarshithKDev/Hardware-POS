@@ -200,5 +200,30 @@ describe('OwnerLedger (Sales History & Merged Returns)', () => {
       expect(screen.getByText(/sales history/i)).toBeInTheDocument();
     });
   });
+
+  it('displays day-by-day pagination controls in normal mode', async () => {
+    renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/sales/i).length).toBeGreaterThan(0);
+      // Expect day badge (e.g. 19 Oct 2026 from mockBills)
+      expect(screen.getByText(/19 Oct 2026/i)).toBeInTheDocument();
+      // Expect Newer and Older navigation buttons
+      expect(screen.getByRole('button', { name: /previous/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument();
+    });
+  });
+
+  it('switches to global search mode across all history when search term is entered', async () => {
+    renderComponent();
+
+    const searchInput = screen.getByPlaceholderText(/search phone, name, or bill #/i);
+    fireEvent.change(searchInput, { target: { value: 'Ramesh' } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/global search:/i)).toBeInTheDocument();
+      expect(screen.getByText(/searching all dates across all history/i)).toBeInTheDocument();
+    });
+  });
 });
 

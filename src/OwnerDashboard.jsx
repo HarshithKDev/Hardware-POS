@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from './AppContext';
 import OwnerStats from './OwnerStats';
@@ -19,6 +19,7 @@ import {
   Plus, 
   Tags, 
   Warehouse, 
+  Boxes,
   ShoppingCart, 
   History, 
   Users, 
@@ -30,21 +31,8 @@ import {
   Store
 } from 'lucide-react';
 
-const NAV_ITEMS = [
-  { key: 'dashboard', label: 'Overview', icon: LayoutDashboard },
-  { key: 'register', label: 'Add Items', icon: Plus },
-  { key: 'categories', label: 'Categories', icon: Tags },
-  { key: 'warehouse', label: 'Main Storage', icon: Warehouse },
-  { key: 'checkout', label: 'Checkout', icon: ShoppingCart },
-  { key: 'sales', label: 'Sales & Returns', icon: History },
-  { key: 'showroom', label: 'Showroom', icon: Store },
-  { key: 'staff', label: 'Manage Staff', icon: Users },
-  { key: 'expenses', label: 'Expenses', icon: Receipt },
-  { key: 'audit', label: 'Audit Logs', icon: Search },
-  { key: 'settings', label: 'Shop Settings', icon: Settings },
-];
-
 export default function OwnerDashboard() {
+  const { isWarehouseDisabled } = useApp();
   const { tab } = useParams();
   const activeTab = tab || 'dashboard';
   const navigate = useNavigate();
@@ -53,6 +41,26 @@ export default function OwnerDashboard() {
   const [selectedBatchBarcode, setSelectedBatchBarcode] = useState(null);
 
   const warehouseSubTab = searchParams.get('wsub') || 'inventory';
+
+  useEffect(() => {
+    if (isWarehouseDisabled && warehouseSubTab === 'transfer') {
+      setSearchParams({ wsub: 'inventory' });
+    }
+  }, [isWarehouseDisabled, warehouseSubTab, setSearchParams]);
+
+  const navItems = useMemo(() => [
+    { key: 'dashboard', label: 'Overview', icon: LayoutDashboard },
+    { key: 'register', label: 'Add Items', icon: Plus },
+    { key: 'categories', label: 'Categories', icon: Tags },
+    { key: 'warehouse', label: isWarehouseDisabled ? 'Store Inventory' : 'Main Storage', icon: isWarehouseDisabled ? Boxes : Warehouse },
+    { key: 'checkout', label: 'Checkout', icon: ShoppingCart },
+    { key: 'sales', label: 'Sales & Returns', icon: History },
+    { key: 'showroom', label: 'Showroom', icon: Store },
+    { key: 'staff', label: 'Manage Staff', icon: Users },
+    { key: 'expenses', label: 'Expenses', icon: Receipt },
+    { key: 'audit', label: 'Audit Logs', icon: Search },
+    { key: 'settings', label: 'Shop Settings', icon: Settings },
+  ], [isWarehouseDisabled]);
 
   const changeTab = (newTab) => {
     setSelectedBatchBarcode(null);
@@ -71,7 +79,7 @@ export default function OwnerDashboard() {
         }}
       >
         <span className="text-base font-bold tracking-wide uppercase" style={{ color: 'var(--text-primary)' }}>
-          {NAV_ITEMS.find(item => item.key === activeTab)?.label || 'Hardware POS'}
+          {navItems.find(item => item.key === activeTab)?.label || 'Hardware POS'}
         </span>
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -116,7 +124,7 @@ export default function OwnerDashboard() {
         aria-label="Dashboard navigation"
       >
         <div className="flex flex-col gap-0.5 md:gap-1 px-2.5 md:px-3">
-          {NAV_ITEMS.map(({ key, label, icon: Icon }) => {
+          {navItems.map(({ key, label, icon: Icon }) => {
             const isActive = activeTab === key;
             return (
               <button
@@ -163,17 +171,17 @@ export default function OwnerDashboard() {
           ) : (
             <div className="flex flex-col flex-1 h-full animate-fade-in">
               <h1 className="text-2xl font-medium mb-6" style={{ color: 'var(--text-primary)' }}>
-                Main Storage Actions
+                {isWarehouseDisabled ? 'Store Inventory Actions' : 'Main Storage Actions'}
               </h1>
               <div
                 className="flex gap-1 mb-6 pb-0 overflow-x-hidden border-b border-[var(--border-light)]"
                 role="tablist"
-                aria-label="Warehouse tabs"
+                aria-label="Inventory tabs"
               >
                 {[
                   { key: 'inventory', label: 'All Items' },
                   { key: 'receive', label: 'Receive Stock' },
-                  { key: 'transfer', label: 'Move to Shop' },
+                  ...(!isWarehouseDisabled ? [{ key: 'transfer', label: 'Move to Shop' }] : []),
                   { key: 'recycle', label: 'Recycle Bin' },
                 ].map(({ key, label }) => (
                   <button
@@ -209,7 +217,7 @@ export default function OwnerDashboard() {
                   <WorkerBilling defaultTab="receive" hideNav={true} />
                 </div>
               )}
-              {warehouseSubTab === 'transfer' && (
+              {warehouseSubTab === 'transfer' && !isWarehouseDisabled && (
                 <div className="flex-1 rounded-lg overflow-hidden border border-[var(--border-light)] bg-[var(--bg-secondary)]">
                   <WorkerBilling defaultTab="transfer" hideNav={true} />
                 </div>

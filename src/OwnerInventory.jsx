@@ -14,7 +14,7 @@ import InventoryRow from './InventoryRow';
 import BatchDetailsModal from './BatchDetailsModal';
 
 export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
-  const { showAlert, showConfirm, shopSettings } = useApp();
+  const { showAlert, showConfirm, shopSettings, isWarehouseDisabled } = useApp();
   const shopId = shopSettings?.id || localStorage.getItem('shop_id');
 
   const [inventorySearch, setInventorySearch] = useState('');
@@ -495,11 +495,10 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
       return (
         <tr
           {...props}
-          className={`hover-row premium-hover ${context?.isSelectionMode ? 'cursor-pointer' : ''} ${isSelected ? 'selected' : ''} block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none border md:border-b md:border-t-0 md:border-l-0 md:border-r-0 border-[var(--border-medium)] md:border-[var(--border-light)] mb-3 md:mb-0 relative ${isEdit ? 'transition-none' : ''}`}
+          className={`hover-row premium-hover ${context?.isSelectionMode ? 'cursor-pointer' : ''} ${isSelected ? 'selected' : ''} block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none border md:border-b md:border-t-0 md:border-l-0 md:border-r-0 border-[var(--border-medium)] md:border-[var(--border-medium)] mb-3 md:mb-0 relative ${isEdit ? 'transition-none' : ''}`}
           style={{
             ...props.style,
-            borderBottomWidth: '1px',
-            borderBottomStyle: 'solid',
+            borderBottom: '1px solid var(--border-medium)',
             ...(isEdit ? { backgroundColor: 'var(--bg-tertiary)' } : {})
           }}
           onClick={() => {
@@ -522,13 +521,13 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
   const fixedHeaderContent = useCallback(() => (
     <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
       {isSelectionMode && (
-        <th className="p-3 w-12 text-center" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>
+        <th className="p-3 w-12 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
           <input type="checkbox" checked={items.length > 0 && selectedBarcodes.length === items.length} onChange={toggleSelectAll} className="w-4 h-4 rounded text-accent focus:ring-accent cursor-pointer" />
         </th>
       )}
       <th 
         className="p-3 w-24 lg:w-28 cursor-pointer select-none group" 
-        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
+        style={{ borderRight: '1px solid var(--border-medium)' }}
         onClick={() => handleSortClick('barcode')}
       >
         <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
@@ -538,7 +537,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
       </th>
       <th 
         className="p-3 w-full min-w-[180px] cursor-pointer select-none group" 
-        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
+        style={{ borderRight: '1px solid var(--border-medium)' }}
         onClick={() => handleSortClick('name')}
       >
         <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
@@ -548,7 +547,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
       </th>
       <th 
         className="p-3 w-36 lg:w-48 cursor-pointer select-none text-center group" 
-        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
+        style={{ borderRight: '1px solid var(--border-medium)' }}
         onClick={() => handleSortClick('category')}
       >
         <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
@@ -558,7 +557,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
       </th>
       <th 
         className="p-3 w-32 lg:w-40 cursor-pointer select-none text-center group" 
-        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
+        style={{ borderRight: '1px solid var(--border-medium)' }}
         onClick={() => handleSortClick('subcategory')}
       >
         <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
@@ -566,30 +565,32 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
           {renderSortIcon('subcategory')}
         </div>
       </th>
-      <th className="p-3 w-28 lg:w-32 text-center" style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}>Batches</th>
+      <th className="p-3 w-28 lg:w-32 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Batches</th>
+      {!isWarehouseDisabled && (
+        <th 
+          className="p-3 w-24 lg:w-28 text-center whitespace-nowrap cursor-pointer select-none group" 
+          style={{ borderRight: '1px solid var(--border-medium)' }}
+          onClick={() => handleSortClick('whsestock')}
+        >
+          <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
+            Whse Qty
+            {renderSortIcon('whsestock')}
+          </div>
+        </th>
+      )}
       <th 
         className="p-3 w-24 lg:w-28 text-center whitespace-nowrap cursor-pointer select-none group" 
-        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
-        onClick={() => handleSortClick('whsestock')}
-      >
-        <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
-          Whse Qty
-          {renderSortIcon('whsestock')}
-        </div>
-      </th>
-      <th 
-        className="p-3 w-24 lg:w-28 text-center whitespace-nowrap cursor-pointer select-none group" 
-        style={{ boxShadow: 'inset -1px 0 0 var(--border-light)' }}
+        style={{ borderRight: '1px solid var(--border-medium)' }}
         onClick={() => handleSortClick('storestock')}
       >
         <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
-          Store Qty
+          {isWarehouseDisabled ? 'Stock Qty' : 'Store Qty'}
           {renderSortIcon('storestock')}
         </div>
       </th>
       <th className="p-3 w-28 lg:w-32 text-center">Actions</th>
     </tr>
-  ), [isSelectionMode, items.length, selectedBarcodes.length, sortOption, handleSortClick, renderSortIcon, toggleSelectAll]);
+  ), [isSelectionMode, items.length, selectedBarcodes.length, sortOption, handleSortClick, renderSortIcon, toggleSelectAll, isWarehouseDisabled]);
 
   return (
     <div className="flex flex-col flex-1 h-full animate-fade-in w-full relative">
@@ -635,11 +636,11 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
               aria-label="Search inventory"
             />
             
-            <div className="relative w-full md:w-48 lg:w-52 shrink-0">
+            <div className="w-full md:w-48 lg:w-52 shrink-0">
               <select
                 value={filterCategory}
                 onChange={handleCategoryChange}
-                className="w-full h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer truncate"
+                className="w-full h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md cursor-pointer truncate"
                 style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
                 aria-label="Filter by category"
               >
@@ -648,18 +649,13 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
                   <option key={c.name} value={c.name}>{c.name}</option>
                 ))}
               </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5" style={{ color: 'var(--text-tertiary)' }}>
-                <svg className="fill-current h-4 w-4" viewBox="0 0 20 20">
-                  <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                </svg>
-              </div>
             </div>
 
-            <div className="relative w-full md:w-48 lg:w-52 shrink-0">
+            <div className="w-full md:w-48 lg:w-52 shrink-0">
               <select
                 value={filterSubcategory}
                 onChange={(e) => setFilterSubcategory(e.target.value)}
-                className="w-full h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer truncate disabled:opacity-50"
+                className="w-full h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md cursor-pointer truncate disabled:opacity-50"
                 style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
                 aria-label="Filter by subcategory"
                 disabled={availableSubcategories.length === 0}
@@ -671,11 +667,6 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
                   <option key={s.name} value={s.name}>{s.name}</option>
                 ))}
               </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5" style={{ color: 'var(--text-tertiary)' }}>
-                <svg className="fill-current h-4 w-4" viewBox="0 0 20 20">
-                  <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                </svg>
-              </div>
             </div>
 
             <button

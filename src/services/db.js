@@ -211,6 +211,20 @@ export const setSyncStatus = async (key, value) => {
   await db.put('sync_status', { key, ...value });
 };
 
+export const getLocalInventoryCount = async (targetShopId) => {
+  const db = await initDB();
+  const shopId = targetShopId || localStorage.getItem('shop_id');
+  const all = await db.getAll('product_master');
+  return all.filter(i => !shopId || !i.shop_id || i.shop_id === shopId).length;
+};
+
+export const deleteInventoryItemByBarcode = async (barcode, targetShopId) => {
+  const db = await initDB();
+  const shopId = targetShopId || localStorage.getItem('shop_id');
+  await db.delete('product_master', [shopId, barcode]);
+  cachedInventory = null;
+};
+
 export const deleteOrphanedInventory = async (syncedBarcodes) => {
   const db = await initDB();
   const tx = db.transaction('product_master', 'readwrite');
@@ -226,3 +240,4 @@ export const deleteOrphanedInventory = async (syncedBarcodes) => {
   await tx.done;
   cachedInventory = null;
 };
+

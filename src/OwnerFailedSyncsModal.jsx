@@ -49,9 +49,9 @@ export default function OwnerFailedSyncsModal({ failedSyncs, onClose }) {
       <table className="w-full text-left border-collapse">
         <thead className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
           <tr className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-            <th className="p-3 w-40" style={{ borderRight: '1px solid var(--border-light)' }}>Timestamp</th>
-            <th className="p-3" style={{ borderRight: '1px solid var(--border-light)' }}>Transaction Details</th>
-            <th className="p-3" style={{ borderRight: '1px solid var(--border-light)' }}>Error Reason</th>
+            <th className="p-3 w-40" style={{ borderRight: '1px solid var(--border-medium)' }}>Timestamp</th>
+            <th className="p-3" style={{ borderRight: '1px solid var(--border-medium)' }}>Transaction Details</th>
+            <th className="p-3" style={{ borderRight: '1px solid var(--border-medium)' }}>Error Reason</th>
             <th className="p-3 w-40 text-center">Actions</th>
           </tr>
         </thead>
@@ -60,18 +60,18 @@ export default function OwnerFailedSyncsModal({ failedSyncs, onClose }) {
             <tr><td colSpan="4" className="h-[50vh] align-middle text-center text-sm font-semibold" style={{ color: 'var(--color-success)' }}>No failed transactions!</td></tr>
           ) : (
             failedSyncs.map(tx => (
-              <tr key={tx.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
-                <td className="p-3 text-xs " style={{ color: 'var(--text-secondary)', borderRight: '1px solid var(--border-light)' }}>
+              <tr key={tx.id} style={{ borderBottom: '1px solid var(--border-medium)' }}>
+                <td className="p-3 text-xs " style={{ color: 'var(--text-secondary)', borderRight: '1px solid var(--border-medium)' }}>
                   {formatDateTime(tx.queued_at).full}
                 </td>
-                <td className="p-3 text-sm" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-light)' }}>
+                <td className="p-3 text-sm" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>
                   <div className="font-bold mb-1" style={{ color: 'var(--color-accent)' }}>{tx.p_action} ({tx.p_location})</div>
                   <div className="text-xs">Cashier: {tx.p_cashier_name}</div>
                   <div className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
                     {tx.p_items?.length} items ({tx.p_items?.map(i => `${i.qty}x`).join(', ')})
                   </div>
                 </td>
-                <td className="p-3 text-xs  font-medium" style={{ color: 'var(--color-error)', borderRight: '1px solid var(--border-light)', whiteSpace: 'pre-wrap' }}>
+                <td className="p-3 text-xs  font-medium" style={{ color: 'var(--color-error)', borderRight: '1px solid var(--border-medium)', whiteSpace: 'pre-wrap' }}>
                   {tx.error_message || 'Unknown Error'}
                 </td>
                 <td className="p-3 text-center">
