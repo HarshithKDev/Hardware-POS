@@ -217,7 +217,12 @@ export default function WorkerScanner({ cashierName }) {
           return;
         }
         try {
-          const { data, error } = await supabase.from('stock_instances').select('current_length, batch_id').eq('instance_barcode', barcode).single();
+          const shopId = item.shop_id || localStorage.getItem('shop_id');
+          let instQuery = supabase.from('stock_instances').select('current_length, batch_id').eq('instance_barcode', barcode);
+          if (shopId) {
+            instQuery = instQuery.eq('shop_id', shopId);
+          }
+          const { data, error } = await instQuery.maybeSingle();
           if (error || !data) {
             // If the piece doesn't exist, it might be a newly printed label being scanned to RECEIVE into stock.
             maxStock = Number(item.default_length) || 1;
@@ -331,8 +336,10 @@ export default function WorkerScanner({ cashierName }) {
     if (cart.length === 0) return;
     setIsSending(true);
     try {
+      const shopId = localStorage.getItem('shop_id');
       const { error } = await supabase.from('pending_carts').insert([{
         worker_name: cashierName,
+        shop_id: shopId,
         items: cart
       }]);
       

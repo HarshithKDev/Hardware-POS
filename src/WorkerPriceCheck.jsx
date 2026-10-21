@@ -198,12 +198,16 @@ export default function WorkerPriceCheck() {
 
       // Fallback search in product_master_public
       if (!matchedItem) {
-        const { data: remoteData } = await supabase
+        const shopId = localStorage.getItem('shop_id');
+        let fallbackQuery = supabase
           .from('product_master_public')
           .select('*, inventory_batches_public(*)')
           .or(`barcode.eq.${rawBarcode},name.ilike.%${rawBarcode}%`)
-          .eq('is_active', true)
-          .limit(1);
+          .eq('is_active', true);
+        if (shopId) {
+          fallbackQuery = fallbackQuery.eq('shop_id', shopId);
+        }
+        const { data: remoteData } = await fallbackQuery.limit(1);
 
         if (remoteData && remoteData.length > 0) {
           matchedItem = {
@@ -230,12 +234,17 @@ export default function WorkerPriceCheck() {
 
       if (matchedItem.is_cuttable) {
         setIsLoadingInstances(true);
-        const { data: instances } = await supabase
+        const shopId = localStorage.getItem('shop_id');
+        let instQuery = supabase
           .from('stock_instances')
           .select('*')
           .eq('parent_barcode', String(matchedItem.barcode))
           .eq('is_active', true)
           .gt('current_length', 0);
+        if (shopId) {
+          instQuery = instQuery.eq('shop_id', shopId);
+        }
+        const { data: instances } = await instQuery;
         setAvailableInstances(instances || []);
         setIsLoadingInstances(false);
       } else {

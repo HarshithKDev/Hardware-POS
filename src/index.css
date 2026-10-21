@@ -276,6 +276,25 @@ input[type="date"]::-webkit-datetime-edit-fields-wrapper {
   background: transparent;
 }
 
+.modal-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+.modal-scroll::-webkit-scrollbar {
+  width: 8px !important;
+}
+.modal-scroll::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+.modal-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+}
+.modal-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
 /* ---------------------------------------------------------------
    POS COMPONENT BACKGROUNDS
    --------------------------------------------------------------- */
@@ -325,6 +344,19 @@ input[type="date"]::-webkit-datetime-edit-fields-wrapper {
 
 .animate-fade-in {
   animation: fade-in 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes tooltip-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-tooltip-fade {
+  animation: tooltip-fade 0.15s ease-out;
 }
 
 @keyframes scale-in {

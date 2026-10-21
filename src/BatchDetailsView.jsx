@@ -38,17 +38,22 @@ export default function BatchDetailsView({
   const [createBatchModalOpen, setCreateBatchModalOpen] = useState(false);
   const [batchToDelete, setBatchToDelete] = useState(null);
 
+  const shopId = localStorage.getItem('shop_id');
+
   // Fetch or bind the active product item
   const { data: item = initialItem, isLoading: isLoadingItem } = useQuery({
-    queryKey: ['inventory_item', barcode],
+    queryKey: ['inventory_item', shopId, barcode],
     queryFn: async () => {
       if (!barcode) return null;
       try {
-        const { data, error } = await supabase
+        let itemQuery = supabase
           .from('product_master')
           .select('*, batches:inventory_batches(*)')
-          .eq('barcode', barcode)
-          .single();
+          .eq('barcode', barcode);
+        if (shopId) {
+          itemQuery = itemQuery.eq('shop_id', shopId);
+        }
+        const { data, error } = await itemQuery.single();
         if (!error && data) {
           if (data.batches) {
             data.batches = data.batches
@@ -131,10 +136,14 @@ export default function BatchDetailsView({
       } catch (err) {
         console.warn('RPC get_stock_instances failed, falling back to direct table select', err);
       }
-      const { data, error } = await supabase
+      let instQuery = supabase
         .from('stock_instances')
         .select('*')
         .eq('parent_barcode', String(item.barcode));
+      if (shopId) {
+        instQuery = instQuery.eq('shop_id', shopId);
+      }
+      const { data, error } = await instQuery;
       if (error) throw error;
       return data || [];
     },
@@ -145,12 +154,16 @@ export default function BatchDetailsView({
   // Batch MSP update mutation
   const updateBatchMutation = useMutation({
     mutationFn: async ({ batch_id, msp }) => {
-      const { error } = await supabase
+      let batchQuery = supabase
         .from('inventory_batches')
         .update({
           msp: Number(msp)
         })
         .eq('batch_id', batch_id);
+      if (shopId) {
+        batchQuery = batchQuery.eq('shop_id', shopId);
+      }
+      const { error } = await batchQuery;
       if (error) throw error;
 
       const oldBatch = batches.find(b => b.batch_id === batch_id);
@@ -161,6 +174,7 @@ export default function BatchDetailsView({
 
       if (changes.length > 0) {
         await supabase.from('audit_logs').insert([{
+          shop_id: shopId,
           action_type: 'UPDATE',
           barcode: item.barcode,
           item_name: item.name,
@@ -198,13 +212,17 @@ export default function BatchDetailsView({
       const parsedStore = Math.max(0, Number(storeQty) || 0);
       const parsedWhse = Math.max(0, Number(whseQty) || 0);
 
-      const { error } = await supabase
+      let minQuery = supabase
         .from('product_master')
         .update({
           min_quantity_store: parsedStore,
           min_quantity_warehouse: parsedWhse
         })
         .eq('barcode', item.barcode);
+      if (shopId) {
+        minQuery = minQuery.eq('shop_id', shopId);
+      }
+      const { error } = await minQuery;
 
       if (error) throw error;
 
@@ -219,6 +237,7 @@ export default function BatchDetailsView({
 
       if (changes.length > 0) {
         await supabase.from('audit_logs').insert([{
+          shop_id: shopId,
           action_type: 'UPDATE',
           barcode: item.barcode,
           item_name: item.name,
@@ -257,14 +276,19 @@ export default function BatchDetailsView({
   const confirmDeleteBatch = async () => {
     if (!batchToDelete) return;
     try {
-      const { error } = await supabase
+      let delQuery = supabase
         .from('inventory_batches')
         .update({ is_active: false })
         .eq('batch_id', batchToDelete);
+      if (shopId) {
+        delQuery = delQuery.eq('shop_id', shopId);
+      }
+      const { error } = await delQuery;
       if (error) throw error;
 
       const oldBatch = batches.find(b => b.batch_id === batchToDelete);
       await supabase.from('audit_logs').insert([{
+        shop_id: shopId,
         action_type: 'DELETE',
         barcode: item.barcode,
         item_name: item.name,
@@ -347,6 +371,7 @@ export default function BatchDetailsView({
         if (error) throw error;
 
         await supabase.from('audit_logs').insert([{
+          shop_id: shopId,
           action_type: 'UPDATE',
           barcode: item.barcode,
           item_name: item.name,
@@ -547,10 +572,16 @@ export default function BatchDetailsView({
           <div className="px-4 py-2 text-xs font-medium text-[var(--text-tertiary)] italic">
             No batches available
           </div>
-        ) : (
-          batches.map((batch) => {
+        ) : (() => {
+          const seenBatchNums = new Set();
+          return batches.map((batch, idx) => {
             const isActive = activeBatch?.batch_id === batch.batch_id;
-            const batchNum = batch.batch_number || 1;
+            let batchNum = batch.batch_number;
+            if (!batchNum || seenBatchNums.has(batchNum)) {
+              batchNum = idx + 1;
+              while (seenBatchNums.has(batchNum)) batchNum++;
+            }
+            seenBatchNums.add(batchNum);
             const batchCode = `${item.barcode}-${String(batchNum).padStart(2, '0')}`;
             
             let tabCountLabel = '';
@@ -593,8 +624,8 @@ export default function BatchDetailsView({
                 </span>
               </button>
             );
-          })
-        )}
+          });
+        })()}
 
         {/* NEW BATCH TAB BUTTON */}
         <button

@@ -11,20 +11,30 @@ export default function CreateBatchModal({ item, onClose }) {
 
   const createBatchMutation = useMutation({
     mutationFn: async (batchData) => {
-      // Find max batch_number for this barcode
-      const { data: existingBatches } = await supabase
-        .from('inventory_batches')
-        .select('batch_number')
-        .eq('barcode', item.barcode);
-        
-      let nextBatchNum = 1;
-      if (existingBatches && existingBatches.length > 0) {
-        nextBatchNum = Math.max(...existingBatches.map(b => b.batch_number || 0)) + 1;
+      // Find max batch_number for this barcode across both remote and local batches
+      let existingBatches = [];
+      try {
+        const { data } = await supabase
+          .from('inventory_batches')
+          .select('batch_number')
+          .eq('barcode', item.barcode);
+        if (data) existingBatches = data;
+      } catch (err) {
+        console.warn('Failed to query remote batches for batch_number', err);
       }
+        
+      const allBatchNums = [
+        ...(item.batches || []).map(b => Number(b.batch_number) || 0),
+        ...existingBatches.map(b => Number(b.batch_number) || 0)
+      ];
+      let nextBatchNum = (allBatchNums.length > 0 ? Math.max(...allBatchNums) : 0) + 1;
+      if (nextBatchNum <= 0) nextBatchNum = 1;
 
+      const shopId = localStorage.getItem('shop_id');
       const newBatchId = generateId();
       const insertPayload = {
         batch_id: newBatchId,
+        shop_id: shopId,
         barcode: item.barcode,
         batch_number: nextBatchNum,
         purchase_cost: Number(batchData.cost_price),
@@ -40,6 +50,7 @@ export default function CreateBatchModal({ item, onClose }) {
 
       try {
         await supabase.from('audit_logs').insert([{
+          shop_id: shopId,
           action_type: 'CREATE',
           barcode: item.barcode,
           item_name: item.name,

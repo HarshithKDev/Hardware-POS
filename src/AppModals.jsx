@@ -35,12 +35,16 @@ export function MobileScannerModal({ onClose, setScannedProduct, onScan }) {
         return;
       }
 
-      const { data } = await supabase
+      const shopId = localStorage.getItem('shop_id');
+      let query = supabase
         .from('product_master')
         .select('*')
         .eq('barcode', decodedText)
-        .eq('is_active', true)
-        .single();
+        .eq('is_active', true);
+      if (shopId) {
+        query = query.eq('shop_id', shopId);
+      }
+      const { data } = await query.maybeSingle();
 
       if (data) {
         if (latestSetScannedProduct) latestSetScannedProduct(data);

@@ -11,12 +11,17 @@ import {
 const PAGE_SIZE = 500;
 
 export const syncInventoryToLocal = async (userRole = 'worker') => {
+  const currentShopId = localStorage.getItem('shop_id');
   const tableName = userRole === 'owner' ? 'product_master' : 'product_master_public';
   try {
     await setSyncStatus('inventory_sync', { status: 'syncing', last_sync: null });
     
     // First, verify if we have network by doing a small ping
-    const { error: pingError } = await supabase.from(tableName).select('barcode').limit(1);
+    let pingQuery = supabase.from(tableName).select('barcode');
+    if (currentShopId) {
+      pingQuery = pingQuery.eq('shop_id', currentShopId);
+    }
+    const { error: pingError } = await pingQuery.limit(1);
     if (pingError) throw pingError;
 
     let offset = 0;
@@ -24,10 +29,13 @@ export const syncInventoryToLocal = async (userRole = 'worker') => {
     const syncedBarcodes = new Set();
 
     while (hasMore) {
-      // Fetch product masters
+      // Fetch product masters for the current shop
       let prodQuery = supabase.from(tableName).select('*');
       if (userRole !== 'owner') {
         prodQuery = prodQuery.eq('is_active', true);
+      }
+      if (currentShopId) {
+        prodQuery = prodQuery.eq('shop_id', currentShopId);
       }
       const { data: products, error: prodError } = await prodQuery.range(offset, offset + PAGE_SIZE - 1);
         
@@ -36,11 +44,14 @@ export const syncInventoryToLocal = async (userRole = 'worker') => {
       if (products && products.length > 0) {
         const barcodes = products.map(p => p.barcode);
         
-        // Fetch batches for these products
+        // Fetch batches for these products and shop
         const batchTable = userRole === 'owner' ? 'inventory_batches' : 'inventory_batches_public';
         let batchQuery = supabase.from(batchTable).select('*').in('barcode', barcodes);
         if (userRole !== 'owner') {
           batchQuery = batchQuery.eq('is_active', true);
+        }
+        if (currentShopId) {
+          batchQuery = batchQuery.eq('shop_id', currentShopId);
         }
         const { data: batches, error: batchError } = await batchQuery;
           
@@ -85,11 +96,16 @@ export const syncInventoryToLocal = async (userRole = 'worker') => {
 export const flushOfflineQueue = async (userRole = 'worker') => {
   try {
     // Check connection first
+    const currentShopId = localStorage.getItem('shop_id');
     const tableName = userRole === 'owner' ? 'product_master' : 'product_master_public';
-    const { error: pingError } = await supabase.from(tableName).select('barcode').limit(1);
+    let pingQuery = supabase.from(tableName).select('barcode');
+    if (currentShopId) {
+      pingQuery = pingQuery.eq('shop_id', currentShopId);
+    }
+    const { error: pingError } = await pingQuery.limit(1);
     if (pingError) return; // Offline, abort flush
 
-    let queue = await getOfflineQueue();
+    let queue = await getOfflineQueue(currentShopId);
     if (queue && queue.length > 0) {
       queue = queue.filter(tx => tx.status !== 'failed');
       if (queue.length > 0) {

@@ -235,11 +235,14 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
 
       // Server-side check: ensure the owner hasn't removed this staff member
       if (role === 'worker') {
-        const { data: activeWorker, error: dbError } = await supabase
+        let workerQuery = supabase
           .from('workers')
           .select('name')
-          .ilike('name', targetId)
-          .single();
+          .ilike('name', targetId);
+        if (shopSettings?.id) {
+          workerQuery = workerQuery.eq('shop_id', shopSettings.id);
+        }
+        const { data: activeWorker, error: dbError } = await workerQuery.maybeSingle();
 
         if (!activeWorker || dbError) {
           await supabase.auth.signOut();

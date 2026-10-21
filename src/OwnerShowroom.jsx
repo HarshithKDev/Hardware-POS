@@ -18,15 +18,21 @@ export default function OwnerShowroom() {
   const [markingPaidId, setMarkingPaidId] = useState(null);
   const [paymentMethodModal, setPaymentMethodModal] = useState(null);
 
+  const shopId = localStorage.getItem('shop_id');
+
   const { data: bills = [], isLoading } = useQuery({
-    queryKey: ['showroom-sales', page],
+    queryKey: ['showroom-sales', shopId, page],
     queryFn: async () => {
       const from = page * SHOWROOM_PAGE_SIZE;
-      const { data, error } = await supabase
+      let query = supabase
         .from('bills')
         .select('*')
         .eq('location', 'Store')
-        .eq('status', 'showroom_pending')
+        .eq('status', 'showroom_pending');
+      if (shopId) {
+        query = query.eq('shop_id', shopId);
+      }
+      const { data, error } = await query
         .order('created_at', { ascending: false })
         .range(from, from + SHOWROOM_PAGE_SIZE - 1);
       if (error) throw error;

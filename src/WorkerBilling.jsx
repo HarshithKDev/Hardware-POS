@@ -18,14 +18,20 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
   const navigate = useNavigate();
   const { shopSettings, cashierName, userRole } = useApp();
 
+  const shopId = shopSettings?.id || localStorage.getItem('shop_id');
+
   const { data: workerData, isLoading } = useQuery({
-    queryKey: ['workerPermissions', cashierName],
+    queryKey: ['workerPermissions', shopId, cashierName],
     queryFn: async () => {
-      const { data, error } = await supabase.from('workers').select('password').eq('name', cashierName).single();
+      let query = supabase.from('workers').select('password').eq('name', cashierName);
+      if (shopId) {
+        query = query.eq('shop_id', shopId);
+      }
+      const { data, error } = await query.maybeSingle();
       if (error) throw error;
       return data;
     },
-    enabled: userRole !== 'owner',
+    enabled: userRole !== 'owner' && !!cashierName,
   });
 
   const isBillable = userRole === 'owner' || !workerData?.password?.includes('NON_BILLABLE');

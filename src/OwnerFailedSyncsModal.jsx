@@ -45,7 +45,7 @@ export default function OwnerFailedSyncsModal({ failedSyncs, onClose }) {
   };
 
   return (
-    <div className="overflow-x-hidden w-full shadow-sm rounded-none" style={{ border: '1px solid var(--border-light)', overscrollBehavior: 'none' }}>
+    <div className="w-full overflow-x-auto">
       <table className="w-full text-left border-collapse">
         <thead className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
           <tr className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>

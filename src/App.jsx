@@ -11,7 +11,7 @@ import { useApp } from './AppContext';
 import { startBackgroundSync, stopBackgroundSync } from './services/sync';
 import { WifiOff, ScanBarcode, LayoutDashboard, Moon, Sun, LogOut } from 'lucide-react';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 function App() {
   const {
@@ -32,14 +32,21 @@ function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncCount, setSyncCount] = useState(0);
 
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
 
+  const savedShopId = localStorage.getItem('shop_id');
+
   const { data: workerData, error: workerError } = useQuery({
-    queryKey: ['workerPermissions', cashierName],
+    queryKey: ['workerPermissions', savedShopId, cashierName],
     queryFn: async () => {
       if (!cashierName || userRole === 'owner') return null;
-      const { data, error } = await supabase.from('workers').select('password').eq('name', cashierName).single();
+      let query = supabase.from('workers').select('password').eq('name', cashierName);
+      if (savedShopId) {
+        query = query.eq('shop_id', savedShopId);
+      }
+      const { data, error } = await query.maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -50,6 +57,7 @@ function App() {
   useEffect(() => {
     // PGRST116 means 0 rows returned for a .single() query, meaning the worker was deleted
     if (workerError && workerError.code === 'PGRST116') {
+      queryClient.clear();
       setUserRole(null);
       setCashierName('');
       sessionStorage.removeItem('posUserRole');
@@ -219,6 +227,7 @@ function App() {
 
   const confirmLogout = async () => {
     await supabase.auth.signOut();
+    queryClient.clear();
     setUserRole(null);
     setCashierName('');
     sessionStorage.removeItem('posUserRole');
@@ -243,7 +252,7 @@ function App() {
       <EntryFlow
         onLoginSuccess={handleLoginSuccess}
         isSetupNeeded={isSetupNeeded}
-        onSetupComplete={(s) => { setShopSettings(s); setIsSetupNeeded(false); }}
+        onSetupComplete={(s) => { queryClient.clear(); setShopSettings(s); setIsSetupNeeded(false); }}
         shopSettings={shopSettings}
       />
     );

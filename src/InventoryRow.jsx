@@ -18,15 +18,20 @@ export default function InventoryRow({
   onOpenBatchDetails 
 }) {
 
+  const shopId = item.shop_id || localStorage.getItem('shop_id');
   const { data: pieceCounts } = useQuery({
-    queryKey: ['piece_counts', item.barcode],
+    queryKey: ['piece_counts', shopId, item.barcode],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('stock_instances')
         .select('location, batch_id')
         .eq('parent_barcode', String(item.barcode))
         .eq('is_active', true)
         .gt('current_length', 0);
+      if (shopId) {
+        query = query.eq('shop_id', shopId);
+      }
+      const { data, error } = await query;
         
       if (error) {
         console.error("Piece counts error for", item.barcode, error);
@@ -61,52 +66,131 @@ export default function InventoryRow({
   const [popoverPos, setPopoverPos] = useState(null);
   const [isHovered, setIsHovered] = useState(false);
   const hoverTimeoutRef = useRef(null);
+  const closeTimeoutRef = useRef(null);
+  const tooltipRef = useRef(null);
 
   const activeBatches = useMemo(() => {
+    const seenIds = new Set();
     return (item.batches || [])
-      .filter(b => b.is_active !== false)
+      .filter(b => {
+        if (b.is_active === false) return false;
+        if (b.batch_id) {
+          if (seenIds.has(b.batch_id)) return false;
+          seenIds.add(b.batch_id);
+        }
+        return true;
+      })
       .sort((a, b) => (a.batch_number || 1) - (b.batch_number || 1));
   }, [item.batches]);
 
   const handleMouseEnter = useCallback((e) => {
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-    const rect = e.currentTarget.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const showAbove = spaceBelow < 260 && rect.top > 260;
-    
-    const tooltipWidth = 290;
-    const buttonCenterX = rect.left + rect.width / 2;
-    let finalLeft = Math.round(buttonCenterX - tooltipWidth / 2);
-    if (finalLeft < 16) {
-      finalLeft = 16;
-    } else if (finalLeft + tooltipWidth > window.innerWidth - 16) {
-      finalLeft = window.innerWidth - 16 - tooltipWidth;
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
     }
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+
+    // Notify any other open tooltip to close immediately
+    window.dispatchEvent(new CustomEvent('closeBatchTooltip', { detail: item.barcode }));
+
+    const buttonEl = e.currentTarget;
 
     hoverTimeoutRef.current = setTimeout(() => {
+      if (!buttonEl) return;
+      const rect = buttonEl.getBoundingClientRect();
+      
+      const tooltipWidth = 320;
+      const buttonCenterX = rect.left + rect.width / 2;
+      let finalLeft = Math.round(buttonCenterX - tooltipWidth / 2);
+      if (finalLeft < 16) {
+        finalLeft = 16;
+      } else if (finalLeft + tooltipWidth > window.innerWidth - 16) {
+        finalLeft = window.innerWidth - 16 - tooltipWidth;
+      }
+
+      const batchCount = Math.max(1, activeBatches.length);
+      // Base: header ~58px, padding/borders ~30px -> ~88px + 52px per batch item
+      const neededHeight = Math.min(480, 88 + batchCount * 52);
+
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+
+      // "See first and then open":
+      // If lower screen space is less than 320px and upper space has room, ALWAYS open on TOP!
+      // Or if space below is less than needed height + 40px buffer, open on TOP!
+      const showAbove = (spaceBelow < 320 && spaceAbove > 160) || 
+                        (spaceBelow < (neededHeight + 40) && spaceAbove > spaceBelow);
+
+      const availableSpace = showAbove ? (spaceAbove - 16) : (spaceBelow - 16);
+      const maxListHeight = Math.max(120, Math.min(460, availableSpace - 88));
+
       setPopoverPos({
-        top: Math.round(showAbove ? rect.top - 8 : rect.bottom + 8),
+        top: Math.round(showAbove ? rect.top : rect.bottom),
         left: finalLeft,
-        showAbove
+        showAbove,
+        maxListHeight
       });
       setIsHovered(true);
     }, 60);
-  }, []);
+  }, [activeBatches.length, item.barcode]);
 
   const handleMouseLeave = useCallback(() => {
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-    setIsHovered(false);
+    if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+    closeTimeoutRef.current = setTimeout(() => {
+      setIsHovered(false);
+    }, 200);
+  }, []);
+
+  const handleTooltipMouseEnter = useCallback(() => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+  }, []);
+
+  const handleTooltipMouseLeave = useCallback(() => {
+    if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+    closeTimeoutRef.current = setTimeout(() => {
+      setIsHovered(false);
+    }, 200);
   }, []);
 
   useEffect(() => {
-    return () => {
-      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    const handleOtherHover = (e) => {
+      if (e.detail !== item.barcode) {
+        if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+        if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+        setIsHovered(false);
+      }
     };
-  }, []);
+    window.addEventListener('closeBatchTooltip', handleOtherHover);
+    return () => {
+      window.removeEventListener('closeBatchTooltip', handleOtherHover);
+      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+    };
+  }, [item.barcode]);
 
   useEffect(() => {
     if (!isHovered) return;
-    const handleScrollOrResize = () => {
+    const startScrollY = window.scrollY;
+    const startScrollX = window.scrollX;
+    const mountTime = Date.now();
+
+    const handleScrollOrResize = (e) => {
+      if (e && e.target && tooltipRef.current && tooltipRef.current.contains(e.target)) {
+        return;
+      }
+      // Ignore residual inertia micro-scrolls in the first 150ms after opening
+      if (Date.now() - mountTime < 150) {
+        return;
+      }
+      const dy = Math.abs(window.scrollY - startScrollY);
+      const dx = Math.abs(window.scrollX - startScrollX);
+      if (e.type === 'scroll' && dy < 20 && dx < 20) {
+        return;
+      }
       setIsHovered(false);
     };
     window.addEventListener('scroll', handleScrollOrResize, true);
@@ -122,11 +206,14 @@ export default function InventoryRow({
 
     return createPortal(
       <div
-        className="fixed z-[99999] pointer-events-none animate-fade-in"
+        ref={tooltipRef}
+        onMouseEnter={handleTooltipMouseEnter}
+        onMouseLeave={handleTooltipMouseLeave}
+        className={`fixed z-[99999] pointer-events-auto animate-tooltip-fade ${popoverPos.showAbove ? 'pb-2' : 'pt-2'}`}
         style={{
           top: `${popoverPos.top}px`,
           left: `${popoverPos.left}px`,
-          width: '290px',
+          width: '320px',
           transform: popoverPos.showAbove ? 'translateY(-100%)' : 'none',
         }}
       >
@@ -144,9 +231,9 @@ export default function InventoryRow({
               <span className="text-xs font-bold text-[var(--text-primary)] block truncate" title={item.name}>
                 {item.name}
               </span>
-              <span className="text-[10px] text-[var(--text-tertiary)] font-mono">
-                Barcode: {item.barcode}
-              </span>
+              <div className="text-[11px] text-[var(--text-secondary)] font-medium mt-0.5">
+                Barcode: <span className="font-semibold text-[var(--color-accent)] tracking-wider">{item.barcode}</span>
+              </div>
             </div>
             <span
               className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase shrink-0"
@@ -169,60 +256,67 @@ export default function InventoryRow({
               </div>
             </div>
           ) : (
-            <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto pr-0.5 custom-scrollbar">
-              {activeBatches.map((b) => {
-                const bNum = b.batch_number || 1;
-                const bCode = `${item.barcode}-${String(bNum).padStart(2, '0')}`;
-                const mrpVal = Number(b.selling_price !== undefined && b.selling_price !== null ? b.selling_price : (item.price || 0));
-                const whseQty = Number(b.stock_warehouse || 0);
-                const storeQty = Number(b.stock_store || 0);
+            <div
+              className="flex flex-col gap-1.5 overflow-y-auto pr-1 custom-scrollbar"
+              style={{
+                maxHeight: popoverPos.maxListHeight ? `${popoverPos.maxListHeight}px` : '420px'
+              }}
+            >
+              {(() => {
+                const seenBatchNums = new Set();
+                return activeBatches.map((b, idx) => {
+                  let bNum = b.batch_number;
+                  if (!bNum || seenBatchNums.has(bNum)) {
+                    bNum = idx + 1;
+                    while (seenBatchNums.has(bNum)) bNum++;
+                  }
+                  seenBatchNums.add(bNum);
+                  const bCode = `${item.barcode}-${String(bNum).padStart(2, '0')}`;
+                  const mrpVal = Number(b.selling_price !== undefined && b.selling_price !== null ? b.selling_price : (item.price || 0));
+                  const whseQty = Number(b.stock_warehouse || 0);
+                  const storeQty = Number(b.stock_store || 0);
 
-                return (
-                  <div
-                    key={b.batch_id || bCode}
-                    className="p-2 rounded flex items-center justify-between gap-2.5"
-                    style={{
-                      backgroundColor: 'var(--bg-tertiary)',
-                      border: '1px solid var(--border-light)'
-                    }}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-[var(--text-primary)]">
-                          Batch #{bNum}
-                        </span>
-                        <span className="text-[10px] font-mono text-[var(--text-tertiary)]">
-                          ({bCode})
-                        </span>
+                  return (
+                    <div
+                      key={b.batch_id || `${bCode}-${idx}`}
+                      className="p-2 rounded flex items-center justify-between gap-2.5 transition-colors hover:brightness-105"
+                      style={{
+                        backgroundColor: 'var(--bg-tertiary)',
+                        border: '1px solid var(--border-light)'
+                      }}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-[var(--text-primary)]">
+                            Batch #{bNum}
+                          </span>
+                          <span className="text-[11px] font-semibold text-[var(--text-secondary)] tracking-wide">
+                            ({bCode})
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-[var(--text-secondary)] mt-0.5">
+                          Whse: <span className="font-semibold text-[var(--text-primary)]">{whseQty}</span>
+                          {' • '}
+                          Store: <span className="font-semibold text-[var(--text-primary)]">{storeQty}</span>
+                          {displayUnit ? ` ${displayUnit}` : ''}
+                        </div>
                       </div>
-                      <div className="text-[10px] text-[var(--text-secondary)] mt-0.5">
-                        Whse: <span className="font-semibold text-[var(--text-primary)]">{whseQty}</span>
-                        {' • '}
-                        Store: <span className="font-semibold text-[var(--text-primary)]">{storeQty}</span>
-                        {displayUnit ? ` ${displayUnit}` : ''}
+
+                      <div className="text-right shrink-0">
+                        <div className="text-[9px] uppercase tracking-wider font-semibold text-[var(--text-tertiary)]">
+                          MRP
+                        </div>
+                        <div className="text-xs font-extrabold text-[var(--color-success)]">
+                          ₹{mrpVal.toFixed(2)}
+                          {item.is_loose_item && item.unit?.toUpperCase() === 'KG' ? '/kg' : ''}
+                        </div>
                       </div>
                     </div>
-
-                    <div className="text-right shrink-0">
-                      <div className="text-[9px] uppercase tracking-wider font-semibold text-[var(--text-tertiary)]">
-                        MRP
-                      </div>
-                      <div className="text-xs font-extrabold text-[var(--color-success)]">
-                        ₹{mrpVal.toFixed(2)}
-                        {item.is_loose_item && item.unit?.toUpperCase() === 'KG' ? '/kg' : ''}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                });
+              })()}
             </div>
           )}
-
-          {/* Footer info */}
-          <div className="mt-2 pt-1.5 border-t border-[var(--border-light)] text-[10px] text-center text-[var(--text-tertiary)] flex items-center justify-center gap-1">
-            <span>Click button to view batch details</span>
-            <span>↗</span>
-          </div>
         </div>
       </div>,
       document.body

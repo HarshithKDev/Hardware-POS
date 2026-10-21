@@ -12,11 +12,12 @@ import {
 } from 'lucide-react';
 import { Spinner, PageLoader } from './SharedUI';
 
-const LOCAL_STORAGE_KEY = 'hardware_pos_expenses';
+const getLocalStorageKey = (shopId) => `hardware_pos_expenses_${shopId || 'default'}`;
 
 export default function OwnerExpenses({ isOwner = false, cashierName: propCashierName }) {
-  const { cashierName: appCashierName, userRole, showAlert } = useApp();
+  const { cashierName: appCashierName, userRole, showAlert, shopSettings } = useApp();
   const currentCashier = propCashierName || appCashierName || (userRole === 'owner' ? 'Owner' : 'Staff');
+  const shopId = shopSettings?.id || localStorage.getItem('shop_id');
 
   const [expenses, setExpenses] = useState([]);
   const [workers, setWorkers] = useState([]);
@@ -34,10 +35,14 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
   useEffect(() => {
     async function fetchWorkers() {
       try {
-        const { data, error } = await supabase
+        let query = supabase
           .from('workers')
           .select('id, name')
           .order('name', { ascending: true });
+        if (shopId) {
+          query = query.eq('shop_id', shopId);
+        }
+        const { data, error } = await query;
         if (data && !error) {
           setWorkers(data);
         }
@@ -46,7 +51,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
       }
     }
     fetchWorkers();
-  }, []);
+  }, [shopId]);
 
   // 2. Fetch Expenses (Supabase with localStorage fallback)
   const fetchExpenses = async () => {
@@ -61,7 +66,25 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
         .order('created_at', { ascending: false });
 
       if (!error && data) {
-        remoteData = data;
+        // Fetch current shop's worker IDs to correlate
+        let shopWorkerIds = new Set();
+        if (shopId) {
+          const { data: wData } = await supabase
+            .from('workers')
+            .select('id')
+            .eq('shop_id', shopId);
+          if (wData) {
+            wData.forEach(w => shopWorkerIds.add(w.id));
+          }
+        }
+
+        const filtered = shopId ? data.filter(e => {
+          if (e.notes === `shop:${shopId}`) return true;
+          if (e.worker_id && shopWorkerIds.has(e.worker_id)) return true;
+          return false;
+        }) : data;
+
+        remoteData = filtered;
         dbSuccess = true;
         setIsDbConnected(true);
       } else {
@@ -72,7 +95,8 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
     }
 
     // Load from local storage
-    const localRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const storageKey = getLocalStorageKey(shopId);
+    const localRaw = localStorage.getItem(storageKey);
     let localData = [];
     if (localRaw) {
       try {
@@ -84,7 +108,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
 
     if (dbSuccess && remoteData) {
       setExpenses(remoteData);
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(remoteData));
+      localStorage.setItem(storageKey, JSON.stringify(remoteData));
     } else {
       setExpenses(localData);
     }
@@ -94,7 +118,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
 
   useEffect(() => {
     fetchExpenses();
-  }, []);
+  }, [shopId]);
 
   // Handle Save Expense
   const handleSaveExpense = async (e) => {
@@ -129,7 +153,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
       worker_name: finalWorkerName,
       amount: numAmount,
       reason: reason.trim(),
-      notes: null,
+      notes: shopId ? `shop:${shopId}` : null,
       recorded_by: currentCashier,
       created_at: new Date().toISOString()
     };
@@ -148,6 +172,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
       // 2. Log to audit_logs
       try {
         await supabase.from('audit_logs').insert([{
+          shop_id: shopId,
           action_type: 'EXPENSE',
           barcode: 'CASH',
           item_name: finalWorkerName,
@@ -161,7 +186,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
       // 3. Save locally in state & localStorage
       const updatedExpenses = [newExpense, ...expenses];
       setExpenses(updatedExpenses);
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedExpenses));
+      localStorage.setItem(getLocalStorageKey(shopId), JSON.stringify(updatedExpenses));
 
       showAlert(`Recorded ₹${numAmount.toFixed(2)} for ${reason.trim()}.`, 'Recorded');
 

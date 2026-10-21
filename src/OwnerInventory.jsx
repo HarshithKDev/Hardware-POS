@@ -14,7 +14,8 @@ import InventoryRow from './InventoryRow';
 import BatchDetailsModal from './BatchDetailsModal';
 
 export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
-  const { showAlert, showConfirm } = useApp();
+  const { showAlert, showConfirm, shopSettings } = useApp();
+  const shopId = shopSettings?.id || localStorage.getItem('shop_id');
 
   const [inventorySearch, setInventorySearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -50,9 +51,13 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
   }, [debouncedSetSearch]);
 
   const { data: categories } = useQuery({
-    queryKey: ['categories'],
+    queryKey: ['categories', shopId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('categories').select('name').order('name', { ascending: true });
+      let query = supabase.from('categories').select('name').order('name', { ascending: true });
+      if (shopId) {
+        query = query.eq('shop_id', shopId);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -60,9 +65,13 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
   });
 
   const { data: subcategories } = useQuery({
-    queryKey: ['subcategories'],
+    queryKey: ['subcategories', shopId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('subcategories').select('name, category_name').order('name', { ascending: true });
+      let query = supabase.from('subcategories').select('name, category_name').order('name', { ascending: true });
+      if (shopId) {
+        query = query.eq('shop_id', shopId);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -88,7 +97,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
   }, [subcategories, filterCategory]);
 
   const { data: inventoryData, isLoading } = useQuery({
-    queryKey: ['inventory', viewType, debouncedSearch, sortOption, filterCategory, filterSubcategory],
+    queryKey: ['inventory', shopId, viewType, debouncedSearch, sortOption, filterCategory, filterSubcategory],
     queryFn: async () => {
       if (!navigator.onLine) {
         // Fallback or primarily use local IDB
@@ -112,7 +121,8 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
 
   const updateItemMutation = useMutation({
     mutationFn: async ({ oldItem, newItem }) => {
-      const { error } = await supabase.from('product_master').update({
+      const shopId = localStorage.getItem('shop_id');
+      let updateQuery = supabase.from('product_master').update({
         name: newItem.name,
         category: newItem.category,
         sub_category: newItem.sub_category,
@@ -121,6 +131,10 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
         default_length: newItem.unit === 'SQFT' ? (Number(newItem.default_length) || null) : null,
         default_width: newItem.unit === 'SQFT' ? (Number(newItem.default_width) || null) : null
       }).eq('barcode', newItem.barcode);
+      if (shopId) {
+        updateQuery = updateQuery.eq('shop_id', shopId);
+      }
+      const { error } = await updateQuery;
       if (error) throw error;
 
       // Calculate changes for audit log
@@ -140,7 +154,11 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
         
         if (stockStoreChanged || stockWhseChanged) {
           // Find the primary batch for this item to adjust
-          const { data: batches } = await supabase.from('inventory_batches').select('batch_id').eq('barcode', newItem.barcode).order('created_at', { ascending: true }).limit(1);
+          let batchQuery = supabase.from('inventory_batches').select('batch_id').eq('barcode', newItem.barcode);
+          if (shopId) {
+            batchQuery = batchQuery.eq('shop_id', shopId);
+          }
+          const { data: batches } = await batchQuery.order('created_at', { ascending: true }).limit(1);
           if (batches && batches.length > 0) {
             const { error: rpcError } = await supabase.rpc('adjust_batch_stock', {
               p_batch_id: batches[0].batch_id,
@@ -157,6 +175,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
         
         if (metadataChanges.length > 0) {
           const { error: logError } = await supabase.from('audit_logs').insert([{
+            shop_id: shopId,
             action_type: 'UPDATE',
             barcode: newItem.barcode,
             item_name: newItem.name,
@@ -196,7 +215,12 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
     const itemName = itemToDelete?.name || barcode;
     showConfirm(`Deactivate ${itemName}?`, async () => {
       const itemToDelete = items.find(i => i.barcode === barcode);
-      const { error } = await supabase.from('product_master').update({ is_active: false }).eq('barcode', barcode);
+      const shopId = localStorage.getItem('shop_id');
+      let delQuery = supabase.from('product_master').update({ is_active: false }).eq('barcode', barcode);
+      if (shopId) {
+        delQuery = delQuery.eq('shop_id', shopId);
+      }
+      const { error } = await delQuery;
       if (error) {
         showAlert(error.message, "Error Removing Item");
       } else {
@@ -227,7 +251,12 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
     const itemName = itemToRestore?.name || barcode;
     showConfirm(`Restore ${itemName}?`, async () => {
       const itemToRestore = items.find(i => i.barcode === barcode);
-      const { error } = await supabase.from('product_master').update({ is_active: true }).eq('barcode', barcode);
+      const shopId = localStorage.getItem('shop_id');
+      let resQuery = supabase.from('product_master').update({ is_active: true }).eq('barcode', barcode);
+      if (shopId) {
+        resQuery = resQuery.eq('shop_id', shopId);
+      }
+      const { error } = await resQuery;
       if (error) {
         showAlert(error.message, "Error Restoring Item");
       } else {
@@ -299,13 +328,18 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
   const confirmDeleteBatch = async () => {
     if (!batchToDelete) return;
     try {
-      const { error } = await supabase.from('inventory_batches').update({ is_active: false }).eq('batch_id', batchToDelete);
+      let delQuery = supabase.from('inventory_batches').update({ is_active: false }).eq('batch_id', batchToDelete);
+      if (shopId) {
+        delQuery = delQuery.eq('shop_id', shopId);
+      }
+      const { error } = await delQuery;
       if (error) throw error;
 
       try {
         const itemToLog = items.find(i => i.batches && i.batches.some(b => b.batch_id === batchToDelete));
         const batchNum = itemToLog?.batches?.find(b => b.batch_id === batchToDelete)?.batch_number || 'Unknown';
         await supabase.from('audit_logs').insert([{
+          shop_id: shopId,
           action_type: 'DELETE',
           barcode: itemToLog ? itemToLog.barcode : 'Unknown',
           item_name: itemToLog ? itemToLog.name : 'Unknown Item',
@@ -372,7 +406,12 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
     const confirmLabel = isRecycle ? 'Restore' : 'Delete';
     showConfirm(`${actionText.charAt(0).toUpperCase() + actionText.slice(1)} ${selectedBarcodes.length} items?`, async () => {
       const updateValue = isRecycle ? true : false;
-      const { error } = await supabase.from('product_master').update({ is_active: updateValue }).in('barcode', selectedBarcodes);
+      const shopId = localStorage.getItem('shop_id');
+      let bulkQuery = supabase.from('product_master').update({ is_active: updateValue }).in('barcode', selectedBarcodes);
+      if (shopId) {
+        bulkQuery = bulkQuery.eq('shop_id', shopId);
+      }
+      const { error } = await bulkQuery;
       
       if (error) {
         showAlert(error.message, `Error ${isRecycle ? 'Restoring' : 'Removing'} Items`);
@@ -591,40 +630,53 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
               placeholder="Search Barcode or Name..."
               value={inventorySearch}
               onChange={handleSearchChange}
-              className="h-11 md:h-10 px-3 text-sm flex-1 focus:outline-none rounded-md"
-              style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)' }}
+              className="h-11 md:h-10 px-3 text-sm flex-1 min-w-0 focus:outline-none rounded-md"
+              style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
               aria-label="Search inventory"
             />
             
-            <select
-              value={filterCategory}
-              onChange={handleCategoryChange}
-              className="h-11 md:h-10 px-3 text-sm focus:outline-none rounded-md cursor-pointer"
-              style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
-              aria-label="Filter by category"
-            >
-              <option value="">All Categories</option>
-              {categories?.map((c) => (
-                <option key={c.name} value={c.name}>{c.name}</option>
-              ))}
-            </select>
+            <div className="relative w-full md:w-48 lg:w-52 shrink-0">
+              <select
+                value={filterCategory}
+                onChange={handleCategoryChange}
+                className="w-full h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer truncate"
+                style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
+                aria-label="Filter by category"
+              >
+                <option value="">All Categories</option>
+                {categories?.map((c) => (
+                  <option key={c.name} value={c.name}>{c.name}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5" style={{ color: 'var(--text-tertiary)' }}>
+                <svg className="fill-current h-4 w-4" viewBox="0 0 20 20">
+                  <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                </svg>
+              </div>
+            </div>
 
-            <select
-              value={filterSubcategory}
-              onChange={(e) => setFilterSubcategory(e.target.value)}
-              className="h-11 md:h-10 px-3 text-sm focus:outline-none rounded-md cursor-pointer disabled:opacity-50"
-              style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
-              aria-label="Filter by subcategory"
-              disabled={availableSubcategories.length === 0}
-            >
-              <option value="">
-                {availableSubcategories.length === 0 && filterCategory ? 'No Subcategories' : 'All Subcategories'}
-              </option>
-              {availableSubcategories.map((s) => (
-                <option key={s.name} value={s.name}>{s.name}</option>
-              ))}
-            </select>
-
+            <div className="relative w-full md:w-48 lg:w-52 shrink-0">
+              <select
+                value={filterSubcategory}
+                onChange={(e) => setFilterSubcategory(e.target.value)}
+                className="w-full h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer truncate disabled:opacity-50"
+                style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
+                aria-label="Filter by subcategory"
+                disabled={availableSubcategories.length === 0}
+              >
+                <option value="">
+                  {availableSubcategories.length === 0 && filterCategory ? 'No Subcategories' : 'All Subcategories'}
+                </option>
+                {availableSubcategories.map((s) => (
+                  <option key={s.name} value={s.name}>{s.name}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5" style={{ color: 'var(--text-tertiary)' }}>
+                <svg className="fill-current h-4 w-4" viewBox="0 0 20 20">
+                  <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                </svg>
+              </div>
+            </div>
 
             <button
               onClick={() => {
@@ -634,7 +686,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
                 }
                 setIsSelectionMode(!isSelectionMode);
               }}
-              className="h-11 md:h-10 px-4 text-sm font-medium rounded-md flex items-center gap-2 transition-colors flex-shrink-0"
+              className="h-11 md:h-10 px-4 text-sm font-medium rounded-md flex items-center gap-2 transition-colors shrink-0"
               style={{ 
                 backgroundColor: isSelectionMode ? 'var(--color-accent-bg)' : 'var(--bg-secondary)', 
                 color: isSelectionMode ? 'var(--color-accent)' : 'var(--text-secondary)',

@@ -14,11 +14,17 @@ export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }
       const fetchMaxSeq = async () => {
         const batchPrefix = `${item.barcode}-${String(selectedBatch.batch_number || 1).padStart(2, '0')}`;
         
-        const { data } = await supabase
+        const shopId = item.shop_id || localStorage.getItem('shop_id');
+        let query = supabase
           .from('stock_instances')
           .select('instance_barcode')
           .eq('parent_barcode', item.barcode)
           .ilike('instance_barcode', `${batchPrefix}%`);
+        if (shopId) {
+          query = query.eq('shop_id', shopId);
+        }
+        
+        const { data } = await query;
 
         let maxSeq = 0;
         if (data && data.length > 0) {

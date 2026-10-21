@@ -74,8 +74,10 @@ const formatChanges = (changes) => {
     debouncedSetSearch(e.target.value);
   }, [debouncedSetSearch]);
 
+  const shopId = localStorage.getItem('shop_id');
+
   const { data: unifiedLogs, isLoading, error } = useQuery({
-    queryKey: ['unifiedAuditLogs', limit, startDate, endDate],
+    queryKey: ['unifiedAuditLogs', shopId, limit, startDate, endDate],
     queryFn: async () => {
       // 1. Fetch native audit logs (Updates/Deletes)
       let auditQuery = supabase
@@ -84,12 +86,20 @@ const formatChanges = (changes) => {
         .order('created_at', { ascending: false })
         .limit(limit);
 
+      if (shopId) {
+        auditQuery = auditQuery.eq('shop_id', shopId);
+      }
       if (startDate) auditQuery = auditQuery.gte('created_at', `${startDate}T00:00:00`);
       if (endDate) auditQuery = auditQuery.lte('created_at', `${endDate}T23:59:59.999`);
 
+      let prodQuery = supabase.from('product_master').select('barcode, unit');
+      if (shopId) {
+        prodQuery = prodQuery.eq('shop_id', shopId);
+      }
+
       const [{ data: auditData, error: auditError }, { data: inventoryData }] = await Promise.all([
         auditQuery,
-        supabase.from('product_master').select('barcode, unit')
+        prodQuery
       ]);
       
       if (auditError) throw auditError;
@@ -241,11 +251,11 @@ const formatChanges = (changes) => {
           <div className="flex flex-col md:flex-row gap-6">
             <div className="flex-1">
               <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Start Date</label>
-              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full h-11 md:h-10 px-3 text-sm focus:outline-none shadow-sm rounded-md cursor-pointer" style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-input)', color: 'var(--text-input)' }} />
+              <input type="date" value={startDate} max={endDate || new Date().toLocaleDateString('en-CA')} onChange={(e) => setStartDate(e.target.value)} className="w-full h-11 md:h-10 px-3 text-sm focus:outline-none shadow-sm rounded-md cursor-pointer" style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-input)', color: 'var(--text-input)' }} />
             </div>
             <div className="flex-1">
               <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>End Date</label>
-              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full h-11 md:h-10 px-3 text-sm focus:outline-none shadow-sm rounded-md cursor-pointer" style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-input)', color: 'var(--text-input)' }} />
+              <input type="date" value={endDate} max={new Date().toLocaleDateString('en-CA')} min={startDate} onChange={(e) => setEndDate(e.target.value)} className="w-full h-11 md:h-10 px-3 text-sm focus:outline-none shadow-sm rounded-md cursor-pointer" style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-input)', color: 'var(--text-input)' }} />
             </div>
           </div>
 

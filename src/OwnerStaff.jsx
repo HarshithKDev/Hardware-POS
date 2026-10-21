@@ -17,10 +17,16 @@ export default function OwnerStaff() {
   const [promptPassword, setPromptPassword] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
 
+  const shopId = localStorage.getItem('shop_id');
+
   const { data: staffList = [], isLoading } = useQuery({
-    queryKey: ['staff'],
+    queryKey: ['staff', shopId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('workers').select('*').order('name', { ascending: true });
+      let query = supabase.from('workers').select('*').order('name', { ascending: true });
+      if (shopId) {
+        query = query.eq('shop_id', shopId);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -47,6 +53,7 @@ export default function OwnerStaff() {
 
       const { error: dbError } = await supabase.from('workers').insert([{
         id: authData.user.id,
+        shop_id: shopId,
         name: name.trim(),
         password: isBillable ? 'SECURED_IN_AUTH:BILLABLE' : 'SECURED_IN_AUTH:NON_BILLABLE'
       }]);
@@ -54,6 +61,7 @@ export default function OwnerStaff() {
       if (dbError) throw new Error(dbError.message);
 
       await supabase.from('audit_logs').insert([{
+        shop_id: shopId,
         action_type: 'CREATE',
         barcode: 'STAFF',
         item_name: name.trim(),
@@ -73,10 +81,15 @@ export default function OwnerStaff() {
 
   const removeStaffMutation = useMutation({
     mutationFn: async ({ id, name }) => {
-      const { error } = await supabase.from('workers').delete().eq('id', id);
+      let delQuery = supabase.from('workers').delete().eq('id', id);
+      if (shopId) {
+        delQuery = delQuery.eq('shop_id', shopId);
+      }
+      const { error } = await delQuery;
       if (error) throw error;
 
       await supabase.from('audit_logs').insert([{
+        shop_id: shopId,
         action_type: 'DELETE',
         barcode: 'STAFF',
         item_name: name,

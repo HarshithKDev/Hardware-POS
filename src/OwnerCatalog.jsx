@@ -45,10 +45,16 @@ export default function OwnerCatalog() {
     staleTime: STALE_TIME_5MIN,
   });
 
+  const shopId = localStorage.getItem('shop_id');
+
   useQuery({
-    queryKey: ['nextBarcode'],
+    queryKey: ['nextBarcode', shopId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('product_master').select('barcode');
+      let query = supabase.from('product_master').select('barcode');
+      if (shopId) {
+        query = query.eq('shop_id', shopId);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       const next = data?.reduce((max, item) => {
         const num = parseInt(item.barcode, 10);
@@ -69,6 +75,7 @@ export default function OwnerCatalog() {
       for (let attempt = 0; attempt < BARCODE_RETRY_ATTEMPTS; attempt++) {
         const { error } = await supabase.from('product_master').insert([{
           id: generateId(),
+          shop_id: shopId,
           barcode: currentBarcode,
           name: itemData.name,
           category: itemData.category || null,
@@ -103,7 +110,11 @@ export default function OwnerCatalog() {
 
         if (error.code === '23505' && error.message.includes('barcode')) {
           console.warn(`Barcode ${currentBarcode} taken, retrying... (Attempt ${attempt + 1}/${BARCODE_RETRY_ATTEMPTS})`);
-          const { data: latest } = await supabase.from('product_master').select('barcode').order('barcode', { ascending: false }).limit(1);
+          let latestQuery = supabase.from('product_master').select('barcode').order('barcode', { ascending: false });
+          if (shopId) {
+            latestQuery = latestQuery.eq('shop_id', shopId);
+          }
+          const { data: latest } = await latestQuery.limit(1);
           currentBarcode = latest && latest.length > 0 ? (parseInt(latest[0].barcode, 10) + 1).toString() : (parseInt(currentBarcode, 10) + 1).toString();
         } else {
           throw error;
@@ -335,7 +346,11 @@ export default function OwnerCatalog() {
       }
 
       // Resolve barcode conflicts to avoid overwriting existing items
-      const { data: existingInventory } = await supabase.from('product_master').select('barcode');
+      let existingQuery = supabase.from('product_master').select('barcode');
+      if (shopId) {
+        existingQuery = existingQuery.eq('shop_id', shopId);
+      }
+      const { data: existingInventory } = await existingQuery;
       const existingBarcodes = new Set(existingInventory?.map(i => i.barcode) || []);
       let maxBarcodeNum = existingInventory?.reduce((max, item) => {
         const num = parseInt(item.barcode, 10);
@@ -358,6 +373,7 @@ export default function OwnerCatalog() {
         
         productMasterData.push({
           id: row.id,
+          shop_id: shopId,
           barcode: row.barcode,
           name: row.name,
           category: row.category,

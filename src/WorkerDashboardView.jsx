@@ -1,10 +1,12 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from './supabaseClient';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import { escapeIlike, debounce } from './utils';
 import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD, INV_PER_PAGE, STALE_TIME_5MIN } from './constants';
+import { getInventoryByQuery } from './services/db';
 
 export default function WorkerDashboardView({ isBillable = true }) {
   const navigate = useNavigate();
@@ -13,6 +15,17 @@ export default function WorkerDashboardView({ isBillable = true }) {
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [lowStockModal, setLowStockModal] = useState({ isOpen: false, type: null });
 
+  useEffect(() => {
+    if (!lowStockModal.isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setLowStockModal({ isOpen: false, type: null });
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lowStockModal.isOpen]);
+
+  const shopId = localStorage.getItem('shop_id');
+
   // Debounced search
   const debouncedSetSearch = useMemo(
     () => debounce((val) => setDebouncedSearch(val), 300),
@@ -20,22 +33,32 @@ export default function WorkerDashboardView({ isBillable = true }) {
   );
 
   const { data: lowStockCounts } = useQuery({
-    queryKey: ['lowStockCounts'],
+    queryKey: ['lowStockCounts', shopId],
     queryFn: async () => {
-      const { count: storeCount } = await supabase.from('product_master_public').select('*', { count: 'exact', head: true }).eq('is_active', true).lt('stock_store', STORE_LOW_STOCK_THRESHOLD);
-      const { count: whseCount } = await supabase.from('product_master_public').select('*', { count: 'exact', head: true }).eq('is_active', true).lt('stock_warehouse', WAREHOUSE_LOW_STOCK_THRESHOLD);
+      let storeQuery = supabase.from('product_master_public').select('*', { count: 'exact', head: true }).eq('is_active', true).lt('stock_store', STORE_LOW_STOCK_THRESHOLD);
+      let whseQuery = supabase.from('product_master_public').select('*', { count: 'exact', head: true }).eq('is_active', true).lt('stock_warehouse', WAREHOUSE_LOW_STOCK_THRESHOLD);
+      if (shopId) {
+        storeQuery = storeQuery.eq('shop_id', shopId);
+        whseQuery = whseQuery.eq('shop_id', shopId);
+      }
+      const { count: storeCount } = await storeQuery;
+      const { count: whseCount } = await whseQuery;
       return { store: storeCount || 0, warehouse: whseCount || 0 };
     },
     staleTime: STALE_TIME_5MIN,
   });
 
   const { data: modalItems, isLoading: isModalLoading } = useQuery({
-    queryKey: ['lowStockModal', lowStockModal.type],
+    queryKey: ['lowStockModal', shopId, lowStockModal.type],
     queryFn: async () => {
       if (!lowStockModal.type) return [];
       const threshold = lowStockModal.type === 'store' ? STORE_LOW_STOCK_THRESHOLD : WAREHOUSE_LOW_STOCK_THRESHOLD;
       const col = lowStockModal.type === 'store' ? 'stock_store' : 'stock_warehouse';
-      const { data, error } = await supabase.from('product_master_public').select('*').eq('is_active', true).lt(col, threshold).order(col, { ascending: true });
+      let query = supabase.from('product_master_public').select('*').eq('is_active', true).lt(col, threshold).order(col, { ascending: true });
+      if (shopId) {
+        query = query.eq('shop_id', shopId);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -43,20 +66,28 @@ export default function WorkerDashboardView({ isBillable = true }) {
     staleTime: STALE_TIME_5MIN,
   });
 
-  // Fetch distinct categories from categories table and products
+  // Fetch distinct categories from categories table and products for the current shop
   const { data: categories = [] } = useQuery({
-    queryKey: ['workerCategories'],
+    queryKey: ['workerCategories', shopId],
     queryFn: async () => {
       const catSet = new Set();
       try {
-        const { data } = await supabase.from('categories').select('name').order('name', { ascending: true });
+        let catQuery = supabase.from('categories').select('name').order('name', { ascending: true });
+        if (shopId) {
+          catQuery = catQuery.eq('shop_id', shopId);
+        }
+        const { data } = await catQuery;
         if (data) {
           data.forEach(c => { if (c.name) catSet.add(c.name); });
         }
       } catch {}
 
       try {
-        const { data } = await supabase.from('product_master_public').select('category').eq('is_active', true);
+        let prodCatQuery = supabase.from('product_master_public').select('category').eq('is_active', true);
+        if (shopId) {
+          prodCatQuery = prodCatQuery.eq('shop_id', shopId);
+        }
+        const { data } = await prodCatQuery;
         if (data) {
           data.forEach(p => { if (p.category) catSet.add(p.category); });
         }
@@ -74,11 +105,15 @@ export default function WorkerDashboardView({ isBillable = true }) {
     hasNextPage,
     isFetchingNextPage
   } = useInfiniteQuery({
-    queryKey: ['workerInventory', debouncedSearch, selectedCategory],
+    queryKey: ['workerInventory', shopId, debouncedSearch, selectedCategory],
     queryFn: async ({ pageParam = 0 }) => {
       const from = pageParam * INV_PER_PAGE;
       let query = supabase.from('product_master_public').select('*', { count: 'exact' }).eq('is_active', true);
       
+      if (shopId) {
+        query = query.eq('shop_id', shopId);
+      }
+
       // Sanitized search (fixes #1)
       if (debouncedSearch.trim() !== '') {
         const safe = escapeIlike(debouncedSearch.trim());
@@ -92,10 +127,24 @@ export default function WorkerDashboardView({ isBillable = true }) {
       
       query = query.order('barcode', { ascending: true });
 
-      const { data, count, error } = await query.range(from, from + INV_PER_PAGE - 1);
-      if (error) throw error;
-      const hasMore = from + INV_PER_PAGE < (count || 0);
-      return { items: data || [], nextPage: hasMore ? pageParam + 1 : undefined };
+      try {
+        const { data, count, error } = await query.range(from, from + INV_PER_PAGE - 1);
+        if (error) throw error;
+        const hasMore = from + INV_PER_PAGE < (count || 0);
+        return { items: data || [], nextPage: hasMore ? pageParam + 1 : undefined };
+      } catch (err) {
+        if (!navigator.onLine || err.message === 'Failed to fetch' || err.code === '503') {
+          const localRes = await getInventoryByQuery({
+            limit: INV_PER_PAGE,
+            offset: from,
+            search: debouncedSearch.trim(),
+            category: selectedCategory !== 'ALL' ? selectedCategory : undefined,
+          });
+          const hasMore = from + INV_PER_PAGE < (localRes.totalCount || 0);
+          return { items: localRes.data || [], nextPage: hasMore ? pageParam + 1 : undefined };
+        }
+        throw err;
+      }
     },
     getNextPageParam: (lastPage) => lastPage.nextPage,
     staleTime: STALE_TIME_5MIN,
@@ -292,20 +341,36 @@ export default function WorkerDashboardView({ isBillable = true }) {
         </table>
       </div>
 
-      {lowStockModal.isOpen && (
-        <div className="fixed inset-0 flex items-center justify-center z-[150] px-4 animate-fade-in" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <div className="w-[90%] max-w-[360px] md:max-w-3xl flex flex-col rounded-xl overflow-hidden animate-scale-in h-[400px] md:h-[600px] max-h-[85vh] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-light)' }}>
-            <div className="flex justify-between items-center pr-4 pl-4 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--border-light)' }}>
-              <span className="text-sm font-bold tracking-wide" style={{ color: 'var(--text-primary)' }}>
+      {lowStockModal.isOpen && createPortal(
+        <div
+          className="fixed inset-0 flex items-center justify-center z-[10001] p-4 sm:p-6 md:p-8 bg-black/75 backdrop-blur-sm animate-fade-in"
+          onClick={() => setLowStockModal({ isOpen: false, type: null })}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full max-w-3xl flex flex-col h-[70vh] max-h-[620px] rounded-2xl overflow-hidden shadow-2xl border border-[var(--border-light)] animate-scale-in my-auto"
+            style={{ backgroundColor: 'var(--bg-secondary)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="flex justify-between items-center px-5 py-3.5 shrink-0 border-b border-[var(--border-light)]"
+              style={{ backgroundColor: 'var(--bg-tertiary)' }}
+            >
+              <span className="text-xs sm:text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
                 {lowStockModal.type === 'store' ? 'Low Store Stock Items' : 'Low Warehouse Stock Items'}
               </span>
-              <button onClick={() => setLowStockModal({ isOpen: false, type: null })} className="px-3 py-1.5 rounded-lg border border-[var(--color-error)] text-[var(--color-error)] text-xs font-bold uppercase tracking-wider transition-colors hover:bg-[var(--color-error)] hover:text-white flex items-center justify-center gap-1.5 shadow-sm">
+              <button
+                onClick={() => setLowStockModal({ isOpen: false, type: null })}
+                className="px-3.5 py-1.5 text-white rounded-lg text-xs font-bold focus:outline-none transition-all hover:opacity-90 active:scale-95 cursor-pointer shadow-sm flex items-center gap-1.5"
+                style={{ backgroundColor: 'var(--color-error)' }}
+              >
                 <span>Close</span>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-3 modal-scroll">
               {isModalLoading ? (
                 <div className="flex justify-center items-center py-10"><PageLoader text="Loading..." /></div>
               ) : modalItems?.length === 0 ? (
@@ -340,7 +405,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 }

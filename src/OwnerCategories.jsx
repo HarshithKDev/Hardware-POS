@@ -13,11 +13,17 @@ export default function OwnerCategories() {
   const [newSubcategory, setNewSubcategory] = useState('');
   const [expandedCategoryName, setExpandedCategoryName] = useState(null);
 
+  const shopId = localStorage.getItem('shop_id');
+
   // Fetch Categories
   const { data: categories = [] } = useQuery({
-    queryKey: ['categories'],
+    queryKey: ['categories', shopId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('categories').select('*').order('name', { ascending: true });
+      let query = supabase.from('categories').select('*').order('name', { ascending: true });
+      if (shopId) {
+        query = query.eq('shop_id', shopId);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -26,9 +32,13 @@ export default function OwnerCategories() {
 
   // Fetch Subcategories
   const { data: subcategories = [] } = useQuery({
-    queryKey: ['subcategories'],
+    queryKey: ['subcategories', shopId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('subcategories').select('*').order('name', { ascending: true });
+      let query = supabase.from('subcategories').select('*').order('name', { ascending: true });
+      if (shopId) {
+        query = query.eq('shop_id', shopId);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -37,7 +47,8 @@ export default function OwnerCategories() {
 
   const addCategoryMutation = useMutation({
     mutationFn: async (name) => {
-      const { error } = await supabase.from('categories').insert([{ name }]);
+      const shopId = localStorage.getItem('shop_id');
+      const { error } = await supabase.from('categories').insert([{ name, shop_id: shopId }]);
       if (error) throw error;
 
       await supabase.from('audit_logs').insert([{
@@ -67,7 +78,8 @@ export default function OwnerCategories() {
 
   const addSubcategoryMutation = useMutation({
     mutationFn: async ({ name, category_name }) => {
-      const { error } = await supabase.from('subcategories').insert([{ name, category_name }]);
+      const shopId = localStorage.getItem('shop_id');
+      const { error } = await supabase.from('subcategories').insert([{ name, category_name, shop_id: shopId }]);
       if (error) throw error;
 
       await supabase.from('audit_logs').insert([{
@@ -100,10 +112,15 @@ export default function OwnerCategories() {
   const deleteCategoryMutation = useMutation({
     mutationFn: async ({ id, name }) => {
       // Cascade check (fixes #8)
-      const { count } = await supabase.from('product_master').select('*', { count: 'exact', head: true }).eq('category', name).eq('is_active', true);
+      const shopId = localStorage.getItem('shop_id');
+      let countQuery = supabase.from('product_master').select('*', { count: 'exact', head: true }).eq('category', name).eq('is_active', true);
+      if (shopId) countQuery = countQuery.eq('shop_id', shopId);
+      const { count } = await countQuery;
       if (count && count > 0) throw new Error(`Cannot delete category "${name}" because it is assigned to ${count} active item(s) in the inventory.`);
 
-      const { error } = await supabase.from('categories').delete().eq('name', name);
+      let delQuery = supabase.from('categories').delete().eq('name', name);
+      if (shopId) delQuery = delQuery.eq('shop_id', shopId);
+      const { error } = await delQuery;
       if (error) throw error;
 
       await supabase.from('audit_logs').insert([{
@@ -125,11 +142,15 @@ export default function OwnerCategories() {
   const deleteSubcategoryMutation = useMutation({
     mutationFn: async ({ id, name, category_name }) => {
       // Cascade check (fixes #8)
-      const { count } = await supabase.from('product_master').select('*', { count: 'exact', head: true }).eq('sub_category', name).eq('is_active', true);
+      const shopId = localStorage.getItem('shop_id');
+      let countQuery = supabase.from('product_master').select('*', { count: 'exact', head: true }).eq('sub_category', name).eq('is_active', true);
+      if (shopId) countQuery = countQuery.eq('shop_id', shopId);
+      const { count } = await countQuery;
       if (count && count > 0) throw new Error(`Cannot delete sub-category "${name}" because it is assigned to ${count} active item(s) in the inventory.`);
 
-      const query = supabase.from('subcategories').delete().eq('name', name);
-      if (category_name) query.eq('category_name', category_name);
+      let query = supabase.from('subcategories').delete().eq('name', name);
+      if (category_name) query = query.eq('category_name', category_name);
+      if (shopId) query = query.eq('shop_id', shopId);
 
       const { error } = await query;
       if (error) throw error;

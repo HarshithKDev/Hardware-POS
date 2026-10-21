@@ -99,7 +99,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   useEffect(() => {
     if (activeTab === 'checkout') {
       const fetchPending = async () => {
-        const { data } = await supabase.from('pending_carts').select('*').eq('status', 'pending').order('created_at', { ascending: true });
+        const shopId = localStorage.getItem('shop_id');
+        let q = supabase.from('pending_carts').select('*').eq('status', 'pending').order('created_at', { ascending: true });
+        if (shopId) {
+          q = q.eq('shop_id', shopId);
+        }
+        const { data } = await q;
         if (data) setPendingCarts(data);
       };
       fetchPending();
@@ -148,12 +153,16 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         
         let finalSuggestions = parentData || [];
         
-        // Check if search matches any active stock instances
-        const { data: instData } = await supabase.from('stock_instances')
+        // Check if search matches any active stock instances for current shop
+        const shopId = localStorage.getItem('shop_id');
+        let instQuery = supabase.from('stock_instances')
           .select('instance_barcode, current_length, parent_barcode, inventory:product_master(name, unit)')
           .ilike('instance_barcode', `%${searchStr}%`)
-          .eq('is_active', true)
-          .limit(5);
+          .eq('is_active', true);
+        if (shopId) {
+          instQuery = instQuery.eq('shop_id', shopId);
+        }
+        const { data: instData } = await instQuery.limit(5);
           
         if (instData && instData.length > 0) {
           const instanceSuggestions = instData.map(inst => {
@@ -338,7 +347,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           // Verify instance exists and get length if transferring
           let instLength = item.default_length;
           let instBatchId = null;
-          const { data } = await supabase.from('stock_instances').select('current_length, batch_id').eq('instance_barcode', scannedInstanceBarcode).single();
+          const shopId = item.shop_id || shopSettings?.id || localStorage.getItem('shop_id');
+          let instQuery = supabase.from('stock_instances').select('current_length, batch_id').eq('instance_barcode', scannedInstanceBarcode);
+          if (shopId) {
+            instQuery = instQuery.eq('shop_id', shopId);
+          }
+          const { data } = await instQuery.maybeSingle();
           if (!data) return showAlertRef.current(`Piece #${scannedInstanceBarcode} does not exist!`, "Not Found");
           if (!data.current_length || data.current_length <= 0) return showAlertRef.current(`Piece #${scannedInstanceBarcode} has no length left!`, "Empty Piece");
           instLength = data.current_length;
@@ -386,7 +400,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           });
           
           if (navigator.onLine) {
-            supabase.from('stock_instances').select('*').eq('instance_barcode', scannedInstanceBarcode).single().then(({ data }) => {
+            const shopId = item.shop_id || shopSettings?.id || localStorage.getItem('shop_id');
+            let instQuery = supabase.from('stock_instances').select('*').eq('instance_barcode', scannedInstanceBarcode);
+            if (shopId) {
+              instQuery = instQuery.eq('shop_id', shopId);
+            }
+            instQuery.maybeSingle().then(({ data }) => {
               if (data) {
                 setCutLengthModal(prev => prev.instance?.instance_barcode === scannedInstanceBarcode ? { ...prev, instance: data } : prev);
               } else {
@@ -762,7 +781,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     }
 
     try {
-      const { data: existing } = await supabase.from('stock_instances').select('id').eq('instance_barcode', fullBarcode).maybeSingle();
+      const shopId = item.shop_id || shopSettings?.id || localStorage.getItem('shop_id');
+      let existQuery = supabase.from('stock_instances').select('id').eq('instance_barcode', fullBarcode);
+      if (shopId) {
+        existQuery = existQuery.eq('shop_id', shopId);
+      }
+      const { data: existing } = await existQuery.maybeSingle();
       if (existing) {
         setManualInstanceBarcodeModal(prev => ({ ...prev, error: `Piece #${fullBarcode} already exists in the system!` }));
         return;
@@ -1051,7 +1075,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       });
       switchCartTab('local');
     } else if (activeCartTab !== 'local') {
-      supabase.from('pending_carts').delete().eq('id', activeCartTab).then().catch(console.error);
+      const currentShopId = shopSettings?.id || localStorage.getItem('shop_id');
+      let delQuery = supabase.from('pending_carts').delete().eq('id', activeCartTab);
+      if (currentShopId) {
+        delQuery = delQuery.eq('shop_id', currentShopId);
+      }
+      delQuery.then().catch(console.error);
       setCartSessions(prev => {
         const next = { ...prev };
         delete next[activeCartTab];
@@ -1201,12 +1230,16 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       if ((activeTab === 'checkout' || activeTab === 'transfer') && navigator.onLine) {
         const barcodes = [...new Set(finalCart.map(item => item.barcode))];
         const stockField = activeTab === 'transfer' ? 'stock_warehouse' : 'stock_store';
-        // Query live stock AND prices from inventory_batches (the real source of truth)
-        const { data: liveBatches, error: stockError } = await supabase
+        const currentShopId = shopSettings?.id || localStorage.getItem('shop_id');
+        let batchQuery = supabase
           .from('inventory_batches')
           .select('barcode, batch_id, stock_store, stock_warehouse, selling_price, msp')
           .in('barcode', barcodes)
           .eq('is_active', true);
+        if (currentShopId) {
+          batchQuery = batchQuery.eq('shop_id', currentShopId);
+        }
+        const { data: liveBatches, error: stockError } = await batchQuery;
 
         if (stockError) {
           if (stockError.message !== 'Failed to fetch' && stockError.code !== '503') {
@@ -1400,26 +1433,29 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           });
           if (error) throw error;
           successData = data;
-          
           if (successData?.bill_id) {
-             try {
-               const updatePayload = {
-                 payment_method: payload.p_payment_method,
-                 cash_amount: payload.p_cash_amount,
-                 upi_amount: payload.p_upi_amount
-               };
-               if (payload.p_customer_name || payload.p_customer_phone) {
-                 updatePayload.customer_name = payload.p_customer_name;
-                 updatePayload.customer_phone = payload.p_customer_phone;
-               }
-               // Mark showroom sales as pending — excluded from revenue until paid
-               if (payload.p_payment_method === 'SHOWROOM') {
-                 updatePayload.status = 'showroom_pending';
-               }
-               await supabase.from('bills').update(updatePayload).eq('id', successData.bill_id);
-             } catch (e) {
-               console.warn("Could not save additional bill data.", e);
-             }
+            try {
+              const shopId = localStorage.getItem('shop_id');
+              const updatePayload = {
+                payment_method: payload.p_payment_method,
+                cash_amount: payload.p_cash_amount,
+                upi_amount: payload.p_upi_amount
+              };
+              if (shopId) {
+                updatePayload.shop_id = shopId;
+              }
+              if (payload.p_customer_name || payload.p_customer_phone) {
+                updatePayload.customer_name = payload.p_customer_name;
+                updatePayload.customer_phone = payload.p_customer_phone;
+              }
+              // Mark showroom sales as pending — excluded from revenue until paid
+              if (payload.p_payment_method === 'SHOWROOM') {
+                updatePayload.status = 'showroom_pending';
+              }
+              await supabase.from('bills').update(updatePayload).eq('id', successData.bill_id);
+            } catch (e) {
+              console.warn("Could not save additional bill data.", e);
+            }
           }
         } catch (error) {
           if (error.message === 'Failed to fetch' || error.code === '503') {
@@ -1541,7 +1577,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         switchCartTab('local');
       } else if (activeCartTab !== 'local') {
         // Delete the remote cart
-        supabase.from('pending_carts').delete().eq('id', activeCartTab).then().catch(console.error);
+        const currentShopId = shopSettings?.id || localStorage.getItem('shop_id');
+        let delQuery = supabase.from('pending_carts').delete().eq('id', activeCartTab);
+        if (currentShopId) {
+          delQuery = delQuery.eq('shop_id', currentShopId);
+        }
+        delQuery.then().catch(console.error);
         // Clear local session for this tab and switch to local
         setCartSessions(prev => {
           const next = { ...prev };

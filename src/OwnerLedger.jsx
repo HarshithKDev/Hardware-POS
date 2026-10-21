@@ -88,10 +88,15 @@ export default function OwnerLedger({ isActive }) {
   useEffect(() => {
     async function fetchRecentCustomers() {
       try {
-        const { data, error } = await supabase
+        const shopId = localStorage.getItem('shop_id');
+        let query = supabase
           .from('bills')
           .select('customer_name, customer_phone')
-          .eq('location', 'Store')
+          .eq('location', 'Store');
+        if (shopId) {
+          query = query.eq('shop_id', shopId);
+        }
+        const { data, error } = await query
           .order('created_at', { ascending: false })
           .limit(300);
 
@@ -138,13 +143,19 @@ export default function OwnerLedger({ isActive }) {
     ).slice(0, 8);
   }, [customers, searchQuery]);
 
+  const shopId = localStorage.getItem('shop_id');
+
   const fetchBills = useCallback(async () => {
     const from = salesPage * SALES_PER_PAGE;
     let query = supabase
       .from('bills')
       .select('*')
       .eq('location', 'Store') // Only Sales
-      .neq('status', 'showroom_pending') // Showroom pending are in their own section
+      .neq('status', 'showroom_pending'); // Showroom pending are in their own section
+    if (shopId) {
+      query = query.eq('shop_id', shopId);
+    }
+    query = query
       .order('created_at', { ascending: false })
       .range(from, from + SALES_PER_PAGE - 1);
 
@@ -178,10 +189,10 @@ export default function OwnerLedger({ isActive }) {
     const { data, error } = await query;
     if (error) throw error;
     return data || [];
-  }, [salesPage, dateFilter, customDate, startDate, endDate, searchQuery]);
+  }, [shopId, salesPage, dateFilter, customDate, startDate, endDate, searchQuery]);
 
   const { data: bills = [], isLoading: isLoadingBills } = useQuery({
-    queryKey: ['bills', salesPage, dateFilter, customDate, startDate, endDate, searchQuery, isActive],
+    queryKey: ['bills', shopId, salesPage, dateFilter, customDate, startDate, endDate, searchQuery, isActive],
     queryFn: fetchBills,
     enabled: isActive,
     staleTime: 1000 * 60 * 2,
@@ -192,7 +203,12 @@ export default function OwnerLedger({ isActive }) {
   const handleExportCSV = async () => {
     try {
       showAlert('Preparing CSV export...', 'Info');
-      let query = supabase.from('bills').select('*').eq('location', 'Store').neq('status', 'showroom_pending').order('created_at', { ascending: false }).limit(10000);
+      const shopId = localStorage.getItem('shop_id');
+      let query = supabase.from('bills').select('*').eq('location', 'Store').neq('status', 'showroom_pending');
+      if (shopId) {
+        query = query.eq('shop_id', shopId);
+      }
+      query = query.order('created_at', { ascending: false }).limit(10000);
 
       if (searchQuery.trim()) {
         const raw = searchQuery.trim().replace(/^#/, '').replace(/[,()]/g, '');
@@ -265,7 +281,12 @@ export default function OwnerLedger({ isActive }) {
     if (!items) {
       try {
         setIsLoadingItems(true);
-        const { data, error } = await supabase.from('bill_items').select('*').eq('bill_id', bill.id);
+        const shopId = bill.shop_id || localStorage.getItem('shop_id');
+        let biQuery = supabase.from('bill_items').select('*').eq('bill_id', bill.id);
+        if (shopId) {
+          biQuery = biQuery.eq('shop_id', shopId);
+        }
+        const { data, error } = await biQuery;
         if (error) throw error;
         items = await enrichBillItems(data || []);
         setBillItemsCache(prev => ({ ...prev, [bill.id]: items }));
@@ -294,16 +315,24 @@ export default function OwnerLedger({ isActive }) {
 
       if (isAll) {
         // Mark entire bill as voided
-        const { error: billError } = await supabase
+        let billUpdateQuery = supabase
           .from('bills')
           .update({ status: 'voided' })
           .eq('id', bill.id);
+        if (shopId) {
+          billUpdateQuery = billUpdateQuery.eq('shop_id', shopId);
+        }
+        const { error: billError } = await billUpdateQuery;
         if (billError) throw billError;
       } else {
         // Calculate partial refund
         const refundAmount = itemsToReturn.reduce((sum, item) => sum + (Number(item.price_at_sale) * item.returnQuantity), 0);
         const newTotal = Math.max(0, Number(bill.total_amount) - refundAmount);
-        const { error: billError } = await supabase.from('bills').update({ total_amount: newTotal }).eq('id', bill.id);
+        let billUpdateQuery = supabase.from('bills').update({ total_amount: newTotal }).eq('id', bill.id);
+        if (shopId) {
+          billUpdateQuery = billUpdateQuery.eq('shop_id', shopId);
+        }
+        const { error: billError } = await billUpdateQuery;
         if (billError) throw billError;
       }
 
@@ -311,22 +340,42 @@ export default function OwnerLedger({ isActive }) {
       for (const item of itemsToReturn) {
         const qtyToRestore = item.returnQuantity;
         if (item.instance_barcode) {
-          const { data: inst } = await supabase.from('stock_instances').select('original_length').eq('instance_barcode', item.instance_barcode).single();
+          let instQuery = supabase.from('stock_instances').select('original_length').eq('instance_barcode', item.instance_barcode);
+          if (shopId) {
+            instQuery = instQuery.eq('shop_id', shopId);
+          }
+          const { data: inst } = await instQuery.maybeSingle();
           if (inst) {
-            await supabase.from('stock_instances').update({ status: 'available', current_length: inst.original_length }).eq('instance_barcode', item.instance_barcode);
+            let updateInst = supabase.from('stock_instances').update({ status: 'available', current_length: inst.original_length }).eq('instance_barcode', item.instance_barcode);
+            if (shopId) {
+              updateInst = updateInst.eq('shop_id', shopId);
+            }
+            await updateInst;
           }
         } else {
           let targetBatchId = item.batch_id;
           if (!targetBatchId) {
-             const { data: batches } = await supabase.from('inventory_batches').select('batch_id').eq('barcode', item.barcode).limit(1);
+             let bQuery = supabase.from('inventory_batches').select('batch_id').eq('barcode', item.barcode);
+             if (shopId) {
+               bQuery = bQuery.eq('shop_id', shopId);
+             }
+             const { data: batches } = await bQuery.limit(1);
              if (batches && batches.length > 0) targetBatchId = batches[0].batch_id;
           }
           
           if (targetBatchId) {
-            const { data: batch } = await supabase.from('inventory_batches').select('stock_store').eq('batch_id', targetBatchId).single();
+            let bStockQuery = supabase.from('inventory_batches').select('stock_store').eq('batch_id', targetBatchId);
+            if (shopId) {
+              bStockQuery = bStockQuery.eq('shop_id', shopId);
+            }
+            const { data: batch } = await bStockQuery.maybeSingle();
             if (batch) {
               const newStock = Number(batch.stock_store || 0) + qtyToRestore;
-              await supabase.from('inventory_batches').update({ stock_store: newStock }).eq('batch_id', targetBatchId);
+              let updateBatch = supabase.from('inventory_batches').update({ stock_store: newStock }).eq('batch_id', targetBatchId);
+              if (shopId) {
+                updateBatch = updateBatch.eq('shop_id', shopId);
+              }
+              await updateBatch;
             }
           }
         }
@@ -346,16 +395,24 @@ export default function OwnerLedger({ isActive }) {
           const currentQty = Number(item.billable_quantity || item.quantity);
           if (qtyToRestore >= currentQty) {
             // Delete individual returned item from bill_items
-            await supabase.from('bill_items').delete().eq('id', item.id);
+            let delItem = supabase.from('bill_items').delete().eq('id', item.id);
+            if (shopId) {
+              delItem = delItem.eq('shop_id', shopId);
+            }
+            await delItem;
           } else {
             // Update quantity for partial return
             const newQty = currentQty - qtyToRestore;
             const actQty = Number(item.actual_quantity || item.quantity) - qtyToRestore;
-            await supabase.from('bill_items').update({
+            let updateItem = supabase.from('bill_items').update({
                 quantity: newQty,
                 billable_quantity: newQty,
                 actual_quantity: actQty
             }).eq('id', item.id);
+            if (shopId) {
+              updateItem = updateItem.eq('shop_id', shopId);
+            }
+            await updateItem;
           }
         }
       }
@@ -369,7 +426,11 @@ export default function OwnerLedger({ isActive }) {
       
       if (!isAll) {
          // re-fetch bill items to update cache correctly for partial qtys
-         const { data: updatedItems } = await supabase.from('bill_items').select('*').eq('bill_id', bill.id);
+         let refetchItems = supabase.from('bill_items').select('*').eq('bill_id', bill.id);
+         if (shopId) {
+           refetchItems = refetchItems.eq('shop_id', shopId);
+         }
+         const { data: updatedItems } = await refetchItems;
          const enrichedUpdated = await enrichBillItems(updatedItems || []);
          setBillItemsCache(prev => ({
            ...prev,
@@ -517,13 +578,13 @@ export default function OwnerLedger({ isActive }) {
               </select>
             </div>
             {dateFilter === 'CUSTOM' && (
-              <input type="date" value={customDate} onChange={(e) => { setCustomDate(e.target.value); setSalesPage(0); }} className="h-10 md:h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+              <input type="date" value={customDate} max={new Date().toLocaleDateString('en-CA')} onChange={(e) => { setCustomDate(e.target.value); setSalesPage(0); }} className="h-10 md:h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
             )}
             {dateFilter === 'RANGE' && (
               <div className="flex items-center gap-2 shrink-0">
-                <input type="date" value={startDate} onChange={(e) => { setStartDate(e.target.value); setSalesPage(0); }} className="h-10 md:h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <input type="date" value={startDate} max={endDate || new Date().toLocaleDateString('en-CA')} onChange={(e) => { setStartDate(e.target.value); setSalesPage(0); }} className="h-10 md:h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                 <span className="font-bold text-xs uppercase text-[var(--text-tertiary)]">to</span>
-                <input type="date" value={endDate} onChange={(e) => { setEndDate(e.target.value); setSalesPage(0); }} className="h-10 md:h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <input type="date" value={endDate} max={new Date().toLocaleDateString('en-CA')} min={startDate} onChange={(e) => { setEndDate(e.target.value); setSalesPage(0); }} className="h-10 md:h-9 px-2 text-sm focus:outline-none rounded-md shadow-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
               </div>
             )}
             

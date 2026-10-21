@@ -87,9 +87,11 @@ export default function BatchDetailsModal({
   const [printPieceModal, setPrintPieceModal] = useState({ isOpen: false, piece: null, qty: 1 });
   const [isPrintingPiece, setIsPrintingPiece] = useState(false);
 
+  const shopId = localStorage.getItem('shop_id');
+
   // Fetch cuttable instances for this parent item
   const { data: instances = [], isLoading: isLoadingInstances } = useQuery({
-    queryKey: ['stock_instances', item?.barcode],
+    queryKey: ['stock_instances', shopId, item?.barcode],
     queryFn: async () => {
       if (!item?.barcode) return [];
       try {
@@ -98,10 +100,14 @@ export default function BatchDetailsModal({
       } catch (err) {
         console.warn('RPC get_stock_instances failed, falling back to direct table select', err);
       }
-      const { data, error } = await supabase
+      let instQuery = supabase
         .from('stock_instances')
         .select('*')
         .eq('parent_barcode', String(item.barcode));
+      if (shopId) {
+        instQuery = instQuery.eq('shop_id', shopId);
+      }
+      const { data, error } = await instQuery;
       if (error) throw error;
       return data || [];
     },
@@ -112,12 +118,16 @@ export default function BatchDetailsModal({
   // Batch MSP update mutation
   const updateBatchMutation = useMutation({
     mutationFn: async ({ batch_id, msp }) => {
-      const { error } = await supabase
+      let batchQuery = supabase
         .from('inventory_batches')
         .update({
           msp: Number(msp)
         })
         .eq('batch_id', batch_id);
+      if (shopId) {
+        batchQuery = batchQuery.eq('shop_id', shopId);
+      }
+      const { error } = await batchQuery;
       if (error) throw error;
 
       const oldBatch = batches.find(b => b.batch_id === batch_id);
@@ -128,6 +138,7 @@ export default function BatchDetailsModal({
 
       if (changes.length > 0) {
         await supabase.from('audit_logs').insert([{
+          shop_id: shopId,
           action_type: 'UPDATE',
           barcode: item.barcode,
           item_name: item.name,
@@ -164,13 +175,17 @@ export default function BatchDetailsModal({
       const parsedStore = Math.max(0, Number(storeQty) || 0);
       const parsedWhse = Math.max(0, Number(whseQty) || 0);
 
-      const { error } = await supabase
+      let minQuery = supabase
         .from('product_master')
         .update({
           min_quantity_store: parsedStore,
           min_quantity_warehouse: parsedWhse
         })
         .eq('barcode', item.barcode);
+      if (shopId) {
+        minQuery = minQuery.eq('shop_id', shopId);
+      }
+      const { error } = await minQuery;
 
       if (error) throw error;
 
@@ -185,6 +200,7 @@ export default function BatchDetailsModal({
 
       if (changes.length > 0) {
         await supabase.from('audit_logs').insert([{
+          shop_id: shopId,
           action_type: 'UPDATE',
           barcode: item.barcode,
           item_name: item.name,
@@ -285,6 +301,7 @@ export default function BatchDetailsModal({
         if (error) throw error;
 
         await supabase.from('audit_logs').insert([{
+          shop_id: shopId,
           action_type: 'UPDATE',
           barcode: item.barcode,
           item_name: item.name,

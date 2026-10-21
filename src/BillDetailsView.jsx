@@ -22,13 +22,18 @@ export default function BillDetailsView({
   }, [bill]);
 
   // Fetch bill items
+  const shopId = currentBill.shop_id || localStorage.getItem('shop_id');
   const { data: items = cachedItems || [], isLoading: isLoadingItems } = useQuery({
-    queryKey: ['bill_items', currentBill.id],
+    queryKey: ['bill_items', shopId, currentBill.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('bill_items')
         .select('*')
         .eq('bill_id', currentBill.id);
+      if (shopId) {
+        query = query.eq('shop_id', shopId);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },

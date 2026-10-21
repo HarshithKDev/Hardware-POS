@@ -38,6 +38,7 @@ export const clearInventoryCache = async () => {
   const db = await initDB();
   await db.clear('product_master');
   cachedInventory = null;
+  pieceCountCache = {};
 };
 
 export const saveInventoryBatch = async (items) => {
@@ -107,16 +108,16 @@ export const getInventoryByQuery = async ({ limit, offset, search, category, sub
 
   if (sortOption?.startsWith('whsestock') || sortOption?.startsWith('storestock')) {
     const cuttableItems = allItems.filter(i => i.is_cuttable);
-    const uncachedItems = cuttableItems.filter(i => !pieceCountCache[i.barcode]);
+    const uncachedItems = cuttableItems.filter(i => !pieceCountCache[`${currentShopId || 'default'}_${i.barcode}`]);
     
     if (uncachedItems.length > 0) {
       const promises = uncachedItems.map(async (item) => {
         try {
           const { data } = await supabase.rpc('get_piece_counts', { p_barcode: String(item.barcode) });
-          pieceCountCache[item.barcode] = data || { warehouse: 0, store: 0 };
+          pieceCountCache[`${currentShopId || 'default'}_${item.barcode}`] = data || { warehouse: 0, store: 0 };
         } catch (err) {
           console.error("Failed to fetch piece count for sort:", err);
-          pieceCountCache[item.barcode] = { warehouse: 0, store: 0 };
+          pieceCountCache[`${currentShopId || 'default'}_${item.barcode}`] = { warehouse: 0, store: 0 };
         }
       });
       await Promise.all(promises);
@@ -132,19 +133,19 @@ export const getInventoryByQuery = async ({ limit, offset, search, category, sub
   else if (sortOption === 'subcategory-asc') allItems.sort((a, b) => (a.sub_category || '').localeCompare(b.sub_category || ''));
   else if (sortOption === 'subcategory-desc') allItems.sort((a, b) => (b.sub_category || '').localeCompare(a.sub_category || ''));
   else if (sortOption === 'whsestock-asc') allItems.sort((a, b) => {
-      const getWhse = (item) => item.is_cuttable ? (pieceCountCache[item.barcode]?.warehouse || 0) : (item.batches?.length ? item.batches.reduce((sum, batch) => sum + Number(batch.stock_warehouse), 0) : Number(item.stock_warehouse || 0));
+      const getWhse = (item) => item.is_cuttable ? (pieceCountCache[`${currentShopId || 'default'}_${item.barcode}`]?.warehouse || 0) : (item.batches?.length ? item.batches.reduce((sum, batch) => sum + Number(batch.stock_warehouse), 0) : Number(item.stock_warehouse || 0));
       return getWhse(a) - getWhse(b);
   });
   else if (sortOption === 'whsestock-desc') allItems.sort((a, b) => {
-      const getWhse = (item) => item.is_cuttable ? (pieceCountCache[item.barcode]?.warehouse || 0) : (item.batches?.length ? item.batches.reduce((sum, batch) => sum + Number(batch.stock_warehouse), 0) : Number(item.stock_warehouse || 0));
+      const getWhse = (item) => item.is_cuttable ? (pieceCountCache[`${currentShopId || 'default'}_${item.barcode}`]?.warehouse || 0) : (item.batches?.length ? item.batches.reduce((sum, batch) => sum + Number(batch.stock_warehouse), 0) : Number(item.stock_warehouse || 0));
       return getWhse(b) - getWhse(a);
   });
   else if (sortOption === 'storestock-asc') allItems.sort((a, b) => {
-      const getStore = (item) => item.is_cuttable ? (pieceCountCache[item.barcode]?.store || 0) : (item.batches?.length ? item.batches.reduce((sum, batch) => sum + Number(batch.stock_store), 0) : Number(item.stock_store || 0));
+      const getStore = (item) => item.is_cuttable ? (pieceCountCache[`${currentShopId || 'default'}_${item.barcode}`]?.store || 0) : (item.batches?.length ? item.batches.reduce((sum, batch) => sum + Number(batch.stock_store), 0) : Number(item.stock_store || 0));
       return getStore(a) - getStore(b);
   });
   else if (sortOption === 'storestock-desc') allItems.sort((a, b) => {
-      const getStore = (item) => item.is_cuttable ? (pieceCountCache[item.barcode]?.store || 0) : (item.batches?.length ? item.batches.reduce((sum, batch) => sum + Number(batch.stock_store), 0) : Number(item.stock_store || 0));
+      const getStore = (item) => item.is_cuttable ? (pieceCountCache[`${currentShopId || 'default'}_${item.barcode}`]?.store || 0) : (item.batches?.length ? item.batches.reduce((sum, batch) => sum + Number(batch.stock_store), 0) : Number(item.stock_store || 0));
       return getStore(b) - getStore(a);
   });
   else allItems.sort((a, b) => a.barcode.localeCompare(b.barcode));
@@ -158,12 +159,18 @@ export const getInventoryByQuery = async ({ limit, offset, search, category, sub
 export const queueOfflineTransaction = async (payload) => {
   const db = await initDB();
   const timestamp = new Date().toISOString();
-  await db.put('offline_queue', { ...payload, queued_at: timestamp, status: 'pending', error_message: null });
+  const shopId = payload.shop_id || localStorage.getItem('shop_id');
+  await db.put('offline_queue', { ...payload, shop_id: shopId, queued_at: timestamp, status: 'pending', error_message: null });
 };
 
-export const getOfflineQueue = async () => {
+export const getOfflineQueue = async (targetShopId) => {
   const db = await initDB();
-  return db.getAll('offline_queue');
+  const all = await db.getAll('offline_queue');
+  const shopId = targetShopId || localStorage.getItem('shop_id');
+  if (shopId) {
+    return all.filter(tx => !tx.shop_id || tx.shop_id === shopId);
+  }
+  return all;
 };
 
 export const deleteOfflineTransaction = async (id) => {
@@ -187,10 +194,11 @@ export const requeueTransaction = async (id) => {
   }
 };
 
-export const getFailedTransactions = async () => {
+export const getFailedTransactions = async (targetShopId) => {
   const db = await initDB();
   const all = await db.getAll('offline_queue');
-  return all.filter(tx => tx.status === 'failed');
+  const shopId = targetShopId || localStorage.getItem('shop_id');
+  return all.filter(tx => tx.status === 'failed' && (!shopId || !tx.shop_id || tx.shop_id === shopId));
 };
 
 export const getSyncStatus = async (key) => {
@@ -209,7 +217,8 @@ export const deleteOrphanedInventory = async (syncedBarcodes) => {
   let cursor = await tx.store.openCursor();
   const shopId = localStorage.getItem('shop_id');
   while (cursor) {
-    if (cursor.value.shop_id === shopId && !syncedBarcodes.has(cursor.value.barcode)) {
+    const itemShopId = cursor.value.shop_id;
+    if ((!itemShopId || itemShopId === shopId) && !syncedBarcodes.has(cursor.value.barcode)) {
       cursor.delete();
     }
     cursor = await cursor.continue();
