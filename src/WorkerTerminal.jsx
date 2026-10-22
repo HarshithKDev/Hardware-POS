@@ -250,30 +250,36 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         
         let finalSuggestions = parentData || [];
         
-        // Check if search matches any active stock instances for current shop
-        const shopId = localStorage.getItem('shop_id');
-        let instQuery = supabase.from('stock_instances')
-          .select('instance_barcode, current_length, parent_barcode, inventory:product_master(name, unit)')
-          .ilike('instance_barcode', `%${searchStr}%`)
-          .eq('is_active', true);
-        if (shopId) {
-          instQuery = instQuery.eq('shop_id', shopId);
-        }
-        const { data: instData } = await instQuery.limit(5);
-          
-        if (instData && instData.length > 0) {
-          const instanceSuggestions = instData.map(inst => {
-            const parentName = inst.inventory?.name || 'Unknown Item';
-            const parentUnit = inst.inventory?.unit || 'UNIT';
-            return {
-              barcode: inst.instance_barcode,
-              name: `${parentName} (Piece #${inst.instance_barcode.slice(-6)}) [${inst.current_length} ${parentUnit === 'SQFT' ? 'ft' : parentUnit}]`,
-              isInstancePlaceholder: true // Just a visual flag
-            };
-          });
-          
-          // Add specific instances to the top of the list
-          finalSuggestions = [...instanceSuggestions, ...finalSuggestions];
+        // Check if search matches any active stock instances for current shop (when online)
+        if (navigator.onLine && supabase) {
+          try {
+            const shopId = localStorage.getItem('shop_id');
+            let instQuery = supabase.from('stock_instances')
+              .select('instance_barcode, current_length, parent_barcode, inventory:product_master(name, unit)')
+              .ilike('instance_barcode', `%${searchStr}%`)
+              .eq('is_active', true);
+            if (shopId) {
+              instQuery = instQuery.eq('shop_id', shopId);
+            }
+            const { data: instData } = await instQuery.limit(5);
+              
+            if (instData && instData.length > 0) {
+              const instanceSuggestions = instData.map(inst => {
+                const parentName = inst.inventory?.name || 'Unknown Item';
+                const parentUnit = inst.inventory?.unit || 'UNIT';
+                return {
+                  barcode: inst.instance_barcode,
+                  name: `${parentName} (Piece #${inst.instance_barcode.slice(-6)}) [${inst.current_length} ${parentUnit === 'SQFT' ? 'ft' : parentUnit}]`,
+                  isInstancePlaceholder: true // Just a visual flag
+                };
+              });
+              
+              // Add specific instances to the top of the list
+              finalSuggestions = [...instanceSuggestions, ...finalSuggestions];
+            }
+          } catch (instErr) {
+            console.warn("Stock instance suggestion error (offline/unavailable):", instErr);
+          }
         }
         
         setSuggestions(finalSuggestions);
@@ -853,7 +859,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const addReceivedCuttableItem = (item, length, batch, instanceBarcode = null) => {
     playScanSuccessSound();
     setCart(prev => {
-      return [{ 
+      return [...prev, { 
         ...item, 
         id: generateId(),
         instance_barcode: instanceBarcode,
@@ -869,7 +875,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         msp_price: Number(calculateMSP(batch, item)).toFixed(2),
         price: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2),
         msp: Number(batch?.msp ?? (item.msp || 0)).toFixed(2)
-      }, ...prev];
+      }];
     });
   };
 
@@ -1584,6 +1590,26 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           } else if (activeTab === 'checkout') {
             localItem.stock_store = Math.max(0, (Number(localItem.stock_store) || 0) - Number(item.quantity));
           }
+
+          // Also update specific batch inside localItem.batches for instant tab feedback
+          if (localItem.batches && Array.isArray(localItem.batches)) {
+            const bIdx = localItem.batches.findIndex(b => (item.batch_id && b.batch_id === item.batch_id) || (item.batch_number !== undefined && b.batch_number === item.batch_number));
+            if (bIdx !== -1) {
+              if (activeTab === 'receive') {
+                if (isWarehouseDisabled) {
+                  localItem.batches[bIdx].stock_store = (Number(localItem.batches[bIdx].stock_store) || 0) + Number(item.quantity);
+                } else {
+                  localItem.batches[bIdx].stock_warehouse = (Number(localItem.batches[bIdx].stock_warehouse) || 0) + Number(item.quantity);
+                }
+              } else if (activeTab === 'transfer') {
+                localItem.batches[bIdx].stock_warehouse = Math.max(0, (Number(localItem.batches[bIdx].stock_warehouse) || 0) - Number(item.quantity));
+                localItem.batches[bIdx].stock_store = (Number(localItem.batches[bIdx].stock_store) || 0) + Number(item.quantity);
+              } else if (activeTab === 'checkout') {
+                localItem.batches[bIdx].stock_store = Math.max(0, (Number(localItem.batches[bIdx].stock_store) || 0) - Number(item.quantity));
+              }
+            }
+          }
+
           await saveInventoryBatch([localItem]);
         }
       }
@@ -1596,9 +1622,16 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             let bQuery = supabase
               .from('inventory_batches')
               .select('batch_id, stock_warehouse, stock_store')
-              .eq('barcode', item.barcode)
-              .order('created_at', { ascending: false })
-              .limit(1);
+              .eq('barcode', item.barcode);
+
+            if (item.batch_id) {
+              bQuery = bQuery.eq('batch_id', item.batch_id);
+            } else if (item.batch_number !== undefined && item.batch_number !== null) {
+              bQuery = bQuery.eq('batch_number', item.batch_number);
+            } else {
+              bQuery = bQuery.order('created_at', { ascending: false }).limit(1);
+            }
+
             if (shopId) {
               bQuery = bQuery.eq('shop_id', shopId);
             }
@@ -1618,6 +1651,26 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               }
               await updateBatch;
 
+              // Also update product_master to keep parent warehouse and store stock in sync
+              let pQuery = supabase
+                .from('product_master')
+                .select('stock_warehouse, stock_store')
+                .eq('barcode', item.barcode);
+              if (shopId) pQuery = pQuery.eq('shop_id', shopId);
+              const { data: pData } = await pQuery.maybeSingle();
+
+              if (pData) {
+                let updateProd = supabase
+                  .from('product_master')
+                  .update({
+                    stock_warehouse: Math.max(0, Number(pData.stock_warehouse || 0) - transferQty),
+                    stock_store: Number(pData.stock_store || 0) + transferQty
+                  })
+                  .eq('barcode', item.barcode);
+                if (shopId) updateProd = updateProd.eq('shop_id', shopId);
+                await updateProd;
+              }
+
               if (item.is_cuttable) {
                 let updateInst = supabase
                   .from('stock_instances')
@@ -1636,6 +1689,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         }
       }
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory_item'] });
+      queryClient.invalidateQueries({ queryKey: ['product_master'] });
       // Also invalidate piece_counts for cuttable items so WHSE/STORE QTY refreshes
       queryClient.invalidateQueries({ queryKey: ['piece_counts'] });
       queryClient.invalidateQueries({ queryKey: ['stock_instances'] });
@@ -1821,6 +1876,15 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         }
       }
 
+      // If a hardware scanner burst is actively streaming (keystrokes <= 75ms apart),
+      // stop propagation and return immediately to prevent scanner characters (e.g. '-')
+      // from bleeding into shortcut handlers or corrupting the cart.
+      const isBurstStreaming = (interval <= 75 && scanBurstTimestamps.current.length >= 2);
+      if (isBurstStreaming) {
+        e.stopPropagation();
+        return;
+      }
+
       // 2. If alertConfig or confirmConfig is open, let them handle Esc/Enter
       if (alertConfig.isOpen || confirmConfig.isOpen || printPreviewOpen) {
         return;
@@ -1972,19 +2036,20 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             e.preventDefault();
             processScan(barcodeBuffer.current);
             barcodeBuffer.current = '';
+            scanBurstBuffer.current = '';
+            scanBurstTimestamps.current = [];
             return;
           }
-        } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-          barcodeBuffer.current += e.key;
         }
       }
 
       // 5. TERMINAL & CART NAVIGATION KEYS (Only when NOT typing inside an input)
       if (isInput) return;
 
-      // Focus barcode search on /
-      if (e.key === '/') {
+      // Focus barcode search on / (only when buffer is empty)
+      if (e.key === '/' && barcodeBuffer.current.length === 0) {
         e.preventDefault();
+        barcodeBuffer.current = '';
         const barcodeInput = document.getElementById('manual-barcode');
         if (barcodeInput) {
           barcodeInput.focus();
@@ -1993,9 +2058,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         return;
       }
 
-      // Space to open Pay modal when cart has items
+      // Space to open Pay modal when cart has items (only when buffer is empty)
       if (e.key === ' ' && cart.length > 0 && activeTab === 'checkout' && barcodeBuffer.current.length === 0) {
         e.preventDefault();
+        barcodeBuffer.current = '';
         setCheckoutModal(prev => ({
           ...prev,
           isOpen: true,
@@ -2033,9 +2099,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         return;
       }
 
-      // Adjust Quantity on selected item (+ / =)
-      if ((e.key === '+' || e.key === '=') && selectedCartIndex !== null && cart[selectedCartIndex]) {
+      // Adjust Quantity on selected item (+ / =) (only when not buffering a barcode)
+      if ((e.key === '+' || e.key === '=') && barcodeBuffer.current.length === 0 && selectedCartIndex !== null && cart[selectedCartIndex]) {
         e.preventDefault();
+        barcodeBuffer.current = '';
         const item = cart[selectedCartIndex];
         const isLooseKg = Boolean(
           item.is_loose_item && (
@@ -2058,9 +2125,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         return;
       }
 
-      // Adjust Quantity on selected item (-)
-      if (e.key === '-' && selectedCartIndex !== null && cart[selectedCartIndex]) {
+      // Adjust Quantity on selected item (-) (only when not buffering a barcode)
+      if (e.key === '-' && barcodeBuffer.current.length === 0 && selectedCartIndex !== null && cart[selectedCartIndex]) {
         e.preventDefault();
+        barcodeBuffer.current = '';
         const item = cart[selectedCartIndex];
         const isLooseKg = Boolean(
           item.is_loose_item && (
@@ -2091,12 +2159,24 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         return;
       }
 
-      // Delete / Backspace: Remove selected item from cart
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedCartIndex !== null && cart[selectedCartIndex]) {
+      // Delete / Backspace: Remove selected item from cart (only when barcode buffer is empty)
+      if ((e.key === 'Delete' || e.key === 'Backspace') && barcodeBuffer.current.length === 0 && selectedCartIndex !== null && cart[selectedCartIndex]) {
         e.preventDefault();
         const item = cart[selectedCartIndex];
         handleRemoveItem(item.id);
         return;
+      }
+
+      // If Backspace while barcode buffer is active, delete last buffered char
+      if (e.key === 'Backspace' && barcodeBuffer.current.length > 0) {
+        e.preventDefault();
+        barcodeBuffer.current = barcodeBuffer.current.slice(0, -1);
+        return;
+      }
+
+      // General barcode buffer accumulation for all printable single-char keys
+      if (!isInput && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        barcodeBuffer.current += e.key;
       }
     };
 

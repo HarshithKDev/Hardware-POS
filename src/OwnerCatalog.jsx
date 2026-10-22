@@ -1,18 +1,15 @@
 import { useState, useRef } from 'react';
 import { supabase } from './supabaseClient';
 import { syncInventoryToLocal } from './services/sync';
-import * as XLSX from 'xlsx';
-import ExcelJS from 'exceljs';
-import { saveAs } from 'file-saver';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { generateId } from './utils';
 import { BARCODE_START_VALUE, BARCODE_RETRY_ATTEMPTS, UNIT_TYPES, STALE_TIME_5MIN } from './constants';
 import { Spinner, CreatableDropdown } from './SharedUI';
-import { saveInventoryBatch } from './services/db';
+import { saveInventoryBatch, initDB } from './services/db';
 
 export default function OwnerCatalog() {
-  const { showAlert, isWarehouseDisabled } = useApp();
+  const { showAlert, isWarehouseDisabled, shopSettings } = useApp();
   const queryClient = useQueryClient();
 
   const [form, setForm] = useState({
@@ -20,10 +17,9 @@ export default function OwnerCatalog() {
     msp: '', price: '', unit: 'PCS', min_quantity_warehouse: '', min_quantity_store: '', item_type: 'standard',
     default_length: '', default_width: '', billing_increment: '0.01', billing_method: 'exact'
   });
-  const [nextBarcode, setNextBarcode] = useState('');
   const fileInputRef = useRef(null);
 
-  const shopId = localStorage.getItem('shop_id');
+  const shopId = shopSettings?.id || localStorage.getItem('shop_id');
 
   // Fetch Categories
   const { data: categories = [] } = useQuery({
@@ -51,23 +47,64 @@ export default function OwnerCatalog() {
     staleTime: STALE_TIME_5MIN,
   });
 
-  useQuery({
+  const { data: nextBarcode = '' } = useQuery({
     queryKey: ['nextBarcode', shopId],
     queryFn: async () => {
-      let query = supabase.from('product_master').select('barcode');
-      if (shopId) {
-        query = query.eq('shop_id', shopId);
+      let barcodes = [];
+
+      // 1. Try querying product_master_public (the read-accessible view)
+      try {
+        let query = supabase.from('product_master_public').select('barcode');
+        if (shopId) {
+          query = query.eq('shop_id', shopId);
+        }
+        const { data, error } = await query;
+        if (!error && data && data.length > 0) {
+          barcodes = data.map(d => d.barcode);
+        }
+      } catch (err) {
+        console.warn('Could not fetch from product_master_public, trying product_master:', err);
       }
-      const { data, error } = await query;
-      if (error) throw error;
-      const next = data?.reduce((max, item) => {
-        const num = parseInt(item.barcode, 10);
+
+      // 2. Fallback to product_master if product_master_public had no rows or errored
+      if (barcodes.length === 0) {
+        try {
+          let query = supabase.from('product_master').select('barcode');
+          if (shopId) {
+            query = query.eq('shop_id', shopId);
+          }
+          const { data, error } = await query;
+          if (!error && data && data.length > 0) {
+            barcodes = data.map(d => d.barcode);
+          }
+        } catch (err) {
+          console.warn('Could not fetch from product_master:', err);
+        }
+      }
+
+      // 3. Fallback or merge with local IndexedDB barcodes for offline resilience
+      if (typeof indexedDB !== 'undefined') {
+        try {
+          const db = await initDB();
+          const localProducts = await db.getAll('product_master');
+          const localShopProducts = localProducts.filter(i => !shopId || !i.shop_id || i.shop_id === shopId);
+          localShopProducts.forEach(p => {
+            if (p.barcode) barcodes.push(p.barcode);
+          });
+        } catch (e) {
+          console.warn('Could not fetch local product_master barcodes:', e);
+        }
+      }
+
+      const next = barcodes.reduce((max, b) => {
+        const num = parseInt(b, 10);
         return !isNaN(num) ? Math.max(max, num) : max;
       }, parseInt(BARCODE_START_VALUE, 10) - 1) || parseInt(BARCODE_START_VALUE, 10) - 1;
-      const nextString = (next + 1).toString();
-      setNextBarcode(nextString);
-      return nextString;
+
+      return (next + 1).toString();
     },
+    staleTime: 0,
+    refetchOnMount: 'always'
   });
 
 
@@ -114,11 +151,15 @@ export default function OwnerCatalog() {
 
         if (error.code === '23505' && error.message.includes('barcode')) {
           console.warn(`Barcode ${currentBarcode} taken, retrying... (Attempt ${attempt + 1}/${BARCODE_RETRY_ATTEMPTS})`);
-          let latestQuery = supabase.from('product_master').select('barcode');
+          let latestQuery = supabase.from('product_master_public').select('barcode');
           if (shopId) {
             latestQuery = latestQuery.eq('shop_id', shopId);
           }
-          const { data: allBcs } = await latestQuery;
+          let { data: allBcs } = await latestQuery;
+          if (!allBcs || allBcs.length === 0) {
+            const fallbackQ = await supabase.from('product_master').select('barcode').eq('shop_id', shopId);
+            allBcs = fallbackQ.data;
+          }
           const maxNum = (allBcs || []).reduce((max, item) => {
             const num = parseInt(item.barcode, 10);
             return !isNaN(num) ? Math.max(max, num) : max;
@@ -199,6 +240,8 @@ export default function OwnerCatalog() {
   };
 
   const handleDownloadTemplate = async () => {
+    const { default: ExcelJS } = await import('exceljs');
+    const { saveAs } = await import('file-saver');
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Template');
     const dataSheet = workbook.addWorksheet('Data', { state: 'hidden' });
@@ -274,6 +317,7 @@ export default function OwnerCatalog() {
 
     try {
       showAlert('Reading Excel file... Please wait.', 'Info');
+      const XLSX = await import('xlsx');
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data, { type: 'array' });
       const firstSheetName = workbook.SheetNames[0];
@@ -354,11 +398,15 @@ export default function OwnerCatalog() {
       }
 
       // Resolve barcode conflicts to avoid overwriting existing items
-      let existingQuery = supabase.from('product_master').select('barcode');
+      let existingQuery = supabase.from('product_master_public').select('barcode');
       if (shopId) {
         existingQuery = existingQuery.eq('shop_id', shopId);
       }
-      const { data: existingInventory } = await existingQuery;
+      let { data: existingInventory } = await existingQuery;
+      if (!existingInventory || existingInventory.length === 0) {
+        const fallbackQ = await supabase.from('product_master').select('barcode').eq('shop_id', shopId);
+        existingInventory = fallbackQ.data;
+      }
       const existingBarcodes = new Set(existingInventory?.map(i => i.barcode) || []);
       let maxBarcodeNum = existingInventory?.reduce((max, item) => {
         const num = parseInt(item.barcode, 10);

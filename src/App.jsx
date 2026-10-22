@@ -1,9 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { supabase } from './supabaseClient';
 import { Spinner, PageLoader } from './SharedUI';
-import EntryFlow from './EntryFlow';
-import WorkerBilling from './WorkerBilling';
-import OwnerDashboard from './OwnerDashboard';
 import { MobileScannerModal, ProductInfoModal } from './AppModals';
 import { AlertDialog, ConfirmDialog } from './Dialog';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
@@ -12,6 +9,10 @@ import { startBackgroundSync, stopBackgroundSync } from './services/sync';
 import { WifiOff, ScanBarcode, LayoutDashboard, Moon, Sun, Power } from 'lucide-react';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+
+const EntryFlow = lazy(() => import('./EntryFlow'));
+const WorkerBilling = lazy(() => import('./WorkerBilling'));
+const OwnerDashboard = lazy(() => import('./OwnerDashboard'));
 
 function App() {
   const {
@@ -23,7 +24,10 @@ function App() {
     confirmConfig, handleConfirm, closeConfirm,
   } = useApp();
 
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(() => {
+    // If shop settings are cached, avoid initial loading spinner block for instant cold start
+    return !localStorage.getItem('cached_shop_settings');
+  });
   const [isSetupNeeded, setIsSetupNeeded] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isMobileScannerOpen, setIsMobileScannerOpen] = useState(false);
@@ -157,7 +161,10 @@ function App() {
 
   const fetchInitialData = useCallback(async () => {
     try {
-      setIsInitialLoad(true);
+      const hasCached = !!localStorage.getItem('cached_shop_settings');
+      if (!hasCached) {
+        setIsInitialLoad(true);
+      }
       const savedShopId = localStorage.getItem('shop_id');
       let currentShop = null;
 
@@ -177,9 +184,15 @@ function App() {
         if (!settingsData) {
           setIsSetupNeeded(true);
           localStorage.removeItem('shop_id');
+          localStorage.removeItem('cached_shop_settings');
         } else {
           currentShop = settingsData;
           setShopSettings(settingsData);
+          try {
+            localStorage.setItem('cached_shop_settings', JSON.stringify(settingsData));
+          } catch (e) {
+            console.error('Failed to cache shop settings:', e);
+          }
         }
       }
 
@@ -249,12 +262,21 @@ function App() {
 
   if (isSetupNeeded || !userRole) {
     return (
-      <EntryFlow
-        onLoginSuccess={handleLoginSuccess}
-        isSetupNeeded={isSetupNeeded}
-        onSetupComplete={(s) => { queryClient.clear(); setShopSettings(s); setIsSetupNeeded(false); }}
-        shopSettings={shopSettings}
-      />
+      <Suspense fallback={<div className="w-full min-h-[100dvh] flex items-center justify-center bg-[var(--bg-tertiary)]"><PageLoader text="Loading..." /></div>}>
+        <EntryFlow
+          onLoginSuccess={handleLoginSuccess}
+          isSetupNeeded={isSetupNeeded}
+          onSetupComplete={(s) => {
+            queryClient.clear();
+            setShopSettings(s);
+            try {
+              localStorage.setItem('cached_shop_settings', JSON.stringify(s));
+            } catch (e) {}
+            setIsSetupNeeded(false);
+          }}
+          shopSettings={shopSettings}
+        />
+      </Suspense>
     );
   }
 
@@ -379,21 +401,23 @@ function App() {
         role="main"
         aria-label="Application content"
       >
-        <Routes>
-          {userRole === 'owner' && (
-            <>
-              <Route path="/owner/:tab" element={<OwnerDashboard />} />
-              <Route path="/owner" element={<Navigate to="/owner/dashboard" replace />} />
-            </>
-          )}
-          {userRole && (
-            <>
-              <Route path="/terminal/:tab" element={<WorkerBilling />} />
-              <Route path="/terminal" element={<Navigate to="/terminal/dashboard" replace />} />
-            </>
-          )}
-          <Route path="*" element={<Navigate to={userRole === 'owner' ? "/owner/dashboard" : "/terminal/dashboard"} replace />} />
-        </Routes>
+        <Suspense fallback={<div className="flex flex-1 items-center justify-center p-8"><PageLoader text="Loading view..." /></div>}>
+          <Routes>
+            {userRole === 'owner' && (
+              <>
+                <Route path="/owner/:tab" element={<OwnerDashboard />} />
+                <Route path="/owner" element={<Navigate to="/owner/dashboard" replace />} />
+              </>
+            )}
+            {userRole && (
+              <>
+                <Route path="/terminal/:tab" element={<WorkerBilling />} />
+                <Route path="/terminal" element={<Navigate to="/terminal/dashboard" replace />} />
+              </>
+            )}
+            <Route path="*" element={<Navigate to={userRole === 'owner' ? "/owner/dashboard" : "/terminal/dashboard"} replace />} />
+          </Routes>
+        </Suspense>
       </main>
     </div>
   );

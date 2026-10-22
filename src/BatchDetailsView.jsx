@@ -116,6 +116,56 @@ export default function BatchDetailsView({
     }
   }, [activeBatch?.batch_id]);
 
+  // Self-healing: if warehouse is disabled but any batch has stranded warehouse stock, merge into store stock
+  useEffect(() => {
+    if (isWarehouseDisabled && item && item.batches && navigator.onLine) {
+      const strandedBatches = item.batches.filter(b => Number(b.stock_warehouse) > 0);
+      if (strandedBatches.length > 0) {
+        const fixStranded = async () => {
+          try {
+            const currentShopId = shopId || localStorage.getItem('shop_id');
+            let totalMoved = 0;
+            for (const b of strandedBatches) {
+              const whseQty = Number(b.stock_warehouse);
+              let updateB = supabase
+                .from('inventory_batches')
+                .update({
+                  stock_warehouse: 0,
+                  stock_store: Number(b.stock_store || 0) + whseQty
+                })
+                .eq('batch_id', b.batch_id);
+              if (currentShopId) updateB = updateB.eq('shop_id', currentShopId);
+              await updateB;
+              totalMoved += whseQty;
+            }
+
+            if (totalMoved > 0) {
+              let pQ = supabase.from('product_master').select('stock_warehouse, stock_store').eq('barcode', item.barcode);
+              if (currentShopId) pQ = pQ.eq('shop_id', currentShopId);
+              const { data: pData } = await pQ.maybeSingle();
+              if (pData) {
+                let updateP = supabase
+                  .from('product_master')
+                  .update({
+                    stock_warehouse: Math.max(0, Number(pData.stock_warehouse || 0) - totalMoved),
+                    stock_store: Number(pData.stock_store || 0) + totalMoved
+                  })
+                  .eq('barcode', item.barcode);
+                if (currentShopId) updateP = updateP.eq('shop_id', currentShopId);
+                await updateP;
+              }
+              queryClient.invalidateQueries({ queryKey: ['inventory_item', currentShopId, item.barcode] });
+              queryClient.invalidateQueries({ queryKey: ['inventory'] });
+            }
+          } catch (err) {
+            console.warn("Could not auto-heal stranded warehouse stock:", err);
+          }
+        };
+        fixStranded();
+      }
+    }
+  }, [isWarehouseDisabled, item?.barcode, item?.batches, shopId, queryClient]);
+
   // Cuttable instances state
   const [locationFilter, setLocationFilter] = useState('ALL'); // 'ALL' | 'STORE' | 'WAREHOUSE'
   const [searchQuery, setSearchQuery] = useState('');
@@ -597,7 +647,7 @@ export default function BatchDetailsView({
               const bCount = instances.filter(i => i.is_active && (i.batch_id === batch.batch_id || (!i.batch_id && i.instance_barcode?.startsWith(batchCode)))).length;
               tabCountLabel = `${bCount} pcs`;
             } else if (isWarehouseDisabled) {
-              tabCountLabel = `${Number(batch.stock_store || 0)} ${displayUnit}`;
+              tabCountLabel = `${Number(batch.stock_store || 0) + Number(batch.stock_warehouse || 0)} ${displayUnit}`;
             } else {
               tabCountLabel = `${Number(batch.stock_warehouse || 0) + Number(batch.stock_store || 0)} ${displayUnit}`;
             }
@@ -840,7 +890,7 @@ export default function BatchDetailsView({
                     {isWarehouseDisabled ? 'Current Stock' : 'Store Stock'}
                   </span>
                   <span className="text-sm sm:text-base font-bold text-[var(--color-success)]">
-                    {item.is_cuttable ? activeBatchPieceStats.storeCount : (activeBatch.stock_store ?? 0)}
+                    {item.is_cuttable ? activeBatchPieceStats.storeCount : (isWarehouseDisabled ? (Number(activeBatch?.stock_store || 0) + Number(activeBatch?.stock_warehouse || 0)) : (activeBatch?.stock_store ?? 0))}
                     <span className="text-xs font-normal text-[var(--text-secondary)] ml-1">
                       {item.is_cuttable ? 'PCS' : displayUnit}
                     </span>

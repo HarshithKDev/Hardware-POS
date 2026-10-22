@@ -62,7 +62,9 @@ export default function InventoryRow({
   const availableSubcategories = subcategories?.filter(sub => sub.category_name === (editData?.category || item.category)) || [];
   
   const totalWhse = item.batches ? item.batches.reduce((sum, b) => sum + Number(b.stock_warehouse), 0) : Number(item.stock_warehouse || 0);
-  const totalStore = item.batches ? item.batches.reduce((sum, b) => sum + Number(b.stock_store), 0) : Number(item.stock_store || 0);
+  const totalStore = isWarehouseDisabled
+    ? (item.batches ? item.batches.reduce((sum, b) => sum + Number(b.stock_store || 0) + Number(b.stock_warehouse || 0), 0) : (Number(item.stock_store || 0) + Number(item.stock_warehouse || 0)))
+    : (item.batches ? item.batches.reduce((sum, b) => sum + Number(b.stock_store), 0) : Number(item.stock_store || 0));
 
   const [popoverPos, setPopoverPos] = useState(null);
   const [isHovered, setIsHovered] = useState(false);

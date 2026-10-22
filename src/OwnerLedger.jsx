@@ -7,7 +7,6 @@ import { formatDateTime, escapeIlike, formatDayHeader } from './utils';
 import { SALES_PER_PAGE } from './constants';
 import { DialogOverlay } from './Dialog';
 import { Search, Undo2, X, Phone, User, ChevronRight, Calendar } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import BillDetailsView from './BillDetailsView';
 import { getInventoryItemByBarcode } from './services/db';
 
@@ -285,6 +284,7 @@ export default function OwnerLedger({ isActive }) {
          'Total Profit': b.total_profit || 0
       }));
       
+      const XLSX = await import('xlsx');
       const worksheet = XLSX.utils.json_to_sheet(exportData);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Sales_Ledger");

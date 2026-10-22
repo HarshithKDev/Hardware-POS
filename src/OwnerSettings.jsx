@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
-import { Save, Upload, Eye, EyeOff, Edit2, Trash2, Volume2, VolumeX } from 'lucide-react';
+import { Save, Upload, Eye, EyeOff, Edit2, Trash2, Volume2, VolumeX, SlidersHorizontal, Boxes, Store } from 'lucide-react';
 import { isAudioEnabled, setAudioEnabled, playScanSuccessSound } from './services/audio';
 
 export default function OwnerSettings() {
-  const { shopSettings, setShopSettings, showAlert } = useApp();
+  const { shopSettings, setShopSettings, showAlert, setWarehouseDisabled } = useApp();
   const fileInputRef = useRef(null);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -73,11 +73,63 @@ export default function OwnerSettings() {
     }
   }, [shopSettings]);
 
-  const handleToggleSound = (checked) => {
+  const handleToggleWarehouse = async (checked) => {
+    setDisableWarehouse(checked);
+    if (setWarehouseDisabled) {
+      setWarehouseDisabled(checked);
+    }
+    if (shopSettings?.id) {
+      localStorage.setItem(`disable_warehouse_${shopSettings.id}`, String(checked));
+      localStorage.setItem('disable_warehouse', String(checked));
+      try {
+        const { error } = await supabase
+          .from('shop_settings')
+          .update({ disable_warehouse: checked })
+          .eq('id', shopSettings.id);
+        if (error && error.code !== '42703' && !error.message?.includes('disable_warehouse')) {
+          console.error("Failed to update remote warehouse setting:", error);
+        }
+        const updated = { ...shopSettings, disable_warehouse: checked };
+        try {
+          localStorage.setItem('cached_shop_settings', JSON.stringify(updated));
+        } catch (e) {}
+        setShopSettings(updated);
+        showAlert(
+          checked 
+            ? "Warehouse bypassed: Incoming stock deposits directly into Store stock." 
+            : "Warehouse mode enabled: Main Storage and Move to Shop active.",
+          "success"
+        );
+      } catch (err) {
+        console.error("Error updating warehouse setting:", err);
+      }
+    }
+  };
+
+  const handleToggleSound = async (checked) => {
     setSoundEnabled(checked);
     setAudioEnabled(checked);
     if (checked) {
       playScanSuccessSound();
+    }
+    if (shopSettings?.id) {
+      try {
+        const { error } = await supabase
+          .from('shop_settings')
+          .update({ sound_enabled: checked })
+          .eq('id', shopSettings.id);
+        if (error && error.code !== '42703' && !error.message?.includes('sound_enabled')) {
+          console.error("Failed to update remote sound setting:", error);
+        }
+        const updated = { ...shopSettings, sound_enabled: checked };
+        try {
+          localStorage.setItem('cached_shop_settings', JSON.stringify(updated));
+        } catch (e) {}
+        setShopSettings(updated);
+        showAlert(checked ? "POS sound effects enabled (Scan & Checkout Audio)" : "POS sound effects muted", "success");
+      } catch (err) {
+        console.error("Error updating sound setting:", err);
+      }
     }
   };
 
@@ -98,8 +150,48 @@ export default function OwnerSettings() {
     }
   };
 
+  const handleCancel = () => {
+    setIsEditing(false);
+    setPassword('');
+    setConfirmPassword('');
+    if (shopSettings) {
+      let addr = shopSettings.shop_address || '';
+      let upi = shopSettings.upi_id || '';
+      let sAddr = true;
+      let sUpi = true;
+      
+      if (addr.startsWith('HIDDEN::')) {
+        sAddr = false;
+        addr = addr.substring(8);
+      }
+      if (upi.startsWith('HIDDEN::')) {
+        sUpi = false;
+        upi = upi.substring(8);
+      }
+
+      setFormData({
+        shop_name: shopSettings.shop_name || '',
+        owner_name: shopSettings.owner_name || '',
+        shop_address: addr,
+        phone: shopSettings.phone || '',
+        upi_id: upi,
+        admin_email: shopSettings.admin_email || ''
+      });
+      setShowAddress(sAddr);
+      setShowUpi(sUpi);
+      setDisableWarehouse(Boolean(
+        shopSettings.disable_warehouse ??
+        (localStorage.getItem(`disable_warehouse_${shopSettings.id}`) === 'true' ||
+         localStorage.getItem('disable_warehouse') === 'true')
+      ));
+      setSoundEnabled(isAudioEnabled());
+      setLogoPreview(shopSettings.logo_url);
+      setLogoFile(null);
+    }
+  };
+
   const handleSave = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     if (!formData.shop_name.trim() || !formData.owner_name.trim()) {
       return showAlert('Shop Name and Owner Name are required.', 'error');
     }
@@ -176,6 +268,11 @@ export default function OwnerSettings() {
       setAudioEnabled(soundEnabled);
       localStorage.setItem(`disable_warehouse_${shopSettings.id}`, String(disableWarehouse));
       localStorage.setItem('disable_warehouse', String(disableWarehouse));
+      try {
+        localStorage.setItem('cached_shop_settings', JSON.stringify(savedRecord));
+      } catch (e) {
+        console.error('Failed to update cached_shop_settings:', e);
+      }
       setShopSettings(savedRecord);
       localStorage.setItem('owner_name', savedRecord.owner_name);
       setPassword('');
@@ -191,353 +288,486 @@ export default function OwnerSettings() {
   };
 
   return (
-    <div className="flex flex-col h-full animate-fade-in overflow-y-auto hide-x-scrollbar p-2 md:p-6" style={{ backgroundColor: 'transparent' }}>
-      <div className="w-full max-w-3xl mx-auto md:p-6 p-4 md:rounded-2xl md:border md:shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-light)' }}>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Shop Settings</h2>
-          {!isEditing && (
-            <button 
-              type="button" 
-              onClick={() => setIsEditing(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors border hover:bg-[var(--bg-hover)]"
-              style={{ borderColor: 'var(--border-medium)', color: 'var(--text-primary)', backgroundColor: 'var(--bg-tertiary)' }}
-            >
-              <Edit2 size={16} /> Edit Profile
-            </button>
-          )}
-        </div>
-        
-        <form onSubmit={handleSave} className="space-y-4">
-          
-          {/* LOGO SECTION */}
-          <div className="flex items-center gap-6 pb-4 border-b" style={{ borderColor: 'var(--border-light)' }}>
-            <div 
-              className={`w-20 h-20 rounded-xl flex items-center justify-center border-2 overflow-hidden relative group transition-colors ${isEditing ? 'border-dashed cursor-pointer' : 'border-solid'}`}
-              style={{ borderColor: 'var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}
-              onClick={() => isEditing && fileInputRef.current?.click()}
-            >
-              {logoPreview ? (
-                <>
-                  <img src={logoPreview} alt="Shop Logo" className="w-full h-full object-cover" />
-                  {isEditing && (
-                    <div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center transition-all">
-                      <Upload className="w-6 h-6 text-white" />
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="flex flex-col items-center opacity-60">
-                  <Upload className="w-6 h-6 mb-1" />
-                  <span className="text-[10px] uppercase font-bold">Logo</span>
-                </div>
-              )}
-            </div>
-            <div>
-              <h3 className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>Shop Logo</h3>
-              {isEditing && (
-                <>
-                  <p className="text-xs mt-1 max-w-xs" style={{ color: 'var(--text-secondary)' }}>Click the image to upload a new logo (Max 2MB). Re-login for favicon changes to take effect.</p>
-                  {logoPreview && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setLogoFile(null);
-                        setLogoPreview(null);
-                      }}
-                      className="text-xs text-red-500 hover:text-red-400 mt-1.5 font-semibold inline-flex items-center gap-1 cursor-pointer"
-                    >
-                      <Trash2 size={12} />
-                      <span>Remove Logo</span>
-                    </button>
-                  )}
-                </>
-              )}
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                className="hidden" 
-                accept="image/*" 
-                onChange={handleLogoChange}
-              />
-            </div>
+    <div className="w-full h-full flex flex-col overflow-hidden animate-fade-in" style={{ backgroundColor: 'transparent' }}>
+      <div className="w-full max-w-7xl mx-auto flex flex-col h-full gap-3 p-1">
+
+        {/* TOP BAR / PAGE HEADER */}
+        <div className="flex items-center justify-between pb-2.5 border-b border-[var(--border-light)] shrink-0">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+              Shop Settings
+            </h1>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-3">
-              <h3 className="font-bold text-xs uppercase tracking-wider mb-2 pb-2 border-b" style={{ color: 'var(--text-tertiary)', borderColor: 'var(--border-light)' }}>Basic Details</h3>
-              
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>Email</label>
-                <input 
-                  type="email" 
-                  value={formData.admin_email}
-                  disabled
-                  className="w-full p-2.5 rounded-lg border outline-none text-sm transition-colors opacity-50 cursor-not-allowed"
-                  style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)' }}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>Shop Name</label>
-                <input 
-                  type="text" 
-                  name="shop_name"
-                  value={formData.shop_name}
-                  onChange={handleInputChange}
-                  disabled={!isEditing}
-                  className={`w-full p-2.5 rounded-lg border outline-none text-sm transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20' : 'opacity-70 cursor-default'}`}
-                  style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>Owner Name</label>
-                <input 
-                  type="text" 
-                  name="owner_name"
-                  value={formData.owner_name}
-                  onChange={handleInputChange}
-                  disabled={!isEditing}
-                  className={`w-full p-2.5 rounded-lg border outline-none text-sm transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20' : 'opacity-70 cursor-default'}`}
-                  style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="font-bold text-xs uppercase tracking-wider mb-2 pb-2 border-b" style={{ color: 'var(--text-tertiary)', borderColor: 'var(--border-light)' }}>Contact & Billing</h3>
-              
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>Phone Number</label>
-                <input 
-                  type="text" 
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  disabled={!isEditing}
-                  className={`w-full p-2.5 rounded-lg border outline-none text-sm transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20' : 'opacity-70 cursor-default'}`}
-                  style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
-                />
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>UPI ID</label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Show on Bill</span>
-                    <input type="checkbox" checked={showUpi} onChange={(e) => setShowUpi(e.target.checked)} disabled={!isEditing} className="accent-[var(--color-accent)] w-3.5 h-3.5" />
-                  </label>
-                </div>
-                <input 
-                  type="text" 
-                  name="upi_id"
-                  value={formData.upi_id}
-                  onChange={handleInputChange}
-                  disabled={!isEditing}
-                  className={`w-full p-2.5 rounded-lg border outline-none text-sm transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20' : 'opacity-70 cursor-default'}`}
-                  style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
-                />
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Shop Address</label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Show on Bill</span>
-                    <input type="checkbox" checked={showAddress} onChange={(e) => setShowAddress(e.target.checked)} disabled={!isEditing} className="accent-[var(--color-accent)] w-3.5 h-3.5" />
-                  </label>
-                </div>
-                <textarea 
-                  name="shop_address"
-                  value={formData.shop_address}
-                  onChange={handleInputChange}
-                  disabled={!isEditing}
-                  rows={3}
-                  className={`w-full p-2.5 rounded-lg border outline-none text-sm transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20 resize-y' : 'opacity-70 cursor-default resize-none'}`}
-                  style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* WAREHOUSE & INVENTORY PREFERENCES */}
-          <div className="pt-2">
-            <h3 className="font-bold text-xs uppercase tracking-wider mb-2 pb-2 border-b" style={{ color: 'var(--text-tertiary)', borderColor: 'var(--border-light)' }}>Storage & Operations</h3>
-            <div 
-              className={`p-4 rounded-xl border flex items-start justify-between gap-4 transition-all ${disableWarehouse ? 'border-amber-500/40 bg-amber-500/5' : 'border-[var(--border-light)] bg-[var(--bg-tertiary)]'}`}
-            >
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-                    Disable Warehouse (Direct to Store Stock)
-                  </span>
-                  {disableWarehouse && (
-                    <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded-md bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                      Disabled
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                  When checked, the warehouse is completely turned off and bypassed. All warehouse metrics, columns, and &ldquo;Move to Shop&rdquo; transfer actions are hidden from the UI, and newly received stock goes directly into store stock.
-                </p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
-                <input 
-                  type="checkbox" 
-                  checked={disableWarehouse} 
-                  onChange={(e) => setDisableWarehouse(e.target.checked)} 
-                  disabled={!isEditing}
-                  className="sr-only peer"
-                />
-                <div className={`w-11 h-6 bg-[var(--border-medium)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${isEditing ? 'peer-checked:bg-[var(--color-accent)] cursor-pointer' : 'opacity-60 cursor-default'}`} />
-              </label>
-            </div>
-          </div>
-
-          {/* SOUND & AUDIO FEEDBACK */}
-          <div className="pt-2">
-            <h3 className="font-bold text-xs uppercase tracking-wider mb-2 pb-2 border-b" style={{ color: 'var(--text-tertiary)', borderColor: 'var(--border-light)' }}>Audio & Sound Effects</h3>
-            <div 
-              className={`p-4 rounded-xl border flex items-start justify-between gap-4 transition-all ${soundEnabled ? 'border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5' : 'border-[var(--border-light)] bg-[var(--bg-tertiary)]'}`}
-            >
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                    {soundEnabled ? <Volume2 size={16} className="text-[var(--color-accent)]" /> : <VolumeX size={16} className="text-[var(--text-tertiary)]" />}
-                    POS Sound Effects (Scan & Checkout Audio)
-                  </span>
-                  <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-md border ${soundEnabled ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-[var(--color-accent)]/20' : 'bg-[var(--bg-secondary)] text-[var(--text-tertiary)] border-[var(--border-medium)]'}`}>
-                    {soundEnabled ? 'Enabled' : 'Muted'}
-                  </span>
-                </div>
-                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                  When enabled, real-time audio beeps play on successful barcode scans (1800Hz), double-beeps on checkout completion, and buzzers on stock depletion. Turn off for quiet counter operations.
-                </p>
-                {soundEnabled && (
-                  <button
-                    type="button"
-                    onClick={() => playScanSuccessSound()}
-                    className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md border border-[var(--border-medium)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] text-[var(--color-accent)] transition-all active:scale-95 cursor-pointer"
-                  >
-                    <Volume2 size={13} />
-                    <span>Test Scan Sound</span>
-                  </button>
-                )}
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
-                <input 
-                  type="checkbox" 
-                  checked={soundEnabled} 
-                  onChange={(e) => handleToggleSound(e.target.checked)} 
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-[var(--border-medium)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--color-accent)] cursor-pointer" />
-              </label>
-            </div>
-          </div>
-
-          {isEditing && (
-            <>
-              <div className="pt-2 space-y-3">
-                <h3 className="font-bold text-xs uppercase tracking-wider mb-2 pb-2 border-b" style={{ color: 'var(--text-tertiary)', borderColor: 'var(--border-light)' }}>Change Password (Optional)</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="relative">
-                    <input 
-                      type={showPassword ? "text" : "password"} 
-                      placeholder="New Password (min 6 chars)"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full p-2.5 pr-10 rounded-lg border outline-none focus:ring-2 focus:ring-opacity-20 text-sm transition-colors"
-                      style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
-                    />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <input 
-                      type={showConfirmPassword ? "text" : "password"} 
-                      placeholder="Confirm New Password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full p-2.5 pr-10 rounded-lg border outline-none focus:ring-2 focus:ring-opacity-20 text-sm transition-colors"
-                      style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
-                    />
-                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t mt-4 flex justify-end gap-4" style={{ borderColor: 'var(--border-light)' }}>
+          <div className="flex items-center gap-2">
+            {!isEditing ? (
+              <button 
+                type="button" 
+                onClick={() => setIsEditing(true)}
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all border shadow-sm hover:bg-[var(--bg-hover)] active:scale-95 cursor-pointer"
+                style={{ borderColor: 'var(--border-medium)', color: 'var(--text-primary)', backgroundColor: 'var(--bg-secondary)' }}
+              >
+                <Edit2 size={14} /> Edit Profile
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
                 <button  
                   type="button" 
-                  onClick={() => {
-                    setIsEditing(false);
-                    setPassword('');
-                    setConfirmPassword('');
-                    if (shopSettings) {
-                      let addr = shopSettings.shop_address || '';
-                      let upi = shopSettings.upi_id || '';
-                      let sAddr = true;
-                      let sUpi = true;
-                      
-                      if (addr.startsWith('HIDDEN::')) {
-                        sAddr = false;
-                        addr = addr.substring(8);
-                      }
-                      if (upi.startsWith('HIDDEN::')) {
-                        sUpi = false;
-                        upi = upi.substring(8);
-                      }
-
-                      setFormData({
-                        shop_name: shopSettings.shop_name || '',
-                        owner_name: shopSettings.owner_name || '',
-                        shop_address: addr,
-                        phone: shopSettings.phone || '',
-                        upi_id: upi,
-                        admin_email: shopSettings.admin_email || ''
-                      });
-                      setShowAddress(sAddr);
-                      setShowUpi(sUpi);
-                      setDisableWarehouse(Boolean(
-                        shopSettings.disable_warehouse ??
-                        (localStorage.getItem(`disable_warehouse_${shopSettings.id}`) === 'true' ||
-                         localStorage.getItem('disable_warehouse') === 'true')
-                      ));
-                      setSoundEnabled(isAudioEnabled());
-                      setLogoPreview(shopSettings.logo_url);
-                      setLogoFile(null);
-                    }
-                  }}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold uppercase tracking-wider text-sm transition-colors border hover:bg-[var(--bg-tertiary)]"
+                  onClick={handleCancel}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all border hover:bg-[var(--bg-tertiary)] cursor-pointer"
                   style={{ borderColor: 'var(--border-medium)', color: 'var(--text-secondary)' }}
                 >
                   Cancel
                 </button>
                 <button 
-                  type="submit" 
+                  type="button"
+                  onClick={handleSave} 
                   disabled={isLoading}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-white font-bold uppercase tracking-wider text-sm shadow-sm transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-white text-xs font-bold uppercase tracking-wider shadow-sm transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   style={{ backgroundColor: 'var(--color-accent)' }}
                 >
                   {isLoading ? (
                     <>Saving...</>
                   ) : (
-                    <><Save size={18} /> Save Changes</>
+                    <><Save size={14} /> Save Changes</>
                   )}
                 </button>
               </div>
-            </>
-          )}
+            )}
+          </div>
+        </div>
 
-        </form>
+        {/* 2-COLUMN HORIZONTAL GRID */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 flex-1 min-h-0 items-stretch">
+          
+          {/* ======================================================== */}
+          {/* LEFT COLUMN: System Controls & "On and Off" Switches     */}
+          {/* ======================================================== */}
+          <div className="lg:col-span-5 flex flex-col gap-3 min-h-0">
+
+            {/* SYSTEM TOGGLES PANEL */}
+            <div 
+              className="p-3.5 md:p-4 rounded-xl border shadow-sm flex flex-col gap-2.5"
+              style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-light)' }}
+            >
+              <div className="flex items-center gap-2 pb-2 border-b border-[var(--border-light)]">
+                <div className="p-1.5 rounded-lg bg-[var(--bg-tertiary)] text-[var(--color-accent)] border border-[var(--border-medium)]">
+                  <SlidersHorizontal size={15} />
+                </div>
+                <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
+                  System Preferences
+                </h2>
+              </div>
+
+              {/* TOGGLE 1: WAREHOUSE BYPASS */}
+              <div 
+                className={`p-3 rounded-lg border flex items-center justify-between gap-3 transition-all ${
+                  disableWarehouse 
+                    ? 'border-amber-500/40 bg-amber-500/5' 
+                    : 'border-[var(--border-light)] bg-[var(--bg-tertiary)]'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`p-2 rounded-lg shrink-0 ${disableWarehouse ? 'bg-amber-500/10 text-amber-500' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'} border border-[var(--border-light)]`}>
+                    <Boxes size={16} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>
+                        Disable Warehouse
+                      </span>
+                      <span className={`px-1.5 py-0.5 text-[9px] font-bold uppercase rounded border ${
+                        disableWarehouse 
+                          ? 'bg-amber-500/15 text-amber-500 border-amber-500/30' 
+                          : 'bg-[var(--bg-secondary)] text-[var(--text-tertiary)] border-[var(--border-medium)]'
+                      }`}>
+                        {disableWarehouse ? 'Bypass Active' : 'Off'}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-[var(--text-tertiary)] block truncate">
+                      Direct to Store Inventory
+                    </span>
+                  </div>
+                </div>
+
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input 
+                    type="checkbox" 
+                    checked={disableWarehouse} 
+                    onChange={(e) => handleToggleWarehouse(e.target.checked)} 
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5 bg-[var(--border-medium)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500 cursor-pointer" />
+                </label>
+              </div>
+
+              {/* TOGGLE 2: POS AUDIO FEEDBACK */}
+              <div 
+                className={`p-3 rounded-lg border flex items-center justify-between gap-3 transition-all ${
+                  soundEnabled 
+                    ? 'border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5' 
+                    : 'border-[var(--border-light)] bg-[var(--bg-tertiary)]'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className={`p-2 rounded-lg shrink-0 ${soundEnabled ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'} border border-[var(--border-light)]`}>
+                    {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>
+                        POS Sound Effects
+                      </span>
+                      <span className={`px-1.5 py-0.5 text-[9px] font-bold uppercase rounded border ${
+                        soundEnabled 
+                          ? 'bg-[var(--color-accent)]/15 text-[var(--color-accent)] border-[var(--color-accent)]/30' 
+                          : 'bg-[var(--bg-secondary)] text-[var(--text-tertiary)] border-[var(--border-medium)]'
+                      }`}>
+                        {soundEnabled ? 'Audio On' : 'Muted'}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-[var(--text-tertiary)] block truncate">
+                      Scan & Checkout Audio Tones
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  {soundEnabled && (
+                    <button
+                      type="button"
+                      onClick={() => playScanSuccessSound()}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded border border-[var(--border-medium)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] text-[var(--color-accent)] transition-all active:scale-95 cursor-pointer"
+                      title="Test scan sound"
+                    >
+                      <Volume2 size={12} />
+                      <span>Test</span>
+                    </button>
+                  )}
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input 
+                      type="checkbox" 
+                      checked={soundEnabled} 
+                      onChange={(e) => handleToggleSound(e.target.checked)} 
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-5 bg-[var(--border-medium)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[var(--color-accent)] cursor-pointer" />
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* BRANDING & LOGO CARD */}
+            <div 
+              className="p-3.5 md:p-4 rounded-xl border shadow-sm flex flex-col gap-2.5"
+              style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-light)' }}
+            >
+              <div className="flex items-center gap-2 pb-2 border-b border-[var(--border-light)]">
+                <div className="p-1.5 rounded-lg bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-medium)]">
+                  <Store size={15} />
+                </div>
+                <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
+                  Store Identity
+                </h2>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div 
+                  className={`w-14 h-14 rounded-xl flex items-center justify-center border-2 overflow-hidden relative group transition-all shrink-0 ${
+                    isEditing ? 'border-dashed cursor-pointer hover:border-[var(--color-accent)]' : 'border-solid'
+                  }`}
+                  style={{ borderColor: 'var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}
+                  onClick={() => isEditing && fileInputRef.current?.click()}
+                >
+                  {logoPreview ? (
+                    <>
+                      <img src={logoPreview} alt="Shop Logo" className="w-full h-full object-cover" />
+                      {isEditing && (
+                        <div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center transition-all">
+                          <Upload className="w-5 h-5 text-white" />
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center opacity-60">
+                      <Upload className="w-5 h-5 mb-0.5" />
+                      <span className="text-[9px] uppercase font-bold">Logo</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-sm truncate" style={{ color: 'var(--text-primary)' }}>
+                    {formData.shop_name || 'Your Shop'}
+                  </h3>
+                  <p className="text-xs truncate text-[var(--text-secondary)]">
+                    Owner: {formData.owner_name || 'Administrator'}
+                  </p>
+                  
+                  {isEditing ? (
+                    <div className="mt-1 flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="text-xs text-[var(--color-accent)] hover:underline font-semibold inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        <Upload size={12} />
+                        <span>Upload Logo</span>
+                      </button>
+                      {logoPreview && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setLogoFile(null);
+                            setLogoPreview(null);
+                          }}
+                          className="text-xs text-red-500 hover:text-red-400 font-semibold inline-flex items-center gap-1 cursor-pointer"
+                        >
+                          <Trash2 size={12} />
+                          <span>Remove</span>
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-xs text-[var(--text-secondary)] truncate max-w-full font-normal">
+                      {formData.admin_email}
+                    </p>
+                  )}
+
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={handleLogoChange}
+                  />
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* ======================================================== */}
+          {/* RIGHT COLUMN: Profile Editing & Shop Information         */}
+          {/* ======================================================== */}
+          <div className="lg:col-span-7 flex flex-col min-h-0">
+            <form onSubmit={handleSave} className="p-3.5 md:p-4 rounded-xl border shadow-sm flex flex-col justify-between h-full" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-light)' }}>
+              
+              <div className="flex items-center justify-between pb-2 border-b border-[var(--border-light)] shrink-0">
+                <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
+                  Shop Profile & Billing Details
+                </h2>
+                <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded border ${
+                  isEditing 
+                    ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-[var(--color-accent)]/20 animate-pulse' 
+                    : 'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] border-[var(--border-medium)]'
+                }`}>
+                  {isEditing ? 'Editing Mode' : 'View Mode'}
+                </span>
+              </div>
+
+              {/* FORM FIELDS */}
+              <div className="space-y-2.5 my-auto py-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
+                      Shop Name <span className="text-red-500">*</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      name="shop_name"
+                      value={formData.shop_name}
+                      onChange={handleInputChange}
+                      disabled={!isEditing}
+                      placeholder="e.g. Acme Hardware & Tools"
+                      className={`w-full py-1.5 px-3 rounded-lg border outline-none text-sm transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20' : 'opacity-70 cursor-default'}`}
+                      style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
+                      Owner / Admin Name <span className="text-red-500">*</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      name="owner_name"
+                      value={formData.owner_name}
+                      onChange={handleInputChange}
+                      disabled={!isEditing}
+                      placeholder="e.g. John Doe"
+                      className={`w-full py-1.5 px-3 rounded-lg border outline-none text-sm transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20' : 'opacity-70 cursor-default'}`}
+                      style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
+                    Registered Admin Email (Login ID)
+                  </label>
+                  <input 
+                    type="email" 
+                    value={formData.admin_email}
+                    disabled
+                    className="w-full py-1.5 px-3 rounded-lg border outline-none text-sm transition-colors opacity-60 cursor-not-allowed font-sans"
+                    style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)' }}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
+                      Phone Number
+                    </label>
+                    <input 
+                      type="text" 
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      disabled={!isEditing}
+                      placeholder="e.g. +91 9876543210"
+                      className={`w-full py-1.5 px-3 rounded-lg border outline-none text-sm transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20' : 'opacity-70 cursor-default'}`}
+                      style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="block text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+                        UPI ID (Digital Payment)
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <span className="text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>Show on Bill</span>
+                        <input 
+                          type="checkbox" 
+                          checked={showUpi} 
+                          onChange={(e) => setShowUpi(e.target.checked)} 
+                          disabled={!isEditing} 
+                          className="accent-[var(--color-accent)] w-3.5 h-3.5 cursor-pointer" 
+                        />
+                      </label>
+                    </div>
+                    <input 
+                      type="text" 
+                      name="upi_id"
+                      value={formData.upi_id}
+                      onChange={handleInputChange}
+                      disabled={!isEditing}
+                      placeholder="e.g. storename@upi"
+                      className={`w-full py-1.5 px-3 rounded-lg border outline-none text-sm transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20' : 'opacity-70 cursor-default'}`}
+                      style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+                      Shop Address
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <span className="text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>Show on Bill</span>
+                      <input 
+                        type="checkbox" 
+                        checked={showAddress} 
+                        onChange={(e) => setShowAddress(e.target.checked)} 
+                        disabled={!isEditing} 
+                        className="accent-[var(--color-accent)] w-3.5 h-3.5 cursor-pointer" 
+                      />
+                    </label>
+                  </div>
+                  <textarea 
+                    name="shop_address"
+                    value={formData.shop_address}
+                    onChange={handleInputChange}
+                    disabled={!isEditing}
+                    rows={2}
+                    placeholder="Enter street address, city, state, postal code"
+                    className={`w-full py-1.5 px-3 rounded-lg border outline-none text-sm transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20 resize-none' : 'opacity-70 cursor-default resize-none'}`}
+                    style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
+                  />
+                </div>
+
+                {/* PASSWORD SECTION (EDITING ONLY) */}
+                {isEditing && (
+                  <div className="pt-2 border-t border-[var(--border-light)]">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-1.5 text-[var(--text-tertiary)]">
+                      Change Password (Optional)
+                    </label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="relative">
+                        <input 
+                          type={showPassword ? "text" : "password"} 
+                          placeholder="New password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="w-full py-1.5 px-3 pr-8 rounded-lg border outline-none focus:ring-2 focus:ring-opacity-20 text-sm transition-colors"
+                          style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
+                        />
+                        <button 
+                          type="button" 
+                          onClick={() => setShowPassword(!showPassword)} 
+                          className="absolute right-2.5 top-2.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+                        >
+                          {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      </div>
+
+                      <div className="relative">
+                        <input 
+                          type={showConfirmPassword ? "text" : "password"} 
+                          placeholder="Confirm password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          className="w-full py-1.5 px-3 pr-8 rounded-lg border outline-none focus:ring-2 focus:ring-opacity-20 text-sm transition-colors"
+                          style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
+                        />
+                        <button 
+                          type="button" 
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)} 
+                          className="absolute right-2.5 top-2.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+                        >
+                          {showConfirmPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* SAVE / CANCEL ACTION BUTTONS AT BOTTOM OF FORM (EDITING ONLY) */}
+              {isEditing && (
+                <div className="pt-2.5 border-t flex justify-end gap-2.5 shrink-0" style={{ borderColor: 'var(--border-light)' }}>
+                  <button  
+                    type="button" 
+                    onClick={handleCancel}
+                    className="flex items-center gap-1 px-4 py-1.5 rounded-lg font-bold uppercase tracking-wider text-xs transition-colors border hover:bg-[var(--bg-tertiary)] cursor-pointer"
+                    style={{ borderColor: 'var(--border-medium)', color: 'var(--text-secondary)' }}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    disabled={isLoading}
+                    className="flex items-center gap-1.5 px-5 py-1.5 rounded-lg text-white font-bold uppercase tracking-wider text-xs shadow-sm transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    style={{ backgroundColor: 'var(--color-accent)' }}
+                  >
+                    {isLoading ? (
+                      <>Saving...</>
+                    ) : (
+                      <><Save size={14} /> Save Changes</>
+                    )}
+                  </button>
+                </div>
+              )}
+
+            </form>
+          </div>
+
+        </div>
       </div>
     </div>
   );

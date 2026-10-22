@@ -1,19 +1,20 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from './AppContext';
+import { PageLoader } from './SharedUI';
 import OwnerStats from './OwnerStats';
-import OwnerCatalog from './OwnerCatalog';
-import OwnerInventory from './OwnerInventory';
-import OwnerLedger from './OwnerLedger';
-import OwnerStaff from './OwnerStaff';
-import WorkerBilling from './WorkerBilling';
-import OwnerCategories from './OwnerCategories';
-import OwnerAuditLogs from './OwnerAuditLogs';
-import OwnerSettings from './OwnerSettings';
-import OwnerReturns from './OwnerReturns';
-import OwnerExpenses from './OwnerExpenses';
-import OwnerShowroom from './OwnerShowroom';
-import BatchDetailsView from './BatchDetailsView';
+
+const OwnerCatalog = lazy(() => import('./OwnerCatalog'));
+const OwnerInventory = lazy(() => import('./OwnerInventory'));
+const OwnerLedger = lazy(() => import('./OwnerLedger'));
+const OwnerStaff = lazy(() => import('./OwnerStaff'));
+const WorkerBilling = lazy(() => import('./WorkerBilling'));
+const OwnerCategories = lazy(() => import('./OwnerCategories'));
+const OwnerAuditLogs = lazy(() => import('./OwnerAuditLogs'));
+const OwnerSettings = lazy(() => import('./OwnerSettings'));
+const OwnerExpenses = lazy(() => import('./OwnerExpenses'));
+const OwnerShowroom = lazy(() => import('./OwnerShowroom'));
+const BatchDetailsView = lazy(() => import('./BatchDetailsView'));
 import { 
   LayoutDashboard, 
   Plus, 
@@ -155,6 +156,7 @@ export default function OwnerDashboard() {
         role="main"
         aria-label="Dashboard content"
       >
+        <Suspense fallback={<div className="flex flex-1 items-center justify-center p-8"><PageLoader text="Loading view..." /></div>}>
         {activeTab === 'dashboard' && <OwnerStats isActive={true} />}
 
         {activeTab === 'register' && <OwnerCatalog />}
@@ -277,10 +279,11 @@ export default function OwnerDashboard() {
         )}
 
         {activeTab === 'settings' && (
-          <div className="block h-full animate-fade-in">
+          <div className="flex-1 min-h-0 h-full animate-fade-in">
             <OwnerSettings />
           </div>
         )}
+        </Suspense>
       </main>
     </div>
   );

@@ -31,7 +31,15 @@ if (window.location.hostname === 'localhost' || window.location.hostname === '12
   });
 }
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes fresh data
+      refetchOnWindowFocus: false, // Prevent jarring refetches when switching desktop windows
+      retry: 1, // Single fast retry on transient network failures
+    },
+  },
+});
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

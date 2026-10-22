@@ -16,9 +16,40 @@ export function useApp() {
 }
 
 export function AppProvider({ children }) {
-  const [shopSettings, setShopSettings] = useState(null);
-  const [userRole, setUserRole] = useState(null);
-  const [cashierName, setCashierName] = useState('');
+  const [shopSettings, setShopSettings] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('cached_shop_settings');
+      if (cached) {
+        try { return JSON.parse(cached); } catch (e) {}
+      }
+    }
+    return null;
+  });
+
+  const [userRole, setUserRole] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('posUserRole') || localStorage.getItem('posUserRole') || null;
+    }
+    return null;
+  });
+
+  const [cashierName, setCashierName] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const role = sessionStorage.getItem('posUserRole') || localStorage.getItem('posUserRole');
+      if (role === 'owner') {
+        const cached = localStorage.getItem('cached_shop_settings');
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            return parsed.owner_name || 'Administrator';
+          } catch (e) {}
+        }
+        return 'Administrator';
+      }
+      return role || '';
+    }
+    return '';
+  });
 
   // --- Dark Mode ---
   const [isDarkMode, setIsDarkMode] = useState(() => {
