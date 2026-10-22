@@ -335,10 +335,9 @@ export default function WorkerDashboardView({ isBillable = true }) {
               setInventorySearch(e.target.value);
               debouncedSetSearch(e.target.value);
             }}
-            className="w-full h-10 pl-2.5 pr-9 sm:pl-3 sm:pr-10 text-[11px] sm:text-xs md:text-sm border shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 rounded-lg leading-normal"
+            className="w-full h-10 px-2.5 sm:px-3 text-[11px] sm:text-xs md:text-sm border shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 rounded-lg leading-normal"
             style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)', colorScheme: 'dark' }}
           />
-          <kbd className="absolute right-2.5 hidden sm:inline px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border bg-[var(--bg-tertiary)] border-[var(--border-medium)] text-[var(--text-tertiary)] pointer-events-none" title="Press F2 or / to focus">F2</kbd>
         </div>
 
         <div className="w-full">

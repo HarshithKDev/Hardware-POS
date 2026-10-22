@@ -2440,7 +2440,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               <div className="flex items-center w-full md:w-72 h-10 md:h-9 rounded-md overflow-hidden transition-colors focus-within:border-[var(--color-accent)] focus-within:ring-1 focus-within:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)' }}>
                 <label htmlFor="manual-barcode" className="sr-only">Barcode</label>
                 <input id="manual-barcode" type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} onFocus={() => { setIsInputFocused(true); manualBarcode.trim().length >= 2 && setShowSuggestions(true); }} onBlur={() => { setIsInputFocused(false); setTimeout(() => setShowSuggestions(false), 200); }} placeholder="Search barcode or name..." className="h-full w-full px-3 text-sm focus:outline-none flex-1 bg-transparent border-none outline-none rounded-none focus:ring-0 focus:border-transparent focus:shadow-none" style={{ color: 'var(--text-input)', outline: 'none', border: 'none', boxShadow: 'none' }} autoComplete="off" />
-                <kbd className="hidden sm:inline px-1.5 py-0.5 mr-1 text-[10px] font-mono font-bold rounded border bg-[var(--bg-secondary)] border-[var(--border-medium)] text-[var(--text-tertiary)] pointer-events-none shrink-0" title="Shortcut: F2 or /">F2</kbd>
                 <button type="submit" className="h-full px-3 text-sm font-bold focus:outline-none transition-colors border-none rounded-none bg-transparent hover:bg-white/5 focus:ring-0 focus:outline-none shrink-0" style={{ color: 'var(--color-accent)', outline: 'none', border: 'none' }}>ADD</button>
               </div>
                 {showSuggestions && suggestions.length > 0 && (
@@ -2519,7 +2518,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                 style={{ backgroundColor: 'transparent', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
               >
                 <span>{activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items'}</span>
-                <kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border border-[var(--color-error)]/40 opacity-80">F8</kbd>
               </button>
               {activeTab === 'checkout' && activeCartTab === 'local' && (
                 <button
@@ -2528,7 +2526,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--color-accent)', border: '1px solid var(--color-accent)' }}
                 >
                   <span>Hold Cart</span>
-                  <kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border border-[var(--color-accent)]/40 opacity-80">F7</kbd>
                 </button>
               )}
             </div>
@@ -2538,7 +2535,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               style={{ backgroundColor: 'var(--color-accent)', border: '1px solid transparent' }}
             >
               <span>{isCheckingOut ? 'Saving...' : (activeTab === 'checkout' ? 'Pay / Complete' : 'Complete')}</span>
-              <kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-white/25 text-white">F4</kbd>
             </button>
           </div>
         )}
