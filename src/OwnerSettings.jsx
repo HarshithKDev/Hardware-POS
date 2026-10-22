@@ -337,19 +337,19 @@ export default function OwnerSettings() {
         </div>
 
         {/* 2-COLUMN HORIZONTAL GRID */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 flex-1 min-h-0 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
           
           {/* ======================================================== */}
           {/* LEFT COLUMN: System Controls & "On and Off" Switches     */}
           {/* ======================================================== */}
-          <div className="lg:col-span-5 flex flex-col gap-3 min-h-0">
+          <div className="lg:col-span-5 flex flex-col gap-4">
 
             {/* SYSTEM TOGGLES PANEL */}
             <div 
-              className="p-3.5 md:p-4 rounded-xl border shadow-sm flex flex-col gap-2.5"
+              className="p-4 rounded-xl border shadow-sm flex flex-col gap-3"
               style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-light)' }}
             >
-              <div className="flex items-center gap-2 pb-2 border-b border-[var(--border-light)]">
+              <div className="flex items-center gap-2 pb-2.5 border-b border-[var(--border-light)]">
                 <div className="p-1.5 rounded-lg bg-[var(--bg-tertiary)] text-[var(--color-accent)] border border-[var(--border-medium)]">
                   <SlidersHorizontal size={15} />
                 </div>
@@ -360,7 +360,7 @@ export default function OwnerSettings() {
 
               {/* TOGGLE 1: WAREHOUSE BYPASS */}
               <div 
-                className={`p-3 rounded-lg border flex items-center justify-between gap-3 transition-all ${
+                className={`p-3.5 rounded-lg border flex items-center justify-between gap-3 transition-all ${
                   disableWarehouse 
                     ? 'border-amber-500/40 bg-amber-500/5' 
                     : 'border-[var(--border-light)] bg-[var(--bg-tertiary)]'
@@ -383,7 +383,7 @@ export default function OwnerSettings() {
                         {disableWarehouse ? 'Bypass Active' : 'Off'}
                       </span>
                     </div>
-                    <span className="text-[11px] text-[var(--text-tertiary)] block truncate">
+                    <span className="text-[11px] text-[var(--text-tertiary)] block truncate mt-0.5">
                       Direct to Store Inventory
                     </span>
                   </div>
@@ -402,7 +402,7 @@ export default function OwnerSettings() {
 
               {/* TOGGLE 2: POS AUDIO FEEDBACK */}
               <div 
-                className={`p-3 rounded-lg border flex items-center justify-between gap-3 transition-all ${
+                className={`p-3.5 rounded-lg border flex items-center justify-between gap-3 transition-all ${
                   soundEnabled 
                     ? 'border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5' 
                     : 'border-[var(--border-light)] bg-[var(--bg-tertiary)]'
@@ -425,7 +425,7 @@ export default function OwnerSettings() {
                         {soundEnabled ? 'Audio On' : 'Muted'}
                       </span>
                     </div>
-                    <span className="text-[11px] text-[var(--text-tertiary)] block truncate">
+                    <span className="text-[11px] text-[var(--text-tertiary)] block truncate mt-0.5">
                       Scan & Checkout Audio Tones
                     </span>
                   </div>
@@ -436,7 +436,7 @@ export default function OwnerSettings() {
                     <button
                       type="button"
                       onClick={() => playScanSuccessSound()}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded border border-[var(--border-medium)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] text-[var(--color-accent)] transition-all active:scale-95 cursor-pointer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded border border-[var(--border-medium)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] text-[var(--color-accent)] transition-all active:scale-95 cursor-pointer"
                       title="Test scan sound"
                     >
                       <Volume2 size={12} />
@@ -458,10 +458,10 @@ export default function OwnerSettings() {
 
             {/* BRANDING & LOGO CARD */}
             <div 
-              className="p-3.5 md:p-4 rounded-xl border shadow-sm flex flex-col gap-2.5"
+              className="p-4 rounded-xl border shadow-sm flex flex-col gap-3"
               style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-light)' }}
             >
-              <div className="flex items-center gap-2 pb-2 border-b border-[var(--border-light)]">
+              <div className="flex items-center gap-2 pb-2.5 border-b border-[var(--border-light)]">
                 <div className="p-1.5 rounded-lg bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-medium)]">
                   <Store size={15} />
                 </div>
@@ -470,7 +470,7 @@ export default function OwnerSettings() {
                 </h2>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3.5">
                 <div 
                   className={`w-14 h-14 rounded-xl flex items-center justify-center border-2 overflow-hidden relative group transition-all shrink-0 ${
                     isEditing ? 'border-dashed cursor-pointer hover:border-[var(--color-accent)]' : 'border-solid'
@@ -499,12 +499,12 @@ export default function OwnerSettings() {
                   <h3 className="font-bold text-sm truncate" style={{ color: 'var(--text-primary)' }}>
                     {formData.shop_name || 'Your Shop'}
                   </h3>
-                  <p className="text-xs truncate text-[var(--text-secondary)]">
+                  <p className="text-xs truncate text-[var(--text-secondary)] mt-0.5">
                     Owner: {formData.owner_name || 'Administrator'}
                   </p>
                   
                   {isEditing ? (
-                    <div className="mt-1 flex items-center gap-2 flex-wrap">
+                    <div className="mt-1.5 flex items-center gap-2 flex-wrap">
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
@@ -550,10 +550,10 @@ export default function OwnerSettings() {
           {/* ======================================================== */}
           {/* RIGHT COLUMN: Profile Editing & Shop Information         */}
           {/* ======================================================== */}
-          <div className="lg:col-span-7 flex flex-col min-h-0">
-            <form onSubmit={handleSave} className="p-3.5 md:p-4 rounded-xl border shadow-sm flex flex-col justify-between h-full" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-light)' }}>
+          <div className="lg:col-span-7 flex flex-col">
+            <form onSubmit={handleSave} className="p-4 md:p-5 rounded-xl border shadow-sm flex flex-col gap-3.5" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-light)' }}>
               
-              <div className="flex items-center justify-between pb-2 border-b border-[var(--border-light)] shrink-0">
+              <div className="flex items-center justify-between pb-2.5 border-b border-[var(--border-light)] shrink-0">
                 <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
                   Shop Profile & Billing Details
                 </h2>
@@ -567,7 +567,7 @@ export default function OwnerSettings() {
               </div>
 
               {/* FORM FIELDS */}
-              <div className="space-y-2.5 my-auto py-1">
+              <div className="space-y-3">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
@@ -580,7 +580,7 @@ export default function OwnerSettings() {
                       onChange={handleInputChange}
                       disabled={!isEditing}
                       placeholder="e.g. Acme Hardware & Tools"
-                      className={`w-full py-1.5 px-3 rounded-lg border outline-none text-sm transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20' : 'opacity-70 cursor-default'}`}
+                      className={`w-full py-2 px-3 rounded-lg border outline-none text-sm transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20' : 'opacity-70 cursor-default'}`}
                       style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
                       required
                     />
@@ -597,7 +597,7 @@ export default function OwnerSettings() {
                       onChange={handleInputChange}
                       disabled={!isEditing}
                       placeholder="e.g. John Doe"
-                      className={`w-full py-1.5 px-3 rounded-lg border outline-none text-sm transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20' : 'opacity-70 cursor-default'}`}
+                      className={`w-full py-2 px-3 rounded-lg border outline-none text-sm transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20' : 'opacity-70 cursor-default'}`}
                       style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
                       required
                     />
@@ -612,7 +612,7 @@ export default function OwnerSettings() {
                     type="email" 
                     value={formData.admin_email}
                     disabled
-                    className="w-full py-1.5 px-3 rounded-lg border outline-none text-sm transition-colors opacity-60 cursor-not-allowed font-sans"
+                    className="w-full py-2 px-3 rounded-lg border outline-none text-sm transition-colors opacity-60 cursor-not-allowed font-sans"
                     style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)' }}
                   />
                 </div>
@@ -629,7 +629,7 @@ export default function OwnerSettings() {
                       onChange={handleInputChange}
                       disabled={!isEditing}
                       placeholder="e.g. +91 9876543210"
-                      className={`w-full py-1.5 px-3 rounded-lg border outline-none text-sm transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20' : 'opacity-70 cursor-default'}`}
+                      className={`w-full py-2 px-3 rounded-lg border outline-none text-sm transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20' : 'opacity-70 cursor-default'}`}
                       style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
                     />
                   </div>
@@ -657,7 +657,7 @@ export default function OwnerSettings() {
                       onChange={handleInputChange}
                       disabled={!isEditing}
                       placeholder="e.g. storename@upi"
-                      className={`w-full py-1.5 px-3 rounded-lg border outline-none text-sm transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20' : 'opacity-70 cursor-default'}`}
+                      className={`w-full py-2 px-3 rounded-lg border outline-none text-sm transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20' : 'opacity-70 cursor-default'}`}
                       style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
                     />
                   </div>
@@ -686,7 +686,7 @@ export default function OwnerSettings() {
                     disabled={!isEditing}
                     rows={2}
                     placeholder="Enter street address, city, state, postal code"
-                    className={`w-full py-1.5 px-3 rounded-lg border outline-none text-sm transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20 resize-none' : 'opacity-70 cursor-default resize-none'}`}
+                    className={`w-full py-2 px-3 rounded-lg border outline-none text-sm transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20 resize-none' : 'opacity-70 cursor-default resize-none'}`}
                     style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
                   />
                 </div>
@@ -704,7 +704,7 @@ export default function OwnerSettings() {
                           placeholder="New password"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
-                          className="w-full py-1.5 px-3 pr-8 rounded-lg border outline-none focus:ring-2 focus:ring-opacity-20 text-sm transition-colors"
+                          className="w-full py-2 px-3 pr-8 rounded-lg border outline-none focus:ring-2 focus:ring-opacity-20 text-sm transition-colors"
                           style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
                         />
                         <button 
@@ -722,7 +722,7 @@ export default function OwnerSettings() {
                           placeholder="Confirm password"
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
-                          className="w-full py-1.5 px-3 pr-8 rounded-lg border outline-none focus:ring-2 focus:ring-opacity-20 text-sm transition-colors"
+                          className="w-full py-2 px-3 pr-8 rounded-lg border outline-none focus:ring-2 focus:ring-opacity-20 text-sm transition-colors"
                           style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
                         />
                         <button 
@@ -737,32 +737,6 @@ export default function OwnerSettings() {
                   </div>
                 )}
               </div>
-
-              {/* SAVE / CANCEL ACTION BUTTONS AT BOTTOM OF FORM (EDITING ONLY) */}
-              {isEditing && (
-                <div className="pt-2.5 border-t flex justify-end gap-2.5 shrink-0" style={{ borderColor: 'var(--border-light)' }}>
-                  <button  
-                    type="button" 
-                    onClick={handleCancel}
-                    className="flex items-center gap-1 px-4 py-1.5 rounded-lg font-bold uppercase tracking-wider text-xs transition-colors border hover:bg-[var(--bg-tertiary)] cursor-pointer"
-                    style={{ borderColor: 'var(--border-medium)', color: 'var(--text-secondary)' }}
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    type="submit" 
-                    disabled={isLoading}
-                    className="flex items-center gap-1.5 px-5 py-1.5 rounded-lg text-white font-bold uppercase tracking-wider text-xs shadow-sm transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                    style={{ backgroundColor: 'var(--color-accent)' }}
-                  >
-                    {isLoading ? (
-                      <>Saving...</>
-                    ) : (
-                      <><Save size={14} /> Save Changes</>
-                    )}
-                  </button>
-                </div>
-              )}
 
             </form>
           </div>
