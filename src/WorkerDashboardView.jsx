@@ -5,16 +5,17 @@ import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from './AppContext';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
-import { escapeIlike, debounce } from './utils';
+import { escapeIlike, debounce, useSessionState } from './utils';
 import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD, INV_PER_PAGE, STALE_TIME_5MIN } from './constants';
 import { getInventoryByQuery } from './services/db';
 
 export default function WorkerDashboardView({ isBillable = true }) {
   const { isWarehouseDisabled } = useApp();
   const navigate = useNavigate();
-  const [inventorySearch, setInventorySearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const shopId = localStorage.getItem('shop_id');
+  const [inventorySearch, setInventorySearch] = useSessionState(`pos_worker_dash_search_${shopId}`, '');
+  const [debouncedSearch, setDebouncedSearch] = useSessionState(`pos_worker_dash_debounced_${shopId}`, () => inventorySearch || '');
+  const [selectedCategory, setSelectedCategory] = useSessionState(`pos_worker_dash_cat_${shopId}`, 'ALL');
   const [lowStockModal, setLowStockModal] = useState({ isOpen: false, type: null });
 
   const actionCards = useMemo(() => {
@@ -137,13 +138,17 @@ export default function WorkerDashboardView({ isBillable = true }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [lowStockModal.isOpen, actionCards, navigate]);
 
-  const shopId = localStorage.getItem('shop_id');
-
   // Debounced search
   const debouncedSetSearch = useMemo(
     () => debounce((val) => setDebouncedSearch(val), 300),
-    []
+    [setDebouncedSearch]
   );
+
+  useEffect(() => {
+    if (inventorySearch && debouncedSearch !== inventorySearch) {
+      setDebouncedSearch(inventorySearch);
+    }
+  }, [inventorySearch, debouncedSearch, setDebouncedSearch]);
 
   const { data: lowStockCounts } = useQuery({
     queryKey: ['lowStockCounts', shopId, isWarehouseDisabled],

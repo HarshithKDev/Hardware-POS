@@ -153,10 +153,7 @@ async function performDeltaSync({ tableName, userRole, currentShopId, lastSync }
 
     for (let i = 0; i < barcodes.length; i += BATCH_CHUNK_SIZE) {
       const slice = barcodes.slice(i, i + BATCH_CHUNK_SIZE);
-      let batchQuery = supabase.from(batchTable).select('*').in('barcode', slice);
-      if (userRole !== 'owner') {
-        batchQuery = batchQuery.eq('is_active', true);
-      }
+      let batchQuery = supabase.from(batchTable).select('*').in('barcode', slice).eq('is_active', true);
       if (currentShopId) {
         batchQuery = batchQuery.eq('shop_id', currentShopId);
       }
@@ -167,6 +164,7 @@ async function performDeltaSync({ tableName, userRole, currentShopId, lastSync }
 
     const batchesByBarcode = {};
     allBatches.forEach(b => {
+      if (b.is_active === false) return;
       if (!batchesByBarcode[b.barcode]) batchesByBarcode[b.barcode] = [];
       batchesByBarcode[b.barcode].push(b);
     });
@@ -207,10 +205,7 @@ async function performFullSync({ tableName, userRole, currentShopId }) {
       const barcodes = products.map(p => p.barcode);
       const batchTable = userRole === 'owner' ? 'inventory_batches' : 'inventory_batches_public';
       
-      let batchQuery = supabase.from(batchTable).select('*').in('barcode', barcodes);
-      if (userRole !== 'owner') {
-        batchQuery = batchQuery.eq('is_active', true);
-      }
+      let batchQuery = supabase.from(batchTable).select('*').in('barcode', barcodes).eq('is_active', true);
       if (currentShopId) {
         batchQuery = batchQuery.eq('shop_id', currentShopId);
       }
@@ -220,6 +215,7 @@ async function performFullSync({ tableName, userRole, currentShopId }) {
       const batchesByBarcode = {};
       if (batches) {
         batches.forEach(b => {
+          if (b.is_active === false) return;
           if (!batchesByBarcode[b.barcode]) batchesByBarcode[b.barcode] = [];
           batchesByBarcode[b.barcode].push(b);
         });

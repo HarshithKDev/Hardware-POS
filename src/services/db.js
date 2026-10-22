@@ -62,13 +62,18 @@ export const saveInventoryBatch = async (items) => {
 };
 
 export const getInventoryItemByBarcode = async (barcode) => {
-  if (typeof indexedDB === 'undefined') {
-    const shopId = localStorage.getItem('shop_id');
-    return (cachedInventory || []).find(i => i.shop_id === shopId && String(i.barcode) === String(barcode));
-  }
-  const db = await initDB();
   const shopId = localStorage.getItem('shop_id');
-  return db.get('product_master', [shopId, barcode]);
+  let item;
+  if (typeof indexedDB === 'undefined') {
+    item = (cachedInventory || []).find(i => i.shop_id === shopId && String(i.barcode) === String(barcode));
+  } else {
+    const db = await initDB();
+    item = await db.get('product_master', [shopId, barcode]);
+  }
+  if (item && item.batches) {
+    item.batches = item.batches.filter(b => b.is_active !== false);
+  }
+  return item;
 };
 
 /**
@@ -253,19 +258,19 @@ const applySort = (items, sortOption, currentShopId) => {
   else if (sortOption === 'subcategory-asc') items.sort((a, b) => (a.sub_category || '').localeCompare(b.sub_category || ''));
   else if (sortOption === 'subcategory-desc') items.sort((a, b) => (b.sub_category || '').localeCompare(a.sub_category || ''));
   else if (sortOption === 'whsestock-asc') items.sort((a, b) => {
-    const getWhse = (item) => item.is_cuttable ? (pieceCountCache[`${currentShopId || 'default'}_${item.barcode}`]?.warehouse || 0) : (item.batches?.length ? item.batches.reduce((sum, batch) => sum + Number(batch.stock_warehouse), 0) : Number(item.stock_warehouse || 0));
+    const getWhse = (item) => item.is_cuttable ? (pieceCountCache[`${currentShopId || 'default'}_${item.barcode}`]?.warehouse || 0) : (item.batches?.length ? item.batches.filter(b => b.is_active !== false).reduce((sum, batch) => sum + Number(batch.stock_warehouse), 0) : Number(item.stock_warehouse || 0));
     return getWhse(a) - getWhse(b);
   });
   else if (sortOption === 'whsestock-desc') items.sort((a, b) => {
-    const getWhse = (item) => item.is_cuttable ? (pieceCountCache[`${currentShopId || 'default'}_${item.barcode}`]?.warehouse || 0) : (item.batches?.length ? item.batches.reduce((sum, batch) => sum + Number(batch.stock_warehouse), 0) : Number(item.stock_warehouse || 0));
+    const getWhse = (item) => item.is_cuttable ? (pieceCountCache[`${currentShopId || 'default'}_${item.barcode}`]?.warehouse || 0) : (item.batches?.length ? item.batches.filter(b => b.is_active !== false).reduce((sum, batch) => sum + Number(batch.stock_warehouse), 0) : Number(item.stock_warehouse || 0));
     return getWhse(b) - getWhse(a);
   });
   else if (sortOption === 'storestock-asc') items.sort((a, b) => {
-    const getStore = (item) => item.is_cuttable ? (pieceCountCache[`${currentShopId || 'default'}_${item.barcode}`]?.store || 0) : (item.batches?.length ? item.batches.reduce((sum, batch) => sum + Number(batch.stock_store), 0) : Number(item.stock_store || 0));
+    const getStore = (item) => item.is_cuttable ? (pieceCountCache[`${currentShopId || 'default'}_${item.barcode}`]?.store || 0) : (item.batches?.length ? item.batches.filter(b => b.is_active !== false).reduce((sum, batch) => sum + Number(batch.stock_store), 0) : Number(item.stock_store || 0));
     return getStore(a) - getStore(b);
   });
   else if (sortOption === 'storestock-desc') items.sort((a, b) => {
-    const getStore = (item) => item.is_cuttable ? (pieceCountCache[`${currentShopId || 'default'}_${item.barcode}`]?.store || 0) : (item.batches?.length ? item.batches.reduce((sum, batch) => sum + Number(batch.stock_store), 0) : Number(item.stock_store || 0));
+    const getStore = (item) => item.is_cuttable ? (pieceCountCache[`${currentShopId || 'default'}_${item.barcode}`]?.store || 0) : (item.batches?.length ? item.batches.filter(b => b.is_active !== false).reduce((sum, batch) => sum + Number(batch.stock_store), 0) : Number(item.stock_store || 0));
     return getStore(b) - getStore(a);
   });
   else items.sort((a, b) => compareBarcodes(a.barcode, b.barcode));
@@ -292,6 +297,13 @@ export const getInventoryByQuery = async ({ limit, offset, search, category, sub
   } else {
     allItems = allItems.filter(i => i.is_active !== false);
   }
+
+  // Filter out any inactive batches on active items
+  allItems.forEach(i => {
+    if (i.batches) {
+      i.batches = i.batches.filter(b => b.is_active !== false);
+    }
+  });
 
   if (category) {
     const catLower = category.trim().toLowerCase();

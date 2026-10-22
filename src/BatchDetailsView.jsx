@@ -9,6 +9,7 @@ import { getInventoryItemByBarcode, saveInventoryBatch } from './services/db';
 import PrintBatchModal from './PrintBatchModal';
 import CreateBatchModal from './CreateBatchModal';
 import { ConfirmDialog } from './Dialog';
+import { useSessionState } from './hooks/useSessionState';
 import { 
   ArrowLeft,
   Layers, 
@@ -66,14 +67,29 @@ export default function BatchDetailsView({
         console.warn('Failed to fetch product item from supabase', err);
       }
       const local = await getInventoryItemByBarcode(barcode);
-      return local || initialItem;
+      let res = local || initialItem;
+      if (res && res.batches) {
+        res = {
+          ...res,
+          batches: res.batches
+            .filter(b => b.is_active !== false)
+            .sort((a, b) => (a.batch_number || 1) - (b.batch_number || 1))
+        };
+      }
+      return res;
     },
     initialData: initialItem,
     staleTime: 10 * 1000
   });
 
-  // Active batch selection state (tab)
-  const batches = item?.batches || [];
+  // Active batch selection state (tab) - filter out any inactive/deleted batches
+  const rawBatches = item?.batches || [];
+  const batches = useMemo(() => {
+    return rawBatches
+      .filter(b => b.is_active !== false)
+      .sort((a, b) => (a.batch_number || 1) - (b.batch_number || 1));
+  }, [rawBatches]);
+
   const [activeBatchId, setActiveBatchId] = useState(batches[0]?.batch_id || null);
 
   useEffect(() => {
@@ -84,9 +100,19 @@ export default function BatchDetailsView({
     } else {
       setActiveBatchId(null);
     }
-  }, [batches.length, barcode]);
+  }, [batches, barcode]);
 
   const activeBatch = batches.find(b => b.batch_id === activeBatchId) || batches[0] || null;
+
+  // Product name inline edit state
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameEditValue, setNameEditValue] = useState(item?.name || '');
+
+  useEffect(() => {
+    if (item?.name) {
+      setNameEditValue(item.name);
+    }
+  }, [item?.name]);
 
   // Batch pricing inline edit state
   const [isEditingBatch, setIsEditingBatch] = useState(false);
@@ -167,8 +193,8 @@ export default function BatchDetailsView({
   }, [isWarehouseDisabled, item?.barcode, item?.batches, shopId, queryClient]);
 
   // Cuttable instances state
-  const [locationFilter, setLocationFilter] = useState('ALL'); // 'ALL' | 'STORE' | 'WAREHOUSE'
-  const [searchQuery, setSearchQuery] = useState('');
+  const [locationFilter, setLocationFilter] = useSessionState(`pos_batch_loc_${shopId}_${barcode}`, 'ALL'); // 'ALL' | 'STORE' | 'WAREHOUSE'
+  const [searchQuery, setSearchQuery] = useSessionState(`pos_batch_search_${shopId}_${barcode}`, '');
   const [copiedBarcode, setCopiedBarcode] = useState(null);
 
   // Piece Print Preview Modal
@@ -246,7 +272,7 @@ export default function BatchDetailsView({
       } catch (e) {
         console.error('Failed to update IDB for batch', e);
       }
-      queryClient.invalidateQueries({ queryKey: ['inventory_item', barcode] });
+      queryClient.invalidateQueries({ queryKey: ['inventory_item'] });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       setIsEditingBatch(false);
       showAlert('Batch MSP updated successfully.', 'Success');
@@ -310,7 +336,7 @@ export default function BatchDetailsView({
         console.error('Failed to update IDB for min quantities', e);
       }
 
-      queryClient.invalidateQueries({ queryKey: ['inventory_item', barcode] });
+      queryClient.invalidateQueries({ queryKey: ['inventory_item'] });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['product_master'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
@@ -322,21 +348,105 @@ export default function BatchDetailsView({
     }
   });
 
+  // Product name update mutation
+  const updateProductNameMutation = useMutation({
+    mutationFn: async (newName) => {
+      const trimmed = (newName || '').trim();
+      if (!trimmed) throw new Error('Product name cannot be empty');
+
+      const currentShopId = shopId || localStorage.getItem('shop_id');
+      let updateQuery = supabase
+        .from('product_master')
+        .update({
+          name: trimmed,
+          updated_at: new Date().toISOString()
+        })
+        .eq('barcode', item.barcode);
+      if (currentShopId) {
+        updateQuery = updateQuery.eq('shop_id', currentShopId);
+      }
+      const { error } = await updateQuery;
+      if (error) throw error;
+
+      if (item.name !== trimmed) {
+        try {
+          await supabase.from('audit_logs').insert([{
+            shop_id: currentShopId,
+            action_type: 'UPDATE',
+            barcode: item.barcode,
+            item_name: trimmed,
+            changes: `Renamed product from "${item.name}" to "${trimmed}"`,
+            performed_by: localStorage.getItem('owner_name') || 'Owner'
+          }]);
+        } catch (err) {
+          console.warn('Failed to record rename audit log:', err);
+        }
+      }
+      return trimmed;
+    },
+    onSuccess: async (trimmed) => {
+      try {
+        const localItem = await getInventoryItemByBarcode(item.barcode);
+        if (localItem) {
+          await saveInventoryBatch([{ ...localItem, name: trimmed }]);
+        }
+      } catch (e) {
+        console.error('Failed to update IDB for product name', e);
+      }
+
+      queryClient.setQueriesData({ queryKey: ['inventory_item'] }, (old) => {
+        if (!old) return old;
+        return { ...old, name: trimmed };
+      });
+
+      queryClient.invalidateQueries({ queryKey: ['inventory_item'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['product_master'] });
+      setIsEditingName(false);
+      showAlert('Product name updated successfully.', 'Success');
+    },
+    onError: (e) => {
+      showAlert('Failed to update product name: ' + e.message, 'Error');
+    }
+  });
+
   // Delete batch execution
   const confirmDeleteBatch = async () => {
     if (!batchToDelete) return;
+    const deletingId = batchToDelete;
     try {
-      let delQuery = supabase
-        .from('inventory_batches')
-        .update({ is_active: false })
-        .eq('batch_id', batchToDelete);
-      if (shopId) {
-        delQuery = delQuery.eq('shop_id', shopId);
+      // 1. Delete from remote Supabase (attempt hard delete first, fallback to soft delete)
+      let deletedRemotely = false;
+      try {
+        let delQuery = supabase.from('inventory_batches').delete().eq('batch_id', deletingId);
+        if (shopId) delQuery = delQuery.eq('shop_id', shopId);
+        const { error: delErr } = await delQuery;
+        if (!delErr) deletedRemotely = true;
+      } catch (e) {
+        console.warn('Hard delete failed, falling back to soft delete', e);
       }
-      const { error } = await delQuery;
-      if (error) throw error;
 
-      const oldBatch = batches.find(b => b.batch_id === batchToDelete);
+      if (!deletedRemotely) {
+        let updateQuery = supabase
+          .from('inventory_batches')
+          .update({ is_active: false })
+          .eq('batch_id', deletingId);
+        if (shopId) updateQuery = updateQuery.eq('shop_id', shopId);
+        const { error: updErr } = await updateQuery;
+        if (updErr) throw updErr;
+      }
+
+      // Bump product_master.updated_at directly so delta sync captures the deletion
+      try {
+        let bumpQuery = supabase
+          .from('product_master')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('barcode', item.barcode);
+        if (shopId) bumpQuery = bumpQuery.eq('shop_id', shopId);
+        await bumpQuery;
+      } catch (e) {}
+
+      const oldBatch = batches.find(b => b.batch_id === deletingId);
       await supabase.from('audit_logs').insert([{
         shop_id: shopId,
         action_type: 'DELETE',
@@ -346,17 +456,32 @@ export default function BatchDetailsView({
         performed_by: localStorage.getItem('owner_name') || 'Owner'
       }]);
 
+      // 2. Immediately update local IndexedDB cache
       try {
         const localItem = await getInventoryItemByBarcode(item.barcode);
         if (localItem && localItem.batches) {
-          localItem.batches = localItem.batches.filter(b => b.batch_id !== batchToDelete);
+          localItem.batches = localItem.batches.filter(b => b.batch_id !== deletingId && b.is_active !== false);
           await saveInventoryBatch([localItem]);
         }
       } catch (e) {
         console.error('Failed to update IDB on batch delete', e);
       }
 
-      queryClient.invalidateQueries({ queryKey: ['inventory_item', barcode] });
+      // 3. Update React Query memory caches immediately so UI updates with 0 latency
+      queryClient.setQueriesData({ queryKey: ['inventory_item'] }, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          batches: (old.batches || []).filter(b => b.batch_id !== deletingId && b.is_active !== false)
+        };
+      });
+
+      // 4. Switch activeBatchId immediately to the first remaining batch
+      const remainingBatches = batches.filter(b => b.batch_id !== deletingId && b.is_active !== false);
+      setActiveBatchId(remainingBatches[0]?.batch_id || null);
+
+      // 5. Invalidate queries across the app
+      queryClient.invalidateQueries({ queryKey: ['inventory_item'] });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       showAlert('Batch deleted successfully.', 'Success');
     } catch (err) {
@@ -498,24 +623,84 @@ export default function BatchDetailsView({
       {/* ROW 2: ITEM NAME, BARCODE, CATEGORY & MIN QUANTITY THRESHOLDS */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 pb-4 mb-4 border-b border-[var(--border-light)] shrink-0">
         <div className="flex flex-col gap-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] truncate" title={item.name}>
-              {item.name}
-            </h1>
+          {isEditingName ? (
+            <div className="flex flex-wrap items-center gap-2 animate-fade-in w-full max-w-xl">
+              <input
+                type="text"
+                value={nameEditValue}
+                onChange={(e) => setNameEditValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (nameEditValue.trim() && !updateProductNameMutation.isPending) {
+                      updateProductNameMutation.mutate(nameEditValue);
+                    }
+                  } else if (e.key === 'Escape') {
+                    setIsEditingName(false);
+                    setNameEditValue(item.name || '');
+                  }
+                }}
+                placeholder="Product Name"
+                className="flex-1 min-w-[200px] h-8 px-3 text-base font-bold rounded-lg bg-[var(--bg-input)] border border-[var(--color-accent)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)] shadow-sm"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => updateProductNameMutation.mutate(nameEditValue)}
+                disabled={updateProductNameMutation.isPending || !nameEditValue.trim()}
+                className="h-8 px-3 rounded-lg bg-[var(--color-success)] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm hover:brightness-110 disabled:opacity-50 cursor-pointer"
+                title="Save Name (Enter)"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>{updateProductNameMutation.isPending ? 'Saving...' : 'Save'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditingName(false);
+                  setNameEditValue(item.name || '');
+                }}
+                className="h-8 px-3 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
+                title="Cancel (Esc)"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Cancel</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] truncate" title={item.name}>
+                {item.name}
+              </h1>
 
-            <span 
-              className="px-2.5 py-0.5 text-xs font-bold rounded tracking-wider shrink-0"
-              style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', border: '1px solid rgba(59, 130, 246, 0.3)' }}
-            >
-              #{item.barcode}
-            </span>
+              {viewType !== 'recycle' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNameEditValue(item.name || '');
+                    setIsEditingName(true);
+                  }}
+                  className="p-1.5 rounded-lg border border-[var(--border-medium)] hover:border-[var(--color-accent)] text-[var(--text-secondary)] hover:text-[var(--color-accent)] hover:bg-white/5 transition-all cursor-pointer shadow-sm active:scale-95"
+                  title="Edit Product Name"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                </button>
+              )}
 
-            {item.is_loose_item && (
-              <span className="shrink-0 px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/25">
-                Loose
+              <span 
+                className="px-2.5 py-0.5 text-xs font-bold rounded tracking-wider shrink-0"
+                style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', border: '1px solid rgba(59, 130, 246, 0.3)' }}
+              >
+                #{item.barcode}
               </span>
-            )}
-          </div>
+
+              {item.is_loose_item && (
+                <span className="shrink-0 px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/25">
+                  Loose
+                </span>
+              )}
+            </div>
+          )}
 
           <p className="text-xs text-[var(--text-secondary)] mt-0.5">
             {item.category || 'General'} {item.sub_category ? `› ${item.sub_category}` : ''}
@@ -1119,6 +1304,11 @@ export default function BatchDetailsView({
       {createBatchModalOpen && (
         <CreateBatchModal 
           item={item} 
+          onBatchCreated={(newBatch) => {
+            if (newBatch?.batch_id) {
+              setActiveBatchId(newBatch.batch_id);
+            }
+          }}
           onClose={() => setCreateBatchModalOpen(false)} 
         />
       )}

@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
-import { formatDateTime, escapeIlike, formatDayHeader } from './utils';
+import { formatDateTime, escapeIlike, formatDayHeader, useSessionState } from './utils';
 import { SALES_PER_PAGE } from './constants';
 import { DialogOverlay } from './Dialog';
 import { Search, Undo2, X, Phone, User, ChevronRight, Calendar } from 'lucide-react';
@@ -65,13 +65,14 @@ const enrichBillItems = async (rawItems) => {
 export default function OwnerLedger({ isActive }) {
   const { showAlert } = useApp();
   const queryClient = useQueryClient();
+  const shopId = localStorage.getItem('shop_id');
 
-  const [salesPage, setSalesPage] = useState(0);
-  const [datePageIndex, setDatePageIndex] = useState(0);
-  const [customDate, setCustomDate] = useState('');
+  const [salesPage, setSalesPage] = useSessionState(`pos_ledger_sales_page_${shopId}`, 0);
+  const [datePageIndex, setDatePageIndex] = useSessionState(`pos_ledger_date_idx_${shopId}`, 0);
+  const [customDate, setCustomDate] = useSessionState(`pos_ledger_custom_date_${shopId}`, '');
 
   // Customer search & suggestions
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useSessionState(`pos_ledger_search_${shopId}`, '');
   const [customers, setCustomers] = useState([]);
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const searchContainerRef = useRef(null);
@@ -82,7 +83,6 @@ export default function OwnerLedger({ isActive }) {
   const [returnModalState, setReturnModalState] = useState(null); // { bill, items }
 
   // Query distinct dates with store sales for day-by-day pagination
-  const shopId = localStorage.getItem('shop_id');
   const { data: availableDates = [] } = useQuery({
     queryKey: ['billAvailableDates', shopId, isActive],
     queryFn: async () => {

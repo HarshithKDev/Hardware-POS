@@ -4,7 +4,7 @@ import { supabase } from './supabaseClient';
 import { generateId } from './utils';
 import { useApp } from './AppContext';
 
-export default function CreateBatchModal({ item, onClose }) {
+export default function CreateBatchModal({ item, onClose, onBatchCreated }) {
   const { showAlert } = useApp();
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ cost_price: '', msp: '', price: '' });
@@ -48,6 +48,16 @@ export default function CreateBatchModal({ item, onClose }) {
       const { error } = await supabase.from('inventory_batches').insert([insertPayload]);
       if (error) throw error;
 
+      // Bump product_master.updated_at so delta sync and listeners recognize the change
+      try {
+        let bumpQuery = supabase
+          .from('product_master')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('barcode', item.barcode);
+        if (shopId) bumpQuery = bumpQuery.eq('shop_id', shopId);
+        await bumpQuery;
+      } catch (e) {}
+
       try {
         await supabase.from('audit_logs').insert([{
           shop_id: shopId,
@@ -61,22 +71,56 @@ export default function CreateBatchModal({ item, onClose }) {
         console.error("Failed to log batch creation", err);
       }
       
-      // Update local IDB cache
+      // Update local IDB cache immediately
       try {
         const { getInventoryItemByBarcode, saveInventoryBatch } = await import('./services/db.js');
         const localItem = await getInventoryItemByBarcode(item.barcode);
         if (localItem) {
-          const updatedBatches = [...(localItem.batches || []), insertPayload];
-          await saveInventoryBatch([{ ...localItem, batches: updatedBatches }]);
+          const currentBatches = (localItem.batches || []).filter(b => b.is_active !== false);
+          if (!currentBatches.some(b => b.batch_id === insertPayload.batch_id)) {
+            const updatedBatches = [...currentBatches, insertPayload].sort((a, b) => (a.batch_number || 1) - (b.batch_number || 1));
+            await saveInventoryBatch([{ ...localItem, batches: updatedBatches }]);
+          }
         }
       } catch (e) {
         console.error("Local IDB batch creation failed", e);
       }
 
+      // Update React Query memory caches directly with 0 latency
+      queryClient.setQueriesData({ queryKey: ['inventory_item'] }, (old) => {
+        if (!old) return old;
+        if (String(old.barcode) !== String(item.barcode)) return old;
+        const currentBatches = (old.batches || []).filter(b => b.is_active !== false);
+        if (currentBatches.some(b => b.batch_id === insertPayload.batch_id)) return old;
+        return {
+          ...old,
+          batches: [...currentBatches, insertPayload].sort((a, b) => (a.batch_number || 1) - (b.batch_number || 1))
+        };
+      });
+
+      queryClient.setQueriesData({ queryKey: ['inventory'] }, (old) => {
+        if (!old || !old.items) return old;
+        return {
+          ...old,
+          items: old.items.map(p => {
+            if (String(p.barcode) !== String(item.barcode)) return p;
+            const currentBatches = (p.batches || []).filter(b => b.is_active !== false);
+            if (currentBatches.some(b => b.batch_id === insertPayload.batch_id)) return p;
+            return {
+              ...p,
+              batches: [...currentBatches, insertPayload].sort((a, b) => (a.batch_number || 1) - (b.batch_number || 1))
+            };
+          })
+        };
+      });
+
       return insertPayload;
     },
     onSuccess: (data) => {
+      onBatchCreated?.(data);
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory_item'] });
+      queryClient.invalidateQueries({ queryKey: ['product_master'] });
       showAlert(`Batch ${data.batch_number} created successfully!`, "Success");
       onClose();
     },

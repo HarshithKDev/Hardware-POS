@@ -124,4 +124,33 @@ describe('Low Severity Fixes Verification', () => {
       expect(fileName).toBe('shop_abc_123.png');
     });
   });
+
+  describe('Batch Deletion & Inactive Batch Isolation', () => {
+    it('filters out is_active: false batches from items', () => {
+      const sampleItem = {
+        barcode: '1001',
+        name: 'PVC Pipe 1 inch',
+        batches: [
+          { batch_id: 'b1', batch_number: 1, stock_store: 10, is_active: true },
+          { batch_id: 'b2', batch_number: 2, stock_store: 0, is_active: false },
+        ]
+      };
+
+      const activeBatches = (sampleItem.batches || []).filter(b => b.is_active !== false);
+      expect(activeBatches.length).toBe(1);
+      expect(activeBatches[0].batch_id).toBe('b1');
+    });
+
+    it('calculates total stock exclusively from active batches', () => {
+      const activeBatches = [
+        { batch_id: 'b1', stock_store: 15, stock_warehouse: 10, is_active: true },
+        // Deleted batch with old numbers is not included in activeBatches
+      ];
+
+      const totalStore = activeBatches.reduce((sum, b) => sum + Number(b.stock_store || 0), 0);
+      const totalWhse = activeBatches.reduce((sum, b) => sum + Number(b.stock_warehouse || 0), 0);
+      expect(totalStore).toBe(15);
+      expect(totalWhse).toBe(10);
+    });
+  });
 });

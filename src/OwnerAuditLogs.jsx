@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import { Spinner, PageLoader } from './SharedUI';
-import { debounce, formatDateTime, formatDayHeader, escapeIlike } from './utils';
+import { debounce, formatDateTime, formatDayHeader, escapeIlike, useSessionState } from './utils';
 import { useApp } from './AppContext';
 import { X, Calendar } from 'lucide-react';
 
@@ -56,16 +56,18 @@ const formatChanges = (changes) => {
 export default function OwnerAuditLogs() {
   const { shopSettings } = useApp();
   const ownerName = shopSettings?.owner_name || 'Owner';
-  const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [activeFilter, setActiveFilter] = useState('ALL');
-  const [selectedUser, setSelectedUser] = useState('ALL');
-  const [sortOrder, setSortOrder] = useState('newest');
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const shopId = localStorage.getItem('shop_id');
+
+  const [searchTerm, setSearchTerm] = useSessionState(`pos_audit_search_${shopId}`, '');
+  const [debouncedSearch, setDebouncedSearch] = useSessionState(`pos_audit_debounced_${shopId}`, () => searchTerm || '');
+  const [activeFilter, setActiveFilter] = useSessionState(`pos_audit_filter_${shopId}`, 'ALL');
+  const [selectedUser, setSelectedUser] = useSessionState(`pos_audit_user_${shopId}`, 'ALL');
+  const [sortOrder, setSortOrder] = useSessionState(`pos_audit_sort_${shopId}`, 'newest');
+  const [showAdvanced, setShowAdvanced] = useSessionState(`pos_audit_adv_${shopId}`, false);
   
-  const [datePageIndex, setDatePageIndex] = useState(0);
-  const [customDate, setCustomDate] = useState('');
-  const [searchPage, setSearchPage] = useState(0);
+  const [datePageIndex, setDatePageIndex] = useSessionState(`pos_audit_date_idx_${shopId}`, 0);
+  const [customDate, setCustomDate] = useSessionState(`pos_audit_date_${shopId}`, '');
+  const [searchPage, setSearchPage] = useSessionState(`pos_audit_page_${shopId}`, 0);
 
   const AUDIT_SEARCH_PER_PAGE = 50;
 
@@ -74,15 +76,19 @@ export default function OwnerAuditLogs() {
       setDebouncedSearch(val);
       setSearchPage(0);
     }, 300),
-    []
+    [setDebouncedSearch, setSearchPage]
   );
+
+  useEffect(() => {
+    if (searchTerm && debouncedSearch !== searchTerm) {
+      setDebouncedSearch(searchTerm);
+    }
+  }, [searchTerm, debouncedSearch, setDebouncedSearch]);
 
   const handleSearchChange = useCallback((e) => {
     setSearchTerm(e.target.value);
     debouncedSetSearch(e.target.value);
-  }, [debouncedSetSearch]);
-
-  const shopId = localStorage.getItem('shop_id');
+  }, [debouncedSetSearch, setSearchTerm]);
 
   // Query distinct dates with audit activity for day-by-day pagination
   const { data: availableDates = [] } = useQuery({

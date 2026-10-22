@@ -13,6 +13,7 @@ import {
   STALE_TIME_5MIN,
 } from './constants';
 import { AlertTriangle, Calendar } from 'lucide-react';
+import { useSessionState } from './hooks/useSessionState';
 
 function formatDateLabel(dStr, includeYear = false) {
   if (!dStr) return '';
@@ -629,14 +630,14 @@ function DashboardDateFilter({
 export default function OwnerStats({ isActive }) {
   const { showAlert, shopSettings, isWarehouseDisabled } = useApp();
   const shopId = shopSettings?.id || localStorage.getItem('shop_id');
-  const [globalTimeframe, setGlobalTimeframe] = useState('today');
-  const [customDate, setCustomDate] = useState(() => new Date().toLocaleDateString('en-CA'));
-  const [startDate, setStartDate] = useState(() => {
+  const [globalTimeframe, setGlobalTimeframe] = useSessionState(`pos_stats_timeframe_${shopId}`, 'today');
+  const [customDate, setCustomDate] = useSessionState(`pos_stats_date_${shopId}`, () => new Date().toLocaleDateString('en-CA'));
+  const [startDate, setStartDate] = useSessionState(`pos_stats_start_${shopId}`, () => {
     const d = new Date();
     d.setDate(d.getDate() - 6);
     return d.toLocaleDateString('en-CA');
   });
-  const [endDate, setEndDate] = useState(() => new Date().toLocaleDateString('en-CA'));
+  const [endDate, setEndDate] = useSessionState(`pos_stats_end_${shopId}`, () => new Date().toLocaleDateString('en-CA'));
 
   // 1. FAST Sales & Trend Query (~40ms) — only queries bills for the chosen date/range
   const fetchSalesStats = useCallback(async () => {

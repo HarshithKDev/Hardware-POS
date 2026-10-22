@@ -2,17 +2,16 @@ import { useState, Fragment } from 'react';
 import { supabase } from './supabaseClient';
 import { PageLoader, EmptyState } from './SharedUI';
 import { useQuery } from '@tanstack/react-query';
-import { formatDateTime } from './utils';
+import { formatDateTime, useSessionState } from './utils';
 import { ChevronRight, Phone } from 'lucide-react';
 import ShowroomDetailsView from './ShowroomDetailsView';
 
 const SHOWROOM_PAGE_SIZE = 20;
 
 export default function OwnerShowroom() {
-  const [page, setPage] = useState(0);
-  const [selectedBill, setSelectedBill] = useState(null);
-
   const shopId = localStorage.getItem('shop_id');
+  const [page, setPage] = useSessionState(`pos_showroom_page_${shopId}`, 0);
+  const [selectedBill, setSelectedBill] = useState(null);
 
   const { data: bills = [], isLoading } = useQuery({
     queryKey: ['showroom-sales', shopId, page],

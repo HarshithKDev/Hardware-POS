@@ -60,18 +60,6 @@ export default function InventoryRow({
 
   const displayUnit = (item.unit?.toLowerCase() === 'kg' || item.unit?.toLowerCase() === 'grams') ? 'kg' : item.unit?.toLowerCase() === 'meter' ? 'm' : item.unit?.toLowerCase() === 'sqft' ? 'ft' : (item.unit || '');
   const availableSubcategories = subcategories?.filter(sub => sub.category_name === (editData?.category || item.category)) || [];
-  
-  const totalWhse = item.batches ? item.batches.reduce((sum, b) => sum + Number(b.stock_warehouse), 0) : Number(item.stock_warehouse || 0);
-  const totalStore = isWarehouseDisabled
-    ? (item.batches ? item.batches.reduce((sum, b) => sum + Number(b.stock_store || 0) + Number(b.stock_warehouse || 0), 0) : (Number(item.stock_store || 0) + Number(item.stock_warehouse || 0)))
-    : (item.batches ? item.batches.reduce((sum, b) => sum + Number(b.stock_store), 0) : Number(item.stock_store || 0));
-
-  const [popoverPos, setPopoverPos] = useState(null);
-  const [isHovered, setIsHovered] = useState(false);
-  const hoverTimeoutRef = useRef(null);
-  const closeTimeoutRef = useRef(null);
-  const tooltipRef = useRef(null);
-
   const activeBatches = useMemo(() => {
     const seenIds = new Set();
     return (item.batches || [])
@@ -85,6 +73,19 @@ export default function InventoryRow({
       })
       .sort((a, b) => (a.batch_number || 1) - (b.batch_number || 1));
   }, [item.batches]);
+
+  const totalWhse = activeBatches.length > 0 
+    ? activeBatches.reduce((sum, b) => sum + Number(b.stock_warehouse || 0), 0) 
+    : Number(item.stock_warehouse || 0);
+  const totalStore = isWarehouseDisabled
+    ? (activeBatches.length > 0 ? activeBatches.reduce((sum, b) => sum + Number(b.stock_store || 0) + Number(b.stock_warehouse || 0), 0) : (Number(item.stock_store || 0) + Number(item.stock_warehouse || 0)))
+    : (activeBatches.length > 0 ? activeBatches.reduce((sum, b) => sum + Number(b.stock_store || 0), 0) : Number(item.stock_store || 0));
+
+  const [popoverPos, setPopoverPos] = useState(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const hoverTimeoutRef = useRef(null);
+  const closeTimeoutRef = useRef(null);
+  const tooltipRef = useRef(null);
 
   const handleMouseEnter = useCallback((e) => {
     if (closeTimeoutRef.current) {
@@ -364,7 +365,7 @@ export default function InventoryRow({
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
-          <span className="text-xs text-[var(--text-tertiary)] hover:text-[var(--color-accent)] transition-colors">{item.batches?.length || 0} Batches</span>
+          <span className="text-xs text-[var(--text-tertiary)] hover:text-[var(--color-accent)] transition-colors">{activeBatches.length} {activeBatches.length === 1 ? 'Batch' : 'Batches'}</span>
         </td>
 
         {/* Pricing inputs removed from edit mode. Pricing is now batch-level only. */}
@@ -429,7 +430,7 @@ export default function InventoryRow({
                     border: `1px solid ${item.is_cuttable ? 'rgba(59, 130, 246, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
                   }}
                 >
-                  <span>{item.batches?.length || 0} {item.batches?.length === 1 ? 'Batch' : 'Batches'}</span>
+                  <span>{activeBatches.length} {activeBatches.length === 1 ? 'Batch' : 'Batches'}</span>
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
                   </svg>
@@ -497,7 +498,7 @@ export default function InventoryRow({
             border: `1px solid ${item.is_cuttable ? 'rgba(59, 130, 246, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
           }}
         >
-          <span>{item.batches?.length || 0} {item.batches?.length === 1 ? 'Batch' : 'Batches'}</span>
+          <span>{activeBatches.length} {activeBatches.length === 1 ? 'Batch' : 'Batches'}</span>
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3">
             <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
           </svg>

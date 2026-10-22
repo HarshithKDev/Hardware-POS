@@ -41,7 +41,20 @@ export default function OwnerDashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedBatchBarcode, setSelectedBatchBarcode] = useState(null);
 
+  const shopId = localStorage.getItem('shop_id');
   const warehouseSubTab = searchParams.get('wsub') || 'inventory';
+
+  useEffect(() => {
+    if (activeTab === 'warehouse') {
+      const currentSub = searchParams.get('wsub');
+      const savedSub = sessionStorage.getItem(`pos_owner_warehouse_subtab_${shopId}`);
+      if (!currentSub && savedSub && savedSub !== 'inventory') {
+        setSearchParams({ wsub: savedSub }, { replace: true });
+      } else if (currentSub) {
+        sessionStorage.setItem(`pos_owner_warehouse_subtab_${shopId}`, currentSub);
+      }
+    }
+  }, [activeTab, searchParams, shopId, setSearchParams]);
 
   useEffect(() => {
     if (isWarehouseDisabled && warehouseSubTab === 'transfer') {

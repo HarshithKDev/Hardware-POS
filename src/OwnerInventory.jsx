@@ -8,7 +8,7 @@ import { getInventoryByQuery, saveInventoryBatch, getInventoryItemByBarcode } fr
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { ConfirmDialog } from './Dialog';
 import { useApp } from './AppContext';
-import { escapeIlike, debounce } from './utils';
+import { escapeIlike, debounce, useSessionState } from './utils';
 import { STALE_TIME_5MIN } from './constants';
 import InventoryRow from './InventoryRow';
 import BatchDetailsModal from './BatchDetailsModal';
@@ -17,11 +17,11 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
   const { showAlert, showConfirm, shopSettings, isWarehouseDisabled } = useApp();
   const shopId = shopSettings?.id || localStorage.getItem('shop_id');
 
-  const [inventorySearch, setInventorySearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [sortOption, setSortOption] = useState('barcode-asc');
-  const [filterCategory, setFilterCategory] = useState('');
-  const [filterSubcategory, setFilterSubcategory] = useState('');
+  const [inventorySearch, setInventorySearch] = useSessionState(`pos_inv_search_${shopId}_${viewType}`, '');
+  const [debouncedSearch, setDebouncedSearch] = useSessionState(`pos_inv_debounced_${shopId}_${viewType}`, () => inventorySearch || '');
+  const [sortOption, setSortOption] = useSessionState(`pos_inv_sort_${shopId}_${viewType}`, 'barcode-asc');
+  const [filterCategory, setFilterCategory] = useSessionState(`pos_inv_cat_${shopId}_${viewType}`, '');
+  const [filterSubcategory, setFilterSubcategory] = useSessionState(`pos_inv_subcat_${shopId}_${viewType}`, '');
   const [selectedBarcodes, setSelectedBarcodes] = useState([]);
   const [batchModalBarcode, setBatchModalBarcode] = useState(null);
   const [isGlobalEditMode, setIsGlobalEditMode] = useState(false);
@@ -42,13 +42,19 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
   // Debounced search (fixes #17)
   const debouncedSetSearch = useMemo(
     () => debounce((val) => setDebouncedSearch(val), 300),
-    []
+    [setDebouncedSearch]
   );
+
+  useEffect(() => {
+    if (inventorySearch && debouncedSearch !== inventorySearch) {
+      setDebouncedSearch(inventorySearch);
+    }
+  }, [inventorySearch, debouncedSearch, setDebouncedSearch]);
 
   const handleSearchChange = useCallback((e) => {
     setInventorySearch(e.target.value);
     debouncedSetSearch(e.target.value);
-  }, [debouncedSetSearch]);
+  }, [debouncedSetSearch, setInventorySearch]);
 
   const { data: categories } = useQuery({
     queryKey: ['categories', shopId],
@@ -327,17 +333,37 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
 
   const confirmDeleteBatch = async () => {
     if (!batchToDelete) return;
+    const deletingId = batchToDelete;
     try {
-      let delQuery = supabase.from('inventory_batches').update({ is_active: false }).eq('batch_id', batchToDelete);
-      if (shopId) {
-        delQuery = delQuery.eq('shop_id', shopId);
+      // 1. Delete from remote Supabase (attempt hard delete first, fallback to soft delete)
+      let deletedRemotely = false;
+      try {
+        let delQuery = supabase.from('inventory_batches').delete().eq('batch_id', deletingId);
+        if (shopId) delQuery = delQuery.eq('shop_id', shopId);
+        const { error: delErr } = await delQuery;
+        if (!delErr) deletedRemotely = true;
+      } catch (e) {
+        console.warn('Hard delete failed, falling back to soft delete', e);
       }
-      const { error } = await delQuery;
-      if (error) throw error;
+
+      if (!deletedRemotely) {
+        let updateQuery = supabase.from('inventory_batches').update({ is_active: false }).eq('batch_id', deletingId);
+        if (shopId) updateQuery = updateQuery.eq('shop_id', shopId);
+        const { error: updErr } = await updateQuery;
+        if (updErr) throw updErr;
+      }
+
+      const itemToLog = items.find(i => i.batches && i.batches.some(b => b.batch_id === deletingId));
+      if (itemToLog) {
+        try {
+          let bumpQuery = supabase.from('product_master').update({ updated_at: new Date().toISOString() }).eq('barcode', itemToLog.barcode);
+          if (shopId) bumpQuery = bumpQuery.eq('shop_id', shopId);
+          await bumpQuery;
+        } catch (e) {}
+      }
 
       try {
-        const itemToLog = items.find(i => i.batches && i.batches.some(b => b.batch_id === batchToDelete));
-        const batchNum = itemToLog?.batches?.find(b => b.batch_id === batchToDelete)?.batch_number || 'Unknown';
+        const batchNum = itemToLog?.batches?.find(b => b.batch_id === deletingId)?.batch_number || 'Unknown';
         await supabase.from('audit_logs').insert([{
           shop_id: shopId,
           action_type: 'DELETE',
@@ -354,13 +380,23 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
       const { initDB, saveInventoryBatch } = await import('./services/db.js');
       const db = await initDB();
       const allItems = await db.getAll('product_master');
-      const itemToUpdate = allItems.find(i => i.batches && i.batches.some(b => b.batch_id === batchToDelete));
+      const itemToUpdate = allItems.find(i => i.batches && i.batches.some(b => b.batch_id === deletingId));
       if (itemToUpdate) {
-        itemToUpdate.batches = itemToUpdate.batches.filter(b => b.batch_id !== batchToDelete);
+        itemToUpdate.batches = (itemToUpdate.batches || []).filter(b => b.batch_id !== deletingId && b.is_active !== false);
         await saveInventoryBatch([itemToUpdate]);
       }
+
+      // Update React Query cache directly
+      queryClient.setQueriesData({ queryKey: ['inventory_item'] }, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          batches: (old.batches || []).filter(b => b.batch_id !== deletingId && b.is_active !== false)
+        };
+      });
       
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory_item'] });
     } catch (err) {
       console.error(err);
       alert("Failed to delete batch: " + err.message);
