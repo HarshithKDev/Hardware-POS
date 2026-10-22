@@ -142,11 +142,11 @@ export default function OwnerSettings() {
     setExportStatus('Connecting to database...');
     try {
       const { exportCompleteShopData } = await import('./services/dataExport');
-      const fileName = await exportCompleteShopData(shopSettings, (status) => {
+      await exportCompleteShopData(shopSettings, (status) => {
         setExportStatus(status);
       });
       showAlert(
-        `All business data successfully exported to "${fileName}".\n\nContains 9 detailed sheets: Overview, Products & Inventory, Sales Transactions, Bill Items Breakdown, Expenses, Batches, Categories, Staff, and Audit Logs.`,
+        'All business data exported successfully to Excel.',
         'Backup Downloaded'
       );
     } catch (err) {
