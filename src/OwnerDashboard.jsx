@@ -73,33 +73,35 @@ export default function OwnerDashboard() {
     <div className="flex flex-col md:flex-row h-full overflow-hidden relative md:gap-4" style={{ backgroundColor: 'transparent' }}>
       {/* MOBILE MENU TOGGLE */}
       <div
-        className="md:hidden flex justify-between items-center p-4"
+        className="md:hidden flex justify-between items-center px-4 py-2.5 shrink-0"
         style={{
           backgroundColor: 'var(--bg-secondary)',
           borderBottom: '1px solid var(--border-light)',
         }}
       >
-        <span className="text-base font-bold tracking-wide uppercase" style={{ color: 'var(--text-primary)' }}>
+        <span className="text-sm font-bold tracking-wide uppercase truncate" style={{ color: 'var(--text-primary)' }}>
           {navItems.find(item => item.key === activeTab)?.label || 'Hardware POS'}
         </span>
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="p-2 rounded-md"
+          className="px-2.5 py-1.5 rounded-md flex items-center gap-1.5 text-xs font-semibold focus:outline-none transition-colors"
           style={{
             backgroundColor: 'var(--bg-tertiary)',
             color: 'var(--text-primary)',
+            border: '1px solid var(--border-medium)',
           }}
-          aria-label="Toggle sidebar menu"
+          aria-label="Toggle navigation drawer"
           aria-expanded={isSidebarOpen}
         >
-          <Menu size={20} />
+          <Menu size={16} />
+          <span className="text-[11px] uppercase tracking-wider">All Tabs</span>
         </button>
       </div>
 
       {/* Overlay for mobile drawer */}
       {isSidebarOpen && (
         <div 
-          className="md:hidden absolute inset-0 z-40 transition-opacity" 
+          className="md:hidden fixed inset-0 z-40 transition-opacity" 
           style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }} 
           onClick={() => setIsSidebarOpen(false)}
           aria-hidden="true"
@@ -151,7 +153,7 @@ export default function OwnerDashboard() {
 
       {/* MAIN CONTENT */}
       <main
-        className="flex-1 min-w-0 flex flex-col p-3 md:p-4 overflow-y-auto overflow-x-hidden relative m-0 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm"
+        className="flex-1 min-w-0 flex flex-col p-3 pb-20 md:p-4 overflow-y-auto overflow-x-hidden relative m-0 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm"
         style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}
         role="main"
         aria-label="Dashboard content"
@@ -285,6 +287,47 @@ export default function OwnerDashboard() {
         )}
         </Suspense>
       </main>
+
+      {/* MOBILE BOTTOM NAVIGATION BAR */}
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around h-14 border-t border-[var(--border-medium)] shadow-lg"
+        style={{
+          backgroundColor: 'var(--bg-secondary)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        }}
+        aria-label="Mobile Bottom Navigation"
+      >
+        {[
+          { key: 'dashboard', label: 'Overview', icon: LayoutDashboard },
+          { key: 'warehouse', label: isWarehouseDisabled ? 'Store' : 'Inventory', icon: isWarehouseDisabled ? Boxes : Warehouse },
+          { key: 'checkout', label: 'Checkout', icon: ShoppingCart },
+          { key: 'sales', label: 'Sales', icon: History },
+          { key: 'more', label: 'More', icon: Menu, isMore: true },
+        ].map(({ key, label, icon: Icon, isMore }) => {
+          const isActive = !isMore && activeTab === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => {
+                if (isMore) {
+                  setIsSidebarOpen(prev => !prev);
+                } else {
+                  changeTab(key);
+                }
+              }}
+              className="flex-1 flex flex-col items-center justify-center h-full py-1 gap-0.5 transition-colors focus:outline-none"
+              style={{
+                color: (isActive || (isMore && isSidebarOpen)) ? 'var(--color-accent)' : 'var(--text-secondary)',
+              }}
+              aria-label={label}
+            >
+              <Icon size={19} strokeWidth={(isActive || (isMore && isSidebarOpen)) ? 2.5 : 2} />
+              <span className="text-[10px] font-semibold tracking-tight">{label}</span>
+            </button>
+          );
+        })}
+      </nav>
     </div>
   );
 }

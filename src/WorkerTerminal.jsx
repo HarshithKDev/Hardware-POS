@@ -32,7 +32,7 @@ import { broadcastStockUpdate, subscribeToStockUpdates } from './services/realti
 function getQuickTenderOptions(total) {
   if (!total || total <= 0) return [];
   const ceilTotal = Math.ceil(total);
-  const pills = [{ label: `Exact (₹${ceilTotal})`, value: ceilTotal, isExact: true }];
+  const pills = [];
 
   const standardNotes = [50, 100, 200, 500, 1000, 2000];
 
@@ -1917,13 +1917,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         const activeTotal = checkoutModal.negotiatedTotal !== '' 
           ? Number(checkoutModal.negotiatedTotal) 
           : calculateTotal();
-
-        // Exact cash hotkey: [E] or [e] (works globally when checkout modal is open)
-        if (checkoutModal.paymentMethod === 'CASH' && (e.key.toLowerCase() === 'e')) {
-          e.preventDefault();
-          setCheckoutModal(prev => ({ ...prev, cashGiven: String(Math.ceil(activeTotal)), error: '' }));
-          return;
-        }
 
         if (!isInput) {
           if (e.key === '1' || e.key.toUpperCase() === 'C') {

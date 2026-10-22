@@ -213,7 +213,71 @@ export default function OwnerCategories() {
       </div>
 
       <div className="flex-1 overflow-x-hidden overflow-y-auto shadow-sm rounded-lg border border-[var(--border-medium)]" style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}>
-        <table className={`w-full text-left border-collapse ${categories.length === 0 ? 'h-full' : ''}`}>
+        {/* Mobile View: Collapsible Card List */}
+        <div className="md:hidden flex flex-col divide-y divide-[var(--border-medium)]">
+          {categories.length === 0 ? (
+            <div className="p-8 text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No categories found.</div>
+          ) : categories.map(cat => {
+            const isExpanded = expandedCategoryName === cat.name;
+            const catSubcategories = subcategories.filter(sub => sub.category_name === cat.name);
+            return (
+              <div key={cat.name} className="flex flex-col">
+                <div
+                  onClick={() => toggleCategory(cat.name)}
+                  className="p-4 flex items-center justify-between gap-3 cursor-pointer transition-colors"
+                  style={{ backgroundColor: isExpanded ? 'var(--color-accent-bg)' : 'var(--bg-secondary)' }}
+                >
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-bold text-base truncate" style={{ color: 'var(--text-primary)' }}>{cat.name}</span>
+                    <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>{catSubcategories.length} sub-categories</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.name, cat.name); }}
+                      className="h-8 px-3 text-xs font-semibold uppercase tracking-wider focus:outline-none transition-colors rounded-md"
+                      style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
+                      aria-label={`Delete category ${cat.name}`}
+                    >
+                      Remove
+                    </button>
+                    <div className="p-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={`w-5 h-5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : 'rotate-0'}`} style={{ color: isExpanded ? 'var(--color-accent)' : 'var(--text-secondary)' }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {isExpanded && (
+                  <div className="p-4 bg-[var(--bg-tertiary)] border-t border-[var(--border-light)] flex flex-col gap-2">
+                    <p className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-tertiary)' }}>
+                      Sub-categories for {cat.name}
+                    </p>
+                    {catSubcategories.length === 0 ? (
+                      <p className="text-xs italic" style={{ color: 'var(--text-tertiary)' }}>No sub-categories added yet.</p>
+                    ) : catSubcategories.map(sub => (
+                      <div key={sub.name} className="flex items-center justify-between px-3 py-2.5 rounded-md" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+                        <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{sub.name}</span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteSubcategory(sub.name, sub.name, sub.category_name); }}
+                          className="p-1.5 rounded-sm transition-colors text-[var(--color-error)] hover:bg-red-500/10 focus:outline-none"
+                          aria-label={`Delete subcategory ${sub.name}`}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Laptop / Desktop View: Exact Table */}
+        <table className={`hidden md:table w-full text-left border-collapse ${categories.length === 0 ? 'h-full' : ''}`}>
           <thead className="sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
               <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                 <th className="p-4" style={{ borderRight: '1px solid var(--border-medium)' }}>Category Name</th>
@@ -284,7 +348,7 @@ export default function OwnerCategories() {
                                     </span>
                                     <button
                                       onClick={(e) => { e.stopPropagation(); handleDeleteSubcategory(sub.name, sub.name, sub.category_name); }}
-                                      className="p-1.5 rounded-sm transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                      className="p-1.5 rounded-sm transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100"
                                       style={{ color: 'var(--text-tertiary)' }}
                                       onMouseEnter={(e) => {
                                         e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';

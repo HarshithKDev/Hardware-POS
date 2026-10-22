@@ -12,7 +12,7 @@ import {
 function getQuickTenderOptions(total) {
   if (!total || total <= 0) return [];
   const ceilTotal = Math.ceil(total);
-  const pills = [{ label: `Exact (₹${ceilTotal})`, value: ceilTotal, isExact: true }];
+  const pills = [];
 
   const standardNotes = [50, 100, 200, 500, 1000, 2000];
 
@@ -91,33 +91,27 @@ describe('Item 1: Counter Speed & Ergonomics', () => {
       expect(getQuickTenderOptions(-50)).toEqual([]);
     });
 
-    it('generates exact amount and next standard currency notes for small bill (e.g. ₹35)', () => {
+    it('generates next standard currency notes for small bill (e.g. ₹35) without redundant exact pill', () => {
       const options = getQuickTenderOptions(35);
-      expect(options[0]).toEqual({ label: 'Exact (₹35)', value: 35, isExact: true });
-
       const values = options.map(o => o.value);
-      expect(values).toContain(35);
+      expect(values).not.toContain(35);
       expect(values).toContain(50);
       expect(values).toContain(100);
       expect(values).toContain(200);
     });
 
-    it('generates exact amount and next standard currency notes for mid-range bill (e.g. ₹230)', () => {
+    it('generates next standard currency notes for mid-range bill (e.g. ₹230)', () => {
       const options = getQuickTenderOptions(230);
-      expect(options[0]).toEqual({ label: 'Exact (₹230)', value: 230, isExact: true });
-
       const values = options.map(o => o.value);
-      expect(values).toContain(230);
+      expect(values).not.toContain(230);
       expect(values).toContain(250); // next multiple of 50
       expect(values).toContain(500); // next standard note
     });
 
     it('generates next multiples of 500 and 1000 for high-value bills (e.g. ₹2350)', () => {
       const options = getQuickTenderOptions(2350);
-      expect(options[0]).toEqual({ label: 'Exact (₹2350)', value: 2350, isExact: true });
-
       const values = options.map(o => o.value);
-      expect(values).toContain(2350);
+      expect(values).not.toContain(2350);
       expect(values).toContain(2500); // next 500
       expect(values).toContain(3000); // next 1000
     });

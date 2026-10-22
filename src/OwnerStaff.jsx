@@ -212,7 +212,43 @@ export default function OwnerStaff() {
       </div>
 
       <div className="flex-1 overflow-auto rounded-lg border border-[var(--border-light)] shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}>
-        <table className={`w-full min-w-[480px] text-left border-collapse ${(isLoading || staffList.length === 0) ? 'h-full' : ''}`}>
+        {/* Mobile View: Card List */}
+        <div className="md:hidden flex flex-col divide-y divide-[var(--border-medium)]">
+          {isLoading ? (
+            <div className="p-8 text-center"><PageLoader text="Loading staff..." /></div>
+          ) : staffList.length === 0 ? (
+            <div className="p-8 text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No staff members added yet.</div>
+          ) : staffList.map(staff => (
+            <div key={staff.id} className="p-4 flex items-center justify-between gap-3">
+              <div className="flex flex-col gap-1 min-w-0">
+                <span className="font-bold text-base truncate" style={{ color: 'var(--text-primary)' }}>{staff.name}</span>
+                <div>
+                  {staff.password?.includes('NON_BILLABLE') ? (
+                    <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-sm inline-block" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-error)' }}>
+                      Non-Billable
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-sm inline-block" style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', color: 'var(--color-success)' }}>
+                      Billable
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => handleRemove(staff.id, staff.name)}
+                disabled={removeStaffMutation.isPending}
+                className="h-8 px-4 text-xs font-semibold uppercase tracking-wider focus:outline-none transition-colors disabled:opacity-50 rounded-md shrink-0"
+                style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
+                aria-label={`Remove ${staff.name}`}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Laptop / Desktop View: Exact Table */}
+        <table className={`hidden md:table w-full min-w-[480px] text-left border-collapse ${(isLoading || staffList.length === 0) ? 'h-full' : ''}`}>
           <thead className="sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
               <th className="p-4 w-5/12 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Staff Name</th>

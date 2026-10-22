@@ -484,7 +484,7 @@ export default function OwnerAuditLogs() {
       </div>
 
       {/* Pagination Footer */}
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-3 p-3 mt-auto shadow-sm rounded-lg shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
+      <div className="flex flex-row justify-between items-center gap-2 p-2.5 sm:p-3 mt-auto shadow-sm rounded-lg shrink-0 w-full" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
         {!isSearching ? (
           <>
             <button 
@@ -493,24 +493,24 @@ export default function OwnerAuditLogs() {
                 setDatePageIndex(p => Math.max(0, p - 1));
               }} 
               disabled={datePageIndex === 0 && (!customDate || customDate === availableDates[0])} 
-              className="h-8 px-4 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] flex items-center gap-1.5"
+              className="h-8 px-2.5 sm:px-4 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] flex items-center gap-1 shrink-0"
               style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
               title="Previous Day"
             >
-              <span>&larr; Previous</span>
+              <span>&larr; <span className="hidden sm:inline">Previous</span><span className="sm:hidden">Prev</span></span>
             </button>
 
-            <div className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)] text-center">
-              <span className="font-bold text-[var(--text-primary)] px-2.5 py-1 rounded-md inline-flex items-center gap-1.5" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-light)' }}>
+            <div className="flex items-center gap-1.5 sm:gap-2 text-xs font-medium text-[var(--text-secondary)] text-center min-w-0">
+              <span className="font-bold text-[var(--text-primary)] px-2 sm:px-2.5 py-1 rounded-md inline-flex items-center gap-1 sm:gap-1.5 truncate" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-light)' }}>
                 <Calendar className="w-3.5 h-3.5 text-[var(--color-accent)] shrink-0" />
-                <span>{formatDayHeader(currentDay)}</span>
+                <span className="truncate">{formatDayHeader(currentDay)}</span>
               </span>
               <span>•</span>
-              <span>{filteredLogs.length} {filteredLogs.length === 1 ? 'log' : 'logs'}</span>
+              <span className="shrink-0">{filteredLogs.length} {filteredLogs.length === 1 ? 'log' : 'logs'}</span>
               {availableDates.length > 0 && (
                 <>
-                  <span>•</span>
-                  <span className="text-[11px] text-[var(--text-tertiary)]">
+                  <span className="hidden sm:inline">•</span>
+                  <span className="hidden sm:inline text-[11px] text-[var(--text-tertiary)]">
                     Day {availableDates.indexOf(currentDay) >= 0 ? availableDates.indexOf(currentDay) + 1 : datePageIndex + 1} of {availableDates.length}
                   </span>
                 </>
@@ -523,11 +523,11 @@ export default function OwnerAuditLogs() {
                 setDatePageIndex(p => Math.min(Math.max(0, availableDates.length - 1), p + 1));
               }} 
               disabled={availableDates.length === 0 || (datePageIndex >= availableDates.length - 1 && (!customDate || customDate === availableDates[availableDates.length - 1]))} 
-              className="h-8 px-4 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] flex items-center gap-1.5"
+              className="h-8 px-2.5 sm:px-4 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] flex items-center gap-1 shrink-0"
               style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
               title="Next Day"
             >
-              <span>Next &rarr;</span>
+              <span><span className="hidden sm:inline">Next</span><span className="sm:hidden">Next</span> &rarr;</span>
             </button>
           </>
         ) : (
@@ -535,23 +535,23 @@ export default function OwnerAuditLogs() {
             <button 
               onClick={() => setSearchPage(p => Math.max(0, p - 1))} 
               disabled={searchPage === 0} 
-              className="h-8 px-5 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)]"
+              className="h-8 px-3 sm:px-5 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] shrink-0"
               style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
             >
-              Previous
+              &larr; Prev
             </button>
 
-            <div className="text-xs text-[var(--text-secondary)] text-center">
-              <span className="font-semibold text-[var(--color-accent)]">Global Search:</span> Results for "{searchTerm}" • Page {searchPage + 1} • {filteredLogs.length} items
+            <div className="text-xs text-[var(--text-secondary)] text-center truncate px-1">
+              <span className="font-semibold text-[var(--color-accent)] hidden sm:inline">Global Search: </span>Page {searchPage + 1} • {filteredLogs.length} items
             </div>
 
             <button 
               onClick={() => setSearchPage(p => p + 1)} 
               disabled={rawLogs.length < AUDIT_SEARCH_PER_PAGE} 
-              className="h-8 px-5 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)]"
+              className="h-8 px-3 sm:px-5 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] shrink-0"
               style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
             >
-              Next
+              Next &rarr;
             </button>
           </>
         )}

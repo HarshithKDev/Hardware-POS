@@ -413,7 +413,7 @@ function DashboardDateFilter({
       {/* Calendar Popover Modal */}
       {isOpen && (
         <div
-          className="absolute right-0 top-full mt-2 w-80 sm:w-84 rounded-xl shadow-2xl p-3.5 z-50 flex flex-col gap-3 animate-scale-in"
+          className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-[340px] sm:w-84 rounded-xl shadow-2xl p-3.5 z-50 flex flex-col gap-3 animate-scale-in"
           style={{
             backgroundColor: 'var(--bg-secondary)',
             border: '1px solid var(--border-medium)',
@@ -752,7 +752,9 @@ export default function OwnerStats({ isActive }) {
       .lte('created_at', queryEnd)
       .eq('location', 'Store')
       .neq('status', 'voided')
-      .neq('status', 'showroom_pending');
+      .neq('status', 'showroom_pending')
+      .neq('status', 'showroom')
+      .neq('payment_method', 'SHOWROOM');
     if (shopId) {
       billsQuery = billsQuery.eq('shop_id', shopId);
     }
@@ -896,7 +898,9 @@ export default function OwnerStats({ isActive }) {
       .gte('created_at', deadStockStartIso)
       .eq('location', 'Store')
       .neq('status', 'voided')
-      .neq('status', 'showroom_pending');
+      .neq('status', 'showroom_pending')
+      .neq('status', 'showroom')
+      .neq('payment_method', 'SHOWROOM');
     if (shopId) {
       dsBillsQuery = dsBillsQuery.eq('shop_id', shopId);
     }

@@ -484,25 +484,6 @@ const CartTable = React.memo(function CartTable({
           </tbody>
         </table>
       </div>
-      <div 
-        className="sticky bottom-0 z-10 px-4 py-2 border-t flex flex-wrap items-center justify-between gap-3 text-xs shrink-0" 
-        style={{ 
-          backgroundColor: 'var(--bg-tertiary)', 
-          borderColor: 'var(--border-medium)', 
-          color: 'var(--text-secondary)' 
-        }}
-      >
-        <div className="flex items-center gap-2.5 sm:gap-3">
-          <span className="font-bold text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">Hotkeys:</span>
-          <span className="inline-flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border bg-[var(--bg-secondary)] border-[var(--border-medium)] text-[var(--text-primary)]">↑</kbd><kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border bg-[var(--bg-secondary)] border-[var(--border-medium)] text-[var(--text-primary)]">↓</kbd> Select</span>
-          <span className="inline-flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border bg-[var(--bg-secondary)] border-[var(--border-medium)] text-[var(--text-primary)]">+</kbd><kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border bg-[var(--bg-secondary)] border-[var(--border-medium)] text-[var(--text-primary)]">-</kbd> Qty</span>
-          <span className="inline-flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border bg-[var(--bg-secondary)] border-[var(--border-medium)] text-[var(--text-primary)]">Del</kbd> Remove</span>
-        </div>
-        <div className="flex items-center gap-2.5 sm:gap-3">
-          <span className="inline-flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border bg-[var(--bg-secondary)] border-[var(--border-medium)] text-[var(--text-primary)]">/</kbd> Search</span>
-          <span className="inline-flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border bg-[var(--bg-secondary)] border-[var(--border-medium)] text-[var(--text-primary)]">Space</kbd> Pay</span>
-        </div>
-      </div>
     </div>
   );
 });

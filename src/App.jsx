@@ -339,7 +339,7 @@ function App() {
 
       {/* NAVBAR */}
       <nav
-        className="w-full md:w-auto shadow-sm h-[54px] md:h-[58px] flex-shrink-0 relative z-[9999] print:hidden md:mx-3 md:my-2 lg:mx-4 lg:my-3 md:rounded-xl border-b md:border border-[var(--border-medium)] md:border-[var(--border-light)]"
+        className="w-full md:w-auto shadow-sm h-[46px] md:h-[58px] flex-shrink-0 relative z-[9999] print:hidden md:mx-3 md:my-2 lg:mx-4 lg:my-3 md:rounded-xl border-b md:border border-[var(--border-medium)] md:border-[var(--border-light)]"
         style={{
           backgroundColor: 'var(--bg-secondary)',
         }}
@@ -348,17 +348,17 @@ function App() {
       >
         <div className="w-full flex items-center justify-between h-full">
           <div
-            className="h-full flex items-center justify-center flex-shrink-0 px-4 md:px-0 w-auto md:w-56"
+            className="h-full flex items-center justify-center flex-shrink-0 px-3 md:px-0 w-auto md:w-56"
           >
             <span
-              className="text-sm font-bold uppercase tracking-wider truncate text-center w-full px-2"
+              className="text-xs md:text-sm font-bold uppercase tracking-wider truncate text-center w-full px-1 md:px-2"
               style={{ color: 'var(--text-primary)' }}
             >
               {cashierName}
             </span>
           </div>
 
-          <div className="flex-1 min-w-0 flex items-center justify-end gap-2 md:gap-3 h-full pl-2 pr-3 md:pr-4 overflow-x-hidden md:overflow-x-auto hide-scrollbar" style={{ scrollbarWidth: 'none' }}>
+          <div className="flex-1 min-w-0 flex items-center justify-end gap-1.5 md:gap-3 h-full pl-2 pr-2.5 md:pr-4 overflow-x-hidden md:overflow-x-auto hide-scrollbar" style={{ scrollbarWidth: 'none' }}>
             {!isOnline && (
               <div className="flex items-center gap-1 text-xs font-bold px-2 py-1 bg-[var(--color-error)] text-white mr-auto animate-pulse whitespace-nowrap shrink-0">
                 <WifiOff size={16} />
@@ -370,23 +370,25 @@ function App() {
               <>
                 <button
                   onClick={() => navigate('/owner/dashboard')}
-                  className="h-10 w-10 md:h-9 md:w-auto rounded-md md:px-4 lg:px-6 md:py-2 text-xs font-bold uppercase tracking-wider focus:outline-none transition-colors shrink-0 flex items-center justify-center gap-2"
+                  className="h-8 w-8 md:h-9 md:w-auto rounded-md md:px-4 lg:px-6 md:py-2 text-xs font-bold uppercase tracking-wider focus:outline-none transition-colors shrink-0 flex items-center justify-center gap-2"
                   style={{
                     backgroundColor: location.pathname.startsWith('/owner') ? 'var(--color-accent)' : 'var(--bg-secondary)',
                     color: location.pathname.startsWith('/owner') ? 'var(--color-accent-fg)' : 'var(--text-primary)',
                     border: `1px solid ${location.pathname.startsWith('/owner') ? 'var(--color-accent)' : 'var(--border-medium)'}`,
                   }}
+                  title="Management Dashboard"
                 >
                   <span className="hidden md:inline">Management</span>
-                  <LayoutDashboard size={18} className="md:hidden" />
+                  <LayoutDashboard size={16} className="md:hidden" />
                 </button>
-                <div className="h-7 w-px mx-1 shrink-0" style={{ backgroundColor: 'var(--border-medium)' }} />
+                <div className="h-6 md:h-7 w-px mx-0.5 md:mx-1 shrink-0" style={{ backgroundColor: 'var(--border-medium)' }} />
               </>
             )}
 
             <button
               onClick={() => setShowLogoutConfirm(true)}
-              className="h-10 w-auto md:h-9 md:w-auto rounded-md px-3 md:px-4 lg:px-5 text-white text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none shrink-0 flex items-center justify-center gap-2 border bg-[var(--color-error)] border-[var(--color-error)] hover:bg-[#c90f1f] hover:border-[#c90f1f]"
+              className="h-8 w-8 md:h-9 md:w-auto rounded-md px-0 md:px-4 lg:px-5 text-white text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none shrink-0 flex items-center justify-center gap-2 border bg-[var(--color-error)] border-[var(--color-error)] hover:bg-[#c90f1f] hover:border-[#c90f1f]"
+              title="Sign Out"
             >
               <span className="hidden md:inline">Sign Out</span>
               <Power size={15} strokeWidth={2.5} />

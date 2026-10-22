@@ -125,12 +125,15 @@ export function DialogOverlay({ isOpen, onClose, children, labelId, maxWidth = '
 export function AlertDialog({ isOpen, title, message, onClose }) {
   useEffect(() => {
     if (isOpen) {
+      // Dynamic timer: give longer messages more reading time (3.5s - 7s)
+      const msgLen = typeof message === 'string' ? message.length : 0;
+      const duration = Math.min(7000, Math.max(3000, msgLen * 40));
       const timer = setTimeout(() => {
         onClose();
-      }, 2500);
+      }, duration);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, message]);
 
   if (!isOpen) return null;
 
@@ -138,7 +141,7 @@ export function AlertDialog({ isOpen, title, message, onClose }) {
   let titleColor = 'var(--text-primary)';
   const lowerTitle = (title || '').toLowerCase();
   
-  if (lowerTitle.includes('success') || lowerTitle.includes('restored')) {
+  if (lowerTitle.includes('success') || lowerTitle.includes('restored') || lowerTitle.includes('backup') || lowerTitle.includes('download') || lowerTitle.includes('export')) {
     borderColorStyle = '#10b981'; // green
     titleColor = '#10b981';
   } else if (lowerTitle.includes('error') || lowerTitle.includes('fail') || lowerTitle.includes('invalid')) {
@@ -153,22 +156,42 @@ export function AlertDialog({ isOpen, title, message, onClose }) {
   }
 
   return (
-    <div className="fixed top-8 left-1/2 -translate-x-1/2 px-4 animate-fade-in-down print:hidden pointer-events-none w-full max-w-sm" style={{ zIndex: 99999 }}>
+    <div className="fixed top-6 left-1/2 -translate-x-1/2 px-4 animate-fade-in-down print:hidden pointer-events-none w-full max-w-lg md:max-w-xl z-[99999]">
       <div 
         onClick={onClose}
-        className="flex items-center justify-center px-5 py-3.5 rounded-xl shadow-2xl pointer-events-auto cursor-pointer transition-transform hover:scale-[1.02]"
+        className="flex items-start justify-between gap-3 px-5 py-4 rounded-xl shadow-2xl pointer-events-auto cursor-pointer transition-transform hover:scale-[1.01] overflow-hidden"
         style={{ 
           backgroundColor: 'var(--bg-secondary)',
           border: `1px solid ${borderColorStyle}`,
           borderLeft: `4px solid ${borderColorStyle}`
         }}
       >
-        <div className="flex-1 text-center">
+        <div className="flex-1 min-w-0 text-left">
           {title && title !== 'Notice' && title !== 'Info' && (
-            <p className="text-sm font-bold mb-1" style={{ color: titleColor }}>{title}</p>
+            <p className="text-sm font-bold mb-1.5 flex items-center gap-1.5" style={{ color: titleColor }}>
+              <span>{title}</span>
+            </p>
           )}
-          <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>{message}</p>
+          <p 
+            className="text-xs sm:text-sm font-medium leading-relaxed whitespace-pre-line break-words [overflow-wrap:anywhere]" 
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            {message}
+          </p>
         </div>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] p-1 rounded-md transition-colors shrink-0 -mr-1 -mt-1 cursor-pointer"
+          aria-label="Close notification"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
     </div>
   );
@@ -205,7 +228,7 @@ export function ConfirmDialog({
 
       {/* Body */}
       <div className="px-6 py-4">
-        <p id={descId} className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+        <p id={descId} className="text-sm leading-relaxed whitespace-pre-line break-words [overflow-wrap:anywhere]" style={{ color: 'var(--text-secondary)' }}>
           {message}
         </p>
       </div>

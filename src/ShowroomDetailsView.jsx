@@ -2,18 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import { formatDateTime } from './utils';
-import { PageLoader, Spinner } from './SharedUI';
+import { PageLoader } from './SharedUI';
 import {
   ArrowLeft,
   Phone,
-  CheckCircle
+  PackageCheck
 } from 'lucide-react';
 
 export default function ShowroomDetailsView({
   bill,
   onBack,
-  onMarkPaid,
-  isMarkingPaid = false,
   cachedItems
 }) {
   const [currentBill, setCurrentBill] = useState(bill);
@@ -46,46 +44,37 @@ export default function ShowroomDetailsView({
 
   return (
     <div className="flex-1 flex flex-col h-full min-h-0 animate-fade-in text-[var(--text-primary)]">
-      {/* TOP NAVIGATION & PRIMARY ACTION */}
+      {/* TOP NAVIGATION */}
       <div className="flex items-center justify-between pb-3 mb-3 shrink-0">
         <button
           type="button"
           onClick={onBack}
-          aria-label="Back to Showroom Pending"
+          aria-label="Back to Showroom Dispatches"
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider text-[var(--text-secondary)] hover:text-white bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] border border-[var(--border-medium)] transition-all cursor-pointer shadow-sm hover:border-[var(--color-accent)] active:scale-95"
-          title="Back to Showroom Pending"
+          title="Back to Showroom Dispatches"
         >
           <ArrowLeft className="w-4 h-4 text-[var(--color-accent)]" />
-          <span>Back</span>
+          <span>Back to Showroom</span>
         </button>
 
-        {onMarkPaid && (
-          <button
-            type="button"
-            onClick={() => onMarkPaid(currentBill)}
-            disabled={isMarkingPaid}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-bold uppercase tracking-wider rounded-lg text-white transition-opacity active:scale-95 shadow-md cursor-pointer disabled:opacity-50"
-            style={{ backgroundColor: 'var(--color-success)' }}
-            title="Mark as Paid"
-          >
-            {isMarkingPaid ? <Spinner className="w-4 h-4 text-white" /> : <CheckCircle className="w-4 h-4" />}
-            <span>Mark as Paid</span>
-          </button>
-        )}
+        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--bg-secondary)] border border-[var(--border-medium)] text-[var(--text-secondary)]">
+          <PackageCheck className="w-4 h-4 text-emerald-500" />
+          <span>Stock Deducted from Store</span>
+        </div>
       </div>
 
       {/* ESSENTIAL BILL & CUSTOMER INFO HEADER */}
       <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] p-5 mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm shrink-0">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] mb-1">
-            <span>Bill #{currentBill.id.split('-')[0]}</span>
+            <span>Showroom Dispatch #{currentBill.id.split('-')[0]}</span>
             <span>•</span>
             <span>{datePart} at {timePart}</span>
           </div>
 
           <div className="flex items-center gap-3 mt-1.5 flex-wrap">
             <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)]">
-              {currentBill.customer_name || 'Walk-in Customer'}
+              {currentBill.customer_name || 'Showroom Recipient'}
             </h1>
             {currentBill.customer_phone && (
               <span className="text-base sm:text-lg font-semibold text-[var(--color-accent)] inline-flex items-center gap-1.5 bg-[var(--bg-tertiary)] px-3 py-1 rounded-lg border border-[var(--border-medium)]">
@@ -96,13 +85,16 @@ export default function ShowroomDetailsView({
           </div>
         </div>
 
-        {/* Big Pending Amount */}
+        {/* Showroom Dispatched Value */}
         <div className="md:text-right">
           <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-0.5">
-            Pending Total
+            Total Dispatched Value
           </span>
           <span className="text-3xl sm:text-4xl font-extrabold text-[var(--color-accent)]">
             ₹{Number(currentBill.total_amount || 0).toFixed(2)}
+          </span>
+          <span className="text-[11px] text-[var(--text-tertiary)] block mt-0.5">
+            Not added to shop sales or revenue
           </span>
         </div>
       </div>
@@ -115,17 +107,17 @@ export default function ShowroomDetailsView({
           </div>
         ) : items.length === 0 ? (
           <div className="flex-1 flex items-center justify-center p-8 text-center text-sm text-[var(--text-tertiary)] font-medium">
-            No items recorded for this bill.
+            No items recorded for this showroom dispatch.
           </div>
         ) : (
           <div className="overflow-x-auto w-full flex-1">
             <table className="w-full text-left border-collapse table-auto md:table-fixed">
               <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                 <tr className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                  <th className="py-3.5 px-5 text-left md:w-[48%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Item</th>
-                  <th className="py-3.5 px-4 text-center md:w-[18%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Qty</th>
-                  <th className="py-3.5 px-4 text-right md:w-[17%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Price</th>
-                  <th className="py-3.5 px-5 text-right md:w-[17%]">Total</th>
+                  <th className="py-3.5 px-5 text-left md:w-[48%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Deducted Product</th>
+                  <th className="py-3.5 px-4 text-center md:w-[18%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Qty Deducted</th>
+                  <th className="py-3.5 px-4 text-right md:w-[17%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Unit Value</th>
+                  <th className="py-3.5 px-5 text-right md:w-[17%]">Total Value</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-medium)]">

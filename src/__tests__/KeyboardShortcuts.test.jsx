@@ -83,11 +83,8 @@ describe('Keyboard Accessibility & Shortcuts', () => {
     expect(screen.getByText('Standard Hex Bolt 10mm')).toBeInTheDocument();
     expect(screen.getByText('Nylon Anchor Plug')).toBeInTheDocument();
 
-    // Verify keyboard status footer bar is rendered with shortcuts
-    expect(screen.getByText('Hotkeys:')).toBeInTheDocument();
-    expect(screen.getByText('Del')).toBeInTheDocument();
-    expect(screen.getByText('Search')).toBeInTheDocument();
-    expect(screen.getByText('Pay')).toBeInTheDocument();
+    // Verify keyboard status footer bar is removed from the UI as requested
+    expect(screen.queryByText('Hotkeys:')).not.toBeInTheDocument();
 
     // Click first row to verify onSelectCartIndex callback
     fireEvent.click(screen.getByText('Standard Hex Bolt 10mm').closest('tr'));

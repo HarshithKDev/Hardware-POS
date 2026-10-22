@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
-import { Save, Upload, Eye, EyeOff, Edit2, Trash2, Volume2, VolumeX, SlidersHorizontal, Boxes, Store } from 'lucide-react';
+import { Save, Upload, Eye, EyeOff, Edit2, Trash2, Volume2, VolumeX, SlidersHorizontal, Boxes, Store, FileSpreadsheet, Download } from 'lucide-react';
 import { isAudioEnabled, setAudioEnabled, playScanSuccessSound } from './services/audio';
+import { Spinner } from './SharedUI';
 
 export default function OwnerSettings() {
   const { shopSettings, setShopSettings, showAlert, setWarehouseDisabled } = useApp();
@@ -31,6 +32,8 @@ export default function OwnerSettings() {
   const [showUpi, setShowUpi] = useState(true);
   const [disableWarehouse, setDisableWarehouse] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(() => isAudioEnabled());
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportStatus, setExportStatus] = useState('');
 
   useEffect(() => {
     if (shopSettings) {
@@ -130,6 +133,28 @@ export default function OwnerSettings() {
       } catch (err) {
         console.error("Error updating sound setting:", err);
       }
+    }
+  };
+
+  const handleDownloadCompleteData = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    setExportStatus('Connecting to database...');
+    try {
+      const { exportCompleteShopData } = await import('./services/dataExport');
+      const fileName = await exportCompleteShopData(shopSettings, (status) => {
+        setExportStatus(status);
+      });
+      showAlert(
+        `All business data successfully exported to "${fileName}".\n\nContains 9 detailed sheets: Overview, Products & Inventory, Sales Transactions, Bill Items Breakdown, Expenses, Batches, Categories, Staff, and Audit Logs.`,
+        'Backup Downloaded'
+      );
+    } catch (err) {
+      console.error('Export error:', err);
+      showAlert(`Export failed: ${err.message || err}`, 'Export Error');
+    } finally {
+      setIsExporting(false);
+      setExportStatus('');
     }
   };
 
@@ -288,8 +313,8 @@ export default function OwnerSettings() {
   };
 
   return (
-    <div className="w-full h-full flex flex-col overflow-hidden animate-fade-in" style={{ backgroundColor: 'transparent' }}>
-      <div className="w-full max-w-7xl mx-auto flex flex-col h-full gap-3 p-1">
+    <div className="w-full flex-1 flex flex-col animate-fade-in pb-12" style={{ backgroundColor: 'transparent' }}>
+      <div className="w-full max-w-7xl mx-auto flex flex-col gap-4 p-1">
 
         {/* TOP BAR / PAGE HEADER */}
         <div className="flex items-center justify-between pb-2.5 border-b border-[var(--border-light)] shrink-0">
@@ -319,7 +344,7 @@ export default function OwnerSettings() {
                   Cancel
                 </button>
                 <button 
-                  type="button"
+                  type="button" 
                   onClick={handleSave} 
                   disabled={isLoading}
                   className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-white text-xs font-bold uppercase tracking-wider shadow-sm transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
@@ -350,107 +375,80 @@ export default function OwnerSettings() {
               style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-light)' }}
             >
               <div className="flex items-center gap-2 pb-2.5 border-b border-[var(--border-light)]">
-                <div className="p-1.5 rounded-lg bg-[var(--bg-tertiary)] text-[var(--color-accent)] border border-[var(--border-medium)]">
-                  <SlidersHorizontal size={15} />
+                <div className="p-1.5 rounded-lg bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-medium)]">
+                  <SlidersHorizontal size={14} />
                 </div>
                 <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
                   System Preferences
                 </h2>
               </div>
 
-              {/* TOGGLE 1: WAREHOUSE BYPASS */}
-              <div 
-                className={`p-3.5 rounded-lg border flex items-center justify-between gap-3 transition-all ${
-                  disableWarehouse 
-                    ? 'border-amber-500/40 bg-amber-500/5' 
-                    : 'border-[var(--border-light)] bg-[var(--bg-tertiary)]'
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`p-2 rounded-lg shrink-0 ${disableWarehouse ? 'bg-amber-500/10 text-amber-500' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'} border border-[var(--border-light)]`}>
-                    <Boxes size={16} />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>
+              {/* Grouped clean toggles */}
+              <div className="divide-y divide-[var(--border-light)] rounded-lg border border-[var(--border-light)] bg-[var(--bg-tertiary)]/40 overflow-hidden">
+                {/* TOGGLE 1: WAREHOUSE BYPASS */}
+                <div className="p-3.5 flex items-center justify-between gap-3 hover:bg-[var(--bg-tertiary)]/70 transition-colors">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 rounded-lg bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-[var(--border-light)] shrink-0">
+                      <Boxes size={16} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-sm font-semibold block truncate" style={{ color: 'var(--text-primary)' }}>
                         Disable Warehouse
                       </span>
-                      <span className={`px-1.5 py-0.5 text-[9px] font-bold uppercase rounded border ${
-                        disableWarehouse 
-                          ? 'bg-amber-500/15 text-amber-500 border-amber-500/30' 
-                          : 'bg-[var(--bg-secondary)] text-[var(--text-tertiary)] border-[var(--border-medium)]'
-                      }`}>
-                        {disableWarehouse ? 'Bypass Active' : 'Off'}
+                      <span className="text-xs text-[var(--text-tertiary)] block truncate mt-0.5">
+                        Direct to Store — bypass main storage allocation
                       </span>
                     </div>
-                    <span className="text-[11px] text-[var(--text-tertiary)] block truncate mt-0.5">
-                      Direct to Store Inventory
-                    </span>
                   </div>
+
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
+                    <input 
+                      type="checkbox" 
+                      checked={disableWarehouse} 
+                      onChange={(e) => handleToggleWarehouse(e.target.checked)} 
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:bg-[var(--color-accent)] peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all cursor-pointer" />
+                  </label>
                 </div>
 
-                <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                  <input 
-                    type="checkbox" 
-                    checked={disableWarehouse} 
-                    onChange={(e) => handleToggleWarehouse(e.target.checked)} 
-                    className="sr-only peer"
-                  />
-                  <div className="w-10 h-5 bg-[var(--border-medium)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500 cursor-pointer" />
-                </label>
-              </div>
-
-              {/* TOGGLE 2: POS AUDIO FEEDBACK */}
-              <div 
-                className={`p-3.5 rounded-lg border flex items-center justify-between gap-3 transition-all ${
-                  soundEnabled 
-                    ? 'border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5' 
-                    : 'border-[var(--border-light)] bg-[var(--bg-tertiary)]'
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className={`p-2 rounded-lg shrink-0 ${soundEnabled ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)]' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'} border border-[var(--border-light)]`}>
-                    {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>
-                        POS Sound Effects
-                      </span>
-                      <span className={`px-1.5 py-0.5 text-[9px] font-bold uppercase rounded border ${
-                        soundEnabled 
-                          ? 'bg-[var(--color-accent)]/15 text-[var(--color-accent)] border-[var(--color-accent)]/30' 
-                          : 'bg-[var(--bg-secondary)] text-[var(--text-tertiary)] border-[var(--border-medium)]'
-                      }`}>
-                        {soundEnabled ? 'Audio On' : 'Muted'}
+                {/* TOGGLE 2: POS AUDIO FEEDBACK */}
+                <div className="p-3.5 flex items-center justify-between gap-3 hover:bg-[var(--bg-tertiary)]/70 transition-colors">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 rounded-lg bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-[var(--border-light)] shrink-0">
+                      {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                          POS Sound Effects
+                        </span>
+                        {soundEnabled && (
+                          <button
+                            type="button"
+                            onClick={() => playScanSuccessSound()}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded border border-[var(--border-medium)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all active:scale-95 cursor-pointer shrink-0"
+                            title="Test scan sound"
+                          >
+                            <Volume2 size={11} className="text-[var(--color-accent)]" />
+                            <span>Test</span>
+                          </button>
+                        )}
+                      </div>
+                      <span className="text-xs text-[var(--text-tertiary)] block truncate mt-0.5">
+                        Audio confirmations on barcode scan and checkout
                       </span>
                     </div>
-                    <span className="text-[11px] text-[var(--text-tertiary)] block truncate mt-0.5">
-                      Scan & Checkout Audio Tones
-                    </span>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  {soundEnabled && (
-                    <button
-                      type="button"
-                      onClick={() => playScanSuccessSound()}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded border border-[var(--border-medium)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] text-[var(--color-accent)] transition-all active:scale-95 cursor-pointer"
-                      title="Test scan sound"
-                    >
-                      <Volume2 size={12} />
-                      <span>Test</span>
-                    </button>
-                  )}
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
                     <input 
                       type="checkbox" 
                       checked={soundEnabled} 
                       onChange={(e) => handleToggleSound(e.target.checked)} 
                       className="sr-only peer"
                     />
-                    <div className="w-10 h-5 bg-[var(--border-medium)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[var(--color-accent)] cursor-pointer" />
+                    <div className="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:bg-[var(--color-accent)] peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all cursor-pointer" />
                   </label>
                 </div>
               </div>
@@ -462,8 +460,8 @@ export default function OwnerSettings() {
               style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-light)' }}
             >
               <div className="flex items-center gap-2 pb-2.5 border-b border-[var(--border-light)]">
-                <div className="p-1.5 rounded-lg bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-medium)]">
-                  <Store size={15} />
+                <div className="p-1.5 rounded-lg bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-medium)]">
+                  <Store size={14} />
                 </div>
                 <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
                   Store Identity
@@ -543,6 +541,77 @@ export default function OwnerSettings() {
                   />
                 </div>
               </div>
+            </div>
+
+            {/* DATA BACKUP & EXPORT CARD */}
+            <div 
+              className="p-4 rounded-xl border shadow-sm flex flex-col gap-3 transition-all"
+              style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-light)' }}
+            >
+              <div className="flex items-center justify-between pb-2.5 border-b border-[var(--border-light)]">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-medium)]">
+                    <FileSpreadsheet size={14} />
+                  </div>
+                  <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
+                    Download Business Data
+                  </h2>
+                </div>
+                <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] border border-[var(--border-medium)]">
+                  XLSX
+                </span>
+              </div>
+
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                Export your complete store database into an organized, multi-sheet Excel spreadsheet with color-coded financials, stock valuation, and activity trails.
+              </p>
+
+              {/* Clean structured breakdown */}
+              <div className="grid grid-cols-2 gap-2 text-[11px] text-[var(--text-tertiary)] bg-[var(--bg-tertiary)]/40 p-2.5 rounded-lg border border-[var(--border-light)]">
+                <div className="flex items-center gap-1.5 truncate">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] shrink-0" />
+                  <span>Products & Inventory</span>
+                </div>
+                <div className="flex items-center gap-1.5 truncate">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] shrink-0" />
+                  <span>Sales & Invoices</span>
+                </div>
+                <div className="flex items-center gap-1.5 truncate">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] shrink-0" />
+                  <span>Line Items Breakdown</span>
+                </div>
+                <div className="flex items-center gap-1.5 truncate">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] shrink-0" />
+                  <span>Expenses, Staff & Logs</span>
+                </div>
+              </div>
+
+              {exportStatus && isExporting && (
+                <div className="p-2.5 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--color-accent)]/30 flex items-center gap-2 text-xs text-[var(--color-accent)] font-semibold animate-pulse">
+                  <Spinner className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">{exportStatus}</span>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleDownloadCompleteData}
+                disabled={isExporting}
+                className="w-full mt-1 py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 active:scale-98 hover:brightness-110"
+                style={{ backgroundColor: 'var(--color-accent)' }}
+              >
+                {isExporting ? (
+                  <>
+                    <Spinner className="w-4 h-4 text-white" />
+                    <span>Preparing Excel Backup...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download size={14} />
+                    <span>Download Complete Data</span>
+                  </>
+                )}
+              </button>
             </div>
 
           </div>

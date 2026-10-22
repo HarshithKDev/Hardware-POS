@@ -19,20 +19,29 @@ export default function CheckoutModal({
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center z-[100] print:hidden px-4 animate-fade-in"
+      className="fixed inset-0 flex items-end sm:items-center justify-center z-[100] print:hidden px-0 sm:px-4 animate-fade-in"
       style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="checkout-title"
     >
       <div 
-        className="w-[92%] sm:w-full max-w-[480px] max-h-[90dvh] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" 
+        className="w-full sm:w-full max-w-[480px] max-h-[92dvh] sm:max-h-[90dvh] flex flex-col rounded-t-2xl sm:rounded-xl overflow-hidden animate-scale-in border-t sm:border border-[var(--border-light)] shadow-2xl" 
         style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
       >
-        <div className="flex justify-between items-center pr-1 pl-4 py-1" style={{ borderBottom: '1px solid var(--border-light)' }}>
+        <div className="sm:hidden w-10 h-1 bg-[var(--border-medium)] rounded-full mx-auto my-2 shrink-0" />
+        <div className="flex justify-between items-center pr-2 pl-4 py-1 sm:py-1" style={{ borderBottom: '1px solid var(--border-light)' }}>
           <span id="checkout-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
             Checkout Payment
           </span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="sm:hidden p-1.5 text-xs font-bold text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+            aria-label="Close modal"
+          >
+            ✕
+          </button>
         </div>
         <div className="p-6 overflow-y-auto flex-1">
           <div className="flex justify-between items-end mb-6 pb-4" style={{ borderBottom: '1px solid var(--border-light)' }}>
@@ -112,7 +121,7 @@ export default function CheckoutModal({
                     key={method}
                     type="button"
                     onClick={() => setCheckoutModal({ ...checkoutModal, paymentMethod: method, error: '' })}
-                    className={`h-11 px-3 sm:px-4 text-xs sm:text-sm font-bold uppercase tracking-wide rounded-md transition-all flex items-center justify-between ${isSelected ? 'shadow-sm' : 'hover:border-[var(--border-heavy)]'}`}
+                    className={`h-11 px-3 sm:px-4 text-xs sm:text-sm font-bold uppercase tracking-wide rounded-md transition-all flex items-center justify-center ${isSelected ? 'shadow-sm' : 'hover:border-[var(--border-heavy)]'}`}
                     style={{ 
                       backgroundColor: isShowroom
                         ? (isSelected ? 'var(--color-warning)' : 'var(--bg-tertiary)')
@@ -124,25 +133,15 @@ export default function CheckoutModal({
                     }}
                   >
                     <span>{label}</span>
-                    <kbd 
-                      className="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded"
-                      style={{
-                        backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : 'var(--bg-secondary)',
-                        color: isSelected ? (isShowroom ? '#000' : '#fff') : 'var(--text-secondary)',
-                        border: isSelected ? '1px solid rgba(255,255,255,0.3)' : '1px solid var(--border-medium)'
-                      }}
-                    >
-                      {shortcut}
-                    </kbd>
                   </button>
                 );
               })}
             </div>
             {checkoutModal.paymentMethod === 'SHOWROOM' && (
               <div className="p-3 mt-2 rounded-md border flex items-start gap-2.5 animate-fade-in" style={{ backgroundColor: 'rgba(234, 179, 8, 0.08)', borderColor: 'rgba(234, 179, 8, 0.3)', color: 'var(--color-warning)' }}>
-                <span className="text-sm shrink-0">⚠️</span>
+                <span className="text-sm shrink-0">ℹ️</span>
                 <p className="text-xs font-medium leading-relaxed">
-                  Customer takes goods now, pays at the showroom. This will NOT be counted in sales revenue until marked as paid.
+                  Goods dispatched to showroom. Products are deducted from store inventory and recorded under Showroom without adding to shop sales revenue or profit.
                 </p>
               </div>
             )}
@@ -157,9 +156,8 @@ export default function CheckoutModal({
                 <div className="mb-4">
                   <div className="flex justify-between items-center mb-1.5">
                     <label htmlFor="cash-given" className="block text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                      Cash Given (₹)
+                      Cash Given (Optional)
                     </label>
-                    <span className="text-[10px] text-[var(--text-tertiary)] font-mono">Press [E] for Exact</span>
                   </div>
                   <input 
                     id="cash-given" 
@@ -171,58 +169,42 @@ export default function CheckoutModal({
                       const v = parseFloat(e.target.value); 
                       setCheckoutModal({ ...checkoutModal, error: '', cashGiven: (isNaN(v) || v < 0) && e.target.value !== '' ? checkoutModal.cashGiven : e.target.value });
                     }} 
-                    placeholder={`e.g. ${Math.ceil(activeTotal / 100) * 100 || 500}`} 
+                    placeholder="Leave empty if exact, or enter amount" 
                     className="w-full h-12 px-4 text-2xl font-bold focus:outline-none rounded-md" 
                     style={{ border: checkoutModal.error ? '1px solid var(--color-error)' : '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} 
                   />
 
-                  {/* Quick Tender Pills (1-tap exact & next standard note) */}
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {tenderPills.map((pill) => {
-                      const isSelected = Number(checkoutModal.cashGiven) === pill.value;
-                      return (
+                  {/* Quick Tender Note Suggestions (higher standard notes) */}
+                  {tenderPills.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {tenderPills.map((pill) => {
+                        const isSelected = Number(checkoutModal.cashGiven) === pill.value;
+                        return (
+                          <button
+                            key={pill.value}
+                            type="button"
+                            onClick={() => setCheckoutModal(prev => ({ ...prev, cashGiven: String(pill.value), error: '' }))}
+                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all border cursor-pointer active:scale-95 ${
+                              isSelected
+                                ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)] shadow-sm'
+                                : 'bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border-[var(--border-medium)]'
+                            }`}
+                          >
+                            {pill.label}
+                          </button>
+                        );
+                      })}
+                      {checkoutModal.cashGiven !== '' && (
                         <button
-                          key={pill.value}
                           type="button"
-                          onClick={() => setCheckoutModal(prev => ({ ...prev, cashGiven: String(pill.value), error: '' }))}
-                          className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all border cursor-pointer active:scale-95 ${
-                            isSelected
-                              ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)] shadow-sm'
-                              : 'bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border-[var(--border-medium)]'
-                          }`}
+                          onClick={() => setCheckoutModal(prev => ({ ...prev, cashGiven: '', error: '' }))}
+                          className="px-2.5 py-1.5 rounded-md text-xs font-bold text-[var(--color-error)] hover:bg-[var(--color-error-bg)] transition-colors cursor-pointer border border-transparent"
                         >
-                          {pill.label}
+                          Clear
                         </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Quick Note Additions (+10, +50, +100, +500) */}
-                  <div className="flex items-center gap-1.5 mt-2.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] mr-1">Add:</span>
-                    {[10, 50, 100, 500].map(addAmt => (
-                      <button
-                        key={addAmt}
-                        type="button"
-                        onClick={() => {
-                          const cur = Number(checkoutModal.cashGiven || 0);
-                          setCheckoutModal(prev => ({ ...prev, cashGiven: String(cur + addAmt), error: '' }));
-                        }}
-                        className="px-2 py-1 rounded text-xs font-semibold bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--color-accent)] border border-[var(--border-medium)] transition-colors active:scale-95 cursor-pointer"
-                      >
-                        +₹{addAmt}
-                      </button>
-                    ))}
-                    {checkoutModal.cashGiven !== '' && (
-                      <button
-                        type="button"
-                        onClick={() => setCheckoutModal(prev => ({ ...prev, cashGiven: '', error: '' }))}
-                        className="ml-auto px-2 py-1 rounded text-[11px] font-bold text-[var(--color-error)] hover:bg-[var(--color-error-bg)] transition-colors cursor-pointer"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
                   
                   {/* Live Change / Shortfall Display */}
                   {isChange && (
@@ -307,28 +289,24 @@ export default function CheckoutModal({
             </p>
           )}
         </div>
-        <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
+        <div className="p-3 sm:p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)', paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
           <button 
             type="button"
             onClick={onClose} 
             disabled={isCheckingOut} 
-            className="min-h-[44px] md:min-h-0 md:h-10 px-6 sm:px-8 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md text-white transition-colors bg-[var(--color-error)] hover:bg-red-600 flex items-center justify-center gap-2 cursor-pointer"
+            className="flex-1 sm:flex-initial min-h-[44px] md:min-h-0 md:h-10 px-4 sm:px-8 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md text-white transition-colors bg-[var(--color-error)] hover:bg-red-600 flex items-center justify-center gap-2 cursor-pointer"
           >
             <span>Cancel</span>
-            <kbd className="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded bg-black/20 text-white/90">Esc</kbd>
           </button>
           <button 
             type="button"
             onClick={onCompleteTransaction} 
             disabled={isCheckingOut} 
-            className="min-h-[44px] md:min-h-0 md:h-10 px-6 sm:px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 flex justify-center items-center gap-2 min-w-[140px] cursor-pointer" 
+            className="flex-1 sm:flex-initial min-h-[44px] md:min-h-0 md:h-10 px-4 sm:px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 flex justify-center items-center gap-2 min-w-[140px] cursor-pointer" 
             style={{ backgroundColor: checkoutModal.paymentMethod === 'SHOWROOM' ? 'var(--color-warning)' : 'var(--color-accent)' }}
           >
             {isCheckingOut ? <Spinner className="w-4 h-4 text-white" /> : (
-              <>
-                <span>{checkoutModal.paymentMethod === 'SHOWROOM' ? 'Send to Showroom' : 'Complete Sale'}</span>
-                <kbd className="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded bg-white/25 text-white">↵ Enter</kbd>
-              </>
+              <span>{checkoutModal.paymentMethod === 'SHOWROOM' ? 'Send to Showroom' : 'Complete Sale'}</span>
             )}
           </button>
         </div>

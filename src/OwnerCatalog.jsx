@@ -499,35 +499,6 @@ export default function OwnerCatalog() {
             Note: This barcode is provisional. It resolves automatically during concurrent saves.
           </p>
         </div>
-
-        <div className="flex gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={handleDownloadTemplate}
-            className="h-9 px-4 text-xs font-semibold uppercase tracking-wider flex items-center gap-1 transition-colors"
-            style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border-medium)' }}
-          >
-            Template
-          </button>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="h-9 px-4 text-xs font-semibold uppercase tracking-wider flex items-center gap-1 transition-colors"
-            style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-accent-fg)', border: '1px solid var(--color-accent)' }}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-            </svg>
-            Import Excel
-          </button>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleImportExcel}
-            accept=".xlsx, .xls"
-            className="hidden"
-          />
-        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="p-4 md:p-6 rounded-xl shadow-sm flex flex-col flex-1 gap-4" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
