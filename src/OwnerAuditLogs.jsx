@@ -5,6 +5,7 @@ import { Spinner, PageLoader } from './SharedUI';
 import { debounce, formatDateTime, formatDayHeader, escapeIlike, useSessionState } from './utils';
 import { useApp } from './AppContext';
 import { X, Calendar } from 'lucide-react';
+import PageTitleReset from './components/PageTitleReset';
 
 const formatChanges = (changes) => {
   if (!changes || changes === '—') return <span style={{ color: 'var(--text-tertiary)' }}>—</span>;
@@ -68,6 +69,29 @@ export default function OwnerAuditLogs() {
   const [datePageIndex, setDatePageIndex] = useSessionState(`pos_audit_date_idx_${shopId}`, 0);
   const [customDate, setCustomDate] = useSessionState(`pos_audit_date_${shopId}`, '');
   const [searchPage, setSearchPage] = useSessionState(`pos_audit_page_${shopId}`, 0);
+
+  const handleResetAuditLogs = () => {
+    setSearchTerm('');
+    setDebouncedSearch('');
+    setActiveFilter('ALL');
+    setSelectedUser('ALL');
+    setSortOrder('newest');
+    setDatePageIndex(0);
+    setCustomDate('');
+    setSearchPage(0);
+    setShowAdvanced(false);
+    try {
+      window.sessionStorage.removeItem(`pos_audit_search_${shopId}`);
+      window.sessionStorage.removeItem(`pos_audit_debounced_${shopId}`);
+      window.sessionStorage.removeItem(`pos_audit_filter_${shopId}`);
+      window.sessionStorage.removeItem(`pos_audit_user_${shopId}`);
+      window.sessionStorage.removeItem(`pos_audit_sort_${shopId}`);
+      window.sessionStorage.removeItem(`pos_audit_date_idx_${shopId}`);
+      window.sessionStorage.removeItem(`pos_audit_date_${shopId}`);
+      window.sessionStorage.removeItem(`pos_audit_page_${shopId}`);
+      window.sessionStorage.removeItem(`pos_audit_adv_${shopId}`);
+    } catch (e) {}
+  };
 
   const AUDIT_SEARCH_PER_PAGE = 50;
 
@@ -262,7 +286,11 @@ export default function OwnerAuditLogs() {
   return (
     <div className="flex flex-col h-full animate-fade-in w-full">
       <div className="flex flex-col gap-4 mb-6">
-        <h1 className="text-2xl font-medium whitespace-nowrap shrink-0" style={{ color: 'var(--text-primary)' }}>Unified Audit Logs</h1>
+        <PageTitleReset
+          title="Unified Audit Logs"
+          onReset={handleResetAuditLogs}
+          tooltip="Click title to reset audit log filters, user selection, and date to default"
+        />
         
         <div className="flex flex-col md:flex-row gap-3 w-full items-start md:items-center">
 

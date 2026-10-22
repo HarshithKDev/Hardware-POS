@@ -14,6 +14,7 @@ import {
 } from './constants';
 import { AlertTriangle, Calendar } from 'lucide-react';
 import { useSessionState } from './hooks/useSessionState';
+import PageTitleReset from './components/PageTitleReset';
 
 function formatDateLabel(dStr, includeYear = false) {
   if (!dStr) return '';
@@ -639,6 +640,22 @@ export default function OwnerStats({ isActive }) {
   });
   const [endDate, setEndDate] = useSessionState(`pos_stats_end_${shopId}`, () => new Date().toLocaleDateString('en-CA'));
 
+  const handleResetStats = () => {
+    setGlobalTimeframe('today');
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    setCustomDate(todayStr);
+    const d = new Date();
+    d.setDate(d.getDate() - 6);
+    setStartDate(d.toLocaleDateString('en-CA'));
+    setEndDate(todayStr);
+    try {
+      window.sessionStorage.removeItem(`pos_stats_timeframe_${shopId}`);
+      window.sessionStorage.removeItem(`pos_stats_date_${shopId}`);
+      window.sessionStorage.removeItem(`pos_stats_start_${shopId}`);
+      window.sessionStorage.removeItem(`pos_stats_end_${shopId}`);
+    } catch (e) {}
+  };
+
   // 1. FAST Sales & Trend Query (~40ms) — only queries bills for the chosen date/range
   const fetchSalesStats = useCallback(async () => {
     const now = new Date();
@@ -1102,7 +1119,11 @@ export default function OwnerStats({ isActive }) {
   return (
     <div className="flex flex-col h-auto lg:h-full relative">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 shrink-0 gap-4">
-        <h1 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>Business Overview</h1>
+        <PageTitleReset
+          title="Business Overview"
+          onReset={handleResetStats}
+          tooltip="Click title to reset overview timeframe to Today"
+        />
         <div className="flex items-center gap-2.5 flex-wrap">
           <DashboardDateFilter
             timeframe={globalTimeframe}

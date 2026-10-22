@@ -11,6 +11,7 @@ import {
   X
 } from 'lucide-react';
 import { Spinner, PageLoader } from './SharedUI';
+import PageTitleReset from './components/PageTitleReset';
 
 const getLocalStorageKey = (shopId) => `hardware_pos_expenses_${shopId || 'default'}`;
 
@@ -30,6 +31,14 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
   const [selectedWorkerId, setSelectedWorkerId] = useState('');
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
+
+  const handleResetExpenses = () => {
+    setIsModalOpen(false);
+    setAmount('');
+    setReason('');
+    setSelectedWorkerId('');
+    fetchExpenses();
+  };
 
   // 1. Fetch Workers
   useEffect(() => {
@@ -208,11 +217,11 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
     <div className="h-full flex flex-col relative w-full animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-5">
-        <div>
-          <h1 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>
-            Expenses
-          </h1>
-        </div>
+        <PageTitleReset
+          title="Expenses"
+          onReset={handleResetExpenses}
+          tooltip="Click title to refresh expenses"
+        />
 
         <div className="flex items-center gap-3 shrink-0">
           {totalExpenses > 0 && (

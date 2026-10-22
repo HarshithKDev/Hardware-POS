@@ -110,4 +110,66 @@ describe('useSessionState Hook', () => {
     expect(screen.getByTestId('search-input').value).toBe('copper wire');
     expect(screen.getByTestId('cat-select').value).toBe('Electrical');
   });
+
+  it('resets page filters when PageTitleReset is clicked', async () => {
+    const { default: PageTitleReset } = await import('../components/PageTitleReset');
+
+    function PageWithTitleReset() {
+      const [search, setSearch] = useSessionState('shop_reset_test_search', '');
+      const [category, setCategory] = useSessionState('shop_reset_test_cat', 'ALL');
+
+      const handleReset = () => {
+        setSearch('');
+        setCategory('ALL');
+        window.sessionStorage.removeItem('shop_reset_test_search');
+        window.sessionStorage.removeItem('shop_reset_test_cat');
+      };
+
+      return (
+        <div>
+          <PageTitleReset
+            title="Store Inventory Actions"
+            onReset={handleReset}
+          />
+          <input
+            data-testid="search-input"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <select
+            data-testid="cat-select"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option value="ALL">ALL</option>
+            <option value="Pipes">Pipes</option>
+          </select>
+        </div>
+      );
+    }
+
+    render(<PageWithTitleReset />);
+
+    // User applies filters
+    const searchInput = screen.getByTestId('search-input');
+    const catSelect = screen.getByTestId('cat-select');
+
+    act(() => {
+      fireEvent.change(searchInput, { target: { value: 'PVC 1/2"' } });
+      fireEvent.change(catSelect, { target: { value: 'Pipes' } });
+    });
+
+    expect(screen.getByTestId('search-input').value).toBe('PVC 1/2"');
+    expect(screen.getByTestId('cat-select').value).toBe('Pipes');
+
+    // User clicks the Page Title to reset the page
+    const titleButton = screen.getByRole('button', { name: /Store Inventory Actions/i });
+    act(() => {
+      fireEvent.click(titleButton);
+    });
+
+    // Page state is reset to initial defaults!
+    expect(screen.getByTestId('search-input').value).toBe('');
+    expect(screen.getByTestId('cat-select').value).toBe('ALL');
+  });
 });

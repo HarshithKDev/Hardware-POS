@@ -5,6 +5,7 @@ import { useApp } from './AppContext';
 import { generateId } from './utils';
 import { getWorkerEmail, getAdminEmail } from './constants';
 import { Spinner, PageLoader } from './SharedUI';
+import PageTitleReset from './components/PageTitleReset';
 
 export default function OwnerStaff() {
   const { showAlert, showConfirm } = useApp();
@@ -16,6 +17,12 @@ export default function OwnerStaff() {
   const [showPromptModal, setShowPromptModal] = useState(false);
   const [promptPassword, setPromptPassword] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+
+  const handleResetStaff = () => {
+    setNewStaffName('');
+    setNewStaffPassword('');
+    setNewStaffIsBillable('true');
+  };
 
   const shopId = localStorage.getItem('shop_id');
 
@@ -154,7 +161,11 @@ export default function OwnerStaff() {
 
   return (
     <div className="flex flex-col h-full gap-6 animate-fade-in w-full">
-      <h1 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>Manage Staff</h1>
+      <PageTitleReset
+        title="Manage Staff"
+        onReset={handleResetStaff}
+        tooltip="Click title to clear staff form inputs"
+      />
 
       <div className="p-6 rounded-lg flex-shrink-0 border border-[var(--border-light)]" style={{ backgroundColor: 'var(--bg-secondary)' }}>
         <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-secondary)' }}>Add New Cashier</h2>

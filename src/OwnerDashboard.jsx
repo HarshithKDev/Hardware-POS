@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from './AppContext';
 import { PageLoader } from './SharedUI';
 import OwnerStats from './OwnerStats';
+import PageTitleReset from './components/PageTitleReset';
 
 const OwnerCatalog = lazy(() => import('./OwnerCatalog'));
 const OwnerInventory = lazy(() => import('./OwnerInventory'));
@@ -61,6 +62,15 @@ export default function OwnerDashboard() {
       setSearchParams({ wsub: 'inventory' });
     }
   }, [isWarehouseDisabled, warehouseSubTab, setSearchParams]);
+
+  const handleResetWarehouse = () => {
+    setSelectedBatchBarcode(null);
+    setSearchParams({ wsub: 'inventory' });
+    try {
+      sessionStorage.removeItem(`pos_owner_warehouse_subtab_${shopId}`);
+    } catch (e) {}
+    window.dispatchEvent(new CustomEvent('reset_inventory_filters'));
+  };
 
   const navItems = useMemo(() => [
     { key: 'dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -187,9 +197,12 @@ export default function OwnerDashboard() {
             />
           ) : (
             <div className="flex flex-col flex-1 h-full animate-fade-in">
-              <h1 className="text-2xl font-medium mb-6" style={{ color: 'var(--text-primary)' }}>
-                {isWarehouseDisabled ? 'Store Inventory Actions' : 'Main Storage Actions'}
-              </h1>
+              <PageTitleReset
+                title={isWarehouseDisabled ? 'Store Inventory Actions' : 'Main Storage Actions'}
+                onReset={handleResetWarehouse}
+                className="mb-6"
+                tooltip="Click title to reset inventory filters, search, and tabs to default"
+              />
               <div
                 className="flex gap-1 mb-6 pb-0 overflow-x-hidden border-b border-[var(--border-light)]"
                 role="tablist"

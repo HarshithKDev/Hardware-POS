@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { STALE_TIME_5MIN } from './constants';
+import PageTitleReset from './components/PageTitleReset';
 
 export default function OwnerCategories() {
   const { showAlert, showConfirm } = useApp();
@@ -12,6 +13,13 @@ export default function OwnerCategories() {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [newSubcategory, setNewSubcategory] = useState('');
   const [expandedCategoryName, setExpandedCategoryName] = useState(null);
+
+  const handleResetCategories = () => {
+    setNewCategory('');
+    setSelectedCategory('');
+    setNewSubcategory('');
+    setExpandedCategoryName(null);
+  };
 
   const shopId = localStorage.getItem('shop_id');
 
@@ -181,7 +189,11 @@ export default function OwnerCategories() {
 
   return (
     <div className="flex flex-col h-full gap-4 animate-fade-in w-full">
-      <h1 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>Manage Categories & Sub-categories</h1>
+      <PageTitleReset
+        title="Manage Categories & Sub-categories"
+        onReset={handleResetCategories}
+        tooltip="Click title to clear category form inputs"
+      />
 
       <div className="flex flex-col md:flex-row gap-4">
         <div className="p-4 md:p-6 flex-1 shadow-sm rounded-lg border border-[var(--border-light)]" style={{ backgroundColor: 'var(--bg-secondary)' }}>

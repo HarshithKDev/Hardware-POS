@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { formatDateTime, useSessionState } from './utils';
 import { ChevronRight, Phone } from 'lucide-react';
 import ShowroomDetailsView from './ShowroomDetailsView';
+import PageTitleReset from './components/PageTitleReset';
 
 const SHOWROOM_PAGE_SIZE = 20;
 
@@ -12,6 +13,14 @@ export default function OwnerShowroom() {
   const shopId = localStorage.getItem('shop_id');
   const [page, setPage] = useSessionState(`pos_showroom_page_${shopId}`, 0);
   const [selectedBill, setSelectedBill] = useState(null);
+
+  const handleResetShowroom = () => {
+    setPage(0);
+    setSelectedBill(null);
+    try {
+      window.sessionStorage.removeItem(`pos_showroom_page_${shopId}`);
+    } catch (e) {}
+  };
 
   const { data: bills = [], isLoading } = useQuery({
     queryKey: ['showroom-sales', shopId, page],
@@ -53,14 +62,12 @@ export default function OwnerShowroom() {
     <div className="h-full flex flex-col relative w-full animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>
-            Showroom Dispatches
-          </h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-            Record of products deducted and sent to the showroom. Excluded from shop sales and profit.
-          </p>
-        </div>
+        <PageTitleReset
+          title="Showroom Dispatches"
+          subtitle="Record of products deducted and sent to the showroom. Excluded from shop sales and profit."
+          onReset={handleResetShowroom}
+          tooltip="Click title to reset showroom dispatches to first page"
+        />
         {bills.length > 0 && (
           <div className="shrink-0 px-4 py-2 rounded-lg border" style={{ backgroundColor: 'var(--color-accent-bg)', borderColor: 'rgba(59, 130, 246, 0.3)' }}>
             <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-accent)' }}>Total Dispatched Value</p>

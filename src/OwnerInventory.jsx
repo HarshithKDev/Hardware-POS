@@ -31,6 +31,30 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
   const [batchToDelete, setBatchToDelete] = useState(null);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
 
+  const handleResetFilters = useCallback(() => {
+    setInventorySearch('');
+    setDebouncedSearch('');
+    setSortOption('barcode-asc');
+    setFilterCategory('');
+    setFilterSubcategory('');
+    setSelectedBarcodes([]);
+    setIsSelectionMode(false);
+    setIsGlobalEditMode(false);
+    try {
+      window.sessionStorage.removeItem(`pos_inv_search_${shopId}_${viewType}`);
+      window.sessionStorage.removeItem(`pos_inv_debounced_${shopId}_${viewType}`);
+      window.sessionStorage.removeItem(`pos_inv_sort_${shopId}_${viewType}`);
+      window.sessionStorage.removeItem(`pos_inv_cat_${shopId}_${viewType}`);
+      window.sessionStorage.removeItem(`pos_inv_subcat_${shopId}_${viewType}`);
+    } catch (e) {}
+  }, [shopId, viewType, setInventorySearch, setDebouncedSearch, setSortOption, setFilterCategory, setFilterSubcategory]);
+
+  useEffect(() => {
+    const handleReset = () => handleResetFilters();
+    window.addEventListener('reset_inventory_filters', handleReset);
+    return () => window.removeEventListener('reset_inventory_filters', handleReset);
+  }, [handleResetFilters]);
+
   useEffect(() => {
     const handleOpenCreateBatchModal = (e) => setCreateBatchModal({ isOpen: true, item: e.detail });
     window.addEventListener('openCreateBatchModal', handleOpenCreateBatchModal);

@@ -7,6 +7,7 @@ import { generateId } from './utils';
 import { BARCODE_START_VALUE, BARCODE_RETRY_ATTEMPTS, UNIT_TYPES, STALE_TIME_5MIN } from './constants';
 import { Spinner, CreatableDropdown } from './SharedUI';
 import { saveInventoryBatch, initDB } from './services/db';
+import PageTitleReset from './components/PageTitleReset';
 
 export default function OwnerCatalog() {
   const { showAlert, isWarehouseDisabled, shopSettings } = useApp();
@@ -18,6 +19,15 @@ export default function OwnerCatalog() {
     default_length: '', default_width: '', billing_increment: '0.01', billing_method: 'exact'
   });
   const fileInputRef = useRef(null);
+
+  const handleResetCatalog = () => {
+    setForm({
+      name: '', category: '', sub_category: '', cost_price: '',
+      msp: '', price: '', unit: 'PCS', min_quantity_warehouse: '', min_quantity_store: '', item_type: 'standard',
+      default_length: '', default_width: '', billing_increment: '0.01', billing_method: 'exact'
+    });
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const shopId = shopSettings?.id || localStorage.getItem('shop_id');
 
@@ -491,7 +501,12 @@ export default function OwnerCatalog() {
     <div className="flex flex-col h-full overflow-y-auto gap-6 animate-fade-in pr-1">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Register New Item</h1>
+          <PageTitleReset
+            title="Register New Item"
+            onReset={handleResetCatalog}
+            className="mb-2"
+            tooltip="Click title to clear registration form"
+          />
           <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
             Assigned Barcode: <span className=" font-bold text-lg" style={{ color: 'var(--color-accent)' }}>{nextBarcode || '...'}</span>
           </p>

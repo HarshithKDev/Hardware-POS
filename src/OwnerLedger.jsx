@@ -9,6 +9,7 @@ import { DialogOverlay } from './Dialog';
 import { Search, Undo2, X, Phone, User, ChevronRight, Calendar } from 'lucide-react';
 import BillDetailsView from './BillDetailsView';
 import { getInventoryItemByBarcode } from './services/db';
+import PageTitleReset from './components/PageTitleReset';
 
 const isItemCuttable = (item) => {
   return Boolean(
@@ -81,6 +82,21 @@ export default function OwnerLedger({ isActive }) {
   const [billItemsCache, setBillItemsCache] = useState({});
   const [isLoadingItems, setIsLoadingItems] = useState(false);
   const [returnModalState, setReturnModalState] = useState(null); // { bill, items }
+
+  const handleResetLedger = () => {
+    setSearchQuery('');
+    setSalesPage(0);
+    setDatePageIndex(0);
+    setCustomDate('');
+    setSelectedBill(null);
+    setShowCustomerDropdown(false);
+    try {
+      window.sessionStorage.removeItem(`pos_ledger_sales_page_${shopId}`);
+      window.sessionStorage.removeItem(`pos_ledger_date_idx_${shopId}`);
+      window.sessionStorage.removeItem(`pos_ledger_custom_date_${shopId}`);
+      window.sessionStorage.removeItem(`pos_ledger_search_${shopId}`);
+    } catch (e) {}
+  };
 
   // Query distinct dates with store sales for day-by-day pagination
   const { data: availableDates = [] } = useQuery({
@@ -531,10 +547,12 @@ export default function OwnerLedger({ isActive }) {
   return (
     <div className="h-full flex flex-col relative w-full">
       <div className="flex justify-between items-end mb-4">
-        <div>
-          <h1 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>Sales History</h1>
-          <p className="text-xs text-[var(--text-secondary)] mt-0.5">Search past sales by customer phone or name, view receipts, and process returns.</p>
-        </div>
+        <PageTitleReset
+          title="Sales History"
+          subtitle="Search past sales by customer phone or name, view receipts, and process returns."
+          onReset={handleResetLedger}
+          tooltip="Click title to reset customer search and date filters to default"
+        />
       </div>
 
       <div className="flex flex-col flex-1 min-h-0">

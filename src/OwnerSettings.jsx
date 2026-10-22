@@ -4,6 +4,7 @@ import { useApp } from './AppContext';
 import { Save, Upload, Eye, EyeOff, Edit2, Trash2, Volume2, VolumeX, SlidersHorizontal, Boxes, Store, FileSpreadsheet, Download } from 'lucide-react';
 import { isAudioEnabled, setAudioEnabled, playScanSuccessSound } from './services/audio';
 import { Spinner } from './SharedUI';
+import PageTitleReset from './components/PageTitleReset';
 
 export default function OwnerSettings() {
   const { shopSettings, setShopSettings, showAlert, setWarehouseDisabled } = useApp();
@@ -34,6 +35,38 @@ export default function OwnerSettings() {
   const [soundEnabled, setSoundEnabled] = useState(() => isAudioEnabled());
   const [isExporting, setIsExporting] = useState(false);
   const [exportStatus, setExportStatus] = useState('');
+
+  const handleResetSettings = () => {
+    setIsEditing(false);
+    if (shopSettings) {
+      let addr = shopSettings.shop_address || '';
+      let upi = shopSettings.upi_id || '';
+      let sAddr = true;
+      let sUpi = true;
+      if (addr.startsWith('HIDDEN::')) {
+        sAddr = false;
+        addr = addr.substring(8);
+      }
+      if (upi.startsWith('HIDDEN::')) {
+        sUpi = false;
+        upi = upi.substring(8);
+      }
+      setFormData({
+        shop_name: shopSettings.shop_name || '',
+        owner_name: shopSettings.owner_name || '',
+        shop_address: addr,
+        phone: shopSettings.phone || '',
+        upi_id: upi,
+        admin_email: shopSettings.admin_email || ''
+      });
+      setShowAddress(sAddr);
+      setShowUpi(sUpi);
+      setLogoPreview(shopSettings.logo_url || null);
+      setLogoFile(null);
+      setPassword('');
+      setConfirmPassword('');
+    }
+  };
 
   useEffect(() => {
     if (shopSettings) {
@@ -318,11 +351,11 @@ export default function OwnerSettings() {
 
         {/* TOP BAR / PAGE HEADER */}
         <div className="flex items-center justify-between pb-2.5 border-b border-[var(--border-light)] shrink-0">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
-              Shop Settings
-            </h1>
-          </div>
+          <PageTitleReset
+            title="Shop Settings"
+            onReset={handleResetSettings}
+            tooltip="Click title to reset settings form"
+          />
           <div className="flex items-center gap-2">
             {!isEditing ? (
               <button 

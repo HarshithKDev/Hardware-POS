@@ -8,6 +8,7 @@ import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import { escapeIlike, debounce, useSessionState } from './utils';
 import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD, INV_PER_PAGE, STALE_TIME_5MIN } from './constants';
 import { getInventoryByQuery } from './services/db';
+import PageTitleReset from './components/PageTitleReset';
 
 export default function WorkerDashboardView({ isBillable = true }) {
   const { isWarehouseDisabled } = useApp();
@@ -17,6 +18,17 @@ export default function WorkerDashboardView({ isBillable = true }) {
   const [debouncedSearch, setDebouncedSearch] = useSessionState(`pos_worker_dash_debounced_${shopId}`, () => inventorySearch || '');
   const [selectedCategory, setSelectedCategory] = useSessionState(`pos_worker_dash_cat_${shopId}`, 'ALL');
   const [lowStockModal, setLowStockModal] = useState({ isOpen: false, type: null });
+
+  const handleResetWorkerDashboard = () => {
+    setInventorySearch('');
+    setDebouncedSearch('');
+    setSelectedCategory('ALL');
+    try {
+      window.sessionStorage.removeItem(`pos_worker_dash_search_${shopId}`);
+      window.sessionStorage.removeItem(`pos_worker_dash_debounced_${shopId}`);
+      window.sessionStorage.removeItem(`pos_worker_dash_cat_${shopId}`);
+    } catch (e) {}
+  };
 
   const actionCards = useMemo(() => {
     const list = [
@@ -288,7 +300,13 @@ export default function WorkerDashboardView({ isBillable = true }) {
 
   return (
     <div className="flex flex-col h-full p-3 md:p-4 animate-fade-in flex-1 m-0 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm min-h-0 overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
-      <h2 className="text-xl md:text-2xl font-medium mb-3 md:mb-4 hidden md:block" style={{ color: 'var(--text-primary)' }}>Staff Dashboard</h2>
+      <PageTitleReset
+        title="Staff Dashboard"
+        tag="h2"
+        onReset={handleResetWorkerDashboard}
+        className="mb-3 md:mb-4 hidden md:flex"
+        tooltip="Click title to reset inventory search and category filter to default"
+      />
       
       {/* Big Action Buttons */}
       <div className={`grid gap-2.5 md:gap-4 mb-3 md:mb-4 ${
