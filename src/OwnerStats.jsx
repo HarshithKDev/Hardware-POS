@@ -1098,16 +1098,18 @@ export default function OwnerStats({ isActive }) {
     <div className="flex flex-col h-auto lg:h-full relative">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 shrink-0 gap-4">
         <h1 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>Business Overview</h1>
-        <DashboardDateFilter
-          timeframe={globalTimeframe}
-          setTimeframe={setGlobalTimeframe}
-          customDate={customDate}
-          setCustomDate={setCustomDate}
-          startDate={startDate}
-          setStartDate={setStartDate}
-          endDate={endDate}
-          setEndDate={setEndDate}
-        />
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <DashboardDateFilter
+            timeframe={globalTimeframe}
+            setTimeframe={setGlobalTimeframe}
+            customDate={customDate}
+            setCustomDate={setCustomDate}
+            startDate={startDate}
+            setStartDate={setStartDate}
+            endDate={endDate}
+            setEndDate={setEndDate}
+          />
+        </div>
       </div>
 
       {failedSyncs && failedSyncs.length > 0 && (
@@ -1204,16 +1206,18 @@ export default function OwnerStats({ isActive }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div
-              className="flex justify-between items-center px-5 py-3.5 shrink-0 border-b border-[var(--border-light)]"
+              className="flex justify-between items-center px-5 py-3.5 shrink-0 border-b border-[var(--border-light)] gap-3 flex-wrap"
               style={{ backgroundColor: 'var(--bg-tertiary)' }}
             >
-              <span id="stats-modal-title" className="text-xs sm:text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
-                {activeModal === 'profit' && 'Profit & Sales Breakdown'}
-                {activeModal === 'low-store' && (isWarehouseDisabled ? 'Items Running Low in Stock' : 'Items Running Low in Store Front')}
-                {activeModal === 'low-warehouse' && `Items Running Low in Warehouse`}
-                {activeModal === 'dead-stock' && `Dead Stock`}
-                {activeModal === 'failed-syncs' && 'Failed Offline Transactions'}
-              </span>
+              <div className="flex items-center gap-3 flex-wrap">
+                <span id="stats-modal-title" className="text-xs sm:text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
+                  {activeModal === 'profit' && 'Profit & Sales Breakdown'}
+                  {activeModal === 'low-store' && (isWarehouseDisabled ? 'Items Running Low in Stock' : 'Items Running Low in Store Front')}
+                  {activeModal === 'low-warehouse' && `Items Running Low in Warehouse`}
+                  {activeModal === 'dead-stock' && `Dead Stock`}
+                  {activeModal === 'failed-syncs' && 'Failed Offline Transactions'}
+                </span>
+              </div>
               <button
                 onClick={() => setActiveModal(null)}
                 className="px-3.5 py-1.5 text-white rounded-lg text-xs font-bold focus:outline-none transition-all hover:opacity-90 active:scale-95 cursor-pointer shadow-sm"

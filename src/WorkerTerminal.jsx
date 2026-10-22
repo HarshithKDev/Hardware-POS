@@ -16,10 +16,60 @@ import { SCAN_TIMEOUT_MS } from './constants';
 import InlineContinuousScanner from './components/scanner/InlineContinuousScanner';
 import CartTable from './components/cart/CartTable';
 import CartMobileView from './components/cart/CartMobileView';
-// ---------------------------------------------------------------
-// Extracted sub-components (Phase 5 decomposition)
-// ---------------------------------------------------------------
+import { playScanSuccessSound, playScanErrorSound, playPaymentSuccessSound } from './services/audio';
+import {
+  CheckoutModal,
+  SelectBatchModal,
+  LooseItemModal,
+  SelectPieceModal,
+  ReceiveLengthModal,
+  ManualInstanceBarcodeModal,
+  CutLengthModal
+} from './components/terminal';
+import { broadcastStockUpdate, subscribeToStockUpdates } from './services/realtimeStock';
 
+// Dynamic smart denomination suggestions for rapid cash checkout
+function getQuickTenderOptions(total) {
+  if (!total || total <= 0) return [];
+  const ceilTotal = Math.ceil(total);
+  const pills = [{ label: `Exact (₹${ceilTotal})`, value: ceilTotal, isExact: true }];
+
+  const standardNotes = [50, 100, 200, 500, 1000, 2000];
+
+  // Nearest friendly note (next 50 or 100)
+  if (ceilTotal < 500 && ceilTotal % 50 !== 0) {
+    const next50 = Math.ceil(ceilTotal / 50) * 50;
+    if (next50 > ceilTotal && !standardNotes.includes(next50)) {
+      pills.push({ label: `₹${next50}`, value: next50 });
+    }
+  } else if (ceilTotal >= 500 && ceilTotal < 2000 && ceilTotal % 100 !== 0) {
+    const next100 = Math.ceil(ceilTotal / 100) * 100;
+    if (next100 > ceilTotal && !standardNotes.includes(next100)) {
+      pills.push({ label: `₹${next100}`, value: next100 });
+    }
+  }
+
+  // Next standard currency notes above total
+  standardNotes.filter(n => n > ceilTotal).slice(0, 3).forEach(note => {
+    if (!pills.some(p => p.value === note)) {
+      pills.push({ label: `₹${note}`, value: note });
+    }
+  });
+
+  // If bill is large (>= 2000), offer next multiples of 500 and 1000
+  if (ceilTotal >= 2000) {
+    const next500 = Math.ceil(ceilTotal / 500) * 500;
+    if (next500 > ceilTotal && !pills.some(p => p.value === next500)) {
+      pills.push({ label: `₹${next500}`, value: next500 });
+    }
+    const next1000 = Math.ceil(ceilTotal / 1000) * 1000;
+    if (next1000 > next500 && !pills.some(p => p.value === next1000)) {
+      pills.push({ label: `₹${next1000}`, value: next1000 });
+    }
+  }
+
+  return pills;
+}
 
 // ---------------------------------------------------------------
 // Main WorkerTerminal component (orchestrator)
@@ -84,6 +134,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const [isInputFocused, setIsInputFocused] = useState(false);
   const barcodeBuffer = useRef('');
   const lastKeyTime = useRef(Date.now());
+  const lastScanKeyTime = useRef(0);
+  const scanBurstBuffer = useRef('');
+  const scanBurstTimestamps = useRef([]);
   const cartRef = useRef(cart);
   // Refs for values used inside the keydown closure (fixes stale closure #18)
   const activeTabRef = useRef(activeTab);
@@ -137,6 +190,30 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       return () => { supabase.removeChannel(channel); };
     }
   }, [activeTab]);
+
+  // Realtime Terminal Stock Broadcasting Listener
+  useEffect(() => {
+    const currentShopId = shopSettings?.id || (typeof localStorage !== 'undefined' ? localStorage.getItem('shop_id') : null);
+    const sub = subscribeToStockUpdates({
+      shopId: currentShopId,
+      getCartItems: () => cartRef.current || [],
+      onStockUpdate: () => {
+        queryClient.invalidateQueries({ queryKey: ['inventory'] });
+        queryClient.invalidateQueries({ queryKey: ['piece_counts'] });
+      },
+      onCartConflict: ({ item, remainingStoreStock }) => {
+        playScanErrorSound();
+        showAlertRef.current?.(
+          `Another counter terminal just sold units of "${item.name}". Remaining store stock is now ${remainingStoreStock} ${item.unit}. Please verify cart quantities!`,
+          "Stock Depleted by Other Terminal"
+        );
+      }
+    });
+
+    return () => {
+      sub.unsubscribe();
+    };
+  }, [shopSettings?.id, queryClient]);
 
 
   const handleHoldCart = () => {
@@ -255,7 +332,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       }
     }
 
-    if (!item) return showAlertRef.current(`Barcode ${cleanBarcode} not found in the system.`, "Error");
+    if (!item) {
+      playScanErrorSound();
+      return showAlertRef.current(`Barcode ${cleanBarcode} not found in the system.`, "Error");
+    }
 
     if (item) {
       const currentTab = activeTabRef.current;
@@ -268,6 +348,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           if (scannedBatchNumber !== null) {
             batch = (item.batches || []).find(b => b.batch_number === scannedBatchNumber);
             if (!batch) {
+              playScanErrorSound();
               showAlertRef.current(`Batch #${String(scannedBatchNumber).padStart(2,'0')} of ${item.name} not found.`, "Batch Not Found");
               return;
             }
@@ -278,6 +359,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
           // 1. Initial synchronous check (fast path)
           if (cartRef.current.some(c => c.instance_barcode === scannedInstanceBarcode)) {
+            playScanErrorSound();
             showAlertRef.current(`Piece #${scannedInstanceBarcode} is already in the cart!`, "Duplicate Scan");
             return;
           }
@@ -289,11 +371,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             .maybeSingle();
 
           if (existingInstance) {
+            playScanErrorSound();
             showAlertRef.current(`Piece #${scannedInstanceBarcode} already exists in the warehouse!`, "Already Exists");
             return;
           }
 
           // 3. Pure state update with race-condition fallback
+          playScanSuccessSound();
           setCart(prev => {
             if (prev.some(c => c.instance_barcode === scannedInstanceBarcode)) {
               return prev; // Silently ignore duplicates to maintain purity
@@ -329,6 +413,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             if (specificBatch) {
               autoSelectedBatch = specificBatch;
             } else {
+              playScanErrorSound();
               return showAlertRef.current(`Batch #${String(scannedBatchNumber).padStart(2,'0')} of ${item.name} not found.`, "Batch Not Found");
             }
           }
@@ -346,6 +431,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           } else if (availableBatches.length === 1 && !autoSelectedBatch) {
             autoSelectedBatch = availableBatches[0];
           } else if (availableBatches.length === 0) {
+            playScanErrorSound();
             return showAlertRef.current(`No batches exist for ${item.name}. Please create a batch first.`, "No Batches");
           }
 
@@ -373,8 +459,14 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             instQuery = instQuery.eq('shop_id', shopId);
           }
           const { data } = await instQuery.maybeSingle();
-          if (!data) return showAlertRef.current(`Piece #${scannedInstanceBarcode} does not exist!`, "Not Found");
-          if (!data.current_length || data.current_length <= 0) return showAlertRef.current(`Piece #${scannedInstanceBarcode} has no length left!`, "Empty Piece");
+          if (!data) {
+            playScanErrorSound();
+            return showAlertRef.current(`Piece #${scannedInstanceBarcode} does not exist!`, "Not Found");
+          }
+          if (!data.current_length || data.current_length <= 0) {
+            playScanErrorSound();
+            return showAlertRef.current(`Piece #${scannedInstanceBarcode} has no length left!`, "Empty Piece");
+          }
           instLength = data.current_length;
           instBatchId = data.batch_id;
 
@@ -382,9 +474,11 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           setCart(prev => {
             const idx = prev.findIndex(c => c.instance_barcode === scannedInstanceBarcode);
             if (idx >= 0) {
+              playScanErrorSound();
               showAlertRef.current(`Piece #${scannedInstanceBarcode} is already in the cart!`, "Already Added");
               return prev; // Already scanned
             }
+            playScanSuccessSound();
             return [...prev, { ...item, id: generateId(), instance_barcode: scannedInstanceBarcode, batch_id: instBatchId, quantity: 1, unit: item.unit, length: '', width: '', default_length: item.default_length, default_width: item.default_width, pieceLength: instLength }];
           });
           setManualBarcode('');
@@ -401,6 +495,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               .catch(() => setSelectPieceModal(prev => ({ ...prev, isLoading: false })));
           } else {
             setSelectPieceModal(prev => ({ ...prev, isLoading: false }));
+            playScanErrorSound();
             showAlertRef.current("Cannot view active pieces while offline.", "Offline");
           }
           return;
@@ -458,6 +553,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         if (specificBatch) {
           autoSelectedBatch = specificBatch;
         } else {
+          playScanErrorSound();
           return showAlertRef.current(`Batch #${String(scannedBatchNumber).padStart(2,'0')} of ${item.name} not found.`, "Batch Not Found");
         }
       }
@@ -471,6 +567,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
              const stockField = currentTab === 'transfer' ? 'stock_warehouse' : 'stock_store';
              const locationName = currentTab === 'transfer' ? 'warehouse' : 'store';
              if (Number(autoSelectedBatch[stockField]) <= 0) {
+               playScanErrorSound();
                return showAlertRef.current(`Batch #${String(scannedBatchNumber).padStart(2,'0')} of ${item.name} is out of stock in the ${locationName}.`, "Out of Stock");
              }
            }
@@ -485,6 +582,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         } else if (availableBatches.length === 1 && !autoSelectedBatch) {
           autoSelectedBatch = availableBatches[0];
         } else if (availableBatches.length === 0) {
+          playScanErrorSound();
           return showAlertRef.current(`No batches exist for ${item.name}. Please create a batch first.`, "No Batches");
         }
         
@@ -497,8 +595,14 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           const currentCartItem = cartRef.current.find(c => c.barcode === item.barcode && (!autoSelectedBatch || c.batch_id === autoSelectedBatch.batch_id));
           const currentQty = currentCartItem ? (Number(currentCartItem.quantity) || 0) : 0;
           
-          if (totalStock <= 0) return showAlertRef.current(`${item.name} is out of stock in the ${locationName}.`, "Out of Stock");
-          if (currentQty >= totalStock) return showAlertRef.current(`You only have ${totalStock} of ${item.name} in the ${locationName}.`, "Stock Limit");
+          if (totalStock <= 0) {
+            playScanErrorSound();
+            return showAlertRef.current(`${item.name} is out of stock in the ${locationName}.`, "Out of Stock");
+          }
+          if (currentQty >= totalStock) {
+            playScanErrorSound();
+            return showAlertRef.current(`You only have ${totalStock} of ${item.name} in the ${locationName}.`, "Stock Limit");
+          }
         }
       }
 
@@ -507,6 +611,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         return;
       }
 
+      playScanSuccessSound();
       setCart(prev => {
         const batch = autoSelectedBatch || (item.batches && item.batches.length === 1 ? item.batches[0] : null);
         const defaultPrice = batch?.selling_price ?? item.price;
@@ -542,6 +647,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     }
     } catch (error) {
       console.error("Scan Error:", error);
+      playScanErrorSound();
       showAlertRef.current(error.message || "An error occurred while looking up the barcode.", "Scanner Error");
     }
   }, []);
@@ -578,6 +684,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       const proposedQty = currentQty + addQty;
       const maxStock = Number(item.stock_store || 0);
       if (proposedQty > maxStock) {
+        playScanErrorSound();
         if (isLooseKg) {
           showAlert(`You only have ${maxStock} kg of ${item.name} in the store. You tried to add ${enteredGrams} g (${addQty.toFixed(3)} kg).`, "Stock Limit");
         } else {
@@ -591,11 +698,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       const proposedQty = currentQty + addQty;
       const maxWhse = Number(item.stock_warehouse || 0);
       if (proposedQty > maxWhse) {
+        playScanErrorSound();
         showAlert(`You only have ${maxWhse} kg of ${item.name} in the warehouse.`, "Stock Limit");
         return;
       }
     }
 
+    playScanSuccessSound();
     setCart(prev => {
       const idx = prev.findIndex(c => c.barcode === item.barcode);
       if (idx >= 0) {
@@ -654,6 +763,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       return;
     }
     
+    playScanSuccessSound();
     setCart(prev => {
       const idx = prev.findIndex(c => c.barcode === item.barcode && c.batch_id === batch.batch_id);
       if (idx >= 0) {
@@ -696,6 +806,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     const alreadyInCart = cart.filter(c => c.instance_barcode === instance.instance_barcode).reduce((tot, c) => tot + ((Number(c.length) || Number(c.pieceLength) || 0) * (Number(c.rolls) || 1)), 0);
     const availableLength = Math.round((currentLength - alreadyInCart) * 100) / 100;
     if (!isNaN(currentLength) && addQty > availableLength) {
+      playScanErrorSound();
       if (alreadyInCart > 0) {
         showAlert(`You already have ${alreadyInCart}${item.unit} of this piece in the cart. You only have ${availableLength.toFixed(2)}${item.unit} left!`, "Invalid Cut");
       } else {
@@ -704,6 +815,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       return;
     }
 
+    playScanSuccessSound();
     setCart(prev => {
       const batch = item.batches?.find(b => b.batch_id === instance.batch_id);
       const sellingPrice = batch?.selling_price ?? (item.price || 0);
@@ -739,6 +851,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   };
 
   const addReceivedCuttableItem = (item, length, batch, instanceBarcode = null) => {
+    playScanSuccessSound();
     setCart(prev => {
       return [{ 
         ...item, 
@@ -773,6 +886,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     
     const cleanInput = (barcodeInput || '').trim();
     if (cleanInput.length < 2) {
+      playScanErrorSound();
       setManualInstanceBarcodeModal(prev => ({ ...prev, error: "Please enter exactly 2 digits (e.g. 03)." }));
       return;
     }
@@ -780,6 +894,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     const fullBarcode = `${prefix}${cleanInput}`;
 
     if (cart.some(c => c.instance_barcode === fullBarcode)) {
+      playScanErrorSound();
       setManualInstanceBarcodeModal(prev => ({ ...prev, error: `Piece #${fullBarcode} is already in the cart!` }));
       return;
     }
@@ -792,6 +907,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       }
       const { data: existing } = await existQuery.maybeSingle();
       if (existing) {
+        playScanErrorSound();
         setManualInstanceBarcodeModal(prev => ({ ...prev, error: `Piece #${fullBarcode} already exists in the system!` }));
         return;
       }
@@ -1539,6 +1655,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         });
       }
 
+      // Broadcast real-time stock decrements/updates to peer counter terminals
+      broadcastStockUpdate({
+        type: activeTab,
+        items: finalCart,
+        shopId: shopSettings?.id || (typeof localStorage !== 'undefined' ? localStorage.getItem('shop_id') : null)
+      });
+
       const rawFinalItemsList = finalCart.map(i => {
         const itemMrp = Number(i.selling_price !== undefined ? i.selling_price : (i.price || 0));
         const finalRate = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : itemMrp;
@@ -1622,6 +1745,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       setCheckoutModal(prev => ({ ...prev, isOpen: false, cashGiven: '', negotiatedTotal: '', error: '' }));
 
       if (activeTab === 'checkout') {
+        playPaymentSuccessSound();
         setPrintPreviewOpen(true);
       } else {
         showAlert("Stock updated successfully.", "Success");
@@ -1643,14 +1767,66 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
   useEffect(() => {
     const handleGlobalKeyDown = (e) => {
-      // 1. If alertConfig or confirmConfig is open, let them handle Esc/Enter
+      const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT';
+
+      // 1. HIGH-SPEED HARDWARE BARCODE SCANNER INTERCEPTOR
+      // Hardware HID scanners act as high-speed keyboard wedges (10ms-35ms per keystroke).
+      // This interceptor tracks burst timing and captures scans even when an input is focused,
+      // preventing barcode numbers from polluting form inputs.
+      const now = Date.now();
+      const lastBurstTime = lastScanKeyTime.current || 0;
+      const interval = now - lastBurstTime;
+      lastScanKeyTime.current = now;
+
+      if (e.key === 'Enter') {
+        const burst = scanBurstBuffer.current.trim();
+        const timestamps = scanBurstTimestamps.current;
+
+        if (burst.length >= 2 && timestamps.length >= 2) {
+          const totalDuration = timestamps[timestamps.length - 1] - timestamps[0];
+          const avgInterval = totalDuration / (timestamps.length - 1);
+
+          if (avgInterval < 65) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Clear buffer & burst state
+            scanBurstBuffer.current = '';
+            scanBurstTimestamps.current = [];
+            barcodeBuffer.current = '';
+
+            // Clean up any focused input that received the burst keystrokes
+            if (isInput && e.target) {
+              if (e.target.id === 'manual-barcode') {
+                setManualBarcode('');
+                setSuggestions([]);
+                setShowSuggestions(false);
+              }
+              e.target.blur();
+            }
+
+            processScan(burst);
+            return;
+          }
+        }
+        scanBurstBuffer.current = '';
+        scanBurstTimestamps.current = [];
+      } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (interval > 75) {
+          scanBurstBuffer.current = e.key;
+          scanBurstTimestamps.current = [now];
+        } else {
+          scanBurstBuffer.current += e.key;
+          scanBurstTimestamps.current.push(now);
+        }
+      }
+
+      // 2. If alertConfig or confirmConfig is open, let them handle Esc/Enter
       if (alertConfig.isOpen || confirmConfig.isOpen || printPreviewOpen) {
         return;
       }
 
-      const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT';
-
-      // 2. CHECKOUT MODAL KEYBOARD CONTROLS
+      // 3. CHECKOUT MODAL KEYBOARD CONTROLS
       if (checkoutModal.isOpen) {
         if (e.key === 'Escape') {
           e.preventDefault();
@@ -1662,10 +1838,27 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           handleCompleteTransaction();
           return;
         }
+
+        const activeTotal = checkoutModal.negotiatedTotal !== '' 
+          ? Number(checkoutModal.negotiatedTotal) 
+          : calculateTotal();
+
+        // Exact cash hotkey: [E] or [e] (works globally when checkout modal is open)
+        if (checkoutModal.paymentMethod === 'CASH' && (e.key.toLowerCase() === 'e')) {
+          e.preventDefault();
+          setCheckoutModal(prev => ({ ...prev, cashGiven: String(Math.ceil(activeTotal)), error: '' }));
+          return;
+        }
+
         if (!isInput) {
           if (e.key === '1' || e.key.toUpperCase() === 'C') {
             e.preventDefault();
-            setCheckoutModal(prev => ({ ...prev, paymentMethod: 'CASH', error: '' }));
+            // If already in CASH mode, 'C' clears cash given
+            if (checkoutModal.paymentMethod === 'CASH' && e.key.toUpperCase() === 'C') {
+              setCheckoutModal(prev => ({ ...prev, cashGiven: '', error: '' }));
+            } else {
+              setCheckoutModal(prev => ({ ...prev, paymentMethod: 'CASH', error: '' }));
+            }
             return;
           }
           if (e.key === '2' || e.key.toUpperCase() === 'U') {
@@ -1913,6 +2106,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     alertConfig.isOpen,
     confirmConfig.isOpen,
     checkoutModal.isOpen,
+    checkoutModal.paymentMethod,
+    checkoutModal.negotiatedTotal,
+    calculateTotal,
     printPreviewOpen,
     looseItemModal.isOpen,
     selectPieceModal.isOpen,
@@ -1955,592 +2151,81 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
   return (
     <>
-      {/* Checkout Modal */}
-      {checkoutModal.isOpen && (
-        <div
-          className="fixed inset-0 flex items-center justify-center z-[100] print:hidden px-4 animate-fade-in"
-          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="checkout-title"
-        >
-          <div className="w-[92%] sm:w-full max-w-[480px] max-h-[90dvh] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
-            <div className="flex justify-between items-center pr-1 pl-4 py-1" style={{ borderBottom: '1px solid var(--border-light)' }}>
-              <span id="checkout-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Checkout Payment</span>
-            </div>
-            <div className="p-6 overflow-y-auto flex-1">
-              <div className="flex justify-between items-end mb-6 pb-4" style={{ borderBottom: '1px solid var(--border-light)' }}>
-                <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Total Due</span>
-                <span className="text-4xl font-light" style={{ color: 'var(--color-accent)' }} aria-live="polite">₹{activeTotal.toFixed(2)}</span>
-              </div>
-              
-              <div className="mb-4">
-                <label htmlFor="customer-name" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Customer Name (Optional)</label>
-                <input id="customer-name" type="text" value={checkoutModal.customerName || ''} onChange={(e) => setCheckoutModal({ ...checkoutModal, customerName: e.target.value })} placeholder="e.g. John Doe" className="w-full h-10 px-4 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-              </div>
-              <div className="mb-4">
-                <label htmlFor="customer-phone" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Customer Phone (Optional)</label>
-                <input id="customer-phone" type="text" value={checkoutModal.customerPhone || ''} onChange={(e) => setCheckoutModal({ ...checkoutModal, customerPhone: e.target.value })} placeholder="e.g. 9876543210" className="w-full h-10 px-4 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-              </div>
+      {/* Decomposed Terminal Modals */}
+      <CheckoutModal
+        isOpen={checkoutModal.isOpen}
+        onClose={() => setCheckoutModal(prev => ({ ...prev, isOpen: false }))}
+        checkoutModal={checkoutModal}
+        setCheckoutModal={setCheckoutModal}
+        activeTotal={activeTotal}
+        cartTotal={cartTotal}
+        minPossibleTotal={minPossibleTotal}
+        userRole={userRole}
+        cashierName={cashierName}
+        isCheckingOut={isCheckingOut}
+        onCompleteTransaction={handleCompleteTransaction}
+        getQuickTenderOptions={getQuickTenderOptions}
+      />
 
-              <div className="mb-4">
-                <label htmlFor="negotiated-total" className="block text-xs font-bold uppercase tracking-wider mb-2 flex justify-between" style={{ color: 'var(--text-secondary)' }}>
-                  <span>Final Negotiated Amount (₹)</span>
-                  <span className="opacity-70 font-normal">System: ₹{cartTotal.toFixed(2)}</span>
-                </label>
-                <input id="negotiated-total" type="number" step="any" min="0" autoFocus value={checkoutModal.negotiatedTotal} onChange={(e) => { const v = parseFloat(e.target.value); setCheckoutModal({ ...checkoutModal, error: '', negotiatedTotal: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder={`e.g. ${Math.floor(cartTotal)}`} className="w-full h-12 px-4 text-2xl  focus:outline-none rounded-md" style={{ border: checkoutModal.error ? '1px solid var(--color-error)' : '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-                {checkoutModal.negotiatedTotal !== '' && Number(checkoutModal.negotiatedTotal) < minPossibleTotal && userRole !== 'owner' && cashierName !== 'admin' && (
-                  <p className="text-xs font-bold mt-2" style={{ color: 'var(--color-error)' }}>
-                    Warning: Cannot discount below minimum selling limit (₹{minPossibleTotal.toFixed(2)}). The final bill will automatically be clamped.
-                  </p>
-                )}
-              </div>
-              
-              <div className="mb-6">
-                <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Payment Method</label>
-                <div className="grid grid-cols-2 gap-2.5 mb-2">
-                  {[
-                    { key: 'CASH', label: 'Cash', shortcut: '1' },
-                    { key: 'UPI', label: 'UPI', shortcut: '2' },
-                    { key: 'SPLIT', label: 'UPI + Cash', shortcut: '3' },
-                    { key: 'SHOWROOM', label: 'Showroom', shortcut: '4' },
-                  ].map(({ key: method, label, shortcut }) => {
-                    const isSelected = checkoutModal.paymentMethod === method;
-                    const isShowroom = method === 'SHOWROOM';
-                    return (
-                      <button
-                        key={method}
-                        type="button"
-                        onClick={() => setCheckoutModal({ ...checkoutModal, paymentMethod: method, error: '' })}
-                        className={`h-11 px-3 sm:px-4 text-xs sm:text-sm font-bold uppercase tracking-wide rounded-md transition-all flex items-center justify-between ${isSelected ? 'shadow-sm' : 'hover:border-[var(--border-heavy)]'}`}
-                        style={{ 
-                          backgroundColor: isShowroom
-                            ? (isSelected ? 'var(--color-warning)' : 'var(--bg-tertiary)')
-                            : (isSelected ? 'var(--color-accent)' : 'var(--bg-tertiary)'),
-                          color: isSelected
-                            ? (isShowroom ? '#000' : '#fff')
-                            : 'var(--text-primary)',
-                          border: `1px solid ${isShowroom && isSelected ? 'var(--color-warning)' : isSelected ? 'var(--color-accent)' : 'var(--border-medium)'}`
-                        }}
-                      >
-                        <span>{label}</span>
-                        <kbd 
-                          className="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded"
-                          style={{
-                            backgroundColor: isSelected ? 'rgba(255,255,255,0.25)' : 'var(--bg-secondary)',
-                            color: isSelected ? (isShowroom ? '#000' : '#fff') : 'var(--text-secondary)',
-                            border: isSelected ? '1px solid rgba(255,255,255,0.3)' : '1px solid var(--border-medium)'
-                          }}
-                        >
-                          {shortcut}
-                        </kbd>
-                      </button>
-                    );
-                  })}
-                </div>
-                {checkoutModal.paymentMethod === 'SHOWROOM' && (
-                  <div className="p-3 mt-2 rounded-md border flex items-start gap-2.5 animate-fade-in" style={{ backgroundColor: 'rgba(234, 179, 8, 0.08)', borderColor: 'rgba(234, 179, 8, 0.3)', color: 'var(--color-warning)' }}>
-                    <span className="text-sm shrink-0">⚠️</span>
-                    <p className="text-xs font-medium leading-relaxed">
-                      Customer takes goods now, pays at the showroom. This will NOT be counted in sales revenue until marked as paid.
-                    </p>
-                  </div>
-                )}
+      <SelectBatchModal
+        isOpen={selectBatchModal.isOpen}
+        item={selectBatchModal.item}
+        batches={selectBatchModal.batches}
+        activeTab={activeTab}
+        isWarehouseDisabled={isWarehouseDisabled}
+        userRole={userRole}
+        calculateMSP={calculateMSP}
+        onSelectBatch={handleSelectBatchSubmit}
+        onClose={() => setSelectBatchModal({ isOpen: false, item: null, batches: [] })}
+      />
 
-                {checkoutModal.paymentMethod === 'CASH' && (
-                  <div className="mb-4">
-                    <label htmlFor="cash-given" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>
-                      Cash Given (₹) <span className="text-[10px] font-normal normal-case opacity-70 ml-1">(Optional)</span>
-                    </label>
-                    <input 
-                      id="cash-given" 
-                      type="number" 
-                      step="any" 
-                      min="0" 
-                      value={checkoutModal.cashGiven} 
-                      onChange={(e) => { 
-                        const v = parseFloat(e.target.value); 
-                        setCheckoutModal({ ...checkoutModal, error: '', cashGiven: (isNaN(v) || v < 0) && e.target.value !== '' ? checkoutModal.cashGiven : e.target.value }) 
-                      }} 
-                      placeholder={`e.g. ${Math.ceil(activeTotal / 100) * 100 || 500} (optional)`} 
-                      className="w-full h-12 px-4 text-2xl focus:outline-none rounded-md" 
-                      style={{ border: checkoutModal.error && isShortfall ? '1px solid var(--color-error)' : '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} 
-                    />
-                    
-                    {checkoutModal.cashGiven !== '' && Number(checkoutModal.cashGiven) >= activeTotal && (
-                      <div className="mt-3 p-3 rounded-md flex items-center justify-between" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--color-success)' }}>
-                        <div className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Change to Return:</div>
-                        <div className="text-2xl font-bold" style={{ color: 'var(--color-success)' }}>
-                          ₹{(Number(checkoutModal.cashGiven) - activeTotal).toFixed(2)}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+      <LooseItemModal
+        isOpen={looseItemModal.isOpen}
+        looseItemModal={looseItemModal}
+        setLooseItemModal={setLooseItemModal}
+        activeTab={activeTab}
+        isWarehouseDisabled={isWarehouseDisabled}
+        onSubmit={handleLooseItemSubmit}
+        onClose={() => setLooseItemModal({ isOpen: false, item: null, qty: '' })}
+      />
 
-                {checkoutModal.paymentMethod === 'SPLIT' && (
-                  <div className="flex gap-4">
-                    <div className="flex-1">
-                      <label htmlFor="split-upi" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>UPI (₹)</label>
-                      <input id="split-upi" type="number" step="any" min="0" value={checkoutModal.splitUpi} onChange={(e) => { const val = e.target.value; const v = parseFloat(val); let newCash = checkoutModal.splitCash; if (val === '') { newCash = ''; } else if (!isNaN(v) && v >= 0) { newCash = Number(Math.max(0, activeTotal - v).toFixed(2)).toString(); } setCheckoutModal({ ...checkoutModal, error: '', splitUpi: (isNaN(v) && val !== '') || v < 0 ? checkoutModal.splitUpi : val, splitCash: newCash }) }} placeholder="0.00" className="w-full h-12 px-4 text-2xl  focus:outline-none rounded-md" style={{ border: checkoutModal.error ? '1px solid var(--color-error)' : '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-                    </div>
-                    <div className="flex-1">
-                      <label htmlFor="split-cash" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Cash (₹)</label>
-                      <input id="split-cash" type="number" step="any" min="0" value={checkoutModal.splitCash} onChange={(e) => { const val = e.target.value; const v = parseFloat(val); let newUpi = checkoutModal.splitUpi; if (val === '') { newUpi = ''; } else if (!isNaN(v) && v >= 0) { newUpi = Number(Math.max(0, activeTotal - v).toFixed(2)).toString(); } setCheckoutModal({ ...checkoutModal, error: '', splitCash: (isNaN(v) && val !== '') || v < 0 ? checkoutModal.splitCash : val, splitUpi: newUpi }) }} placeholder="0.00" className="w-full h-12 px-4 text-2xl  focus:outline-none rounded-md" style={{ border: checkoutModal.error ? '1px solid var(--color-error)' : '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="px-4 pb-2" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-              {checkoutModal.error && (
-                <p className="text-sm font-bold text-center" style={{ color: 'var(--color-error)' }}>
-                  {checkoutModal.error}
-                </p>
-              )}
-            </div>
-            <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-              <button onClick={() => setCheckoutModal({ ...checkoutModal, isOpen: false })} disabled={isCheckingOut} className="min-h-[44px] md:min-h-0 md:h-10 px-6 sm:px-8 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md text-white transition-colors bg-[var(--color-error)] hover:bg-red-600 flex items-center justify-center gap-2">
-                <span>Cancel</span>
-                <kbd className="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded bg-black/20 text-white/90">Esc</kbd>
-              </button>
-              <button onClick={handleCompleteTransaction} disabled={isCheckingOut} className={`min-h-[44px] md:min-h-0 md:h-10 px-6 sm:px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 flex justify-center items-center gap-2 min-w-[140px]`} style={{ backgroundColor: checkoutModal.paymentMethod === 'SHOWROOM' ? 'var(--color-warning)' : 'var(--color-accent)' }}>
-                {isCheckingOut ? <Spinner className="w-4 h-4 text-white" /> : (
-                  <>
-                    <span>{checkoutModal.paymentMethod === 'SHOWROOM' ? 'Send to Showroom' : 'Complete Sale'}</span>
-                    <kbd className="px-1.5 py-0.5 text-[10px] font-mono font-bold rounded bg-white/25 text-white">↵ Enter</kbd>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <SelectPieceModal
+        isOpen={selectPieceModal.isOpen}
+        selectPieceModal={selectPieceModal}
+        setSelectPieceModal={setSelectPieceModal}
+        cart={cart}
+        setCart={setCart}
+        generateId={generateId}
+        setManualBarcode={setManualBarcode}
+        setCutLengthModal={setCutLengthModal}
+        showAlertRef={showAlertRef}
+        onClose={() => setSelectPieceModal({ isOpen: false, item: null, instances: [], isLoading: false, action: 'checkout' })}
+      />
 
-      {/* Select Batch Modal */}
-      {selectBatchModal.isOpen && selectBatchModal.item && (
-        <div
-          className="fixed inset-0 flex items-center justify-center z-[100] print:hidden px-4 animate-fade-in"
-          style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="select-batch-title"
-        >
-          <div className="w-[85%] max-w-[450px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
-            <div className="flex justify-between items-center pr-1 pl-4 py-1" style={{ borderBottom: '1px solid var(--border-light)' }}>
-              <span id="select-batch-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Select Batch for {selectBatchModal.item.name}</span>
-            </div>
-            
-            <div className="p-4 max-h-[60vh] overflow-y-auto">
-               {selectBatchModal.batches.map(batch => {
-                 const stockField = activeTab === 'transfer' ? 'stock_warehouse' : 'stock_store';
-                 const hasStock = activeTab === 'receive' || Number(batch[stockField]) > 0;
-                 return (
-                 <button 
-                   key={batch.batch_id}
-                   onClick={() => hasStock ? handleSelectBatchSubmit(batch) : null}
-                   disabled={!hasStock}
-                   className={`w-full text-left p-4 mb-2 rounded-lg border flex justify-between items-center transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] ${hasStock ? 'hover:bg-[var(--bg-hover)] cursor-pointer' : 'opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]'}`}
-                   style={{ borderColor: 'var(--border-medium)', backgroundColor: hasStock ? 'var(--bg-primary)' : 'var(--bg-tertiary)' }}
-                 >
-                   <div>
-                     <div className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>₹{Number(batch.selling_price).toFixed(2)}</div>
-                     <div className="text-xs uppercase tracking-wider mt-1 group/msp cursor-help" style={{ color: 'var(--text-tertiary)' }}>MSP: {userRole === 'owner' ? `₹${Number(calculateMSP(batch, selectBatchModal.item)).toFixed(2)}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{Number(calculateMSP(batch, selectBatchModal.item)).toFixed(2)}</span></span>}</div>
-                   </div>
-                   <div className="text-right">
-                     <div className="flex items-center justify-end gap-3">
-                       <p className="text-xs " style={{ color: 'var(--color-accent)' }}>#{selectBatchModal.item.barcode}-{String(batch.batch_number).padStart(2,'0')}</p>
-                       <div className="text-sm font-bold" style={{ color: 'var(--color-accent)' }}>{activeTab === 'receive' ? (isWarehouseDisabled ? batch.stock_store : batch.stock_warehouse) : batch[stockField]} {selectBatchModal.item.unit}</div>
-                     </div>
-                     <div className="text-xs uppercase tracking-wider mt-1" style={{ color: 'var(--text-tertiary)' }}>In {activeTab === 'checkout' || (activeTab === 'receive' && isWarehouseDisabled) ? 'Store' : 'Warehouse'}</div>
-                   </div>
-                 </button>
-                 );
-               })}
-               {selectBatchModal.batches.length === 0 && (
-                 <div className="text-center p-4 text-sm" style={{ color: 'var(--text-tertiary)' }}>No batches available for this item.</div>
-               )}
-            </div>
-            
-            <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-              <button onClick={() => setSelectBatchModal({ isOpen: false, item: null, batches: [] })} className="h-9 px-6 text-sm font-semibold focus:outline-none rounded-md transition-colors" style={{ backgroundColor: 'transparent', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}>Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ReceiveLengthModal
+        isOpen={receiveLengthModal.isOpen}
+        receiveLengthModal={receiveLengthModal}
+        setReceiveLengthModal={setReceiveLengthModal}
+        onSubmit={handleReceiveLengthSubmit}
+        onClose={() => setReceiveLengthModal({ isOpen: false, item: null, length: '', batch: null, instanceBarcode: null })}
+      />
 
-      {/* Loose Item Quantity Modal */}
-      {looseItemModal.isOpen && (
-        <div className="fixed inset-0 flex items-center justify-center z-[150] px-4 animate-fade-in" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <div className="w-[85%] max-w-[420px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-            <div className="flex justify-between items-center pr-1 pl-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
-              <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
-                {activeTab === 'checkout' ? 'Loose Item Quantity' : activeTab === 'receive' ? 'Receive Stock' : 'Move Stock'}
-              </span>
-              <button type="button" onClick={() => setLooseItemModal({ isOpen: false, item: null, qty: '' })} className="p-2 rounded-full transition-colors hover:bg-[var(--bg-hover)] cursor-pointer" style={{ color: 'var(--text-tertiary)' }} aria-label="Close modal">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-            <form onSubmit={handleLooseItemSubmit}>
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-base font-bold text-[var(--text-primary)]">{looseItemModal.item?.name}</p>
-                  <span className="text-xs font-mono font-semibold text-[var(--color-accent)]">#{looseItemModal.item?.barcode}</span>
-                </div>
+      <ManualInstanceBarcodeModal
+        isOpen={manualInstanceBarcodeModal.isOpen}
+        manualInstanceBarcodeModal={manualInstanceBarcodeModal}
+        setManualInstanceBarcodeModal={setManualInstanceBarcodeModal}
+        onSubmit={handleManualInstanceBarcodeSubmit}
+        onClose={() => setManualInstanceBarcodeModal({ isOpen: false, item: null, batch: null, barcodeInput: '', prefix: '', error: null })}
+      />
 
-                {(() => {
-                  const item = looseItemModal.item;
-                  if (!item) return null;
-                  const isLooseKg = Boolean(
-                    item.is_loose_item && (
-                      item.unit?.toUpperCase() === 'KG' ||
-                      item.unit?.toUpperCase() === 'KGS' ||
-                      item.unit?.toUpperCase() === 'GRAMS' ||
-                      item.unit?.toUpperCase() === 'GRAM' ||
-                      item.unit?.toUpperCase() === 'G' ||
-                      item.unit?.toUpperCase() === 'GM'
-                    )
-                  );
-                  const availableStore = Number(item.stock_store || 0);
-                  const availableWhse = Number(item.stock_warehouse || 0);
-                  const ratePerKg = Number(item.price || 0);
-                  const isCheckout = activeTab === 'checkout';
-
-                  return (
-                    <>
-                      {/* Stock Info Badge */}
-                      <div className="p-2.5 rounded-lg mb-4 flex items-center justify-between text-xs" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
-                        <span className="text-[var(--text-secondary)] font-medium">
-                          {isCheckout ? 'Store Stock' : activeTab === 'transfer' ? 'Warehouse Stock' : (isWarehouseDisabled ? 'Current Store Stock' : 'Current Warehouse')}:
-                        </span>
-                        <span className="font-bold text-[var(--text-primary)]">
-                          {isCheckout || (activeTab === 'receive' && isWarehouseDisabled) ? `${availableStore} kg` : `${availableWhse} kg`}
-                        </span>
-                      </div>
-
-                      {/* Input Label */}
-                      <label htmlFor="loose-qty" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>
-                        {isCheckout && isLooseKg ? 'Enter Quantity in Grams (g)' : `Enter Quantity (${item.unit || 'PCS'})`}
-                      </label>
-
-                      {/* Input Box */}
-                      <div className="relative">
-                        <input
-                          id="loose-qty"
-                          type="number"
-                          step={isCheckout && isLooseKg ? '1' : 'any'}
-                          min="0"
-                          autoFocus
-                          value={looseItemModal.qty}
-                          onChange={(e) => {
-                            const v = parseFloat(e.target.value);
-                            setLooseItemModal({ ...looseItemModal, qty: (isNaN(v) || v < 0) ? '' : e.target.value });
-                          }}
-                          placeholder={isCheckout && isLooseKg ? 'e.g. 50, 100, 250' : '0'}
-                          className="w-full h-12 pl-4 pr-20 text-2xl font-bold focus:outline-none rounded-md"
-                          style={{
-                            border: '2px solid var(--color-accent)',
-                            backgroundColor: 'var(--bg-input)',
-                            color: 'var(--text-input)'
-                          }}
-                        />
-                        <span className="absolute right-3 top-3.5 text-xs font-bold lowercase tracking-wider text-[var(--text-secondary)]">
-                          {isCheckout && isLooseKg ? 'g' : (item.unit || 'PCS')}
-                        </span>
-                      </div>
-
-                      {/* Quick Preset Buttons for grams during checkout */}
-                      {isCheckout && isLooseKg && (
-                        <div className="flex gap-1.5 mt-3 flex-wrap">
-                          {[50, 100, 250, 500, 1000].map(presetGrams => (
-                            <button
-                              key={presetGrams}
-                              type="button"
-                              onClick={() => setLooseItemModal({ ...looseItemModal, qty: String(presetGrams) })}
-                              className="px-2.5 py-1 text-xs font-bold rounded border transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] cursor-pointer"
-                              style={{
-                                backgroundColor: looseItemModal.qty === String(presetGrams) ? 'var(--color-accent-bg)' : 'var(--bg-tertiary)',
-                                borderColor: looseItemModal.qty === String(presetGrams) ? 'var(--color-accent)' : 'var(--border-medium)',
-                                color: looseItemModal.qty === String(presetGrams) ? 'var(--color-accent)' : 'var(--text-secondary)'
-                              }}
-                            >
-                              {presetGrams >= 1000 ? `${presetGrams / 1000} kg` : `${presetGrams}g`}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Live Price Calculation in Checkout */}
-                      {isCheckout && isLooseKg && looseItemModal.qty && Number(looseItemModal.qty) > 0 && (
-                        <div className="mt-4 p-3 rounded-lg border border-[var(--color-accent)]/30 bg-[var(--color-accent-bg)]/20 text-xs flex flex-col gap-1">
-                          <div className="flex justify-between font-medium text-[var(--text-secondary)]">
-                            <span>Equivalent weight:</span>
-                            <span className="font-bold text-[var(--text-primary)]">{(Number(looseItemModal.qty) / 1000).toFixed(3)} kg</span>
-                          </div>
-                          <div className="flex justify-between font-medium text-[var(--text-secondary)]">
-                            <span>Rate:</span>
-                            <span>₹{ratePerKg.toFixed(2)} / kg</span>
-                          </div>
-                          <div className="flex justify-between text-sm font-bold pt-1.5 border-t border-[var(--border-light)]" style={{ color: 'var(--color-accent)' }}>
-                            <span>Total Price:</span>
-                            <span>₹{((Number(looseItemModal.qty) / 1000) * ratePerKg).toFixed(2)}</span>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-
-              <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-                <button
-                  type="button"
-                  onClick={() => setLooseItemModal({ isOpen: false, item: null, qty: '' })}
-                  className="h-9 px-4 text-sm font-semibold rounded-md border border-[var(--border-medium)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!looseItemModal.qty || Number(looseItemModal.qty) <= 0}
-                  className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 transition-transform active:scale-95 cursor-pointer"
-                  style={{ backgroundColor: 'var(--color-accent)' }}
-                >
-                  Add to Cart
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Select Piece Modal */}
-      {selectPieceModal.isOpen && (
-        <div className="fixed inset-0 flex items-center justify-center z-[150] px-4 animate-fade-in" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <div className="w-[85%] max-w-[400px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-            <div className="flex justify-between items-center pr-1 pl-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
-              <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Select Piece</span>
-              <button type="button" onClick={() => setSelectPieceModal({ isOpen: false, item: null, instances: [], isLoading: false, action: 'checkout' })} className="p-2 rounded-full transition-colors hover:bg-[var(--bg-hover)]" style={{ color: 'var(--text-tertiary)' }} aria-label="Close modal">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-            <div className="p-6 flex flex-col">
-              <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>Which piece of <strong style={{ color: 'var(--color-accent)' }}>{selectPieceModal.item?.name}</strong> are you {selectPieceModal.action === 'transfer' ? 'transferring' : 'cutting from'}?</p>
-
-              {selectPieceModal.isLoading ? (
-                <div className="flex justify-center p-6"><Spinner className="w-6 h-6 text-[var(--color-accent)]" /></div>
-              ) : selectPieceModal.instances.length === 0 ? (
-                <p className="text-xs font-bold text-center p-4 text-[var(--color-error)]">No active pieces found.</p>
-              ) : (
-                <div className="max-h-[300px] overflow-y-auto flex flex-col gap-2 mb-4">
-                  {selectPieceModal.instances.map(inst => {
-                    let availableLength = Number(inst.current_length);
-                    if (selectPieceModal.action === 'checkout') {
-                      const inCartQty = cart.filter(c => c.instance_barcode === inst.instance_barcode).reduce((sum, c) => sum + ((Number(c.length) || Number(c.pieceLength) || 0) * (Number(c.rolls) || 1)), 0);
-                      availableLength = Math.round((availableLength - inCartQty) * 100) / 100;
-                    }
-                    
-                    if (availableLength <= 0 && selectPieceModal.action === 'checkout') return null;
-                    
-                    const isAlreadyInCartTransfer = selectPieceModal.action === 'transfer' && cart.some(c => c.instance_barcode === inst.instance_barcode);
-                    const batch = selectPieceModal.item.batches?.find(b => b.batch_id === inst.batch_id);
-                    const sellingPrice = batch?.selling_price ?? (selectPieceModal.item.price || 0);
-                    
-                    return (
-                    <button
-                      key={inst.id}
-                      disabled={isAlreadyInCartTransfer}
-                      onClick={() => {
-                        const actionType = selectPieceModal.action;
-                        setSelectPieceModal({ isOpen: false, item: null, instances: [], isLoading: false, action: 'checkout' });
-                        
-                        if (actionType === 'transfer') {
-                          // Transfer mode: add directly to cart
-                          setCart(prev => {
-                            const idx = prev.findIndex(c => c.instance_barcode === inst.instance_barcode);
-                            if (idx >= 0) {
-                              showAlertRef.current(`Piece #${inst.instance_barcode} is already in the cart!`, "Already Added");
-                              return prev;
-                            }
-                            
-                            const purchaseCost = batch?.purchase_cost ?? (selectPieceModal.item.cost_price || 0);
-                            const mspPrice = batch?.msp ?? (selectPieceModal.item.msp || 0);
-
-                            return [...prev, { 
-                              ...selectPieceModal.item, 
-                              id: generateId(), 
-                              instance_barcode: inst.instance_barcode, 
-                              batch_id: inst.batch_id,
-                              batch_number: batch?.batch_number ?? null,
-                              purchase_cost: Number(purchaseCost).toFixed(2),
-                              selling_price: Number(sellingPrice).toFixed(2),
-                              msp_price: Number(mspPrice).toFixed(2),
-                              price: Number(sellingPrice).toFixed(2),
-                              msp: Number(mspPrice).toFixed(2),
-                              customPriceInput: Number(sellingPrice).toFixed(2),
-                              discountPct: 0,
-                              quantity: 1, 
-                              unit: selectPieceModal.item.unit, 
-                              length: '', 
-                              width: '', 
-                              default_length: selectPieceModal.item.default_length, 
-                              default_width: selectPieceModal.item.default_width, 
-                              pieceLength: inst.current_length 
-                            }];
-                          });
-                          setManualBarcode('');
-                        } else {
-                          // Checkout mode: proceed to cutting
-                          setCutLengthModal({ isOpen: true, item: selectPieceModal.item, instance: inst, cutQty: '', discardScrap: false });
-                        }
-                      }}
-                      className={`p-3 text-left border border-[var(--border-medium)] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] transition-colors flex justify-between items-center focus:outline-none rounded-md focus:border-[var(--color-accent)] ${isAlreadyInCartTransfer ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
-                    >
-                      <div className="flex flex-col items-start">
-                        <span className=" text-xs font-bold" style={{ color: 'var(--color-accent)' }}>#{inst.instance_barcode}</span>
-                        <span className="text-xs font-bold mt-0.5" style={{ color: 'var(--text-tertiary)' }}>MRP: ₹{Number(sellingPrice).toFixed(2)}</span>
-                      </div>
-                      <span className="text-sm font-bold text-[var(--text-primary)]">
-                        {isAlreadyInCartTransfer ? 'Already in Cart' : `${availableLength} ${selectPieceModal.item?.unit} left`}
-                      </span>
-                    </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-            <div className="p-4 flex justify-end gap-3" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-              <button type="button" onClick={() => setSelectPieceModal({ isOpen: false, item: null, instances: [], isLoading: false, action: 'checkout' })} className="h-9 px-6 text-sm font-semibold rounded-md transition-colors border border-red-500 text-red-500 hover:bg-red-500/10">Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Receive Length Modal */}
-      {receiveLengthModal.isOpen && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="w-full max-w-sm flex flex-col shadow-2xl" style={{ backgroundColor: 'var(--bg-primary)', borderTop: '4px solid var(--color-accent)' }}>
-            <div className="flex justify-between items-center p-4" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
-              <h3 className="font-bold tracking-wider text-sm" style={{ color: 'var(--text-primary)' }}>ENTER PIECE LENGTH</h3>
-              <button type="button" onClick={() => setReceiveLengthModal({ isOpen: false, item: null, length: '', batch: null, instanceBarcode: null })} className="p-2 rounded-full transition-colors hover:bg-[var(--bg-hover)]" style={{ color: 'var(--text-tertiary)' }} aria-label="Close modal">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-            <form onSubmit={handleReceiveLengthSubmit} className="p-6">
-              <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>What is the standard length of each <strong>{receiveLengthModal.item?.name}</strong> piece?</p>
-              <div className="mb-6">
-                <input type="number" autoFocus step="any" min="0" value={receiveLengthModal.length} onChange={e => { const v = parseFloat(e.target.value); setReceiveLengthModal({ ...receiveLengthModal, length: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder={`Length (${receiveLengthModal.item?.unit})`} className="w-full h-12 px-4 text-xl  focus:outline-none rounded-md" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-              </div>
-              <div className="flex justify-end gap-3">
-                <button type="submit" disabled={!receiveLengthModal.length} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 transition-colors hover:brightness-110" style={{ backgroundColor: 'var(--color-accent)' }}>Add to Cart</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Manual Instance Barcode Modal */}
-      {manualInstanceBarcodeModal.isOpen && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in" onClick={() => setManualInstanceBarcodeModal({ isOpen: false, item: null, batch: null, barcodeInput: '', prefix: '', error: null })}>
-          <div className="bg-[var(--bg-primary)] rounded-xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
-            <div className="p-4 md:p-5 border-b border-[var(--border-light)] flex justify-between items-center glass-header">
-              <div>
-                <h2 className="text-lg font-bold text-[var(--text-primary)] leading-tight">Enter Piece Barcode</h2>
-                <p className="text-xs text-[var(--text-tertiary)] font-medium mt-0.5 uppercase tracking-wider">{manualInstanceBarcodeModal.item?.name}</p>
-              </div>
-            </div>
-            
-            <form onSubmit={handleManualInstanceBarcodeSubmit} className="flex flex-col">
-              <div className="p-5">
-                <p className="text-sm mb-4 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>Please enter the 2-digit identifier for this piece to receive it into the warehouse.</p>
-                <div 
-                  className="mb-2 flex items-baseline bg-[var(--bg-input)] rounded-lg px-4 py-3.5 cursor-text transition-all duration-200 focus-within:ring-2 focus-within:ring-[var(--color-accent)] focus-within:ring-offset-2 focus-within:ring-offset-[var(--bg-primary)]" 
-                  style={{ border: '1px solid var(--border-input)' }}
-                  onClick={() => document.getElementById('instance_barcode_input')?.focus()}
-                >
-                  <span className="text-lg  font-bold text-[var(--text-tertiary)] select-none whitespace-nowrap mr-0.5">
-                    {manualInstanceBarcodeModal.prefix}
-                  </span>
-                  <input 
-                    id="instance_barcode_input"
-                    type="text" 
-                    autoFocus 
-                    value={manualInstanceBarcodeModal.barcodeInput} 
-                    onChange={e => setManualInstanceBarcodeModal({ ...manualInstanceBarcodeModal, barcodeInput: e.target.value.replace(/[^0-9]/g, ''), error: null })} 
-                    placeholder="01" 
-                    maxLength={2} 
-                    className="flex-1 bg-transparent !text-lg  font-bold uppercase p-0 m-0 w-full placeholder:opacity-40 focus:outline-none focus:ring-0 focus:border-transparent !border-none !outline-none !ring-0" 
-                    style={{ color: 'var(--text-primary)', boxShadow: 'none' }}
-                  />
-                </div>
-                {manualInstanceBarcodeModal.error && (
-                  <div className="text-[var(--color-error)] text-xs font-semibold px-1 mt-2 animate-shake">{manualInstanceBarcodeModal.error}</div>
-                )}
-              </div>
-              
-              <div className="p-4 md:p-5 border-t border-[var(--border-light)] bg-[var(--bg-secondary)] flex justify-end gap-3">
-                <button type="button" onClick={() => setManualInstanceBarcodeModal({ isOpen: false, item: null, batch: null, barcodeInput: '', prefix: '', error: null })} className="px-5 py-2.5 text-sm font-bold uppercase tracking-wider rounded-md transition-colors" style={{ color: 'var(--color-error)', border: '1px solid var(--color-error)', backgroundColor: 'transparent' }}>Cancel</button>
-                <button type="submit" className="px-6 py-2.5 text-white text-sm font-bold uppercase tracking-wider focus:outline-none rounded-md transition-colors hover:opacity-90 shadow-sm" style={{ backgroundColor: 'var(--color-accent)' }}>Confirm & Next</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Cut Length Modal */}
-      {cutLengthModal.isOpen && (
-        <div className="fixed inset-0 flex items-center justify-center z-[150] px-4 animate-fade-in" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
-          <div className="w-[85%] max-w-[400px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-            <div className="flex justify-between items-center pr-1 pl-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
-              <span className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>Cut Length</span>
-              <button type="button" onClick={() => setCutLengthModal({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false })} className="p-2 rounded-full transition-colors hover:bg-[var(--bg-hover)]" style={{ color: 'var(--text-tertiary)' }} aria-label="Close modal">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-
-            <form onSubmit={handleCutLengthSubmit}>
-              <div className="p-6">
-                <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>How much of <strong style={{ color: 'var(--color-accent)' }}>{cutLengthModal.item?.name}</strong> are you cutting from piece <strong className=" text-[var(--text-primary)]">#{cutLengthModal.instance?.instance_barcode}</strong>?</p>
-
-                <p className="text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                  Current Piece: {(() => {
-                    const dbLen = Number(cutLengthModal.instance?.current_length) || 0;
-                    const already = cart.filter(c => c.instance_barcode === cutLengthModal.instance?.instance_barcode).reduce((tot, c) => tot + (Number(c.length) || Number(c.pieceLength) || 0), 0);
-                    return Math.max(0, dbLen - already).toFixed(2);
-                  })()} {cutLengthModal.item?.unit === 'SQFT' ? 'ft' : cutLengthModal.item?.unit}
-                </p>
-
-                <div className="relative mb-4">
-                  <input type="number" autoFocus step="0.01" min="0" value={cutLengthModal.cutQty} onChange={e => {
-                    const val = e.target.value;
-                    const numVal = Math.round((Number(val) || 0) * 100) / 100;
-                    if (numVal < 0 || isNaN(numVal)) {
-                      setCutLengthModal({ ...cutLengthModal, cutQty: '', discardScrap: false });
-                      return;
-                    }
-                    const max = Number(cutLengthModal.instance?.current_length);
-                    const isSmallScrap = !isNaN(numVal) && !isNaN(max) && (max - numVal < 1) && (max - numVal > 0);
-                    setCutLengthModal({ ...cutLengthModal, cutQty: val, discardScrap: isSmallScrap });
-                  }} className="w-full h-12 px-4 text-2xl  focus:outline-none rounded-md" style={{ border: '2px solid var(--color-accent)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} placeholder="0" />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold uppercase" style={{ color: 'var(--text-tertiary)' }}>{cutLengthModal.item?.unit === 'SQFT' ? 'ft' : cutLengthModal.item?.unit}</span>
-                </div>
-
-                {cutLengthModal.instance?.current_length !== '?' && Number(cutLengthModal.instance?.current_length) - Number(cutLengthModal.cutQty) < 1 && Number(cutLengthModal.instance?.current_length) - Number(cutLengthModal.cutQty) > 0 && (
-                  <label className="flex items-center gap-3 p-3 border cursor-pointer mt-4" style={{ borderColor: 'var(--color-warning)', backgroundColor: 'var(--bg-tertiary)' }}>
-                    <input type="checkbox" checked={cutLengthModal.discardScrap} onChange={e => setCutLengthModal({ ...cutLengthModal, discardScrap: e.target.checked })} className="w-5 h-5 cursor-pointer accent-[var(--color-warning)]" />
-                    <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Only {(Number(cutLengthModal.instance?.current_length) - Number(cutLengthModal.cutQty)).toFixed(2)} {cutLengthModal.item?.unit === 'SQFT' ? 'ft' : cutLengthModal.item?.unit} left. Discard remaining scrap?</span>
-                  </label>
-                )}
-              </div>
-              <div className="p-4 flex justify-end gap-3" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-                <button type="button" onClick={() => setCutLengthModal({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false })} className="h-9 px-6 text-sm font-semibold rounded-md transition-colors border border-red-500 text-red-500 hover:bg-red-500/10">Cancel</button>
-                <button type="submit" disabled={!cutLengthModal.cutQty || isNaN(Number(cutLengthModal.instance?.current_length))} className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 transition-colors hover:brightness-110" style={{ backgroundColor: 'var(--color-accent)' }}>Add Cut</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <CutLengthModal
+        isOpen={cutLengthModal.isOpen}
+        cutLengthModal={cutLengthModal}
+        setCutLengthModal={setCutLengthModal}
+        cart={cart}
+        onSubmit={handleCutLengthSubmit}
+        onClose={() => setCutLengthModal({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false })}
+      />
 
       {isMobileScannerTab ? (
         <div className="flex flex-col flex-1 bg-[var(--bg-primary)] overflow-hidden" style={{ minHeight: 'calc(100vh - 160px)' }}>
@@ -2777,6 +2462,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         onClose={() => setPrintPreviewOpen(false)}
         type="receipt"
         title="Receipt Preview"
+        lastReceipt={lastReceipt}
+        shopSettings={shopSettings}
       >
         <ReceiptTemplate lastReceipt={lastReceipt} shopSettings={shopSettings} formatDateTime={formatDateTime} isPreview={true} />
       </PrintPreviewModal>

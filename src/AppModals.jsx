@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
+import { getThermalPrinterStatus, printDirectEscPos, isDirectEscPosSupported } from './services/escpos';
 
 
 
@@ -114,9 +115,29 @@ export function ProductInfoModal({ product, onClose }) {
   );
 }
 
-export function PrintPreviewModal({ isOpen, onClose, title = "Print Preview", type = "receipt", children, iframeHtml, printHtml }) {
+export function PrintPreviewModal({ 
+  isOpen, 
+  onClose, 
+  title = "Print Preview", 
+  type = "receipt", 
+  children, 
+  iframeHtml, 
+  printHtml,
+  lastReceipt = null,
+  shopSettings = null
+}) {
   const visibleIframeRef = useRef(null);
   const printIframeRef = useRef(null);
+  const [thermalStatus, setThermalStatus] = useState(() => getThermalPrinterStatus());
+  const [isThermalPrinting, setIsThermalPrinting] = useState(false);
+  const [thermalMessage, setThermalMessage] = useState(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setThermalStatus(getThermalPrinterStatus());
+      setThermalMessage(null);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -128,11 +149,64 @@ export function PrintPreviewModal({ isOpen, onClose, title = "Print Preview", ty
     }
   };
 
+  const handleDirectThermalPrint = async () => {
+    if (!lastReceipt) {
+      handlePrint();
+      return;
+    }
+    setIsThermalPrinting(true);
+    setThermalMessage(null);
+    try {
+      const openDrawer = lastReceipt.paymentMethod === 'CASH';
+      await printDirectEscPos(lastReceipt, shopSettings, { openDrawer, cutPaper: true });
+      setThermalStatus(getThermalPrinterStatus());
+      setThermalMessage({ type: 'success', text: 'Printed to thermal printer!' });
+      setTimeout(() => {
+        onClose();
+      }, 700);
+    } catch (err) {
+      console.warn("Thermal print error:", err);
+      setThermalMessage({ type: 'error', text: err.message || 'Printer unavailable. Using browser print...' });
+      // Fallback after 1 second if error
+      setTimeout(() => {
+        handlePrint();
+      }, 1000);
+    } finally {
+      setIsThermalPrinting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (type === 'receipt' && isDirectEscPosSupported() && (thermalStatus.isConnected || lastReceipt)) {
+          handleDirectThermalPrint();
+        } else {
+          handlePrint();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose, type, thermalStatus.isConnected, lastReceipt]);
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[600] px-4 print:hidden animate-fade-in">
       <div className="w-[85%] max-w-[500px] rounded-xl overflow-hidden flex flex-col animate-scale-in border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-        <div className="flex justify-between items-center pr-1 pl-4 py-1" style={{ borderBottom: '1px solid var(--border-light)' }}>
-          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>{title}</span>
+        <div className="flex justify-between items-center pr-1 pl-4 py-2" style={{ borderBottom: '1px solid var(--border-light)' }}>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>{title}</span>
+            {type === 'receipt' && isDirectEscPosSupported() && (
+              <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${thermalStatus.isConnected ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' : 'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] border-[var(--border-medium)]'}`}>
+                {thermalStatus.isConnected ? '● ESC/POS Thermal' : 'ESC/POS Ready'}
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="p-4 md:p-6 flex justify-center items-center overflow-auto" style={{ backgroundColor: 'var(--bg-primary)', minHeight: '300px', maxHeight: '60vh' }}>
@@ -163,17 +237,51 @@ export function PrintPreviewModal({ isOpen, onClose, title = "Print Preview", ty
           )}
         </div>
 
+        {thermalMessage && (
+          <div className={`px-4 py-1.5 text-xs text-center font-bold animate-fade-in ${thermalMessage.type === 'error' ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+            {thermalMessage.text}
+          </div>
+        )}
+
         <div className="p-4 flex flex-col md:flex-row justify-between items-center gap-4" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
           <p className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-            Note: The system print dialog will open next.
+            {type === 'receipt' && isDirectEscPosSupported() 
+              ? 'Press Enter to print directly to thermal printer.' 
+              : 'Note: The system print dialog will open next.'}
           </p>
-          <div className="flex gap-2">
-            <button onClick={onClose} className="px-4 py-1.5 rounded text-xs font-semibold focus:outline-none transition-colors hover:opacity-90 text-white" style={{ backgroundColor: 'var(--color-error)' }}>Close</button>
-            <button onClick={handlePrint} className="px-4 py-1.5 rounded text-white text-xs font-semibold border border-transparent focus:outline-none transition-opacity hover:opacity-90 flex items-center gap-2" style={{ backgroundColor: 'var(--color-accent)' }}>
+          <div className="flex gap-2 flex-wrap justify-end">
+            <button 
+              type="button"
+              onClick={onClose} 
+              className="px-3.5 py-1.5 rounded text-xs font-semibold focus:outline-none transition-colors hover:opacity-90 text-white cursor-pointer" 
+              style={{ backgroundColor: 'var(--color-error)' }}
+            >
+              Close
+            </button>
+
+            {type === 'receipt' && isDirectEscPosSupported() && (
+              <button 
+                type="button"
+                onClick={handleDirectThermalPrint} 
+                disabled={isThermalPrinting}
+                className="px-4 py-1.5 rounded text-white text-xs font-bold border border-transparent focus:outline-none transition-all hover:opacity-90 flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50"
+                title="Direct high-speed ESC/POS raw print with auto paper cut and cash drawer pulse"
+              >
+                <span>{isThermalPrinting ? 'Printing...' : 'Thermal Print (100ms)'}</span>
+                <kbd className="px-1 text-[9px] bg-black/25 rounded font-mono">↵</kbd>
+              </button>
+            )}
+
+            <button 
+              type="button"
+              onClick={handlePrint} 
+              className="px-3.5 py-1.5 rounded text-white text-xs font-semibold border border-transparent focus:outline-none transition-opacity hover:opacity-90 flex items-center gap-1.5 cursor-pointer" 
+              style={{ backgroundColor: 'var(--color-accent)' }}
+            >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0v2.796c0 1.171.95 2.122 2.122 2.122h6.256a2.122 2.122 0 002.122-2.122V8.571zM10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125h4.875" />
               </svg>
-              Print
+              <span>Browser Print</span>
             </button>
           </div>
         </div>

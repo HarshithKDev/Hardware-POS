@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
-import { Save, Upload, Eye, EyeOff, Edit2, Trash2 } from 'lucide-react';
+import { Save, Upload, Eye, EyeOff, Edit2, Trash2, Volume2, VolumeX } from 'lucide-react';
+import { isAudioEnabled, setAudioEnabled, playScanSuccessSound } from './services/audio';
 
 export default function OwnerSettings() {
   const { shopSettings, setShopSettings, showAlert } = useApp();
@@ -29,6 +30,7 @@ export default function OwnerSettings() {
   const [showAddress, setShowAddress] = useState(true);
   const [showUpi, setShowUpi] = useState(true);
   const [disableWarehouse, setDisableWarehouse] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(() => isAudioEnabled());
 
   useEffect(() => {
     if (shopSettings) {
@@ -61,9 +63,23 @@ export default function OwnerSettings() {
         (localStorage.getItem(`disable_warehouse_${shopSettings.id}`) === 'true' ||
          localStorage.getItem('disable_warehouse') === 'true')
       ));
+      if (shopSettings.sound_enabled !== undefined && shopSettings.sound_enabled !== null) {
+        setSoundEnabled(Boolean(shopSettings.sound_enabled));
+        setAudioEnabled(Boolean(shopSettings.sound_enabled));
+      } else {
+        setSoundEnabled(isAudioEnabled());
+      }
       setLogoPreview(shopSettings.logo_url);
     }
   }, [shopSettings]);
+
+  const handleToggleSound = (checked) => {
+    setSoundEnabled(checked);
+    setAudioEnabled(checked);
+    if (checked) {
+      playScanSuccessSound();
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -128,7 +144,8 @@ export default function OwnerSettings() {
         phone: formData.phone.trim() || null,
         upi_id: formData.upi_id.trim() ? (!showUpi ? 'HIDDEN::' + formData.upi_id.trim() : formData.upi_id.trim()) : null,
         logo_url: updatedLogoUrl,
-        disable_warehouse: disableWarehouse
+        disable_warehouse: disableWarehouse,
+        sound_enabled: soundEnabled
       };
 
       let savedRecord = null;
@@ -139,8 +156,9 @@ export default function OwnerSettings() {
         .select()
         .single();
 
-      if (error && (error.code === '42703' || error.message?.includes('disable_warehouse'))) {
+      if (error && (error.code === '42703' || error.message?.includes('disable_warehouse') || error.message?.includes('sound_enabled'))) {
         delete updates.disable_warehouse;
+        delete updates.sound_enabled;
         const retry = await supabase
           .from('shop_settings')
           .update(updates)
@@ -148,13 +166,14 @@ export default function OwnerSettings() {
           .select()
           .single();
         if (retry.error) throw retry.error;
-        savedRecord = { ...retry.data, disable_warehouse: disableWarehouse };
+        savedRecord = { ...retry.data, disable_warehouse: disableWarehouse, sound_enabled: soundEnabled };
       } else if (error) {
         throw error;
       } else {
-        savedRecord = { ...data, disable_warehouse: disableWarehouse };
+        savedRecord = { ...data, disable_warehouse: disableWarehouse, sound_enabled: soundEnabled };
       }
 
+      setAudioEnabled(soundEnabled);
       localStorage.setItem(`disable_warehouse_${shopSettings.id}`, String(disableWarehouse));
       localStorage.setItem('disable_warehouse', String(disableWarehouse));
       setShopSettings(savedRecord);
@@ -378,6 +397,48 @@ export default function OwnerSettings() {
             </div>
           </div>
 
+          {/* SOUND & AUDIO FEEDBACK */}
+          <div className="pt-2">
+            <h3 className="font-bold text-xs uppercase tracking-wider mb-2 pb-2 border-b" style={{ color: 'var(--text-tertiary)', borderColor: 'var(--border-light)' }}>Audio & Sound Effects</h3>
+            <div 
+              className={`p-4 rounded-xl border flex items-start justify-between gap-4 transition-all ${soundEnabled ? 'border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5' : 'border-[var(--border-light)] bg-[var(--bg-tertiary)]'}`}
+            >
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                    {soundEnabled ? <Volume2 size={16} className="text-[var(--color-accent)]" /> : <VolumeX size={16} className="text-[var(--text-tertiary)]" />}
+                    POS Sound Effects (Scan & Checkout Audio)
+                  </span>
+                  <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded-md border ${soundEnabled ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-[var(--color-accent)]/20' : 'bg-[var(--bg-secondary)] text-[var(--text-tertiary)] border-[var(--border-medium)]'}`}>
+                    {soundEnabled ? 'Enabled' : 'Muted'}
+                  </span>
+                </div>
+                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                  When enabled, real-time audio beeps play on successful barcode scans (1800Hz), double-beeps on checkout completion, and buzzers on stock depletion. Turn off for quiet counter operations.
+                </p>
+                {soundEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => playScanSuccessSound()}
+                    className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md border border-[var(--border-medium)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] text-[var(--color-accent)] transition-all active:scale-95 cursor-pointer"
+                  >
+                    <Volume2 size={13} />
+                    <span>Test Scan Sound</span>
+                  </button>
+                )}
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                <input 
+                  type="checkbox" 
+                  checked={soundEnabled} 
+                  onChange={(e) => handleToggleSound(e.target.checked)} 
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-[var(--border-medium)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--color-accent)] cursor-pointer" />
+              </label>
+            </div>
+          </div>
+
           {isEditing && (
             <>
               <div className="pt-2 space-y-3">
@@ -450,6 +511,7 @@ export default function OwnerSettings() {
                         (localStorage.getItem(`disable_warehouse_${shopSettings.id}`) === 'true' ||
                          localStorage.getItem('disable_warehouse') === 'true')
                       ));
+                      setSoundEnabled(isAudioEnabled());
                       setLogoPreview(shopSettings.logo_url);
                       setLogoFile(null);
                     }

@@ -4,6 +4,7 @@ import { getInventoryItemByBarcode } from './services/db';
 import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
 import { generateId, calculateMSP } from './utils';
+import { playScanSuccessSound, playScanErrorSound } from './services/audio';
 
 export default function WorkerScanner({ cashierName }) {
   const { showAlert, userRole } = useApp();
@@ -204,6 +205,7 @@ export default function WorkerScanner({ cashierName }) {
       }
 
       if (!item) {
+        playScanErrorSound();
         showAlert(`Item not found for barcode: ${barcode}`, "Error");
         return;
       }
@@ -213,6 +215,7 @@ export default function WorkerScanner({ cashierName }) {
       instanceBatchId = null;
       if (item.is_cuttable) {
         if (!isInstance) {
+          playScanErrorSound();
           showAlert(`Please scan the specific piece sticker for ${item.name}, not the generic barcode.`, "Error");
           return;
         }
@@ -254,6 +257,7 @@ export default function WorkerScanner({ cashierName }) {
             maxStock = Number(batch.stock_store || 0);
             instanceBatchId = batch.batch_id;
           } else {
+            playScanErrorSound();
             showAlert(`Batch #${String(scannedBatchNumber).padStart(2, '0')} not found for ${item.name}`, "Batch Not Found");
             return;
           }
@@ -269,6 +273,7 @@ export default function WorkerScanner({ cashierName }) {
       }
 
       if (maxStock <= 0) {
+        playScanErrorSound();
         showAlert(`${item.name} is currently out of stock!`, "Out of Stock");
         return;
       }
@@ -283,15 +288,16 @@ export default function WorkerScanner({ cashierName }) {
         if (existingIdx >= 0) {
           const currentQty = Number(prev[existingIdx].quantity) || 0;
           if (currentQty + 1 > maxStock) {
+            playScanErrorSound();
             showAlert(`You only have ${maxStock} in stock for ${item.name}!`, "Stock Limit");
             return prev;
           }
-          playBeep();
+          playScanSuccessSound();
           const newCart = [...prev];
           newCart[existingIdx] = { ...newCart[existingIdx], quantity: currentQty + 1 };
           return newCart;
         } else {
-          playBeep();
+          playScanSuccessSound();
           return [{ 
             ...item, 
             id: generateId(), 

@@ -1,34 +1,9 @@
 import React, { useRef, useEffect } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { playScanSuccessSound } from '../../services/audio';
 
 export default function InlineContinuousScanner({ onScan }) {
   const scannerRef = useRef(null);
-  const audioCtxRef = useRef(null);
-
-  const playBeep = () => {
-    try {
-      if (!audioCtxRef.current) {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        if (AudioContext) audioCtxRef.current = new AudioContext();
-      }
-      const audioCtx = audioCtxRef.current;
-      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-      if (audioCtx) {
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
-        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.1);
-        oscillator.start(audioCtx.currentTime);
-        oscillator.stop(audioCtx.currentTime + 0.1);
-      }
-    } catch (e) {
-      console.log('Audio not supported', e);
-    }
-  };
 
   const onScanRef = useRef(onScan);
   useEffect(() => {
@@ -61,7 +36,7 @@ export default function InlineContinuousScanner({ onScan }) {
         const onDecoded = async (decodedText) => {
           if (!isProcessing && !isUnmountingRef.current && active) {
             isProcessing = true;
-            playBeep();
+            playScanSuccessSound();
             await onScanRef.current(decodedText);
             setTimeout(() => {
               isProcessing = false;

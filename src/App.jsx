@@ -362,7 +362,6 @@ function App() {
               </>
             )}
 
-
             <button
               onClick={() => setShowLogoutConfirm(true)}
               className="h-10 w-auto md:h-9 md:w-auto rounded-md px-3 md:px-4 lg:px-5 text-white text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none shrink-0 flex items-center justify-center gap-2 border bg-[var(--color-error)] border-[var(--color-error)] hover:bg-[#c90f1f] hover:border-[#c90f1f]"
