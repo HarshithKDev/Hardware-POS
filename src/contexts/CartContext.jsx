@@ -10,41 +10,64 @@ export function useCart() {
 }
 
 export function CartProvider({ children, activeTab }) {
-  const { showToast } = useApp();
+  const { showToast, shopSettings } = useApp();
+  const shopId = shopSettings?.id || (typeof localStorage !== 'undefined' ? localStorage.getItem('shop_id') : '') || 'default';
   const [activeCartTab, setActiveCartTab] = useState('local');
+
   const [cartSessions, setCartSessions] = useState(() => {
-    try { const saved = localStorage.getItem(`pos_cart_sessions_${activeTab}`); return saved ? JSON.parse(saved) : { local: [] }; } catch { return { local: [] }; }
+    try {
+      const scoped = localStorage.getItem(`pos_cart_sessions_${shopId}_${activeTab}`);
+      if (scoped) return JSON.parse(scoped);
+      const legacy = localStorage.getItem(`pos_cart_sessions_${activeTab}`);
+      return legacy ? JSON.parse(legacy) : { local: [] };
+    } catch {
+      return { local: [] };
+    }
   });
   
   const [cart, setCart] = useState(() => {
-    try { const saved = localStorage.getItem(`pos_cart_${activeTab}`); return saved ? JSON.parse(saved) : []; } catch { return []; }
+    try {
+      const scoped = localStorage.getItem(`pos_cart_${shopId}_${activeTab}`);
+      if (scoped) return JSON.parse(scoped);
+      const legacy = localStorage.getItem(`pos_cart_${activeTab}`);
+      return legacy ? JSON.parse(legacy) : [];
+    } catch {
+      return [];
+    }
   });
 
   const [heldCarts, setHeldCarts] = useState(() => {
-    try { const saved = localStorage.getItem(`pos_held_carts_${activeTab}`); return saved ? JSON.parse(saved) : []; } catch { return []; }
+    try {
+      const scoped = localStorage.getItem(`pos_held_carts_${shopId}_${activeTab}`);
+      if (scoped) return JSON.parse(scoped);
+      const legacy = localStorage.getItem(`pos_held_carts_${activeTab}`);
+      return legacy ? JSON.parse(legacy) : [];
+    } catch {
+      return [];
+    }
   });
 
   // Save cart sessions to localStorage whenever they change
   useEffect(() => {
     const timer = setTimeout(() => {
-      localStorage.setItem(`pos_cart_sessions_${activeTab}`, JSON.stringify(cartSessions));
+      localStorage.setItem(`pos_cart_sessions_${shopId}_${activeTab}`, JSON.stringify(cartSessions));
     }, 300);
     return () => clearTimeout(timer);
-  }, [cartSessions, activeTab]);
+  }, [cartSessions, activeTab, shopId]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      localStorage.setItem(`pos_cart_${activeTab}`, JSON.stringify(cart));
+      localStorage.setItem(`pos_cart_${shopId}_${activeTab}`, JSON.stringify(cart));
     }, 300);
     return () => clearTimeout(timer);
-  }, [cart, activeTab]);
+  }, [cart, activeTab, shopId]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      localStorage.setItem(`pos_held_carts_${activeTab}`, JSON.stringify(heldCarts));
+      localStorage.setItem(`pos_held_carts_${shopId}_${activeTab}`, JSON.stringify(heldCarts));
     }, 300);
     return () => clearTimeout(timer);
-  }, [heldCarts, activeTab]);
+  }, [heldCarts, activeTab, shopId]);
 
   // Sycing cart changes to active session
   useEffect(() => {

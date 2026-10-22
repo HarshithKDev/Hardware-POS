@@ -63,7 +63,7 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
       `}</style>
       <div className="text-center mb-3">
         <h1 className="font-bold uppercase text-black whitespace-pre-line mx-auto break-words" style={{ color: '#000', fontSize: '16px' }}>
-          {(shopSettings?.shop_name || 'STORE RECEIPT').replace(/ AND DECOR/i, ' AND\nDECOR')}
+          {shopSettings?.shop_name || 'STORE RECEIPT'}
         </h1>
         {shopSettings?.shop_address && !shopSettings.shop_address.startsWith('HIDDEN::') && (
           <p className="mt-1 text-black whitespace-pre-line" style={{ color: '#000', fontSize: '10px' }}>

@@ -786,7 +786,7 @@ export default function OwnerStats({ isActive }) {
         });
         key = foundBucket;
       } else {
-        key = bill.created_at.split('T')[0];
+        key = new Date(bill.created_at).toLocaleDateString('en-CA');
       }
 
       if (key && trendData[key]) {

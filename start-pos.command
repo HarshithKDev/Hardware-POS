@@ -5,11 +5,15 @@
 # (no Chrome/Brave print dialog — prints to default printer)
 # ---------------------------------------------------------------
 
-POS_URL="http://localhost:5173"
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+POS_PORT=5173
 
 # Start the dev server in the background if not already running
-if ! lsof -i :5173 > /dev/null 2>&1; then
+if lsof -i :5173 > /dev/null 2>&1; then
+  POS_PORT=5173
+elif lsof -i :5174 > /dev/null 2>&1; then
+  POS_PORT=5174
+else
   echo "Starting POS dev server..."
   cd "$PROJECT_DIR"
   npm run dev &
@@ -18,12 +22,19 @@ if ! lsof -i :5173 > /dev/null 2>&1; then
   echo "Waiting for server to start..."
   for i in {1..30}; do
     if lsof -i :5173 > /dev/null 2>&1; then
-      echo "Server is ready!"
+      POS_PORT=5173
+      echo "Server is ready on port 5173!"
+      break
+    elif lsof -i :5174 > /dev/null 2>&1; then
+      POS_PORT=5174
+      echo "Server is ready on port 5174!"
       break
     fi
     sleep 1
   done
 fi
+
+POS_URL="http://localhost:${POS_PORT}"
 
 # Detect and launch browser with --kiosk-printing
 if [ -d "/Applications/Brave Browser.app" ]; then

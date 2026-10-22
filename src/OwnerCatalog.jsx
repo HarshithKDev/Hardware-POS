@@ -23,11 +23,15 @@ export default function OwnerCatalog() {
   const [nextBarcode, setNextBarcode] = useState('');
   const fileInputRef = useRef(null);
 
+  const shopId = localStorage.getItem('shop_id');
+
   // Fetch Categories
   const { data: categories = [] } = useQuery({
-    queryKey: ['categories'],
+    queryKey: ['categories', shopId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('categories').select('*').order('name', { ascending: true });
+      let query = supabase.from('categories').select('*').order('name', { ascending: true });
+      if (shopId) query = query.eq('shop_id', shopId);
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
@@ -36,16 +40,16 @@ export default function OwnerCatalog() {
 
   // Fetch Subcategories
   const { data: subcategories = [] } = useQuery({
-    queryKey: ['subcategories'],
+    queryKey: ['subcategories', shopId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('subcategories').select('*').order('name', { ascending: true });
+      let query = supabase.from('subcategories').select('*').order('name', { ascending: true });
+      if (shopId) query = query.eq('shop_id', shopId);
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
     staleTime: STALE_TIME_5MIN,
   });
-
-  const shopId = localStorage.getItem('shop_id');
 
   useQuery({
     queryKey: ['nextBarcode', shopId],
@@ -110,12 +114,16 @@ export default function OwnerCatalog() {
 
         if (error.code === '23505' && error.message.includes('barcode')) {
           console.warn(`Barcode ${currentBarcode} taken, retrying... (Attempt ${attempt + 1}/${BARCODE_RETRY_ATTEMPTS})`);
-          let latestQuery = supabase.from('product_master').select('barcode').order('barcode', { ascending: false });
+          let latestQuery = supabase.from('product_master').select('barcode');
           if (shopId) {
             latestQuery = latestQuery.eq('shop_id', shopId);
           }
-          const { data: latest } = await latestQuery.limit(1);
-          currentBarcode = latest && latest.length > 0 ? (parseInt(latest[0].barcode, 10) + 1).toString() : (parseInt(currentBarcode, 10) + 1).toString();
+          const { data: allBcs } = await latestQuery;
+          const maxNum = (allBcs || []).reduce((max, item) => {
+            const num = parseInt(item.barcode, 10);
+            return !isNaN(num) ? Math.max(max, num) : max;
+          }, parseInt(currentBarcode, 10));
+          currentBarcode = (maxNum + 1).toString();
         } else {
           throw error;
         }

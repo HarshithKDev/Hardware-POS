@@ -6,8 +6,11 @@ import { PageLoader } from './SharedUI';
 import {
   ArrowLeft,
   Phone,
-  Undo2
+  Undo2,
+  Printer
 } from 'lucide-react';
+import { useApp } from './AppContext';
+import ReceiptTemplate from './ReceiptTemplate';
 
 export default function BillDetailsView({
   bill,
@@ -16,6 +19,8 @@ export default function BillDetailsView({
   cachedItems
 }) {
   const [currentBill, setCurrentBill] = useState(bill);
+  const { shopSettings } = useApp();
+  const [isPrintingReceipt, setIsPrintingReceipt] = useState(false);
 
   useEffect(() => {
     setCurrentBill(bill);
@@ -53,6 +58,34 @@ export default function BillDetailsView({
   const isVoided = currentBill.status === 'voided';
   const { datePart, timePart } = formatDateTime(currentBill.created_at);
 
+  const receiptData = {
+    id: currentBill.id,
+    date: currentBill.created_at,
+    items: items.map(it => ({
+      name: it.item_name || it.name || 'Item',
+      unit: it.unit || 'PCS',
+      quantity: Number(it.billable_quantity || it.quantity || 1),
+      price: Number(it.system_price || it.selling_price || it.price_at_sale || 0),
+      customPriceInput: Number(it.price_at_sale || it.final_price || it.selling_price || 0),
+      is_loose_item: it.is_loose_item || false,
+      cut_length: it.cut_length || null
+    })),
+    total: Number(currentBill.total_amount || 0),
+    paymentMethod: currentBill.payment_method || 'CASH',
+    cashAmount: Number(currentBill.cash_amount || 0),
+    upiAmount: Number(currentBill.upi_amount || 0),
+    customerName: currentBill.customer_name,
+    customerPhone: currentBill.customer_phone,
+  };
+
+  const handlePrintReceipt = () => {
+    setIsPrintingReceipt(true);
+    setTimeout(() => {
+      window.print();
+      setIsPrintingReceipt(false);
+    }, 150);
+  };
+
   return (
     <div className="flex-1 flex flex-col h-full min-h-0 animate-fade-in text-[var(--text-primary)]">
       {/* ROW 1: TOP NAVIGATION WITH BACK BUTTON */}
@@ -68,17 +101,30 @@ export default function BillDetailsView({
           <span>Back</span>
         </button>
 
-        {!isVoided && onProcessReturn && (
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => onProcessReturn(currentBill)}
-            className="h-8 px-3 rounded-lg border border-red-500/50 text-red-400 hover:bg-red-500/10 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
-            title="Process Return for this Bill"
+            onClick={handlePrintReceipt}
+            disabled={isLoadingItems}
+            className="h-8 px-3 rounded-lg border border-[var(--border-medium)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
+            title="Print Receipt"
           >
-            <Undo2 className="w-3.5 h-3.5" />
-            <span>Process Return</span>
+            <Printer className="w-3.5 h-3.5 text-[var(--color-accent)]" />
+            <span>Print Receipt</span>
           </button>
-        )}
+
+          {!isVoided && onProcessReturn && (
+            <button
+              type="button"
+              onClick={() => onProcessReturn(currentBill)}
+              className="h-8 px-3 rounded-lg border border-red-500/50 text-red-400 hover:bg-red-500/10 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+              title="Process Return for this Bill"
+            >
+              <Undo2 className="w-3.5 h-3.5" />
+              <span>Process Return</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ROW 2: TRANSACTION TITLE, STATUS & METADATA */}
@@ -275,6 +321,14 @@ export default function BillDetailsView({
           </div>
         )}
       </div>
+
+      {isPrintingReceipt && (
+        <ReceiptTemplate
+          lastReceipt={receiptData}
+          shopSettings={shopSettings}
+          formatDateTime={formatDateTime}
+        />
+      )}
     </div>
   );
 }

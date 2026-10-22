@@ -100,15 +100,16 @@ export default function OwnerSettings() {
       // 1. Upload Logo if changed
       if (logoFile) {
         const fileExt = logoFile.name.split('.').pop();
-        const fileName = `${shopSettings.admin_email.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.${fileExt}`;
+        const baseKey = (shopSettings.id || shopSettings.admin_email || 'logo').replace(/[^a-z0-9]/gi, '_');
+        const fileName = `${baseKey}.${fileExt}`;
         const { error: uploadError } = await supabase.storage
           .from('shop-logos')
-          .upload(fileName, logoFile, { cacheControl: '3600', upsert: true });
+          .upload(fileName, logoFile, { cacheControl: '0', upsert: true });
         
         if (uploadError) throw new Error('Failed to upload logo: ' + uploadError.message);
 
         const { data: urlData } = supabase.storage.from('shop-logos').getPublicUrl(fileName);
-        updatedLogoUrl = urlData.publicUrl;
+        updatedLogoUrl = `${urlData.publicUrl}?t=${Date.now()}`;
       }
 
       // 2. Update Auth Password if provided

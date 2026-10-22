@@ -20,8 +20,20 @@ export const SCAN_TIMEOUT_MS = 400;
 
 // --- Auth ---
 export const getAdminEmail = () => localStorage.getItem('owner_email') || 'admin@hardwarepos.com';
-export const getWorkerEmail = (name) =>
-  `${name.trim().toLowerCase().replace(/[^a-z0-9]/g, '')}@hardwarepos.com`;
+export const getWorkerEmail = (name, shopId) => {
+  const cleanName = (name || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  const resolvedShopId = (shopId || (typeof localStorage !== 'undefined' ? localStorage.getItem('shop_id') : '') || '')
+    .trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (resolvedShopId) {
+    return `${cleanName}.${resolvedShopId.slice(0, 8)}@hardwarepos.com`;
+  }
+  return `${cleanName}@hardwarepos.com`;
+};
+
+export const getLegacyWorkerEmail = (name) => {
+  const cleanName = (name || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  return `${cleanName}@hardwarepos.com`;
+};
 
 // --- Unit Types ---
 export const UNIT_TYPES = [

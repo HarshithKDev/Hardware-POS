@@ -342,8 +342,11 @@ export default function OwnerLedger({ isActive }) {
       const shopId = localStorage.getItem('shop_id');
       const performedBy = localStorage.getItem('owner_name') || localStorage.getItem('cashier_name') || 'Staff';
 
+      let updatedBillTotal = Number(bill.total_amount);
+
       if (isAll) {
         // Mark entire bill as voided
+        updatedBillTotal = 0;
         let billUpdateQuery = supabase
           .from('bills')
           .update({ status: 'voided' })
@@ -356,9 +359,9 @@ export default function OwnerLedger({ isActive }) {
       } else {
         // Calculate partial refund
         const refundAmount = itemsToReturn.reduce((sum, item) => sum + (Number(item.price_at_sale) * item.returnQuantity), 0);
-        const newTotal = Math.max(0, Number(bill.total_amount) - refundAmount);
-        const newStatus = newTotal <= 0.001 ? 'voided' : bill.status;
-        let billUpdateQuery = supabase.from('bills').update({ total_amount: newTotal, status: newStatus }).eq('id', bill.id);
+        updatedBillTotal = Math.max(0, Number(bill.total_amount) - refundAmount);
+        const newStatus = updatedBillTotal <= 0.001 ? 'voided' : bill.status;
+        let billUpdateQuery = supabase.from('bills').update({ total_amount: updatedBillTotal, status: newStatus }).eq('id', bill.id);
         if (shopId) {
           billUpdateQuery = billUpdateQuery.eq('shop_id', shopId);
         }
@@ -370,13 +373,22 @@ export default function OwnerLedger({ isActive }) {
       for (const item of itemsToReturn) {
         const qtyToRestore = item.returnQuantity;
         if (item.instance_barcode) {
-          let instQuery = supabase.from('stock_instances').select('original_length').eq('instance_barcode', item.instance_barcode);
+          let instQuery = supabase.from('stock_instances').select('original_length, current_length').eq('instance_barcode', item.instance_barcode);
           if (shopId) {
             instQuery = instQuery.eq('shop_id', shopId);
           }
           const { data: inst } = await instQuery.maybeSingle();
           if (inst) {
-            let updateInst = supabase.from('stock_instances').update({ status: 'available', current_length: inst.original_length }).eq('instance_barcode', item.instance_barcode);
+            const currentLen = Number(inst.current_length || 0);
+            const maxLen = Number(inst.original_length || currentLen + Number(qtyToRestore));
+            const restoredLen = Math.min(maxLen, currentLen + Number(qtyToRestore));
+            let updateInst = supabase
+              .from('stock_instances')
+              .update({ 
+                status: 'available', 
+                current_length: restoredLen 
+              })
+              .eq('instance_barcode', item.instance_barcode);
             if (shopId) {
               updateInst = updateInst.eq('shop_id', shopId);
             }
@@ -467,11 +479,16 @@ export default function OwnerLedger({ isActive }) {
            [bill.id]: enrichedUpdated
          }));
          if (selectedBill && selectedBill.id === bill.id) {
-           setSelectedBill(prev => prev ? { ...prev, total_amount: newTotal } : null);
+           setSelectedBill(prev => prev ? { ...prev, total_amount: updatedBillTotal } : null);
          }
       } else {
+         setBillItemsCache(prev => {
+           const next = { ...prev };
+           delete next[bill.id];
+           return next;
+         });
          if (selectedBill && selectedBill.id === bill.id) {
-           setSelectedBill(prev => prev ? { ...prev, status: 'voided' } : null);
+           setSelectedBill(prev => prev ? { ...prev, status: 'voided', total_amount: 0 } : null);
          }
       }
       setReturnModalState(null);

@@ -34,7 +34,7 @@ export default function OwnerStaff() {
 
   const addStaffMutation = useMutation({
     mutationFn: async ({ name, password, isBillable }) => {
-      const email = getWorkerEmail(name);
+      const email = getWorkerEmail(name, shopId);
 
       const { data: authData, error: authError } = await provisioningClient.auth.signUp({
         email,

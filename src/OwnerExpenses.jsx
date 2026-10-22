@@ -163,10 +163,10 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
       try {
         const { error } = await supabase.from('expenses').insert([newExpense]);
         if (error) {
-          await supabase.from('expenses').insert([newExpense]);
+          console.warn('Remote expense insert failed:', error.message);
         }
-      } catch {
-        // Fallback to local
+      } catch (err) {
+        console.warn('Network exception inserting expense, fallback to local state:', err);
       }
 
       // 2. Log to audit_logs

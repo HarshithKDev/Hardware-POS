@@ -962,7 +962,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       const qty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : (i.quantity === '' ? 0 : Number(i.quantity));
       let val = Number(i.customPriceInput); if (isNaN(val)) val = Number(i.price || 0);
       const msp = Number(i.msp_price) || Number(i.msp || 0); const mrp = Number(i.price || 0);
-      if (val < msp && cashierName !== 'admin') {
+      if (val < msp && userRole !== 'owner' && cashierName !== 'admin') {
         setTimeout(() => showAlertRef.current(`Cannot sell ${i.name} below MSP (₹${msp})`, "Price Error"), 0);
         val = msp;
       }
@@ -970,7 +970,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       return { ...i, customPriceInput: val, customTotalInput: (val * qty).toFixed(2), discountPct: disc };
     }
     return i;
-  })), [cashierName, setCart]);
+  })), [userRole, cashierName, setCart]);
 
   const handleCustomPriceBlurGroup = useCallback((groupKey) => {
     setCart(prev => {
@@ -980,7 +980,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           const msp = Number(i.msp_price) || Number(i.msp || 0);
           let val = Number(i.customPriceInput);
           if (isNaN(val) || val <= 0) val = Number(i.price);
-          if (val < msp && cashierName !== 'admin') {
+          if (val < msp && userRole !== 'owner' && cashierName !== 'admin') {
             setTimeout(() => showAlertRef.current(`Cannot sell ${i.name} below MSP (₹${msp})`, "Price Error"), 0);
             val = msp;
           }
@@ -994,7 +994,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         return i;
       });
     });
-  }, [cart, cashierName, setCart]);
+  }, [cart, userRole, cashierName, setCart]);
 
   const calculateTotal = useCallback(() => cart.reduce((tot, i) => {
     const qty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : (i.quantity === '' ? 0 : Number(i.quantity));
@@ -1158,45 +1158,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
         const maxTotalDiscountable = discountableItems.reduce((sum, i) => sum + i.maxDiscountableTotal, 0);
 
-        if (totalDiscountToGive > maxTotalDiscountable && cashierName !== 'admin') {
+        if (totalDiscountToGive > maxTotalDiscountable && userRole !== 'owner' && cashierName !== 'admin') {
           showAlert(`Cannot sell for ₹${targetTotal.toFixed(2)}. Absolute minimum allowed total is ₹${(currentCartTotal - maxTotalDiscountable).toFixed(2)}.`, "Minimum Price Error");
           setIsCheckingOut(false);
           return;
         }
 
-        // Iteratively distribute discount proportionally
-        let loopSafety = 0;
-        while (totalDiscountToGive > 0.005 && discountableItems.length > 0 && loopSafety < 10) {
-          loopSafety++;
-          const currentTotalDiscountable = discountableItems.reduce((sum, i) => sum + (i.maxDiscountableTotal - i.allocatedDiscount), 0);
-          let iterationDiscountToGive = totalDiscountToGive;
-          
-          for (let i = 0; i < discountableItems.length; i++) {
-            const item = discountableItems[i];
-            const itemRemDiscountable = item.maxDiscountableTotal - item.allocatedDiscount;
-            if (itemRemDiscountable <= 0) continue;
-
-            const ratio = itemRemDiscountable / currentTotalDiscountable;
-            const discountForThisItem = Math.min(itemRemDiscountable, iterationDiscountToGive * ratio);
-            
-            item.allocatedDiscount += discountForThisItem;
-            totalDiscountToGive -= discountForThisItem;
-          }
-          discountableItems = discountableItems.filter(i => (i.maxDiscountableTotal - i.allocatedDiscount) > 0.005);
-        }
-
-        // Apply allocated discounts back to finalCart
-        finalCart = finalCart.map(cartItem => {
-          const discItem = discountableItems.find(i => i.ref === cartItem) || 
-                           { ref: cartItem, currentPrice: (cartItem.customPriceInput !== undefined && cartItem.customPriceInput !== '' ? Number(cartItem.customPriceInput) : Number(cartItem.price || 0)), calcQty: (cartItem.billableQuantity !== undefined && cartItem.billableQuantity !== '' ? Number(cartItem.billableQuantity) : Number(cartItem.quantity || 0)), allocatedDiscount: 0 }; // Fallback original items not in active discountableItems list
-                           
-          // To get original allocation, we need the mutated item.
-          // Let's re-run mapping to find the mutated reference safely.
-          return cartItem;
-        });
-
-        // Let's do it safely: we mutate the `ref` directly inside the loop above? No, React state.
-        // We will just map the results correctly using the initial map reference.
       }
     }
 
@@ -1372,6 +1339,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       }
 
       const payload = {
+        shop_id: shopSettings?.id || localStorage.getItem('shop_id'),
         p_action: activeTab === 'receive' ? 'RECEIVE' : activeTab === 'transfer' ? 'TRANSFER' : 'SALE',
         p_location: activeTab === 'receive' ? 'Warehouse-Inbound' : activeTab === 'transfer' ? 'Warehouse-Transfer' : 'Store',
         p_cashier_name: cashierName || 'System',
@@ -1507,30 +1475,43 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       // Safeguard: When warehouse is disabled, ensure server batch and cuttable instances are routed to Store
       if (activeTab === 'receive' && isWarehouseDisabled && navigator.onLine) {
         try {
+          const shopId = shopSettings?.id || localStorage.getItem('shop_id');
           for (const item of finalCart) {
-            const { data: bData } = await supabase
+            let bQuery = supabase
               .from('inventory_batches')
               .select('batch_id, stock_warehouse, stock_store')
               .eq('barcode', item.barcode)
               .order('created_at', { ascending: false })
-              .limit(1)
-              .maybeSingle();
+              .limit(1);
+            if (shopId) {
+              bQuery = bQuery.eq('shop_id', shopId);
+            }
+            const { data: bData } = await bQuery.maybeSingle();
+
             if (bData && Number(bData.stock_warehouse) > 0) {
               const transferQty = Math.min(Number(bData.stock_warehouse), Number(item.quantity));
-              await supabase
+              let updateBatch = supabase
                 .from('inventory_batches')
                 .update({
                   stock_warehouse: Math.max(0, Number(bData.stock_warehouse) - transferQty),
                   stock_store: Number(bData.stock_store || 0) + transferQty
                 })
                 .eq('batch_id', bData.batch_id);
+              if (shopId) {
+                updateBatch = updateBatch.eq('shop_id', shopId);
+              }
+              await updateBatch;
 
               if (item.is_cuttable) {
-                await supabase
+                let updateInst = supabase
                   .from('stock_instances')
                   .update({ location: 'Store' })
                   .eq('parent_barcode', item.barcode)
                   .eq('location', 'Warehouse');
+                if (shopId) {
+                  updateInst = updateInst.eq('shop_id', shopId);
+                }
+                await updateInst;
               }
             }
           }
@@ -2008,7 +1989,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   <span className="opacity-70 font-normal">System: ₹{cartTotal.toFixed(2)}</span>
                 </label>
                 <input id="negotiated-total" type="number" step="any" min="0" autoFocus value={checkoutModal.negotiatedTotal} onChange={(e) => { const v = parseFloat(e.target.value); setCheckoutModal({ ...checkoutModal, error: '', negotiatedTotal: (isNaN(v) || v < 0) ? '' : e.target.value }) }} placeholder={`e.g. ${Math.floor(cartTotal)}`} className="w-full h-12 px-4 text-2xl  focus:outline-none rounded-md" style={{ border: checkoutModal.error ? '1px solid var(--color-error)' : '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-                {checkoutModal.negotiatedTotal !== '' && Number(checkoutModal.negotiatedTotal) < minPossibleTotal && cashierName !== 'admin' && (
+                {checkoutModal.negotiatedTotal !== '' && Number(checkoutModal.negotiatedTotal) < minPossibleTotal && userRole !== 'owner' && cashierName !== 'admin' && (
                   <p className="text-xs font-bold mt-2" style={{ color: 'var(--color-error)' }}>
                     Warning: Cannot discount below minimum selling limit (₹{minPossibleTotal.toFixed(2)}). The final bill will automatically be clamped.
                   </p>

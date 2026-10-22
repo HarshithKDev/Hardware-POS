@@ -47,14 +47,30 @@ export default function OwnerShowroom() {
     setPaymentMethodModal(bill);
   };
 
-  const confirmMarkPaid = async (bill, selectedPaymentMethod) => {
+  const confirmMarkPaid = async (bill, selectedPaymentMethod, cashAmount = 0, upiAmount = 0) => {
     setMarkingPaidId(bill.id);
     setPaymentMethodModal(null);
     try {
-      const { error } = await supabase
+      const shopId = localStorage.getItem('shop_id');
+      const totalAmt = Number(bill.total_amount || 0);
+      const finalCash = selectedPaymentMethod === 'CASH' ? totalAmt : (selectedPaymentMethod === 'UPI' ? 0 : Number(cashAmount || 0));
+      const finalUpi = selectedPaymentMethod === 'UPI' ? totalAmt : (selectedPaymentMethod === 'CASH' ? 0 : Number(upiAmount || 0));
+
+      const updateData = {
+        status: null,
+        payment_method: selectedPaymentMethod,
+        cash_amount: finalCash,
+        upi_amount: finalUpi
+      };
+
+      let query = supabase
         .from('bills')
-        .update({ status: null, payment_method: selectedPaymentMethod })
+        .update(updateData)
         .eq('id', bill.id);
+      if (shopId) {
+        query = query.eq('shop_id', shopId);
+      }
+      const { error } = await query;
       if (error) throw error;
 
       showAlert(
@@ -89,63 +105,11 @@ export default function OwnerShowroom() {
         />
         {/* Mark as Paid Modal */}
         {paymentMethodModal && (
-          <div
-            className="fixed inset-0 z-[200] flex items-center justify-center animate-fade-in px-4"
-            style={{ backgroundColor: 'rgba(0,0,0,0.65)' }}
-            role="dialog"
-            aria-modal="true"
-          >
-            <div className="w-full max-w-[380px] rounded-xl overflow-hidden shadow-2xl border border-[var(--border-light)] animate-scale-in" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-              <div className="px-5 py-4 border-b border-[var(--border-light)] flex items-center gap-2">
-                <CheckCircle size={18} className="text-[var(--color-success)]" />
-                <p className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
-                  Confirm Payment Received
-                </p>
-              </div>
-              <div className="p-5">
-                <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>
-                  Bill <span className="font-bold" style={{ color: 'var(--text-primary)' }}>#{paymentMethodModal.id.split('-')[0]}</span>
-                  {paymentMethodModal.customer_name && (
-                    <span> &mdash; <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{paymentMethodModal.customer_name}</span></span>
-                  )}
-                </p>
-                <p className="text-3xl font-bold mb-5" style={{ color: 'var(--color-success)' }}>
-                  &#8377;{Number(paymentMethodModal.total_amount).toFixed(2)}
-                </p>
-
-                <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>
-                  How did they pay?
-                </p>
-                <div className="flex gap-2">
-                  {['CASH', 'UPI', 'SPLIT'].map(method => (
-                    <button
-                      key={method}
-                      onClick={() => confirmMarkPaid(paymentMethodModal, method)}
-                      className="flex-1 py-3 text-sm font-bold uppercase tracking-wider rounded-lg transition-all hover:opacity-90 active:scale-95 text-white cursor-pointer"
-                      style={{
-                        backgroundColor: method === 'CASH'
-                          ? 'var(--color-success)'
-                          : method === 'UPI'
-                            ? 'var(--color-accent)'
-                            : 'var(--color-warning)',
-                      }}
-                    >
-                      {method === 'SPLIT' ? 'UPI+Cash' : method}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="px-5 pb-4">
-                <button
-                  onClick={() => setPaymentMethodModal(null)}
-                  className="w-full py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
-                  style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border-medium)' }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
+          <ShowroomPaymentModal
+            bill={paymentMethodModal}
+            onClose={() => setPaymentMethodModal(null)}
+            onConfirm={confirmMarkPaid}
+          />
         )}
       </div>
     );
@@ -332,64 +296,166 @@ export default function OwnerShowroom() {
 
       {/* Mark as Paid Modal */}
       {paymentMethodModal && (
-        <div
-          className="fixed inset-0 z-[200] flex items-center justify-center animate-fade-in px-4"
-          style={{ backgroundColor: 'rgba(0,0,0,0.65)' }}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div className="w-full max-w-[380px] rounded-xl overflow-hidden shadow-2xl border border-[var(--border-light)] animate-scale-in" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-            <div className="px-5 py-4 border-b border-[var(--border-light)] flex items-center gap-2">
-              <CheckCircle size={18} className="text-[var(--color-success)]" />
-              <p className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
-                Confirm Payment Received
-              </p>
-            </div>
-            <div className="p-5">
-              <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>
-                Bill <span className="font-bold" style={{ color: 'var(--text-primary)' }}>#{paymentMethodModal.id.split('-')[0]}</span>
-                {paymentMethodModal.customer_name && (
-                  <span> &mdash; <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{paymentMethodModal.customer_name}</span></span>
-                )}
-              </p>
-              <p className="text-3xl font-bold mb-5" style={{ color: 'var(--color-success)' }}>
-                &#8377;{Number(paymentMethodModal.total_amount).toFixed(2)}
-              </p>
+        <ShowroomPaymentModal
+          bill={paymentMethodModal}
+          onClose={() => setPaymentMethodModal(null)}
+          onConfirm={confirmMarkPaid}
+        />
+      )}
+    </div>
+  );
+}
 
+function ShowroomPaymentModal({ bill, onClose, onConfirm }) {
+  const [isSplit, setIsSplit] = useState(false);
+  const total = Number(bill.total_amount || 0);
+  const [splitCash, setSplitCash] = useState('');
+  const [splitUpi, setSplitUpi] = useState(total.toFixed(2));
+  const [splitError, setSplitError] = useState('');
+
+  const handleCashChange = (val) => {
+    setSplitCash(val);
+    setSplitError('');
+    const num = parseFloat(val);
+    if (!isNaN(num) && num >= 0) {
+      setSplitUpi(Math.max(0, total - num).toFixed(2));
+    }
+  };
+
+  const handleUpiChange = (val) => {
+    setSplitUpi(val);
+    setSplitError('');
+  };
+
+  const handleConfirmSplit = () => {
+    const cash = parseFloat(splitCash) || 0;
+    const upi = parseFloat(splitUpi) || 0;
+    if (Math.abs((cash + upi) - total) > 0.05) {
+      setSplitError(`Amounts must sum to ₹${total.toFixed(2)} (currently ₹${(cash + upi).toFixed(2)})`);
+      return;
+    }
+    onConfirm(bill, 'SPLIT', cash, upi);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center animate-fade-in px-4"
+      style={{ backgroundColor: 'rgba(0,0,0,0.65)' }}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className="w-full max-w-[380px] rounded-xl overflow-hidden shadow-2xl border border-[var(--border-light)] animate-scale-in" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+        <div className="px-5 py-4 border-b border-[var(--border-light)] flex items-center gap-2">
+          <CheckCircle size={18} className="text-[var(--color-success)]" />
+          <p className="text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
+            Confirm Payment Received
+          </p>
+        </div>
+        <div className="p-5">
+          <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>
+            Bill <span className="font-bold" style={{ color: 'var(--text-primary)' }}>#{bill.id.split('-')[0]}</span>
+            {bill.customer_name && (
+              <span> &mdash; <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{bill.customer_name}</span></span>
+            )}
+          </p>
+          <p className="text-3xl font-bold mb-5" style={{ color: 'var(--color-success)' }}>
+            &#8377;{total.toFixed(2)}
+          </p>
+
+          {!isSplit ? (
+            <>
               <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>
                 How did they pay?
               </p>
               <div className="flex gap-2">
-                {['CASH', 'UPI', 'SPLIT'].map(method => (
-                  <button
-                    key={method}
-                    onClick={() => confirmMarkPaid(paymentMethodModal, method)}
-                    className="flex-1 py-3 text-sm font-bold uppercase tracking-wider rounded-lg transition-all hover:opacity-90 active:scale-95 text-white"
-                    style={{
-                      backgroundColor: method === 'CASH'
-                        ? 'var(--color-success)'
-                        : method === 'UPI'
-                          ? 'var(--color-accent)'
-                          : 'var(--color-warning)',
-                    }}
-                  >
-                    {method === 'SPLIT' ? 'UPI+Cash' : method}
-                  </button>
-                ))}
+                <button
+                  type="button"
+                  onClick={() => onConfirm(bill, 'CASH', total, 0)}
+                  className="flex-1 py-3 text-sm font-bold uppercase tracking-wider rounded-lg transition-all hover:opacity-90 active:scale-95 text-white cursor-pointer"
+                  style={{ backgroundColor: 'var(--color-success)' }}
+                >
+                  Cash
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onConfirm(bill, 'UPI', 0, total)}
+                  className="flex-1 py-3 text-sm font-bold uppercase tracking-wider rounded-lg transition-all hover:opacity-90 active:scale-95 text-white cursor-pointer"
+                  style={{ backgroundColor: 'var(--color-accent)' }}
+                >
+                  UPI
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsSplit(true)}
+                  className="flex-1 py-3 text-sm font-bold uppercase tracking-wider rounded-lg transition-all hover:opacity-90 active:scale-95 text-white cursor-pointer"
+                  style={{ backgroundColor: 'var(--color-warning)' }}
+                >
+                  UPI+Cash
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
+                  Cash Amount (₹)
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  autoFocus
+                  value={splitCash}
+                  onChange={(e) => handleCashChange(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full h-10 px-3 text-sm rounded-lg border border-[var(--border-medium)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
+                  UPI Amount (₹)
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  value={splitUpi}
+                  onChange={(e) => handleUpiChange(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full h-10 px-3 text-sm rounded-lg border border-[var(--border-medium)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:outline-none"
+                />
+              </div>
+              {splitError && (
+                <p className="text-xs font-semibold text-[var(--color-error)]">{splitError}</p>
+              )}
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSplit(false)}
+                  className="px-3 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors border border-[var(--border-medium)] text-[var(--text-secondary)] cursor-pointer"
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmSplit}
+                  className="flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all text-white bg-[var(--color-accent)] hover:opacity-90 active:scale-95 cursor-pointer"
+                >
+                  Confirm Split
+                </button>
               </div>
             </div>
-            <div className="px-5 pb-4">
-              <button
-                onClick={() => setPaymentMethodModal(null)}
-                className="w-full py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors"
-                style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border-medium)' }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+          )}
         </div>
-      )}
+        <div className="px-5 pb-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
+            style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border-medium)' }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

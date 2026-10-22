@@ -268,19 +268,50 @@ export const flushOfflineQueue = async (userRole = 'worker') => {
 
         for (const tx of queue) {
           try {
-            const payload = {
+            const rpcPayload = {
               p_action: tx.p_action,
               p_location: tx.p_location,
               p_cashier_name: tx.p_cashier_name,
               p_items: tx.p_items
             };
 
-            const { error } = await supabase.rpc('process_pos_transaction', payload);
+            // Use process_pos_transaction_unsafe matching WorkerTerminal checkout, with graceful fallback
+            let rpcResult = await supabase.rpc('process_pos_transaction_unsafe', rpcPayload);
+            if (rpcResult.error && rpcResult.error.message?.includes('process_pos_transaction_unsafe') && rpcResult.error.message?.includes('does not exist')) {
+              rpcResult = await supabase.rpc('process_pos_transaction', rpcPayload);
+            }
+
+            const { data, error } = rpcResult;
             
             if (error) {
               console.error(`Failed to sync transaction ${tx.id}:`, error);
               await markTransactionFailed(tx.id, error.message);
             } else {
+              // Persist payment breakdown, customer data, and showroom status to the created bill
+              if (data?.bill_id) {
+                try {
+                  const shopId = tx.shop_id || currentShopId || localStorage.getItem('shop_id');
+                  const updatePayload = {
+                    payment_method: tx.p_payment_method,
+                    cash_amount: tx.p_cash_amount,
+                    upi_amount: tx.p_upi_amount
+                  };
+                  if (shopId) {
+                    updatePayload.shop_id = shopId;
+                  }
+                  if (tx.p_customer_name || tx.p_customer_phone) {
+                    updatePayload.customer_name = tx.p_customer_name;
+                    updatePayload.customer_phone = tx.p_customer_phone;
+                  }
+                  if (tx.p_payment_method === 'SHOWROOM') {
+                    updatePayload.status = 'showroom_pending';
+                  }
+                  await supabase.from('bills').update(updatePayload).eq('id', data.bill_id);
+                } catch (billUpdateErr) {
+                  console.warn("Could not save additional bill metadata during offline queue flush:", billUpdateErr);
+                }
+              }
+
               await deleteOfflineTransaction(tx.id);
               console.log(`Successfully synced offline transaction ${tx.id}`);
             }

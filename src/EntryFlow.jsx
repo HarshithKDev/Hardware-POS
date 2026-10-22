@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { Spinner, EyeIcon, EyeSlashIcon } from './SharedUI';
-
-const getWorkerEmail = (name) =>
-  `${name.trim().toLowerCase().replace(/[^a-z0-9]/g, '')}@hardwarepos.com`;
+import { getWorkerEmail, getLegacyWorkerEmail } from './constants';
 
 export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComplete, shopSettings }) {
   const [step, setStep] = useState(1);
@@ -220,12 +218,28 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
     }
 
     try {
-      const targetEmail = role === 'owner' ? (shopSettings?.admin_email || ownerEmail.trim()) : getWorkerEmail(targetId);
+      const targetEmail = role === 'owner' 
+        ? (shopSettings?.admin_email || ownerEmail.trim()) 
+        : getWorkerEmail(targetId, shopSettings?.id);
 
-      const { error: authError } = await supabase.auth.signInWithPassword({
+      let { error: authError } = await supabase.auth.signInWithPassword({
         email: targetEmail,
         password,
       });
+
+      // Backward compatibility: If scoped login failed, try legacy un-scoped email format
+      if (authError && role === 'worker') {
+        const legacyEmail = getLegacyWorkerEmail(targetId);
+        if (legacyEmail !== targetEmail) {
+          const legacyAttempt = await supabase.auth.signInWithPassword({
+            email: legacyEmail,
+            password,
+          });
+          if (!legacyAttempt.error) {
+            authError = null;
+          }
+        }
+      }
 
       if (authError) {
         setError('Incorrect Password or Username. Access denied.');

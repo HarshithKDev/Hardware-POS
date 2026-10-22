@@ -68,7 +68,7 @@ export default function OwnerFailedSyncsModal({ failedSyncs, onClose }) {
                   <div className="font-bold mb-1" style={{ color: 'var(--color-accent)' }}>{tx.p_action} ({tx.p_location})</div>
                   <div className="text-xs">Cashier: {tx.p_cashier_name}</div>
                   <div className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-                    {tx.p_items?.length} items ({tx.p_items?.map(i => `${i.qty}x`).join(', ')})
+                    {tx.p_items?.length || 0} item{(tx.p_items?.length === 1) ? '' : 's'} ({tx.p_items?.map(i => `${i.billable_quantity ?? i.actual_quantity ?? i.quantity ?? 1}x ${i.name || i.barcode}`).join(', ') || 'No item data'})
                   </div>
                 </td>
                 <td className="p-3 text-xs  font-medium" style={{ color: 'var(--color-error)', borderRight: '1px solid var(--border-medium)', whiteSpace: 'pre-wrap' }}>

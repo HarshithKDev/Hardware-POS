@@ -52,6 +52,7 @@ export default function OwnerCategories() {
       if (error) throw error;
 
       await supabase.from('audit_logs').insert([{
+        shop_id: shopId,
         action_type: 'CREATE',
         barcode: 'CATEGORY',
         item_name: name,
@@ -83,6 +84,7 @@ export default function OwnerCategories() {
       if (error) throw error;
 
       await supabase.from('audit_logs').insert([{
+        shop_id: shopId,
         action_type: 'CREATE',
         barcode: 'SUB-CATEGORY',
         item_name: name,
@@ -124,6 +126,7 @@ export default function OwnerCategories() {
       if (error) throw error;
 
       await supabase.from('audit_logs').insert([{
+        shop_id: shopId,
         action_type: 'DELETE',
         barcode: 'CATEGORY',
         item_name: name,
@@ -156,6 +159,7 @@ export default function OwnerCategories() {
       if (error) throw error;
 
       await supabase.from('audit_logs').insert([{
+        shop_id: shopId,
         action_type: 'DELETE',
         barcode: 'SUB-CATEGORY',
         item_name: name,
