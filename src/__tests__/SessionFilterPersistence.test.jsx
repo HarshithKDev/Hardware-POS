@@ -172,4 +172,15 @@ describe('useSessionState Hook', () => {
     expect(screen.getByTestId('search-input').value).toBe('');
     expect(screen.getByTestId('cat-select').value).toBe('ALL');
   });
+
+  it('imports and evaluates OwnerAuditLogs and other pages without ReferenceError', async () => {
+    const auditMod = await import('../OwnerAuditLogs');
+    expect(auditMod.default).toBeDefined();
+
+    const ledgerMod = await import('../OwnerLedger');
+    expect(ledgerMod.default).toBeDefined();
+
+    const invMod = await import('../OwnerInventory');
+    expect(invMod.default).toBeDefined();
+  });
 });
