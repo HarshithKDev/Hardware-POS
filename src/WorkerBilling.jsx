@@ -20,6 +20,10 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
 
   const shopId = shopSettings?.id || localStorage.getItem('shop_id');
 
+  const handleTabSwitch = (newTab) => {
+    if (!hideNav) navigate(`/terminal/${newTab}`);
+  };
+
   useEffect(() => {
     if (!hideNav && activeTab === 'transfer' && isWarehouseDisabled) {
       navigate('/terminal/dashboard', { replace: true });
@@ -50,10 +54,6 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
   });
 
   const isBillable = userRole === 'owner' || !workerData?.password?.includes('NON_BILLABLE');
-
-  const handleTabSwitch = (newTab) => {
-    if (!hideNav) navigate(`/terminal/${newTab}`);
-  };
 
   if (isLoading) {
     return (

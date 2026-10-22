@@ -82,8 +82,8 @@ export function MobileScannerModal({ onClose, setScannedProduct, onScan }) {
 }
 
 export function ProductInfoModal({ product, onClose }) {
-  if (!product) return null;
   const { isWarehouseDisabled } = useApp();
+  if (!product) return null;
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[500] px-4 print:hidden animate-fade-in">

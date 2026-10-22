@@ -49,7 +49,7 @@ function AnimatedNumber({ valueStr, duration = 250 }) {
     
     const target = parseFloat(numStr);
     if (isNaN(target)) {
-      setDisplayValue(valueStr);
+      setDisplayValue(prev => (prev === valueStr ? prev : valueStr));
       return;
     }
 
@@ -254,9 +254,9 @@ function DashboardDateFilter({
   // Sync internal state when opened
   useEffect(() => {
     if (isOpen) {
-      setActiveTab(timeframe);
-      setRangeStart(startDate);
-      setRangeEnd(endDate);
+      setActiveTab(prev => (prev === timeframe ? prev : timeframe));
+      setRangeStart(prev => (prev === startDate ? prev : startDate));
+      setRangeEnd(prev => (prev === endDate ? prev : endDate));
       setRangeSelecting(false);
       const dStr = timeframe === 'date' ? customDate : (timeframe === 'range' ? endDate : new Date().toLocaleDateString('en-CA'));
       const [y, m] = (dStr || '').split('-');

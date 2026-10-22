@@ -69,9 +69,12 @@ export function CartProvider({ children, activeTab }) {
     return () => clearTimeout(timer);
   }, [heldCarts, activeTab, shopId]);
 
-  // Sycing cart changes to active session
+  // Syncing cart changes to active session
   useEffect(() => {
-    setCartSessions(prev => ({ ...prev, [activeCartTab]: cart }));
+    setCartSessions(prev => {
+      if (prev[activeCartTab] === cart) return prev;
+      return { ...prev, [activeCartTab]: cart };
+    });
   }, [cart, activeCartTab]);
 
 
@@ -91,10 +94,16 @@ export function CartProvider({ children, activeTab }) {
     setCart([]);
     if (activeCartTab === 'local') {
       setCartSessions(prev => ({ ...prev, local: [] }));
+      try {
+        if (shopId) {
+          localStorage.removeItem(`pos_cart_${shopId}_${activeTab}`);
+        }
+        localStorage.removeItem(`pos_cart_${activeTab}`);
+      } catch {}
     } else {
       setCartSessions(prev => ({ ...prev, [activeCartTab]: [] }));
     }
-  }, [activeCartTab]);
+  }, [activeCartTab, shopId, activeTab]);
 
   const calculateBillableQuantity = useCallback((actualQty, method = 'exact') => {
     let qty = Number(actualQty) || 0;

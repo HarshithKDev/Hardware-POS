@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom';
 import { QRCodeSVG } from 'qrcode.react';
+import { formatDateTime as defaultFormatDateTime } from './utils';
 
 const formatGramRate = (ratePerKg) => {
   const perGram = Number(ratePerKg || 0) / 1000;
@@ -10,6 +11,8 @@ const formatGramRate = (ratePerKg) => {
 export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateTime, isPreview = false }) {
   if (!lastReceipt || lastReceipt.type !== 'checkout') return null;
   const totalSavings = lastReceipt.items?.reduce((acc, item) => acc + (Math.max(0, ((Math.round(item.mrp * 100) - Math.round(item.finalRate * 100)) * item.quantity) / 100)), 0) || 0;
+  const fnFormat = typeof formatDateTime === 'function' ? formatDateTime : defaultFormatDateTime;
+  const { datePart = '', timePart = '' } = fnFormat(lastReceipt.date) || {};
 
   const content = (
     <div 
@@ -75,12 +78,12 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
       <div className="mb-3 flex justify-between border-b border-black border-dashed pb-2 text-black" style={{ color: '#000', fontSize: '12px' }}>
         <div>
           <p>Txn ID: {lastReceipt.id}</p>
-          <p>Date: {formatDateTime(lastReceipt.date).datePart}</p>
+          <p>Date: {datePart}</p>
           {lastReceipt.customerName && <p>Customer: {lastReceipt.customerName}</p>}
         </div>
         <div className="text-right">
           <p>Type: POS SALE</p>
-          <p>Time: {formatDateTime(lastReceipt.date).timePart}</p>
+          <p>Time: {timePart}</p>
           {lastReceipt.customerPhone && <p>Phone: {lastReceipt.customerPhone}</p>}
         </div>
       </div>
@@ -96,7 +99,7 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
           </tr>
         </thead>
         <tbody className="align-top" style={{ backgroundColor: 'transparent' }}>
-          {lastReceipt.items.map((item, i) => {
+          {(lastReceipt.items || []).map((item, i) => {
             const isLooseKg = Boolean(
               item.is_loose_item && (
                 item.unit?.toUpperCase() === 'KG' || 

@@ -1797,6 +1797,17 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         setCartSessions(prev => ({ ...prev, local: [] }));
       }
       
+      // Explicitly clear persistent cart storage immediately to prevent stale restore
+      try {
+        const sId = shopSettings?.id || localStorage.getItem('shop_id');
+        if (sId) {
+          localStorage.removeItem(`pos_cart_${sId}_${activeTab}`);
+        }
+        localStorage.removeItem(`pos_cart_${activeTab}`);
+      } catch (err) {
+        console.warn("Could not clear localStorage cart:", err);
+      }
+
       setCheckoutModal(prev => ({ ...prev, isOpen: false, cashGiven: '', negotiatedTotal: '', error: '' }));
 
       if (activeTab === 'checkout') {
