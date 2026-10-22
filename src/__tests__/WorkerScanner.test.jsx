@@ -21,24 +21,48 @@ vi.mock('../services/sync', () => ({
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() }))
 }));
+
+const createQueryBuilder = (resolvedData = []) => {
+  const builder = {
+    select: vi.fn(() => builder),
+    in: vi.fn(() => builder),
+    eq: vi.fn(() => builder),
+    order: vi.fn(() => builder),
+    limit: vi.fn(() => builder),
+    delete: vi.fn(() => builder),
+    update: vi.fn(() => builder),
+    insert: vi.fn(() => builder),
+    maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    single: vi.fn().mockResolvedValue({ data: null, error: null }),
+    then: (resolve, reject) => Promise.resolve({ data: resolvedData, error: null }).then(resolve, reject),
+    catch: (reject) => Promise.resolve({ data: resolvedData, error: null }).catch(reject),
+  };
+  return builder;
+};
+
 vi.mock('../supabaseClient', () => ({
   supabase: {
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({ eq: vi.fn(() => ({ order: vi.fn().mockResolvedValue({ data: [] }) })) })),
-      delete: vi.fn(() => ({ eq: vi.fn(() => ({ then: vi.fn(() => ({ catch: vi.fn() })) })) }))
-    })),
+    from: vi.fn((table) => {
+      if (table === 'inventory_batches') {
+        return createQueryBuilder([
+          { barcode: '1001', batch_id: 'b1', stock_store: 10, stock_warehouse: 10, selling_price: 100, msp: 80 }
+        ]);
+      }
+      return createQueryBuilder([]);
+    }),
     channel: vi.fn(() => ({
       on: vi.fn(() => ({ subscribe: vi.fn() })),
       subscribe: vi.fn()
     })),
     removeChannel: vi.fn(),
-    rpc: vi.fn().mockResolvedValue({ data: true, error: null })
+    rpc: vi.fn().mockResolvedValue({ data: { bill_id: 'BILL-1001' }, error: null })
   }
 }));
 
 describe('WorkerScanner Integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     
     // Mock the useApp context
     vi.spyOn(AppContext, 'useApp').mockReturnValue({
@@ -50,9 +74,9 @@ describe('WorkerScanner Integration', () => {
     });
   });
 
-  const TestWrapper = ({ children }) => (
+  const TestWrapper = ({ children, activeTab = 'checkout' }) => (
     <MemoryRouter>
-      <CartProvider activeTab="checkout">
+      <CartProvider activeTab={activeTab}>
         {children}
       </CartProvider>
     </MemoryRouter>
@@ -219,6 +243,133 @@ describe('WorkerScanner Integration', () => {
     await waitFor(() => {
       // Total should be back to 50
       expect(screen.getAllByText('₹50.00').length).toBeGreaterThan(0);
+    });
+  });
+
+  it('handles Receive Stock flow: adds out-of-stock items, increments quantity on repeat scan, and completes transaction', async () => {
+    db.getInventoryItemByBarcode.mockImplementation(async (barcode) => {
+      if (barcode === '1196') {
+        return {
+          barcode: '1196',
+          name: '13 x 11 Laxmi Vendi',
+          price: 1700,
+          cost_price: 1300,
+          is_cuttable: false,
+          stock_store: 0,
+          stock_warehouse: 0,
+          batches: [{ batch_id: 'b1', batch_number: 1, stock_store: 0, stock_warehouse: 0, selling_price: 1700 }]
+        };
+      }
+      if (barcode === '1190') {
+        return {
+          barcode: '1190',
+          name: 'Medium Box Mirrors',
+          price: 500,
+          cost_price: 350,
+          is_cuttable: false,
+          stock_store: 0,
+          stock_warehouse: 0,
+          batches: [{ batch_id: 'b2', batch_number: 1, stock_store: 0, stock_warehouse: 0, selling_price: 500 }]
+        };
+      }
+      return null;
+    });
+
+    render(
+      <TestWrapper activeTab="receive">
+        <WorkerTerminal activeTab="receive" shopSettings={{ id: 'shop1' }} cashierName="Durjay" />
+      </TestWrapper>
+    );
+
+    const input = await screen.findByPlaceholderText('Search barcode or name...');
+
+    // 1. Scan item 1196
+    fireEvent.change(input, { target: { value: '1196' } });
+    fireEvent.submit(input.closest('form'));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('13 x 11 Laxmi Vendi').length).toBeGreaterThan(0);
+    });
+
+    // 2. Scan item 1190
+    fireEvent.change(input, { target: { value: '1190' } });
+    fireEvent.submit(input.closest('form'));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Medium Box Mirrors').length).toBeGreaterThan(0);
+    });
+
+    // 3. Scan item 1196 AGAIN (repeat scan increments quantity to 2)
+    fireEvent.change(input, { target: { value: '1196' } });
+    fireEvent.submit(input.closest('form'));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('13 x 11 Laxmi Vendi').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Medium Box Mirrors').length).toBeGreaterThan(0);
+    });
+
+    // 4. Complete Receive Stock (Press F4)
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F4', bubbles: true }));
+
+    await waitFor(() => {
+      expect(db.saveInventoryBatch).toHaveBeenCalled();
+    });
+  });
+
+  it('handles Checkout flow: adds products, enforces stock, and completes sale', async () => {
+    db.getInventoryItemByBarcode.mockImplementation(async (barcode) => {
+      if (barcode === '1001') {
+        return {
+          barcode: '1001',
+          name: 'Finolex Pipe 1001',
+          price: 100,
+          is_cuttable: false,
+          stock_store: 5,
+          batches: [{ batch_id: 'b1', batch_number: 1, stock_store: 5, selling_price: 100 }]
+        };
+      }
+      return null;
+    });
+
+    render(
+      <TestWrapper activeTab="checkout">
+        <WorkerTerminal activeTab="checkout" shopSettings={{ id: 'shop1' }} cashierName="John" />
+      </TestWrapper>
+    );
+
+    const input = await screen.findByPlaceholderText('Search barcode or name...');
+    fireEvent.change(input, { target: { value: '1001' } });
+    fireEvent.submit(input.closest('form'));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Finolex Pipe 1001').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('₹100.00').length).toBeGreaterThan(0);
+    });
+
+    // Scan again -> increments quantity to 2
+    fireEvent.change(input, { target: { value: '1001' } });
+    fireEvent.submit(input.closest('form'));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('₹200.00').length).toBeGreaterThan(0);
+    });
+
+    // Open checkout modal via F4
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F4', bubbles: true }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Complete Sale')).toBeInTheDocument();
+    });
+
+    // Enter final negotiated amount
+    const negotiatedInput = screen.getByLabelText(/Final Negotiated Amount/i);
+    fireEvent.change(negotiatedInput, { target: { value: '200' } });
+
+    // Press Enter in checkout modal to complete sale
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+    await waitFor(() => {
+      expect(db.saveInventoryBatch).toHaveBeenCalled();
     });
   });
 });

@@ -139,8 +139,6 @@ export function PrintPreviewModal({
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   const handlePrint = () => {
     if (type === 'barcode' && printIframeRef.current) {
       printIframeRef.current.contentWindow.print();
@@ -194,6 +192,8 @@ export function PrintPreviewModal({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose, type, thermalStatus.isConnected, lastReceipt]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[600] px-4 print:hidden animate-fade-in">
