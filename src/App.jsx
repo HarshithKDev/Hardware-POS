@@ -9,8 +9,7 @@ import { AlertDialog, ConfirmDialog } from './Dialog';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from './AppContext';
 import { startBackgroundSync, stopBackgroundSync } from './services/sync';
-import { WifiOff, ScanBarcode, LayoutDashboard, Moon, Sun, Power, Keyboard } from 'lucide-react';
-import KeyboardShortcutsModal from './KeyboardShortcutsModal';
+import { WifiOff, ScanBarcode, LayoutDashboard, Moon, Sun, Power } from 'lucide-react';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -32,7 +31,6 @@ function App() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncCount, setSyncCount] = useState(0);
-  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
 
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -93,23 +91,11 @@ function App() {
     window.addEventListener('queue_sync_start', handleSyncStart);
     window.addEventListener('queue_sync_end', handleSyncEnd);
 
-    const handleShortcutsKey = (e) => {
-      if (e.key === 'F1') {
-        e.preventDefault();
-        setShowShortcutsModal((prev) => !prev);
-      } else if (e.key === '?' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName)) {
-        e.preventDefault();
-        setShowShortcutsModal(true);
-      }
-    };
-    window.addEventListener('keydown', handleShortcutsKey);
-
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('queue_sync_start', handleSyncStart);
       window.removeEventListener('queue_sync_end', handleSyncEnd);
-      window.removeEventListener('keydown', handleShortcutsKey);
     };
   }, []);
 
@@ -328,10 +314,6 @@ function App() {
         />
       )}
 
-      <KeyboardShortcutsModal
-        isOpen={showShortcutsModal}
-        onClose={() => setShowShortcutsModal(false)}
-      />
 
       {/* NAVBAR */}
       <nav
@@ -380,21 +362,6 @@ function App() {
               </>
             )}
 
-            <button
-              onClick={() => setShowShortcutsModal(true)}
-              className="h-10 w-auto md:h-9 rounded-md px-2.5 md:px-3 text-xs font-bold transition-colors focus:outline-none shrink-0 flex items-center justify-center gap-1.5 border hover:bg-[var(--bg-hover)]"
-              style={{
-                backgroundColor: 'var(--bg-tertiary)',
-                borderColor: 'var(--border-medium)',
-                color: 'var(--text-primary)'
-              }}
-              title="Keyboard Shortcuts (F1 or ?)"
-              aria-label="Keyboard Shortcuts"
-            >
-              <Keyboard size={15} className="text-[var(--color-accent)] shrink-0" />
-              <span className="hidden xl:inline text-xs font-medium text-[var(--text-secondary)]">Keys</span>
-              <kbd className="hidden sm:inline px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border shadow-xs" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)' }}>F1</kbd>
-            </button>
 
             <button
               onClick={() => setShowLogoutConfirm(true)}

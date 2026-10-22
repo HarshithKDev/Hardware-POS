@@ -86,7 +86,8 @@ describe('Keyboard Accessibility & Shortcuts', () => {
     // Verify keyboard status footer bar is rendered with shortcuts
     expect(screen.getByText('Hotkeys:')).toBeInTheDocument();
     expect(screen.getByText('Del')).toBeInTheDocument();
-    expect(screen.getByText('Cheatsheet')).toBeInTheDocument();
+    expect(screen.getByText('Search')).toBeInTheDocument();
+    expect(screen.getByText('Pay')).toBeInTheDocument();
 
     // Click first row to verify onSelectCartIndex callback
     fireEvent.click(screen.getByText('Standard Hex Bolt 10mm').closest('tr'));

@@ -501,7 +501,6 @@ const CartTable = React.memo(function CartTable({
         <div className="flex items-center gap-2.5 sm:gap-3">
           <span className="inline-flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border bg-[var(--bg-secondary)] border-[var(--border-medium)] text-[var(--text-primary)]">F2</kbd> Search</span>
           <span className="inline-flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border bg-[var(--bg-secondary)] border-[var(--border-medium)] text-[var(--text-primary)]">F4</kbd> Pay</span>
-          <span className="inline-flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border bg-[var(--bg-secondary)] border-[var(--border-medium)] text-[var(--text-primary)]">F1</kbd> Cheatsheet</span>
         </div>
       </div>
     </div>
