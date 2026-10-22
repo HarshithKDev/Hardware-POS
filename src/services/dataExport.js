@@ -117,11 +117,13 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   let prodQuery = supabase.from('product_master').select('*').order('name');
   if (shopId) prodQuery = prodQuery.eq('shop_id', shopId);
   const { data: products = [] } = await prodQuery;
+  const productMap = new Map((products || []).map(p => [p.barcode, p]));
 
   onProgress?.('Fetching sales transactions...');
   let billsQuery = supabase.from('bills').select('*').order('created_at', { ascending: false });
   if (shopId) billsQuery = billsQuery.eq('shop_id', shopId);
   const { data: bills = [] } = await billsQuery;
+  const billMap = new Map((bills || []).map(b => [b.id, b]));
 
   onProgress?.('Fetching bill item details...');
   let billItems = [];
@@ -130,8 +132,8 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
     if (shopId) billItemsQuery = billItemsQuery.eq('shop_id', shopId);
     const { data: biData, error: biErr } = await billItemsQuery;
     if (biErr) {
-      console.warn('bill_items fetch warning (retrying without filter):', biErr.message);
-      // Fallback: If shop_id filter failed (e.g. column missing on bill_items), fetch all and filter by current bills
+      console.warn('bill_items query note:', biErr.message);
+      // Fallback: If shop_id filter failed (e.g. column not present on bill_items), fetch all and filter in memory by bills
       const { data: allBi } = await supabase.from('bill_items').select('*');
       if (allBi) {
         if (bills && bills.length > 0) {
@@ -148,7 +150,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
     console.warn('Bill items fetch error:', err);
   }
 
-  // Sort bill items in-memory by transaction date
+  // Sort bill items in-memory by transaction date descending
   if (billItems.length > 0 && bills && bills.length > 0) {
     const billDateMap = new Map(bills.map(b => [b.id, b.created_at]));
     billItems.sort((a, b) => {
@@ -206,7 +208,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   onProgress?.('Fetching inventory batches...');
   let batches = [];
   try {
-    let batchQuery = supabase.from('inventory_batches').select('*').order('created_at', { ascending: false });
+    let batchQuery = supabase.from('inventory_batches').select('*');
     if (shopId) batchQuery = batchQuery.eq('shop_id', shopId);
     const { data: bData } = await batchQuery;
     if (bData) batches = bData;
@@ -279,77 +281,101 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   const totalExpensesAmount = (expenses || []).reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
   const netEarnings = totalSalesRevenue - totalExpensesAmount;
 
-  // Title Row
-  overviewSheet.mergeCells('B2:E2');
-  const titleCell = overviewSheet.getCell('B2');
+  // Title Row (Starts from Column A: no blank column A)
+  overviewSheet.mergeCells('A2:D2');
+  const titleCell = overviewSheet.getCell('A2');
   titleCell.value = `${(shopSettings?.shop_name || 'HARDWARE POS').toUpperCase()} - COMPLETE BUSINESS EXPORT`;
   titleCell.font = { name: 'Segoe UI', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
   titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
   titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY_HEADER } };
   overviewSheet.getRow(2).height = 34;
 
-  // Shop Info Card
-  overviewSheet.getCell('B4').value = 'SHOP PROFILE';
-  overviewSheet.getCell('B4').font = { bold: true, size: 11, color: { argb: NAVY_HEADER } };
+  // Shop Info Card Header
+  overviewSheet.mergeCells('A4:D4');
+  const profileHeaderCell = overviewSheet.getCell('A4');
+  profileHeaderCell.value = 'STORE PROFILE & SYSTEM REGISTRATION';
+  profileHeaderCell.font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
+  profileHeaderCell.alignment = { vertical: 'middle', horizontal: 'left' };
+  profileHeaderCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: SLATE_HEADER } };
+  overviewSheet.getRow(4).height = 24;
 
   const infoRows = [
-    ['Store / Shop Name:', shopSettings?.shop_name || 'N/A'],
-    ['Owner / Administrator:', shopSettings?.owner_name || 'N/A'],
-    ['Contact Phone:', shopSettings?.phone || 'N/A'],
-    ['Shop Address:', (shopSettings?.shop_address || '').replace(/^HIDDEN::/, '') || 'N/A'],
-    ['UPI ID / Billing VPA:', (shopSettings?.upi_id || '').replace(/^HIDDEN::/, '') || 'N/A'],
-    ['Export Date & Time:', formatDateTime(new Date().toISOString()).full]
+    ['Store / Shop Name', shopSettings?.shop_name || 'N/A', 'Physical Counter / Store Entity', 'Verified Active'],
+    ['Owner / Administrator', shopSettings?.owner_name || 'Administrator', 'Primary Account Holder', 'Full Owner Access'],
+    ['Registered Admin Email', shopSettings?.registered_admin_email || shopSettings?.email || 'N/A', 'Login & Backup Email', 'System ID'],
+    ['Contact Phone', shopSettings?.phone || 'N/A', 'Official Business Phone', 'Verified'],
+    ['Shop Address', (shopSettings?.shop_address || '').replace(/^HIDDEN::/, '') || 'N/A', 'Store Location / Premises', 'On Invoices'],
+    ['UPI ID / Digital VPA', (shopSettings?.upi_id || '').replace(/^HIDDEN::/, '') || 'N/A', 'Digital Payment Receiver', 'On Invoices'],
+    ['Report Export Timestamp', formatDateTime(new Date().toISOString()).full, 'Automated Snapshot Generation', 'Live Database']
   ];
 
-  infoRows.forEach(([lbl, val], idx) => {
-    const rNum = 5 + idx;
-    overviewSheet.getCell(`B${rNum}`).value = lbl;
-    overviewSheet.getCell(`B${rNum}`).font = { bold: true, size: 10, color: { argb: 'FF475569' } };
-    overviewSheet.getCell(`C${rNum}`).value = val;
-    overviewSheet.getCell(`C${rNum}`).font = { size: 10, color: { argb: 'FF0F172A' } };
-    overviewSheet.getRow(rNum).height = 20;
+  overviewSheet.getRow(5).values = ['Property', 'Store Detail Value', 'Field Description', 'Status / Role'];
+  applyHeaderStyle(overviewSheet.getRow(5), 'FF334155');
+
+  infoRows.forEach(([prop, val, desc, status], idx) => {
+    const rNum = 6 + idx;
+    const row = overviewSheet.getRow(rNum);
+    row.getCell(1).value = prop;
+    row.getCell(1).font = { bold: true, size: 10, color: { argb: 'FF334155' } };
+    row.getCell(2).value = val;
+    row.getCell(2).font = { size: 10, color: { argb: 'FF0F172A' }, bold: idx === 0 || idx === 1 };
+    row.getCell(3).value = desc;
+    row.getCell(3).font = { size: 10, color: { argb: 'FF64748B' } };
+    row.getCell(4).value = status;
+    row.getCell(4).font = { size: 10, color: { argb: 'FF059669' }, bold: true };
+    applyRowStyle(row, idx % 2 === 0);
   });
 
-  // KPI Table
-  overviewSheet.getCell('B12').value = 'KEY PERFORMANCE INDICATORS (LIFETIME SNAPSHOT)';
-  overviewSheet.getCell('B12').font = { bold: true, size: 11, color: { argb: NAVY_HEADER } };
+  // KPI Section Header
+  const kpiHeaderRowNum = 6 + infoRows.length + 1;
+  overviewSheet.mergeCells(`A${kpiHeaderRowNum}:D${kpiHeaderRowNum}`);
+  const kpiHeaderCell = overviewSheet.getCell(`A${kpiHeaderRowNum}`);
+  kpiHeaderCell.value = 'KEY PERFORMANCE INDICATORS (LIFETIME SNAPSHOT)';
+  kpiHeaderCell.font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
+  kpiHeaderCell.alignment = { vertical: 'middle', horizontal: 'left' };
+  kpiHeaderCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY_HEADER } };
+  overviewSheet.getRow(kpiHeaderRowNum).height = 24;
 
   const kpis = [
-    ['Total Catalog Items', (products || []).length, 'Products', 'FF3B82F6'],
-    ['Total Store Inventory', totalStoreUnits.toFixed(2), 'Units', 'FF10B981'],
-    ['Total Warehouse Inventory', totalWhseUnits.toFixed(2), 'Units', 'FF06B6D4'],
-    ['Total Combined Stock', (totalStoreUnits + totalWhseUnits).toFixed(2), 'Units', 'FF8B5CF6'],
-    ['Inventory Valuation (At Cost)', totalCostValuation, 'Currency', 'FF6366F1'],
-    ['Inventory Valuation (At Retail)', totalRetailValuation, 'Currency', 'FF10B981'],
-    ['Potential Gross Margin in Stock', totalRetailValuation - totalCostValuation, 'Currency', 'FF059669'],
-    ['Total Sales Invoices Recorded', (bills || []).length, 'Bills', 'FF3B82F6'],
-    ['Total Gross Revenue Collected', totalSalesRevenue, 'Currency', 'FF10B981'],
-    ['Total Customer Discounts Given', totalDiscountsGiven, 'Currency', 'FFF59E0B'],
-    ['Total Business Expenses Recorded', totalExpensesAmount, 'Currency', 'FFEF4444'],
-    ['Net Sales Margin (Revenue - Expenses)', netEarnings, 'Currency', netEarnings >= 0 ? 'FF10B981' : 'FFEF4444']
+    ['Total Catalog Items', (products || []).length, 'SKU Items', 'Active Product Catalog'],
+    ['Total Store Inventory', totalStoreUnits, 'Units', 'Ready on Store Counter'],
+    ['Total Warehouse Inventory', totalWhseUnits, 'Units', 'Backroom / Storage Units'],
+    ['Total Combined Stock Units', totalStoreUnits + totalWhseUnits, 'Units', 'All Locations Combined'],
+    ['Inventory Valuation (At Cost)', totalCostValuation, 'Currency', 'Actual Capital Invested'],
+    ['Inventory Valuation (At Retail)', totalRetailValuation, 'Currency', 'Potential Retail Turnover'],
+    ['Potential Gross Inventory Profit', totalRetailValuation - totalCostValuation, 'Currency', 'Expected Markup on Inventory'],
+    ['Total Invoices Processed', (bills || []).length, 'Invoices', 'Recorded Invoices to Date'],
+    ['Total Gross Sales Revenue', totalSalesRevenue, 'Currency', 'Excluding Showroom Transfers'],
+    ['Total Customer Discounts Given', totalDiscountsGiven, 'Currency', 'Negotiated & Direct Deductions'],
+    ['Total Operating Expenses Recorded', totalExpensesAmount, 'Currency', 'Staff Advances, Utilities, etc.'],
+    ['Net Operating Surplus (Sales - Expenses)', netEarnings, 'Currency', netEarnings >= 0 ? 'Profitable Balance' : 'Negative Margin']
   ];
 
-  overviewSheet.getRow(13).values = ['', 'Metric', 'Value', 'Unit / Type'];
-  applyHeaderStyle(overviewSheet.getRow(13), NAVY_HEADER);
+  const kpiTableHeaderRow = kpiHeaderRowNum + 1;
+  overviewSheet.getRow(kpiTableHeaderRow).values = ['Business Metric', 'Value', 'Unit / Format', 'Context & Notes'];
+  applyHeaderStyle(overviewSheet.getRow(kpiTableHeaderRow), NAVY_HEADER);
 
-  kpis.forEach(([name, val, type], idx) => {
-    const rowNum = 14 + idx;
+  kpis.forEach(([name, val, type, context], idx) => {
+    const rowNum = kpiTableHeaderRow + 1 + idx;
     const row = overviewSheet.getRow(rowNum);
-    row.getCell(2).value = name;
-    row.getCell(3).value = typeof val === 'number' ? val : (isNaN(Number(val)) ? val : Number(val));
-    row.getCell(4).value = type;
+    row.getCell(1).value = name;
+    row.getCell(2).value = typeof val === 'number' ? val : (isNaN(Number(val)) ? val : Number(val));
+    row.getCell(3).value = type;
+    row.getCell(4).value = context;
 
     if (type === 'Currency') {
-      row.getCell(3).numFmt = '₹#,##0.00';
+      row.getCell(2).numFmt = '₹#,##0.00';
+    } else if (type === 'Units' || type === 'Invoices' || type === 'SKU Items') {
+      row.getCell(2).numFmt = '#,##0.00';
     }
 
     applyRowStyle(row, idx % 2 === 0);
   });
 
-  overviewSheet.getColumn(2).width = 38;
-  overviewSheet.getColumn(3).width = 24;
-  overviewSheet.getColumn(4).width = 16;
-  overviewSheet.getColumn(5).width = 10;
+  overviewSheet.getColumn(1).width = 38;
+  overviewSheet.getColumn(2).width = 28;
+  overviewSheet.getColumn(3).width = 18;
+  overviewSheet.getColumn(4).width = 32;
 
   // -------------------------------------------------------------
   // SHEET 2: Products & Inventory
@@ -363,20 +389,20 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
     { header: 'Category', key: 'category', width: 18 },
     { header: 'Sub-Category', key: 'sub_category', width: 18 },
     { header: 'Unit', key: 'unit', width: 10 },
-    { header: 'Cost Price', key: 'cost_price', width: 14 },
-    { header: 'Min Price (MSP)', key: 'msp', width: 16 },
-    { header: 'Selling Price', key: 'price', width: 14 },
-    { header: 'Unit Margin', key: 'margin', width: 14 },
+    { header: 'Cost Price (₹)', key: 'cost_price', width: 14 },
+    { header: 'Min Price (MSP) (₹)', key: 'msp', width: 16 },
+    { header: 'Selling Price (₹)', key: 'price', width: 14 },
+    { header: 'Unit Margin (₹)', key: 'margin', width: 14 },
     { header: 'Store Stock', key: 'stock_store', width: 14 },
     { header: 'Warehouse Stock', key: 'stock_warehouse', width: 16 },
     { header: 'Total Stock', key: 'total_stock', width: 14 },
-    { header: 'Stock Value (Cost)', key: 'val_cost', width: 18 },
-    { header: 'Stock Value (Retail)', key: 'val_retail', width: 18 },
-    { header: 'Item Type', key: 'type', width: 14 },
+    { header: 'Stock Value at Cost (₹)', key: 'val_cost', width: 20 },
+    { header: 'Stock Value at Retail (₹)', key: 'val_retail', width: 20 },
+    { header: 'Item Type', key: 'type', width: 16 },
     { header: 'Min Store Limit', key: 'min_store', width: 16 },
     { header: 'Min Warehouse Limit', key: 'min_whse', width: 18 },
     { header: 'Stock Health', key: 'health', width: 16 },
-    { header: 'Status', key: 'status', width: 12 }
+    { header: 'Catalog Status', key: 'status', width: 14 }
   ];
 
   applyHeaderStyle(productSheet.getRow(1), TEAL_HEADER);
@@ -400,12 +426,12 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
     else if (sStock <= minStore && sStock > 0) health = 'Low Store Stock';
     else if (wStock <= minWhse && wStock > 0) health = 'Low Warehouse';
 
-    const itemType = p.is_cuttable ? 'Cuttable Piece' : (p.is_loose_item ? 'Loose Item' : 'Standard');
+    const itemType = p.is_cuttable ? 'Cuttable Piece' : (p.is_loose_item ? 'Loose Item' : 'Standard Product');
 
     const row = productSheet.addRow({
-      barcode: p.barcode,
-      name: p.name,
-      category: p.category || 'Uncategorized',
+      barcode: p.barcode || '--',
+      name: p.name || 'Unnamed Product',
+      category: p.category || 'General',
       sub_category: p.sub_category || 'General',
       unit: (p.unit || 'PCS').toUpperCase(),
       cost_price: cPrice,
@@ -421,7 +447,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
       min_store: minStore,
       min_whse: minWhse,
       health: health,
-      status: p.is_active ? 'Active' : 'Inactive'
+      status: p.is_active === false ? 'Inactive' : 'Active'
     });
 
     // Formatting numbers
@@ -448,33 +474,33 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
     }
   });
 
-  // Inventory Totals Summary Row
+  // Inventory Totals Summary Row (Fully filled, zero empty cells)
   const prodTotalRow = productSheet.addRow({
-    barcode: '',
-    name: 'TOTAL SUMMARY',
-    category: '',
-    sub_category: '',
-    unit: '',
-    cost_price: null,
-    msp: null,
-    price: null,
-    margin: null,
+    barcode: 'TOTALS',
+    name: `TOTAL SUMMARY (${(products || []).length} Products)`,
+    category: 'All Categories',
+    sub_category: 'All Sub-Categories',
+    unit: 'Total Units',
+    cost_price: products.length > 0 ? (totalCostValuation / (totalStoreUnits + totalWhseUnits || 1)) : 0,
+    msp: 0,
+    price: products.length > 0 ? (totalRetailValuation / (totalStoreUnits + totalWhseUnits || 1)) : 0,
+    margin: (totalRetailValuation - totalCostValuation),
     stock_store: totalStoreUnits,
     stock_warehouse: totalWhseUnits,
     total_stock: totalStoreUnits + totalWhseUnits,
     val_cost: totalCostValuation,
     val_retail: totalRetailValuation,
-    type: '',
-    min_store: null,
-    min_whse: null,
-    health: '',
-    status: ''
+    type: 'Full Inventory',
+    min_store: 0,
+    min_whse: 0,
+    health: 'Stock Summary',
+    status: 'ACTIVE'
   });
 
-  ['val_cost', 'val_retail'].forEach(k => {
+  ['cost_price', 'msp', 'price', 'margin', 'val_cost', 'val_retail'].forEach(k => {
     prodTotalRow.getCell(k).numFmt = '₹#,##0.00';
   });
-  ['stock_store', 'stock_warehouse', 'total_stock'].forEach(k => {
+  ['stock_store', 'stock_warehouse', 'total_stock', 'min_store', 'min_whse'].forEach(k => {
     prodTotalRow.getCell(k).numFmt = '#,##0.00';
   });
 
@@ -492,70 +518,88 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
     { header: 'Date & Time', key: 'date', width: 20 },
     { header: 'Customer Name', key: 'customer_name', width: 22 },
     { header: 'Customer Phone', key: 'customer_phone', width: 16 },
-    { header: 'Cashier', key: 'cashier', width: 16 },
+    { header: 'Cashier / Operator', key: 'cashier', width: 18 },
     { header: 'Payment Method', key: 'method', width: 16 },
     { header: 'Subtotal (₹)', key: 'subtotal', width: 15 },
     { header: 'Discount (₹)', key: 'discount', width: 14 },
     { header: 'Final Paid (₹)', key: 'total', width: 16 },
-    { header: 'Status', key: 'status', width: 14 },
-    { header: 'Notes / Reference', key: 'notes', width: 25 }
+    { header: 'Transaction Status', key: 'status', width: 18 },
+    { header: 'Notes / Type', key: 'notes', width: 25 }
   ];
 
   applyHeaderStyle(salesSheet.getRow(1), BLUE_HEADER);
 
-  (bills || []).forEach((b, idx) => {
-    const formattedDate = formatDateTime(b.created_at).full;
-    const subtotal = Number(b.subtotal != null ? b.subtotal : b.total_amount) || 0;
-    const discount = Number(b.discount) || 0;
-    const total = Number(b.total_amount) || 0;
-    const isShowroomBill = isShowroom(b);
-    const status = isShowroomBill ? 'SHOWROOM DEDUCTION' : (b.status || 'completed').toUpperCase();
-
-    const row = salesSheet.addRow({
-      id: b.id,
-      date: formattedDate,
-      customer_name: b.customer_name || (isShowroomBill ? 'Showroom' : 'Walk-in Customer'),
-      customer_phone: b.customer_phone || '--',
-      cashier: b.cashier_name || 'Cashier',
-      method: (b.payment_method || 'CASH').toUpperCase(),
-      subtotal: subtotal,
-      discount: discount,
-      total: total,
-      status: status,
-      notes: b.notes || (isShowroomBill ? 'Showroom Stock Deduction' : '')
+  if ((bills || []).length === 0) {
+    const emptyRow = salesSheet.addRow({
+      id: 'NO-SALES',
+      date: '--',
+      customer_name: 'No Sales Recorded',
+      customer_phone: '--',
+      cashier: '--',
+      method: '--',
+      subtotal: 0,
+      discount: 0,
+      total: 0,
+      status: 'NO DATA',
+      notes: 'No sales transactions processed yet'
     });
+    applyRowStyle(emptyRow, false);
+  } else {
+    bills.forEach((b, idx) => {
+      const formattedDate = formatDateTime(b.created_at).full;
+      const subtotal = Number(b.subtotal != null ? b.subtotal : b.total_amount) || 0;
+      const discount = Number(b.discount) || 0;
+      const total = Number(b.total_amount) || 0;
+      const isShowroomBill = isShowroom(b);
+      const status = isShowroomBill ? 'SHOWROOM DEDUCTION' : (b.status || 'completed').toUpperCase();
 
-    ['subtotal', 'discount', 'total'].forEach(k => {
-      row.getCell(k).numFmt = '₹#,##0.00';
+      const row = salesSheet.addRow({
+        id: b.id,
+        date: formattedDate,
+        customer_name: b.customer_name || (isShowroomBill ? 'Showroom Internal' : 'Walk-in Customer'),
+        customer_phone: b.customer_phone || '--',
+        cashier: b.cashier_name || 'Cashier',
+        method: (b.payment_method || 'CASH').toUpperCase(),
+        subtotal: subtotal,
+        discount: discount,
+        total: total,
+        status: status,
+        notes: b.notes || (isShowroomBill ? 'Showroom Stock Deduction' : 'Store POS Sale')
+      });
+
+      ['subtotal', 'discount', 'total'].forEach(k => {
+        row.getCell(k).numFmt = '₹#,##0.00';
+      });
+
+      applyRowStyle(row, idx % 2 === 0);
+
+      const statusCell = row.getCell('status');
+      if (status === 'VOIDED' || status === 'RETURNED') {
+        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+        statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
+      } else if (isShowroomBill) {
+        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+        statusCell.font = { color: { argb: 'FF92400E' }, bold: true };
+      } else {
+        statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
+        statusCell.font = { color: { argb: 'FF166534' } };
+      }
     });
+  }
 
-    applyRowStyle(row, idx % 2 === 0);
-
-    const statusCell = row.getCell('status');
-    if (status === 'VOIDED' || status === 'RETURNED') {
-      statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
-      statusCell.font = { color: { argb: 'FF991B1B' }, bold: true };
-    } else if (isShowroomBill) {
-      statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
-      statusCell.font = { color: { argb: 'FF92400E' }, bold: true };
-    } else {
-      statusCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
-      statusCell.font = { color: { argb: 'FF166534' } };
-    }
-  });
-
+  // Summary Row (Zero empty cells)
   const salesTotalRow = salesSheet.addRow({
     id: 'TOTAL REVENUE',
-    date: '',
-    customer_name: `${(bills || []).length} Total Bills`,
-    customer_phone: '',
-    cashier: '',
-    method: '',
+    date: 'All Transaction Dates',
+    customer_name: `${(bills || []).length} Total Invoices`,
+    customer_phone: '--',
+    cashier: 'All Staff Cashiers',
+    method: 'All Payment Modes',
     subtotal: (bills || []).reduce((acc, b) => (b.status !== 'voided' && !isShowroom(b)) ? acc + (Number(b.subtotal != null ? b.subtotal : b.total_amount) || 0) : acc, 0),
     discount: totalDiscountsGiven,
     total: totalSalesRevenue,
-    status: '',
-    notes: ''
+    status: 'COMPLETED SALES',
+    notes: 'Excluding Showroom Deductions'
   });
 
   ['subtotal', 'discount', 'total'].forEach(k => {
@@ -576,14 +620,14 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
     { header: 'Date & Time', key: 'date', width: 20 },
     { header: 'Barcode', key: 'barcode', width: 14 },
     { header: 'Item Name', key: 'item_name', width: 34 },
-    { header: 'Quantity', key: 'quantity', width: 12 },
+    { header: 'Quantity Sold', key: 'quantity', width: 14 },
     { header: 'Unit', key: 'unit', width: 10 },
     { header: 'Unit Cost (₹)', key: 'cost_price', width: 14 },
     { header: 'Unit Price (₹)', key: 'price', width: 14 },
-    { header: 'Total Item Price (₹)', key: 'total_price', width: 18 },
+    { header: 'Total Price (₹)', key: 'total_price', width: 18 },
     { header: 'Est. Gross Profit (₹)', key: 'profit', width: 18 },
     { header: 'Piece / Roll Barcode', key: 'instance_barcode', width: 20 },
-    { header: 'Dimensions', key: 'dimensions', width: 16 }
+    { header: 'Dimensions / Specs', key: 'dimensions', width: 18 }
   ];
 
   applyHeaderStyle(itemsSheet.getRow(1), INDIGO_HEADER);
@@ -592,68 +636,91 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   let totalItemsValue = 0;
   let totalItemsProfit = 0;
 
-  const billDateMap = new Map((bills || []).map(b => [b.id, b.created_at]));
-
-  (billItems || []).forEach((it, idx) => {
-    const qty = Number(it.billable_quantity || it.quantity || 0);
-    const cost = Number(it.cost_price != null ? it.cost_price : (it.cost_at_sale != null ? it.cost_at_sale : 0)) || 0;
-    const price = Number(it.price != null ? it.price : (it.price_at_sale != null ? it.price_at_sale : 0)) || 0;
-    const totalP = Number(it.total_price != null ? it.total_price : qty * price) || 0;
-    const profit = it.profit != null ? Number(it.profit) : (totalP - (qty * cost));
-
-    totalItemQty += qty;
-    totalItemsValue += totalP;
-    totalItemsProfit += profit;
-
-    const rowDate = it.created_at ? formatDateTime(it.created_at).full : (billDateMap.get(it.bill_id) ? formatDateTime(billDateMap.get(it.bill_id)).full : '--');
-
-    const row = itemsSheet.addRow({
-      bill_id: it.bill_id || it.billId || '',
-      date: rowDate,
-      barcode: it.barcode || '',
-      item_name: it.item_name || it.name || '',
-      quantity: qty,
-      unit: (it.unit || 'PCS').toUpperCase(),
-      cost_price: cost,
-      price: price,
-      total_price: totalP,
-      profit: profit,
-      instance_barcode: it.instance_barcode || it.instanceBarcode || '--',
-      dimensions: it.dimensions ? (typeof it.dimensions === 'object' ? JSON.stringify(it.dimensions) : it.dimensions) : '--'
+  if ((billItems || []).length === 0) {
+    const emptyRow = itemsSheet.addRow({
+      bill_id: 'NO-ITEMS',
+      date: '--',
+      barcode: '--',
+      item_name: 'No Line Items Recorded',
+      quantity: 0,
+      unit: '--',
+      cost_price: 0,
+      price: 0,
+      total_price: 0,
+      profit: 0,
+      instance_barcode: '--',
+      dimensions: '--'
     });
+    applyRowStyle(emptyRow, false);
+  } else {
+    billItems.forEach((it, idx) => {
+      const pLookup = productMap.get(it.barcode);
+      const qty = Number(it.billable_quantity || it.quantity || 0);
+      const cost = Number(it.cost_price != null ? it.cost_price : (it.cost_at_sale != null ? it.cost_at_sale : (pLookup?.cost_price || 0))) || 0;
+      const price = Number(it.price != null ? it.price : (it.price_at_sale != null ? it.price_at_sale : (pLookup?.price || 0))) || 0;
+      const totalP = Number(it.total_price != null ? it.total_price : qty * price) || 0;
+      const profit = it.profit != null ? Number(it.profit) : (totalP - (qty * cost));
 
-    ['cost_price', 'price', 'total_price', 'profit'].forEach(k => {
-      row.getCell(k).numFmt = '₹#,##0.00';
+      totalItemQty += qty;
+      totalItemsValue += totalP;
+      totalItemsProfit += profit;
+
+      const parentBill = billMap.get(it.bill_id);
+      const rowDate = it.created_at ? formatDateTime(it.created_at).full : (parentBill?.created_at ? formatDateTime(parentBill.created_at).full : '--');
+
+      const dimensionsStr = it.dimensions
+        ? (typeof it.dimensions === 'object' ? JSON.stringify(it.dimensions) : it.dimensions)
+        : (it.cut_length ? `${it.cut_length} x ${it.cut_width || 0}` : '--');
+
+      const row = itemsSheet.addRow({
+        bill_id: it.bill_id || it.billId || '--',
+        date: rowDate,
+        barcode: it.barcode || '--',
+        item_name: it.item_name || it.name || pLookup?.name || 'Item Sold',
+        quantity: qty,
+        unit: (it.unit || pLookup?.unit || 'PCS').toUpperCase(),
+        cost_price: cost,
+        price: price,
+        total_price: totalP,
+        profit: profit,
+        instance_barcode: it.instance_barcode || it.instanceBarcode || '--',
+        dimensions: dimensionsStr
+      });
+
+      ['cost_price', 'price', 'total_price', 'profit'].forEach(k => {
+        row.getCell(k).numFmt = '₹#,##0.00';
+      });
+      row.getCell('quantity').numFmt = '#,##0.00';
+
+      applyRowStyle(row, idx % 2 === 0);
+
+      const profitCell = row.getCell('profit');
+      if (profit > 0) {
+        profitCell.font = { color: { argb: 'FF15803D' }, bold: true };
+      } else if (profit < 0) {
+        profitCell.font = { color: { argb: 'FFB91C1C' }, bold: true };
+      }
     });
-    row.getCell('quantity').numFmt = '#,##0.00';
+  }
 
-    applyRowStyle(row, idx % 2 === 0);
-
-    const profitCell = row.getCell('profit');
-    if (profit > 0) {
-      profitCell.font = { color: { argb: 'FF15803D' }, bold: true };
-    } else if (profit < 0) {
-      profitCell.font = { color: { argb: 'FFB91C1C' }, bold: true };
-    }
-  });
-
+  // Summary Row (Zero empty cells)
   const itemsTotalRow = itemsSheet.addRow({
-    bill_id: 'TOTAL ITEMS SOLD',
-    date: '',
-    barcode: '',
-    item_name: `${(billItems || []).length} Line Items`,
+    bill_id: 'SUMMARY TOTALS',
+    date: 'All Sales Transactions',
+    barcode: '--',
+    item_name: `${(billItems || []).length} Total Sold Line Items`,
     quantity: totalItemQty,
-    unit: '',
-    cost_price: null,
-    price: null,
+    unit: 'Total Units',
+    cost_price: 0,
+    price: 0,
     total_price: totalItemsValue,
     profit: totalItemsProfit,
-    instance_barcode: '',
-    dimensions: ''
+    instance_barcode: '--',
+    dimensions: '--'
   });
 
   itemsTotalRow.getCell('quantity').numFmt = '#,##0.00';
-  ['total_price', 'profit'].forEach(k => {
+  ['cost_price', 'price', 'total_price', 'profit'].forEach(k => {
     itemsTotalRow.getCell(k).numFmt = '₹#,##0.00';
   });
 
@@ -677,27 +744,40 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
 
   applyHeaderStyle(expSheet.getRow(1), CRIMSON_HEADER);
 
-  (expenses || []).forEach((e, idx) => {
-    const row = expSheet.addRow({
-      id: e.id,
-      date: e.created_at ? formatDateTime(e.created_at).full : (e.date || '--'),
-      worker: e.worker_name || 'General Shop',
-      amount: Number(e.amount) || 0,
-      reason: e.reason || e.description || '',
-      recorded_by: e.recorded_by || 'Admin'
+  if ((expenses || []).length === 0) {
+    const emptyRow = expSheet.addRow({
+      id: 'EXP-NONE',
+      date: '--',
+      worker: 'No Expenses Logged',
+      amount: 0,
+      reason: 'No operating expenses recorded yet',
+      recorded_by: '--'
     });
+    applyRowStyle(emptyRow, false);
+  } else {
+    expenses.forEach((e, idx) => {
+      const row = expSheet.addRow({
+        id: e.id || '--',
+        date: e.created_at ? formatDateTime(e.created_at).full : (e.date || '--'),
+        worker: e.worker_name || 'General Shop',
+        amount: Number(e.amount) || 0,
+        reason: e.reason || e.description || 'General Business Expense',
+        recorded_by: e.recorded_by || 'Owner'
+      });
 
-    row.getCell('amount').numFmt = '₹#,##0.00';
-    applyRowStyle(row, idx % 2 === 0);
-  });
+      row.getCell('amount').numFmt = '₹#,##0.00';
+      applyRowStyle(row, idx % 2 === 0);
+    });
+  }
 
+  // Summary Row (Zero empty cells)
   const expTotalRow = expSheet.addRow({
     id: 'TOTAL EXPENSES',
-    date: '',
-    worker: `${(expenses || []).length} Entries`,
+    date: 'All Expense Dates',
+    worker: `${(expenses || []).length} Total Entries`,
     amount: totalExpensesAmount,
-    reason: '',
-    recorded_by: ''
+    reason: 'Total Store Operating Outflow',
+    recorded_by: shopSettings?.owner_name || 'Store Administration'
   });
 
   expTotalRow.getCell('amount').numFmt = '₹#,##0.00';
@@ -712,43 +792,99 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
 
   batchSheet.columns = [
     { header: 'Barcode', key: 'barcode', width: 14 },
-    { header: 'Batch #', key: 'batch_number', width: 12 },
-    { header: 'Cost Price (₹)', key: 'cost_price', width: 14 },
-    { header: 'Min Price (MSP) (₹)', key: 'msp', width: 16 },
-    { header: 'Selling Price (₹)', key: 'price', width: 14 },
+    { header: 'Product Name', key: 'product_name', width: 34 },
+    { header: 'Batch #', key: 'batch_number', width: 14 },
+    { header: 'Purchase Cost (₹)', key: 'cost_price', width: 16 },
+    { header: 'Min Price (MSP) (₹)', key: 'msp', width: 18 },
+    { header: 'Selling Price (MRP) (₹)', key: 'price', width: 20 },
     { header: 'Store Stock', key: 'quantity_store', width: 14 },
     { header: 'Warehouse Stock', key: 'quantity_warehouse', width: 16 },
     { header: 'Total Batch Units', key: 'total_qty', width: 16 },
+    { header: 'Batch Status', key: 'status', width: 14 },
     { header: 'Created Date', key: 'created_at', width: 20 }
   ];
 
   applyHeaderStyle(batchSheet.getRow(1), SKY_HEADER);
 
-  (batches || []).forEach((b, idx) => {
-    const sStock = Number(b.quantity_store) || 0;
-    const wStock = Number(b.quantity_warehouse) || 0;
-    const row = batchSheet.addRow({
-      barcode: b.barcode,
-      batch_number: b.batch_number ? `Batch ${String(b.batch_number).padStart(2, '0')}` : 'Initial',
-      cost_price: Number(b.cost_price) || 0,
-      msp: Number(b.msp) || 0,
-      price: Number(b.price) || 0,
-      quantity_store: sStock,
-      quantity_warehouse: wStock,
-      total_qty: sStock + wStock,
-      created_at: b.created_at ? formatDateTime(b.created_at).full : '--'
-    });
+  let totalBatchStore = 0;
+  let totalBatchWhse = 0;
 
-    ['cost_price', 'msp', 'price'].forEach(k => {
-      row.getCell(k).numFmt = '₹#,##0.00';
+  if ((batches || []).length === 0) {
+    const emptyRow = batchSheet.addRow({
+      barcode: '--',
+      product_name: 'No Multi-Batches Recorded',
+      batch_number: 'Initial',
+      cost_price: 0,
+      msp: 0,
+      price: 0,
+      quantity_store: 0,
+      quantity_warehouse: 0,
+      total_qty: 0,
+      status: 'Standard Stock',
+      created_at: '--'
     });
-    ['quantity_store', 'quantity_warehouse', 'total_qty'].forEach(k => {
-      row.getCell(k).numFmt = '#,##0.00';
-    });
+    applyRowStyle(emptyRow, false);
+  } else {
+    batches.forEach((b, idx) => {
+      const pLookup = productMap.get(b.barcode);
+      // Correct database columns in Supabase: stock_store, stock_warehouse, purchase_cost, selling_price
+      const sStock = Number(b.stock_store != null ? b.stock_store : (b.quantity_store || 0)) || 0;
+      const wStock = Number(b.stock_warehouse != null ? b.stock_warehouse : (b.quantity_warehouse || 0)) || 0;
+      const cost = Number(b.purchase_cost != null ? b.purchase_cost : (b.cost_price != null ? b.cost_price : (pLookup?.cost_price || 0))) || 0;
+      const price = Number(b.selling_price != null ? b.selling_price : (b.price != null ? b.price : (pLookup?.price || 0))) || 0;
+      const msp = Number(b.msp != null ? b.msp : (pLookup?.msp || 0)) || 0;
 
-    applyRowStyle(row, idx % 2 === 0);
+      totalBatchStore += sStock;
+      totalBatchWhse += wStock;
+
+      const row = batchSheet.addRow({
+        barcode: b.barcode || '--',
+        product_name: pLookup?.name || 'Catalog Item',
+        batch_number: b.batch_number ? `Batch ${String(b.batch_number).padStart(2, '0')}` : 'Initial Batch',
+        cost_price: cost,
+        msp: msp,
+        price: price,
+        quantity_store: sStock,
+        quantity_warehouse: wStock,
+        total_qty: sStock + wStock,
+        status: b.is_active === false ? 'Archived' : (sStock + wStock > 0 ? 'Active Stock' : 'Depleted'),
+        created_at: b.created_at ? formatDateTime(b.created_at).full : '--'
+      });
+
+      ['cost_price', 'msp', 'price'].forEach(k => {
+        row.getCell(k).numFmt = '₹#,##0.00';
+      });
+      ['quantity_store', 'quantity_warehouse', 'total_qty'].forEach(k => {
+        row.getCell(k).numFmt = '#,##0.00';
+      });
+
+      applyRowStyle(row, idx % 2 === 0);
+    });
+  }
+
+  // Summary Row (Zero empty cells)
+  const batchTotalRow = batchSheet.addRow({
+    barcode: 'BATCH TOTALS',
+    product_name: `${(batches || []).length} Recorded Inventory Batches`,
+    batch_number: 'All Batches',
+    cost_price: 0,
+    msp: 0,
+    price: 0,
+    quantity_store: totalBatchStore,
+    quantity_warehouse: totalBatchWhse,
+    total_qty: totalBatchStore + totalBatchWhse,
+    status: 'ACTIVE BATCHES',
+    created_at: 'All Batch Periods'
   });
 
+  ['cost_price', 'msp', 'price'].forEach(k => {
+    batchTotalRow.getCell(k).numFmt = '₹#,##0.00';
+  });
+  ['quantity_store', 'quantity_warehouse', 'total_qty'].forEach(k => {
+    batchTotalRow.getCell(k).numFmt = '#,##0.00';
+  });
+
+  applyTotalRowStyle(batchTotalRow, 'FFE0F2FE');
   autoFitColumns(batchSheet, 12, 35);
 
   // -------------------------------------------------------------
@@ -758,36 +894,116 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   const catSheet = workbook.addWorksheet('Categories & Subcategories', { views: [{ showGridLines: true }] });
 
   catSheet.columns = [
-    { header: 'Category Name', key: 'cat_name', width: 24 },
-    { header: 'Sub-Category Name', key: 'sub_name', width: 24 },
-    { header: 'Associated Products', key: 'prod_count', width: 20 }
+    { header: 'Category Name', key: 'cat_name', width: 26 },
+    { header: 'Sub-Category Name', key: 'sub_name', width: 26 },
+    { header: 'Product Count (SKUs)', key: 'prod_count', width: 22 },
+    { header: 'Total In-Stock Units', key: 'stock_units', width: 22 }
   ];
 
   applyHeaderStyle(catSheet.getRow(1), PURPLE_HEADER);
 
-  const subCatList = subcategories.length > 0 ? subcategories : [];
-  if (subCatList.length > 0) {
-    subCatList.forEach((s, idx) => {
-      const pCount = (products || []).filter(p => p.category === s.category_name && p.sub_category === s.name).length;
-      const row = catSheet.addRow({
-        cat_name: s.category_name || 'General',
-        sub_name: s.name,
-        prod_count: pCount
-      });
-      applyRowStyle(row, idx % 2 === 0);
+  let totalCatProducts = 0;
+  let totalCatUnits = 0;
+
+  // Build a complete matrix of categories and subcategories
+  const seenCatSub = new Set();
+  const categoryRows = [];
+
+  // 1. Process all declared subcategories
+  (subcategories || []).forEach(sub => {
+    const catName = sub.category_name || 'General';
+    const subName = sub.name || 'General';
+    seenCatSub.add(`${catName}::${subName}`);
+
+    const matchedProds = (products || []).filter(p => (p.category || 'General') === catName && (p.sub_category || 'General') === subName);
+    const prodCount = matchedProds.length;
+    const stockUnits = matchedProds.reduce((sum, p) => sum + (Number(p.stock_store) || 0) + (Number(p.stock_warehouse) || 0), 0);
+
+    categoryRows.push({
+      cat_name: catName,
+      sub_name: subName,
+      prod_count: prodCount,
+      stock_units: stockUnits
     });
-  } else {
-    categories.forEach((c, idx) => {
-      const pCount = (products || []).filter(p => p.category === c.name).length;
-      const row = catSheet.addRow({
-        cat_name: c.name,
-        sub_name: '--',
-        prod_count: pCount
+  });
+
+  // 2. Process categories without subcategories
+  (categories || []).forEach(cat => {
+    const hasSubs = (subcategories || []).some(s => s.category_name === cat.name);
+    if (!hasSubs) {
+      const key = `${cat.name}::Main / General`;
+      if (!seenCatSub.has(key)) {
+        seenCatSub.add(key);
+        const matchedProds = (products || []).filter(p => (p.category || 'General') === cat.name);
+        const prodCount = matchedProds.length;
+        const stockUnits = matchedProds.reduce((sum, p) => sum + (Number(p.stock_store) || 0) + (Number(p.stock_warehouse) || 0), 0);
+
+        categoryRows.push({
+          cat_name: cat.name,
+          sub_name: 'Main / General',
+          prod_count: prodCount,
+          stock_units: stockUnits
+        });
+      }
+    }
+  });
+
+  // 3. Process any orphaned products with custom category/subcategory not in tables
+  (products || []).forEach(p => {
+    const catName = p.category || 'General';
+    const subName = p.sub_category || 'General';
+    const key = `${catName}::${subName}`;
+    if (!seenCatSub.has(key)) {
+      seenCatSub.add(key);
+      const matchedProds = (products || []).filter(pr => (pr.category || 'General') === catName && (pr.sub_category || 'General') === subName);
+      categoryRows.push({
+        cat_name: catName,
+        sub_name: subName,
+        prod_count: matchedProds.length,
+        stock_units: matchedProds.reduce((sum, pr) => sum + (Number(pr.stock_store) || 0) + (Number(pr.stock_warehouse) || 0), 0)
       });
+    }
+  });
+
+  if (categoryRows.length === 0) {
+    const emptyRow = catSheet.addRow({
+      cat_name: 'General',
+      sub_name: 'General Items',
+      prod_count: (products || []).length,
+      stock_units: totalStoreUnits + totalWhseUnits
+    });
+    applyRowStyle(emptyRow, false);
+    totalCatProducts = (products || []).length;
+    totalCatUnits = totalStoreUnits + totalWhseUnits;
+  } else {
+    categoryRows.forEach((r, idx) => {
+      totalCatProducts += r.prod_count;
+      totalCatUnits += r.stock_units;
+
+      const row = catSheet.addRow({
+        cat_name: r.cat_name,
+        sub_name: r.sub_name,
+        prod_count: r.prod_count,
+        stock_units: r.stock_units
+      });
+
+      row.getCell('prod_count').numFmt = '#,##0';
+      row.getCell('stock_units').numFmt = '#,##0.00';
       applyRowStyle(row, idx % 2 === 0);
     });
   }
 
+  // Summary Row (Zero empty cells)
+  const catTotalRow = catSheet.addRow({
+    cat_name: 'TOTALS',
+    sub_name: `${(categories || []).length} Categories Registered`,
+    prod_count: totalCatProducts,
+    stock_units: totalCatUnits
+  });
+
+  catTotalRow.getCell('prod_count').numFmt = '#,##0';
+  catTotalRow.getCell('stock_units').numFmt = '#,##0.00';
+  applyTotalRowStyle(catTotalRow, 'FFF3E8FF');
   autoFitColumns(catSheet, 16, 35);
 
   // -------------------------------------------------------------
@@ -797,37 +1013,59 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   const staffSheet = workbook.addWorksheet('Staff Members', { views: [{ showGridLines: true }] });
 
   staffSheet.columns = [
-    { header: 'Staff Name', key: 'name', width: 24 },
-    { header: 'Account Role', key: 'role', width: 22 },
-    { header: 'Status', key: 'status', width: 14 },
-    { header: 'Created Date', key: 'created_at', width: 20 }
+    { header: 'Staff Name', key: 'name', width: 26 },
+    { header: 'Account Role', key: 'role', width: 28 },
+    { header: 'Account Status', key: 'status', width: 16 },
+    { header: 'Created Date', key: 'created_at', width: 22 }
   ];
 
   applyHeaderStyle(staffSheet.getRow(1), EMERALD_HEADER);
 
+  // 1. Primary Store Owner / Administrator at top
+  const ownerRow = staffSheet.addRow({
+    name: shopSettings?.owner_name || 'Store Owner',
+    role: 'Store Owner / Administrator',
+    status: 'Active (Owner)',
+    created_at: shopSettings?.created_at ? formatDateTime(shopSettings.created_at).full : formatDateTime(new Date().toISOString()).full
+  });
+  applyRowStyle(ownerRow, false);
+  const ownerRoleCell = ownerRow.getCell('role');
+  ownerRoleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
+  ownerRoleCell.font = { color: { argb: 'FF166534' }, bold: true };
+
+  // 2. All Floor Staff & Cashiers
   (workers || []).forEach((w, idx) => {
     const isNonBillable = w.password?.includes('NON_BILLABLE');
-    const roleLabel = isNonBillable ? 'Floor Staff (Non-Billable)' : 'Cashier (Billable)';
+    const roleLabel = isNonBillable ? 'Floor Staff (Non-Billable Stock Only)' : 'Cashier (Billable Counter Terminal)';
     const row = staffSheet.addRow({
-      name: w.name,
+      name: w.name || 'Staff Member',
       role: roleLabel,
-      status: 'Active',
+      status: w.is_active === false ? 'Inactive' : 'Active',
       created_at: w.created_at ? formatDateTime(w.created_at).full : '--'
     });
 
-    applyRowStyle(row, idx % 2 === 0);
+    applyRowStyle(row, (idx + 1) % 2 === 0);
 
     const roleCell = row.getCell('role');
     if (isNonBillable) {
       roleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
       roleCell.font = { color: { argb: 'FF92400E' }, bold: true };
     } else {
-      roleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
-      roleCell.font = { color: { argb: 'FF166534' }, bold: true };
+      roleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } };
+      roleCell.font = { color: { argb: 'FF1E40AF' }, bold: true };
     }
   });
 
-  autoFitColumns(staffSheet, 14, 30);
+  // Summary Row (Zero empty cells)
+  const staffTotalRow = staffSheet.addRow({
+    name: 'TOTAL ACCOUNTS',
+    role: `${(workers || []).length + 1} Staff & Admin Accounts Registered`,
+    status: 'ACTIVE ACCOUNTS',
+    created_at: 'All Shifts & Locations'
+  });
+
+  applyTotalRowStyle(staffTotalRow, 'FFDCFCE7');
+  autoFitColumns(staffSheet, 16, 35);
 
   // -------------------------------------------------------------
   // SHEET 9: Audit Logs & Activity Trail
@@ -838,43 +1076,66 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   auditSheet.columns = [
     { header: 'Date & Time', key: 'date', width: 22 },
     { header: 'Action Type', key: 'action_type', width: 16 },
-    { header: 'Barcode', key: 'barcode', width: 14 },
-    { header: 'Entity / Item Name', key: 'item_name', width: 28 },
-    { header: 'Changes & Details', key: 'changes', width: 45 },
+    { header: 'Barcode / Entity', key: 'barcode', width: 16 },
+    { header: 'Item Name / Target', key: 'item_name', width: 30 },
+    { header: 'Changes & Action Details', key: 'changes', width: 45 },
     { header: 'Performed By', key: 'performed_by', width: 18 }
   ];
 
   applyHeaderStyle(auditSheet.getRow(1), SLATE_HEADER);
 
-  (auditLogs || []).forEach((log, idx) => {
-    const action = (log.action_type || 'ACTIVITY').toUpperCase();
-    const row = auditSheet.addRow({
-      date: log.created_at ? formatDateTime(log.created_at).full : (log.date || '--'),
-      action_type: action,
-      barcode: log.barcode || '--',
-      item_name: log.item_name || '',
-      changes: log.changes || '--',
-      performed_by: log.performed_by || 'Owner'
+  if ((auditLogs || []).length === 0) {
+    const emptyRow = auditSheet.addRow({
+      date: '--',
+      action_type: 'SYSTEM',
+      barcode: '--',
+      item_name: 'No Audit Records',
+      changes: 'No audit trail logs recorded yet',
+      performed_by: '--'
     });
+    applyRowStyle(emptyRow, false);
+  } else {
+    auditLogs.forEach((log, idx) => {
+      const action = (log.action_type || 'ACTIVITY').toUpperCase();
+      const row = auditSheet.addRow({
+        date: log.created_at ? formatDateTime(log.created_at).full : (log.date || '--'),
+        action_type: action,
+        barcode: log.barcode || '--',
+        item_name: log.item_name || log.barcode || 'General Entity',
+        changes: log.changes || log.description || 'System Event',
+        performed_by: log.performed_by || 'Owner'
+      });
 
-    applyRowStyle(row, idx % 2 === 0);
+      applyRowStyle(row, idx % 2 === 0);
 
-    const actionCell = row.getCell('action_type');
-    if (action.includes('DELETE') || action.includes('VOID')) {
-      actionCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
-      actionCell.font = { color: { argb: 'FF991B1B' }, bold: true };
-    } else if (action.includes('CREATE') || action.includes('INSERT') || action.includes('STOCK_IN')) {
-      actionCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
-      actionCell.font = { color: { argb: 'FF166534' }, bold: true };
-    } else if (action.includes('RETURN')) {
-      actionCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEDD5' } };
-      actionCell.font = { color: { argb: 'FF9A3412' }, bold: true };
-    } else {
-      actionCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } };
-      actionCell.font = { color: { argb: 'FF1E40AF' }, bold: true };
-    }
+      const actionCell = row.getCell('action_type');
+      if (action.includes('DELETE') || action.includes('VOID')) {
+        actionCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+        actionCell.font = { color: { argb: 'FF991B1B' }, bold: true };
+      } else if (action.includes('CREATE') || action.includes('INSERT') || action.includes('STOCK_IN')) {
+        actionCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
+        actionCell.font = { color: { argb: 'FF166534' }, bold: true };
+      } else if (action.includes('RETURN')) {
+        actionCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEDD5' } };
+        actionCell.font = { color: { argb: 'FF9A3412' }, bold: true };
+      } else {
+        actionCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } };
+        actionCell.font = { color: { argb: 'FF1E40AF' }, bold: true };
+      }
+    });
+  }
+
+  // Summary Row (Zero empty cells)
+  const auditTotalRow = auditSheet.addRow({
+    date: 'Complete Audit Trail',
+    action_type: 'AUDIT SUMMARY',
+    barcode: '--',
+    item_name: `${(auditLogs || []).length} Logged Events`,
+    changes: 'Detailed Security & Inventory Action History',
+    performed_by: 'All Users'
   });
 
+  applyTotalRowStyle(auditTotalRow, 'FFF1F5F9');
   autoFitColumns(auditSheet, 12, 55);
 
   // -------------------------------------------------------------
