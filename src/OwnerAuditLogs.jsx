@@ -495,9 +495,9 @@ export default function OwnerAuditLogs() {
               disabled={datePageIndex === 0 && (!customDate || customDate === availableDates[0])} 
               className="h-8 px-4 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] flex items-center gap-1.5"
               style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
-              title="View newer day"
+              title="Previous Day"
             >
-              <span>&larr; Previous (Newer)</span>
+              <span>&larr; Previous</span>
             </button>
 
             <div className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)] text-center">
@@ -525,9 +525,9 @@ export default function OwnerAuditLogs() {
               disabled={availableDates.length === 0 || (datePageIndex >= availableDates.length - 1 && (!customDate || customDate === availableDates[availableDates.length - 1]))} 
               className="h-8 px-4 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] flex items-center gap-1.5"
               style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
-              title="View older day (yesterday & before)"
+              title="Next Day"
             >
-              <span>Next (Older Day) &rarr;</span>
+              <span>Next &rarr;</span>
             </button>
           </>
         ) : (
@@ -542,7 +542,7 @@ export default function OwnerAuditLogs() {
             </button>
 
             <div className="text-xs text-[var(--text-secondary)] text-center">
-              <span className="font-semibold text-[var(--color-accent)]">Global Search:</span> Results for "{searchTerm}" • Page {searchPage + 1} ({filteredLogs.length} items)
+              <span className="font-semibold text-[var(--color-accent)]">Global Search:</span> Results for "{searchTerm}" • Page {searchPage + 1} • {filteredLogs.length} items
             </div>
 
             <button 

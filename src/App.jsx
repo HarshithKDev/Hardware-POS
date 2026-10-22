@@ -10,9 +10,9 @@ import { WifiOff, ScanBarcode, LayoutDashboard, Moon, Sun, Power } from 'lucide-
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
+import WorkerBilling from './WorkerBilling';
+import OwnerDashboard from './OwnerDashboard';
 const EntryFlow = lazy(() => import('./EntryFlow'));
-const WorkerBilling = lazy(() => import('./WorkerBilling'));
-const OwnerDashboard = lazy(() => import('./OwnerDashboard'));
 
 function App() {
   const {
@@ -397,11 +397,11 @@ function App() {
 
       {/* MAIN CONTENT */}
       <main
-        className="flex-1 w-full md:px-3 md:pb-3 lg:px-4 lg:pb-4 overflow-y-auto min-h-0 relative z-10 print:static"
+        className="flex-1 flex flex-col w-full md:px-3 md:pb-3 lg:px-4 lg:pb-4 overflow-y-auto min-h-0 relative z-10 print:static"
         role="main"
         aria-label="Application content"
       >
-        <Suspense fallback={<div className="flex flex-1 items-center justify-center p-8"><PageLoader text="Loading view..." /></div>}>
+        <Suspense fallback={<div className="w-full h-full flex-1 flex flex-col items-center justify-center min-h-[300px] p-8"><PageLoader text="Loading..." /></div>}>
           <Routes>
             {userRole === 'owner' && (
               <>

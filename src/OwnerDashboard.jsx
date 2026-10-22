@@ -156,7 +156,7 @@ export default function OwnerDashboard() {
         role="main"
         aria-label="Dashboard content"
       >
-        <Suspense fallback={<div className="flex flex-1 items-center justify-center p-8"><PageLoader text="Loading view..." /></div>}>
+        <Suspense fallback={<div className="w-full h-full flex flex-1 flex-col items-center justify-center min-h-[300px] p-8"><PageLoader text="Loading view..." /></div>}>
         {activeTab === 'dashboard' && <OwnerStats isActive={true} />}
 
         {activeTab === 'register' && <OwnerCatalog />}

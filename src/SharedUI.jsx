@@ -11,7 +11,7 @@ export const Spinner = ({ className = "" }) => (
 );
 
 export const PageLoader = ({ text = "Loading..." }) => (
-  <div className="flex flex-col items-center justify-center p-8">
+  <div className="flex flex-col items-center justify-center p-8 w-full">
     <div className="premium-wave-loader mb-6">
       <span></span>
       <span></span>

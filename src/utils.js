@@ -122,12 +122,6 @@ export function formatDayHeader(dateStr) {
     const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
     const formatted = `${dateObj.getDate()} ${dateObj.toLocaleDateString('en-US', { month: 'short' })} ${dateObj.getFullYear()}`;
 
-    if (cleanStr === todayStr) {
-      return `${dayName}, ${formatted} (Today)`;
-    }
-    if (cleanStr === yesterdayStr) {
-      return `${dayName}, ${formatted} (Yesterday)`;
-    }
     return `${dayName}, ${formatted}`;
   } catch (e) {
     return dateStr;
