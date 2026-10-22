@@ -2,11 +2,11 @@ import { supabase } from '../supabaseClient';
 import { formatDateTime } from '../utils';
 
 /**
- * Applies header styling with custom background color, bold text, and borders.
+ * Applies header styling with custom background color, bold text, borders, and center alignment.
  */
 function applyHeaderStyle(row, bgColorHex) {
   row.height = 28;
-  row.eachCell((cell) => {
+  row.eachCell({ includeEmpty: true }, (cell) => {
     cell.fill = {
       type: 'pattern',
       pattern: 'solid',
@@ -33,7 +33,7 @@ function applyHeaderStyle(row, bgColorHex) {
 }
 
 /**
- * Applies standard cell styling with zebra striping and thin borders.
+ * Applies standard cell styling with zebra striping, thin borders, and center alignment.
  */
 function applyRowStyle(row, isEven) {
   row.height = 22;
@@ -49,7 +49,11 @@ function applyRowStyle(row, isEven) {
     if (!cell.font) {
       cell.font = { name: 'Segoe UI', size: 10, color: { argb: 'FF1E293B' } };
     }
-    cell.alignment = cell.alignment || { vertical: 'middle' };
+    cell.alignment = {
+      vertical: 'middle',
+      horizontal: 'center',
+      wrapText: false
+    };
     cell.border = {
       top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
       left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
@@ -60,7 +64,7 @@ function applyRowStyle(row, isEven) {
 }
 
 /**
- * Applies summary/total row styling with bold text and double bottom border.
+ * Applies summary/total row styling with bold text, double bottom border, and center alignment.
  */
 function applyTotalRowStyle(row, bgColorHex = 'FFF1F5F9') {
   row.height = 26;
@@ -76,6 +80,11 @@ function applyTotalRowStyle(row, bgColorHex = 'FFF1F5F9') {
       bold: true,
       color: { argb: 'FF0F172A' }
     };
+    cell.alignment = {
+      vertical: 'middle',
+      horizontal: 'center',
+      wrapText: false
+    };
     cell.border = {
       top: { style: 'thin', color: { argb: 'FF64748B' } },
       bottom: { style: 'double', color: { argb: 'FF0F172A' } },
@@ -88,7 +97,7 @@ function applyTotalRowStyle(row, bgColorHex = 'FFF1F5F9') {
 /**
  * Automatically adjusts column widths based on content length with min/max bounds.
  */
-function autoFitColumns(worksheet, minWidth = 12, maxWidth = 50) {
+function autoFitColumns(worksheet, minWidth = 14, maxWidth = 50) {
   worksheet.columns.forEach((column) => {
     let maxLen = 0;
     column.eachCell({ includeEmpty: false }, (cell) => {
@@ -119,6 +128,31 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   const { data: products = [] } = await prodQuery;
   const productMap = new Map((products || []).map(p => [p.barcode, p]));
 
+  onProgress?.('Fetching inventory batches...');
+  let batches = [];
+  try {
+    let batchQuery = supabase.from('inventory_batches').select('*');
+    if (shopId) batchQuery = batchQuery.eq('shop_id', shopId);
+    const { data: bData, error: bErr } = await batchQuery;
+    if (bErr) {
+      console.warn('Batch fetch note, retrying without filter:', bErr.message);
+      const { data: allBatches } = await supabase.from('inventory_batches').select('*');
+      if (allBatches) batches = allBatches;
+    } else if (bData) {
+      batches = bData;
+    }
+  } catch (e) {
+    console.warn('Batch fetch error:', e);
+  }
+
+  // Index batches by barcode
+  const batchMap = new Map();
+  (batches || []).forEach(b => {
+    if (!b.barcode) return;
+    if (!batchMap.has(b.barcode)) batchMap.set(b.barcode, []);
+    batchMap.get(b.barcode).push(b);
+  });
+
   onProgress?.('Fetching sales transactions...');
   let billsQuery = supabase.from('bills').select('*').order('created_at', { ascending: false });
   if (shopId) billsQuery = billsQuery.eq('shop_id', shopId);
@@ -133,7 +167,6 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
     const { data: biData, error: biErr } = await billItemsQuery;
     if (biErr) {
       console.warn('bill_items query note:', biErr.message);
-      // Fallback: If shop_id filter failed (e.g. column not present on bill_items), fetch all and filter in memory by bills
       const { data: allBi } = await supabase.from('bill_items').select('*');
       if (allBi) {
         if (bills && bills.length > 0) {
@@ -205,17 +238,6 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   if (shopId) workerQuery = workerQuery.eq('shop_id', shopId);
   const { data: workers = [] } = await workerQuery;
 
-  onProgress?.('Fetching inventory batches...');
-  let batches = [];
-  try {
-    let batchQuery = supabase.from('inventory_batches').select('*');
-    if (shopId) batchQuery = batchQuery.eq('shop_id', shopId);
-    const { data: bData } = await batchQuery;
-    if (bData) batches = bData;
-  } catch (e) {
-    console.warn('Batch fetch error:', e);
-  }
-
   onProgress?.('Fetching audit logs...');
   let auditLogs = [];
   try {
@@ -243,10 +265,10 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   // Color Palette Constants (ARGB)
   const NAVY_HEADER = 'FF1E3A8A';
   const TEAL_HEADER = 'FF0F766E';
+  const SKY_HEADER = 'FF0284C7';
   const BLUE_HEADER = 'FF1E40AF';
   const INDIGO_HEADER = 'FF4338CA';
   const CRIMSON_HEADER = 'FF991B1B';
-  const SKY_HEADER = 'FF0284C7';
   const PURPLE_HEADER = 'FF7E22CE';
   const EMERALD_HEADER = 'FF059669';
   const SLATE_HEADER = 'FF475569';
@@ -264,15 +286,30 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   let totalRetailValuation = 0;
 
   (products || []).forEach(p => {
-    const sStock = Number(p.stock_store) || 0;
-    const wStock = Number(p.stock_warehouse) || 0;
-    const cPrice = Number(p.cost_price) || 0;
-    const sPrice = Number(p.price) || 0;
+    const pBatches = batchMap.get(p.barcode) || [];
+    if (pBatches.length > 0) {
+      pBatches.forEach(b => {
+        const sStock = Number(b.stock_store != null ? b.stock_store : (b.quantity_store || 0)) || 0;
+        const wStock = Number(b.stock_warehouse != null ? b.stock_warehouse : (b.quantity_warehouse || 0)) || 0;
+        const cPrice = Number(b.purchase_cost != null ? b.purchase_cost : (b.cost_price != null ? b.cost_price : (p.cost_price || 0))) || 0;
+        const sPrice = Number(b.selling_price != null ? b.selling_price : (b.price != null ? b.price : (p.price || 0))) || 0;
 
-    totalStoreUnits += sStock;
-    totalWhseUnits += wStock;
-    totalCostValuation += (sStock + wStock) * cPrice;
-    totalRetailValuation += (sStock + wStock) * sPrice;
+        totalStoreUnits += sStock;
+        totalWhseUnits += wStock;
+        totalCostValuation += (sStock + wStock) * cPrice;
+        totalRetailValuation += (sStock + wStock) * sPrice;
+      });
+    } else {
+      const sStock = Number(p.stock_store) || 0;
+      const wStock = Number(p.stock_warehouse) || 0;
+      const cPrice = Number(p.cost_price) || 0;
+      const sPrice = Number(p.price) || 0;
+
+      totalStoreUnits += sStock;
+      totalWhseUnits += wStock;
+      totalCostValuation += (sStock + wStock) * cPrice;
+      totalRetailValuation += (sStock + wStock) * sPrice;
+    }
   });
 
   const isShowroom = (b) => b?.payment_method === 'SHOWROOM' || b?.status === 'showroom_pending' || b?.status === 'showroom';
@@ -281,7 +318,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   const totalExpensesAmount = (expenses || []).reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
   const netEarnings = totalSalesRevenue - totalExpensesAmount;
 
-  // Title Row (Starts from Column A: no blank column A)
+  // Title Row (Starts from Column A: no blank column A, center aligned)
   overviewSheet.mergeCells('A2:D2');
   const titleCell = overviewSheet.getCell('A2');
   titleCell.value = `${(shopSettings?.shop_name || 'HARDWARE POS').toUpperCase()} - COMPLETE BUSINESS EXPORT`;
@@ -295,7 +332,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   const profileHeaderCell = overviewSheet.getCell('A4');
   profileHeaderCell.value = 'STORE PROFILE & SYSTEM REGISTRATION';
   profileHeaderCell.font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
-  profileHeaderCell.alignment = { vertical: 'middle', horizontal: 'left' };
+  profileHeaderCell.alignment = { vertical: 'middle', horizontal: 'center' };
   profileHeaderCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: SLATE_HEADER } };
   overviewSheet.getRow(4).height = 24;
 
@@ -332,12 +369,18 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   const kpiHeaderCell = overviewSheet.getCell(`A${kpiHeaderRowNum}`);
   kpiHeaderCell.value = 'KEY PERFORMANCE INDICATORS (LIFETIME SNAPSHOT)';
   kpiHeaderCell.font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
-  kpiHeaderCell.alignment = { vertical: 'middle', horizontal: 'left' };
+  kpiHeaderCell.alignment = { vertical: 'middle', horizontal: 'center' };
   kpiHeaderCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY_HEADER } };
   overviewSheet.getRow(kpiHeaderRowNum).height = 24;
 
+  const totalBatchesCount = (products || []).reduce((acc, p) => {
+    const bList = batchMap.get(p.barcode) || [];
+    return acc + (bList.length > 0 ? bList.length : 1);
+  }, 0);
+
   const kpis = [
     ['Total Catalog Items', (products || []).length, 'SKU Items', 'Active Product Catalog'],
+    ['Total Inventory Batches', totalBatchesCount, 'Batches', 'Batch Lots & Shipments Tracked'],
     ['Total Store Inventory', totalStoreUnits, 'Units', 'Ready on Store Counter'],
     ['Total Warehouse Inventory', totalWhseUnits, 'Units', 'Backroom / Storage Units'],
     ['Total Combined Stock Units', totalStoreUnits + totalWhseUnits, 'Units', 'All Locations Combined'],
@@ -365,7 +408,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
 
     if (type === 'Currency') {
       row.getCell(2).numFmt = '₹#,##0.00';
-    } else if (type === 'Units' || type === 'Invoices' || type === 'SKU Items') {
+    } else if (type === 'Units' || type === 'Invoices' || type === 'SKU Items' || type === 'Batches') {
       row.getCell(2).numFmt = '#,##0.00';
     }
 
@@ -375,17 +418,18 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   overviewSheet.getColumn(1).width = 38;
   overviewSheet.getColumn(2).width = 28;
   overviewSheet.getColumn(3).width = 18;
-  overviewSheet.getColumn(4).width = 32;
+  overviewSheet.getColumn(4).width = 34;
 
   // -------------------------------------------------------------
-  // SHEET 2: Products & Inventory
+  // SHEET 2: Products & Inventory (With Specific Batch Breakdown!)
   // -------------------------------------------------------------
-  onProgress?.('Exporting Products & Inventory Sheet...');
+  onProgress?.('Exporting Products & Inventory Sheet with Batches...');
   const productSheet = workbook.addWorksheet('Products & Inventory', { views: [{ showGridLines: true }] });
 
   productSheet.columns = [
     { header: 'Barcode', key: 'barcode', width: 14 },
-    { header: 'Product Name', key: 'name', width: 36 },
+    { header: 'Product Name', key: 'name', width: 34 },
+    { header: 'Batch #', key: 'batch_num', width: 14 },
     { header: 'Category', key: 'category', width: 18 },
     { header: 'Sub-Category', key: 'sub_category', width: 18 },
     { header: 'Unit', key: 'unit', width: 10 },
@@ -407,83 +451,155 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
 
   applyHeaderStyle(productSheet.getRow(1), TEAL_HEADER);
 
-  (products || []).forEach((p, idx) => {
-    const sStock = Number(p.stock_store) || 0;
-    const wStock = Number(p.stock_warehouse) || 0;
-    const totStock = sStock + wStock;
-    const cPrice = Number(p.cost_price) || 0;
-    const sPrice = Number(p.price) || 0;
-    const msp = Number(p.msp) || 0;
-    const margin = sPrice - cPrice;
-    const valCost = totStock * cPrice;
-    const valRetail = totStock * sPrice;
+  let productRowCount = 0;
 
+  (products || []).forEach((p) => {
     const minStore = Number(p.min_quantity_store) || 0;
     const minWhse = Number(p.min_quantity_warehouse) || 0;
-
-    let health = 'In Stock';
-    if (totStock <= 0) health = 'Out of Stock';
-    else if (sStock <= minStore && sStock > 0) health = 'Low Store Stock';
-    else if (wStock <= minWhse && wStock > 0) health = 'Low Warehouse';
-
     const itemType = p.is_cuttable ? 'Cuttable Piece' : (p.is_loose_item ? 'Loose Item' : 'Standard Product');
 
-    const row = productSheet.addRow({
-      barcode: p.barcode || '--',
-      name: p.name || 'Unnamed Product',
-      category: p.category || 'General',
-      sub_category: p.sub_category || 'General',
-      unit: (p.unit || 'PCS').toUpperCase(),
-      cost_price: cPrice,
-      msp: msp,
-      price: sPrice,
-      margin: margin,
-      stock_store: sStock,
-      stock_warehouse: wStock,
-      total_stock: totStock,
-      val_cost: valCost,
-      val_retail: valRetail,
-      type: itemType,
-      min_store: minStore,
-      min_whse: minWhse,
-      health: health,
-      status: p.is_active === false ? 'Inactive' : 'Active'
-    });
+    const pBatches = (batchMap.get(p.barcode) || []).slice().sort((a, b) => (a.batch_number || 1) - (b.batch_number || 1));
 
-    // Formatting numbers
-    ['cost_price', 'msp', 'price', 'margin', 'val_cost', 'val_retail'].forEach(k => {
-      row.getCell(k).numFmt = '₹#,##0.00';
-    });
-    ['stock_store', 'stock_warehouse', 'total_stock', 'min_store', 'min_whse'].forEach(k => {
-      row.getCell(k).numFmt = '#,##0.00';
-    });
+    if (pBatches.length > 0) {
+      // Product with multiple distinct batches: output each batch row
+      pBatches.forEach((b) => {
+        productRowCount++;
+        const sStock = Number(b.stock_store != null ? b.stock_store : (b.quantity_store || 0)) || 0;
+        const wStock = Number(b.stock_warehouse != null ? b.stock_warehouse : (b.quantity_warehouse || 0)) || 0;
+        const totStock = sStock + wStock;
+        const cPrice = Number(b.purchase_cost != null ? b.purchase_cost : (b.cost_price != null ? b.cost_price : (p.cost_price || 0))) || 0;
+        const sPrice = Number(b.selling_price != null ? b.selling_price : (b.price != null ? b.price : (p.price || 0))) || 0;
+        const msp = Number(b.msp != null ? b.msp : (p.msp || 0)) || 0;
+        const margin = sPrice - cPrice;
+        const valCost = totStock * cPrice;
+        const valRetail = totStock * sPrice;
 
-    applyRowStyle(row, idx % 2 === 0);
+        let health = 'In Stock';
+        if (totStock <= 0) health = 'Out of Stock';
+        else if (sStock <= minStore && sStock > 0) health = 'Low Store Stock';
+        else if (wStock <= minWhse && wStock > 0) health = 'Low Warehouse';
 
-    // Color code Stock Health
-    const healthCell = row.getCell('health');
-    if (health === 'Out of Stock') {
-      healthCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
-      healthCell.font = { color: { argb: 'FF991B1B' }, bold: true };
-    } else if (health.startsWith('Low')) {
-      healthCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
-      healthCell.font = { color: { argb: 'FF92400E' }, bold: true };
+        const batchLabel = b.batch_number ? `Batch ${String(b.batch_number).padStart(2, '0')}` : 'Batch 01';
+
+        const row = productSheet.addRow({
+          barcode: p.barcode || '--',
+          name: p.name || 'Unnamed Product',
+          batch_num: batchLabel,
+          category: p.category || 'General',
+          sub_category: p.sub_category || 'General',
+          unit: (p.unit || 'PCS').toUpperCase(),
+          cost_price: cPrice,
+          msp: msp,
+          price: sPrice,
+          margin: margin,
+          stock_store: sStock,
+          stock_warehouse: wStock,
+          total_stock: totStock,
+          val_cost: valCost,
+          val_retail: valRetail,
+          type: itemType,
+          min_store: minStore,
+          min_whse: minWhse,
+          health: health,
+          status: b.is_active === false ? 'Archived Batch' : (p.is_active === false ? 'Inactive' : 'Active')
+        });
+
+        ['cost_price', 'msp', 'price', 'margin', 'val_cost', 'val_retail'].forEach(k => {
+          row.getCell(k).numFmt = '₹#,##0.00';
+        });
+        ['stock_store', 'stock_warehouse', 'total_stock', 'min_store', 'min_whse'].forEach(k => {
+          row.getCell(k).numFmt = '#,##0.00';
+        });
+
+        applyRowStyle(row, productRowCount % 2 === 0);
+
+        const healthCell = row.getCell('health');
+        if (health === 'Out of Stock') {
+          healthCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+          healthCell.font = { color: { argb: 'FF991B1B' }, bold: true };
+        } else if (health.startsWith('Low')) {
+          healthCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+          healthCell.font = { color: { argb: 'FF92400E' }, bold: true };
+        } else {
+          healthCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
+          healthCell.font = { color: { argb: 'FF166534' } };
+        }
+      });
     } else {
-      healthCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
-      healthCell.font = { color: { argb: 'FF166534' } };
+      // Product with primary inventory
+      productRowCount++;
+      const sStock = Number(p.stock_store) || 0;
+      const wStock = Number(p.stock_warehouse) || 0;
+      const totStock = sStock + wStock;
+      const cPrice = Number(p.cost_price) || 0;
+      const sPrice = Number(p.price) || 0;
+      const msp = Number(p.msp) || 0;
+      const margin = sPrice - cPrice;
+      const valCost = totStock * cPrice;
+      const valRetail = totStock * sPrice;
+
+      let health = 'In Stock';
+      if (totStock <= 0) health = 'Out of Stock';
+      else if (sStock <= minStore && sStock > 0) health = 'Low Store Stock';
+      else if (wStock <= minWhse && wStock > 0) health = 'Low Warehouse';
+
+      const row = productSheet.addRow({
+        barcode: p.barcode || '--',
+        name: p.name || 'Unnamed Product',
+        batch_num: 'Batch 01 (Main)',
+        category: p.category || 'General',
+        sub_category: p.sub_category || 'General',
+        unit: (p.unit || 'PCS').toUpperCase(),
+        cost_price: cPrice,
+        msp: msp,
+        price: sPrice,
+        margin: margin,
+        stock_store: sStock,
+        stock_warehouse: wStock,
+        total_stock: totStock,
+        val_cost: valCost,
+        val_retail: valRetail,
+        type: itemType,
+        min_store: minStore,
+        min_whse: minWhse,
+        health: health,
+        status: p.is_active === false ? 'Inactive' : 'Active'
+      });
+
+      ['cost_price', 'msp', 'price', 'margin', 'val_cost', 'val_retail'].forEach(k => {
+        row.getCell(k).numFmt = '₹#,##0.00';
+      });
+      ['stock_store', 'stock_warehouse', 'total_stock', 'min_store', 'min_whse'].forEach(k => {
+        row.getCell(k).numFmt = '#,##0.00';
+      });
+
+      applyRowStyle(row, productRowCount % 2 === 0);
+
+      const healthCell = row.getCell('health');
+      if (health === 'Out of Stock') {
+        healthCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+        healthCell.font = { color: { argb: 'FF991B1B' }, bold: true };
+      } else if (health.startsWith('Low')) {
+        healthCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+        healthCell.font = { color: { argb: 'FF92400E' }, bold: true };
+      } else {
+        healthCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCFCE7' } };
+        healthCell.font = { color: { argb: 'FF166534' } };
+      }
     }
   });
 
-  // Inventory Totals Summary Row (Fully filled, zero empty cells)
+  // Inventory Totals Summary Row (Fully filled, zero empty cells, centered)
   const prodTotalRow = productSheet.addRow({
     barcode: 'TOTALS',
     name: `TOTAL SUMMARY (${(products || []).length} Products)`,
+    batch_num: `${productRowCount} Total Batches`,
     category: 'All Categories',
     sub_category: 'All Sub-Categories',
     unit: 'Total Units',
-    cost_price: products.length > 0 ? (totalCostValuation / (totalStoreUnits + totalWhseUnits || 1)) : 0,
+    cost_price: (totalStoreUnits + totalWhseUnits) > 0 ? (totalCostValuation / (totalStoreUnits + totalWhseUnits)) : 0,
     msp: 0,
-    price: products.length > 0 ? (totalRetailValuation / (totalStoreUnits + totalWhseUnits || 1)) : 0,
+    price: (totalStoreUnits + totalWhseUnits) > 0 ? (totalRetailValuation / (totalStoreUnits + totalWhseUnits)) : 0,
     margin: (totalRetailValuation - totalCostValuation),
     stock_store: totalStoreUnits,
     stock_warehouse: totalWhseUnits,
@@ -508,7 +624,140 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   autoFitColumns(productSheet, 12, 45);
 
   // -------------------------------------------------------------
-  // SHEET 3: Sales Transactions (Bills)
+  // SHEET 3: Inventory Batches (Dedicated Batch Registry Sheet)
+  // -------------------------------------------------------------
+  onProgress?.('Exporting Inventory Batches Sheet...');
+  const batchSheet = workbook.addWorksheet('Inventory Batches', { views: [{ showGridLines: true }] });
+
+  batchSheet.columns = [
+    { header: 'Barcode', key: 'barcode', width: 14 },
+    { header: 'Product Name', key: 'product_name', width: 34 },
+    { header: 'Batch #', key: 'batch_number', width: 14 },
+    { header: 'Purchase Cost (₹)', key: 'cost_price', width: 16 },
+    { header: 'Min Price (MSP) (₹)', key: 'msp', width: 18 },
+    { header: 'Selling Price (MRP) (₹)', key: 'price', width: 20 },
+    { header: 'Batch Margin (₹)', key: 'margin', width: 16 },
+    { header: 'Store Stock', key: 'quantity_store', width: 14 },
+    { header: 'Warehouse Stock', key: 'quantity_warehouse', width: 16 },
+    { header: 'Total Batch Units', key: 'total_qty', width: 16 },
+    { header: 'Batch Value at Cost (₹)', key: 'val_cost', width: 20 },
+    { header: 'Batch Value at Retail (₹)', key: 'val_retail', width: 20 },
+    { header: 'Batch Status', key: 'status', width: 16 },
+    { header: 'Created Date', key: 'created_at', width: 20 }
+  ];
+
+  applyHeaderStyle(batchSheet.getRow(1), SKY_HEADER);
+
+  let totalBatchStore = 0;
+  let totalBatchWhse = 0;
+  let totalBatchCostVal = 0;
+  let totalBatchRetailVal = 0;
+  let allBatchesList = [];
+
+  // Gather all batches from inventory_batches, plus initial batches for products without explicit rows
+  (products || []).forEach(p => {
+    const pBatches = batchMap.get(p.barcode) || [];
+    if (pBatches.length > 0) {
+      pBatches.forEach(b => {
+        allBatchesList.push({
+          barcode: p.barcode,
+          product_name: p.name,
+          batch_number: b.batch_number ? `Batch ${String(b.batch_number).padStart(2, '0')}` : 'Batch 01',
+          cost_price: Number(b.purchase_cost != null ? b.purchase_cost : (b.cost_price != null ? b.cost_price : (p.cost_price || 0))) || 0,
+          msp: Number(b.msp != null ? b.msp : (p.msp || 0)) || 0,
+          price: Number(b.selling_price != null ? b.selling_price : (b.price != null ? b.price : (p.price || 0))) || 0,
+          quantity_store: Number(b.stock_store != null ? b.stock_store : (b.quantity_store || 0)) || 0,
+          quantity_warehouse: Number(b.stock_warehouse != null ? b.stock_warehouse : (b.quantity_warehouse || 0)) || 0,
+          status: b.is_active === false ? 'Archived Batch' : 'Active Batch',
+          created_at: b.created_at ? formatDateTime(b.created_at).full : '--'
+        });
+      });
+    } else {
+      allBatchesList.push({
+        barcode: p.barcode,
+        product_name: p.name,
+        batch_number: 'Batch 01 (Initial)',
+        cost_price: Number(p.cost_price) || 0,
+        msp: Number(p.msp) || 0,
+        price: Number(p.price) || 0,
+        quantity_store: Number(p.stock_store) || 0,
+        quantity_warehouse: Number(p.stock_warehouse) || 0,
+        status: p.is_active === false ? 'Inactive' : 'Active Batch',
+        created_at: p.created_at ? formatDateTime(p.created_at).full : '--'
+      });
+    }
+  });
+
+  allBatchesList.forEach((b, idx) => {
+    const sStock = b.quantity_store;
+    const wStock = b.quantity_warehouse;
+    const totStock = sStock + wStock;
+    const margin = b.price - b.cost_price;
+    const valCost = totStock * b.cost_price;
+    const valRetail = totStock * b.price;
+
+    totalBatchStore += sStock;
+    totalBatchWhse += wStock;
+    totalBatchCostVal += valCost;
+    totalBatchRetailVal += valRetail;
+
+    const row = batchSheet.addRow({
+      barcode: b.barcode || '--',
+      product_name: b.product_name || 'Catalog Product',
+      batch_number: b.batch_number,
+      cost_price: b.cost_price,
+      msp: b.msp,
+      price: b.price,
+      margin: margin,
+      quantity_store: sStock,
+      quantity_warehouse: wStock,
+      total_qty: totStock,
+      val_cost: valCost,
+      val_retail: valRetail,
+      status: b.status,
+      created_at: b.created_at
+    });
+
+    ['cost_price', 'msp', 'price', 'margin', 'val_cost', 'val_retail'].forEach(k => {
+      row.getCell(k).numFmt = '₹#,##0.00';
+    });
+    ['quantity_store', 'quantity_warehouse', 'total_qty'].forEach(k => {
+      row.getCell(k).numFmt = '#,##0.00';
+    });
+
+    applyRowStyle(row, idx % 2 === 0);
+  });
+
+  // Summary Row for Batches
+  const batchTotalRow = batchSheet.addRow({
+    barcode: 'BATCH TOTALS',
+    product_name: `${allBatchesList.length} Total Inventory Batches`,
+    batch_number: 'All Batches',
+    cost_price: (totalBatchStore + totalBatchWhse) > 0 ? (totalBatchCostVal / (totalBatchStore + totalBatchWhse)) : 0,
+    msp: 0,
+    price: (totalBatchStore + totalBatchWhse) > 0 ? (totalBatchRetailVal / (totalBatchStore + totalBatchWhse)) : 0,
+    margin: totalBatchRetailVal - totalBatchCostVal,
+    quantity_store: totalBatchStore,
+    quantity_warehouse: totalBatchWhse,
+    total_qty: totalBatchStore + totalBatchWhse,
+    val_cost: totalBatchCostVal,
+    val_retail: totalBatchRetailVal,
+    status: 'ACTIVE BATCHES',
+    created_at: 'All Batch Records'
+  });
+
+  ['cost_price', 'msp', 'price', 'margin', 'val_cost', 'val_retail'].forEach(k => {
+    batchTotalRow.getCell(k).numFmt = '₹#,##0.00';
+  });
+  ['quantity_store', 'quantity_warehouse', 'total_qty'].forEach(k => {
+    batchTotalRow.getCell(k).numFmt = '#,##0.00';
+  });
+
+  applyTotalRowStyle(batchTotalRow, 'FFE0F2FE');
+  autoFitColumns(batchSheet, 12, 38);
+
+  // -------------------------------------------------------------
+  // SHEET 4: Sales Transactions (Bills)
   // -------------------------------------------------------------
   onProgress?.('Exporting Sales Transactions Sheet...');
   const salesSheet = workbook.addWorksheet('Sales Transactions', { views: [{ showGridLines: true }] });
@@ -587,7 +836,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
     });
   }
 
-  // Summary Row (Zero empty cells)
+  // Summary Row (Zero empty cells, centered)
   const salesTotalRow = salesSheet.addRow({
     id: 'TOTAL REVENUE',
     date: 'All Transaction Dates',
@@ -610,7 +859,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   autoFitColumns(salesSheet, 12, 40);
 
   // -------------------------------------------------------------
-  // SHEET 4: Bill Items Breakdown
+  // SHEET 5: Bill Items Breakdown
   // -------------------------------------------------------------
   onProgress?.('Exporting Bill Items Breakdown Sheet...');
   const itemsSheet = workbook.addWorksheet('Bill Items Breakdown', { views: [{ showGridLines: true }] });
@@ -703,7 +952,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
     });
   }
 
-  // Summary Row (Zero empty cells)
+  // Summary Row (Zero empty cells, centered)
   const itemsTotalRow = itemsSheet.addRow({
     bill_id: 'SUMMARY TOTALS',
     date: 'All Sales Transactions',
@@ -728,7 +977,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   autoFitColumns(itemsSheet, 12, 40);
 
   // -------------------------------------------------------------
-  // SHEET 5: Business Expenses
+  // SHEET 6: Business Expenses
   // -------------------------------------------------------------
   onProgress?.('Exporting Expenses Sheet...');
   const expSheet = workbook.addWorksheet('Business Expenses', { views: [{ showGridLines: true }] });
@@ -770,7 +1019,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
     });
   }
 
-  // Summary Row (Zero empty cells)
+  // Summary Row (Zero empty cells, centered)
   const expTotalRow = expSheet.addRow({
     id: 'TOTAL EXPENSES',
     date: 'All Expense Dates',
@@ -783,109 +1032,6 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   expTotalRow.getCell('amount').numFmt = '₹#,##0.00';
   applyTotalRowStyle(expTotalRow, 'FFFEE2E2');
   autoFitColumns(expSheet, 14, 40);
-
-  // -------------------------------------------------------------
-  // SHEET 6: Inventory Batches
-  // -------------------------------------------------------------
-  onProgress?.('Exporting Inventory Batches Sheet...');
-  const batchSheet = workbook.addWorksheet('Inventory Batches', { views: [{ showGridLines: true }] });
-
-  batchSheet.columns = [
-    { header: 'Barcode', key: 'barcode', width: 14 },
-    { header: 'Product Name', key: 'product_name', width: 34 },
-    { header: 'Batch #', key: 'batch_number', width: 14 },
-    { header: 'Purchase Cost (₹)', key: 'cost_price', width: 16 },
-    { header: 'Min Price (MSP) (₹)', key: 'msp', width: 18 },
-    { header: 'Selling Price (MRP) (₹)', key: 'price', width: 20 },
-    { header: 'Store Stock', key: 'quantity_store', width: 14 },
-    { header: 'Warehouse Stock', key: 'quantity_warehouse', width: 16 },
-    { header: 'Total Batch Units', key: 'total_qty', width: 16 },
-    { header: 'Batch Status', key: 'status', width: 14 },
-    { header: 'Created Date', key: 'created_at', width: 20 }
-  ];
-
-  applyHeaderStyle(batchSheet.getRow(1), SKY_HEADER);
-
-  let totalBatchStore = 0;
-  let totalBatchWhse = 0;
-
-  if ((batches || []).length === 0) {
-    const emptyRow = batchSheet.addRow({
-      barcode: '--',
-      product_name: 'No Multi-Batches Recorded',
-      batch_number: 'Initial',
-      cost_price: 0,
-      msp: 0,
-      price: 0,
-      quantity_store: 0,
-      quantity_warehouse: 0,
-      total_qty: 0,
-      status: 'Standard Stock',
-      created_at: '--'
-    });
-    applyRowStyle(emptyRow, false);
-  } else {
-    batches.forEach((b, idx) => {
-      const pLookup = productMap.get(b.barcode);
-      // Correct database columns in Supabase: stock_store, stock_warehouse, purchase_cost, selling_price
-      const sStock = Number(b.stock_store != null ? b.stock_store : (b.quantity_store || 0)) || 0;
-      const wStock = Number(b.stock_warehouse != null ? b.stock_warehouse : (b.quantity_warehouse || 0)) || 0;
-      const cost = Number(b.purchase_cost != null ? b.purchase_cost : (b.cost_price != null ? b.cost_price : (pLookup?.cost_price || 0))) || 0;
-      const price = Number(b.selling_price != null ? b.selling_price : (b.price != null ? b.price : (pLookup?.price || 0))) || 0;
-      const msp = Number(b.msp != null ? b.msp : (pLookup?.msp || 0)) || 0;
-
-      totalBatchStore += sStock;
-      totalBatchWhse += wStock;
-
-      const row = batchSheet.addRow({
-        barcode: b.barcode || '--',
-        product_name: pLookup?.name || 'Catalog Item',
-        batch_number: b.batch_number ? `Batch ${String(b.batch_number).padStart(2, '0')}` : 'Initial Batch',
-        cost_price: cost,
-        msp: msp,
-        price: price,
-        quantity_store: sStock,
-        quantity_warehouse: wStock,
-        total_qty: sStock + wStock,
-        status: b.is_active === false ? 'Archived' : (sStock + wStock > 0 ? 'Active Stock' : 'Depleted'),
-        created_at: b.created_at ? formatDateTime(b.created_at).full : '--'
-      });
-
-      ['cost_price', 'msp', 'price'].forEach(k => {
-        row.getCell(k).numFmt = '₹#,##0.00';
-      });
-      ['quantity_store', 'quantity_warehouse', 'total_qty'].forEach(k => {
-        row.getCell(k).numFmt = '#,##0.00';
-      });
-
-      applyRowStyle(row, idx % 2 === 0);
-    });
-  }
-
-  // Summary Row (Zero empty cells)
-  const batchTotalRow = batchSheet.addRow({
-    barcode: 'BATCH TOTALS',
-    product_name: `${(batches || []).length} Recorded Inventory Batches`,
-    batch_number: 'All Batches',
-    cost_price: 0,
-    msp: 0,
-    price: 0,
-    quantity_store: totalBatchStore,
-    quantity_warehouse: totalBatchWhse,
-    total_qty: totalBatchStore + totalBatchWhse,
-    status: 'ACTIVE BATCHES',
-    created_at: 'All Batch Periods'
-  });
-
-  ['cost_price', 'msp', 'price'].forEach(k => {
-    batchTotalRow.getCell(k).numFmt = '₹#,##0.00';
-  });
-  ['quantity_store', 'quantity_warehouse', 'total_qty'].forEach(k => {
-    batchTotalRow.getCell(k).numFmt = '#,##0.00';
-  });
-
-  applyTotalRowStyle(batchTotalRow, 'FFE0F2FE');
-  autoFitColumns(batchSheet, 12, 35);
 
   // -------------------------------------------------------------
   // SHEET 7: Categories & Subcategories
@@ -993,7 +1139,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
     });
   }
 
-  // Summary Row (Zero empty cells)
+  // Summary Row (Zero empty cells, centered)
   const catTotalRow = catSheet.addRow({
     cat_name: 'TOTALS',
     sub_name: `${(categories || []).length} Categories Registered`,
@@ -1056,7 +1202,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
     }
   });
 
-  // Summary Row (Zero empty cells)
+  // Summary Row (Zero empty cells, centered)
   const staffTotalRow = staffSheet.addRow({
     name: 'TOTAL ACCOUNTS',
     role: `${(workers || []).length + 1} Staff & Admin Accounts Registered`,
@@ -1125,7 +1271,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
     });
   }
 
-  // Summary Row (Zero empty cells)
+  // Summary Row (Zero empty cells, centered)
   const auditTotalRow = auditSheet.addRow({
     date: 'Complete Audit Trail',
     action_type: 'AUDIT SUMMARY',

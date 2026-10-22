@@ -5,8 +5,7 @@ import { formatDateTime } from './utils';
 import { PageLoader } from './SharedUI';
 import {
   ArrowLeft,
-  Phone,
-  PackageCheck
+  Phone
 } from 'lucide-react';
 
 export default function ShowroomDetailsView({
@@ -56,11 +55,6 @@ export default function ShowroomDetailsView({
           <ArrowLeft className="w-4 h-4 text-[var(--color-accent)]" />
           <span>Back to Showroom</span>
         </button>
-
-        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--bg-secondary)] border border-[var(--border-medium)] text-[var(--text-secondary)]">
-          <PackageCheck className="w-4 h-4 text-emerald-500" />
-          <span>Stock Deducted from Store</span>
-        </div>
       </div>
 
       {/* ESSENTIAL BILL & CUSTOMER INFO HEADER */}
