@@ -104,6 +104,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const [looseItemModal, setLooseItemModal] = useState({ isOpen: false, item: null, qty: '' });
   const [selectedCartIndex, setSelectedCartIndex] = useState(null);
 
+  // Refs for auto-scroll when new items are added
+  const cartScrollRef = useRef(null);
+  const mobileCartScrollRef = useRef(null);
+
   useEffect(() => {
     if (cart.length === 0) {
       setSelectedCartIndex(null);
@@ -113,6 +117,21 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         return prev;
       });
     }
+  }, [cart.length]);
+
+  // Auto-scroll to bottom when a new item is scanned into the cart
+  const prevCartLengthRef = useRef(cart.length);
+  useEffect(() => {
+    if (cart.length > prevCartLengthRef.current) {
+      // New item added — scroll to bottom
+      if (cartScrollRef.current) {
+        cartScrollRef.current.scrollTo({ top: cartScrollRef.current.scrollHeight, behavior: 'smooth' });
+      }
+      if (mobileCartScrollRef.current) {
+        mobileCartScrollRef.current.scrollTo({ top: mobileCartScrollRef.current.scrollHeight, behavior: 'smooth' });
+      }
+    }
+    prevCartLengthRef.current = cart.length;
   }, [cart.length]);
 
   // Cuttable item states
@@ -2470,7 +2489,15 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         </div>
 
         {/* Desktop View */}
-        <div className="hidden md:block flex-1 min-h-0 overflow-auto" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+        <div
+          ref={cartScrollRef}
+          className="hidden md:block flex-1 min-h-0 overflow-y-auto overflow-x-auto"
+          style={{
+            backgroundColor: 'var(--bg-secondary)',
+            scrollBehavior: 'smooth',
+            WebkitOverflowScrolling: 'touch'
+          }}
+        >
           <CartTable
             cart={cart}
             selectedCartIndex={selectedCartIndex}
@@ -2489,7 +2516,16 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         </div>
 
         {/* Mobile View for Checkout */}
-        <div className="md:hidden flex-1 min-h-0 overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
+        <div
+          ref={mobileCartScrollRef}
+          className="md:hidden flex-1 min-h-0 overflow-y-auto"
+          style={{
+            backgroundColor: 'var(--bg-secondary)',
+            borderBottom: '1px solid var(--border-medium)',
+            scrollBehavior: 'smooth',
+            WebkitOverflowScrolling: 'touch'
+          }}
+        >
           <CartMobileView
             cart={cart}
             activeTab={activeTab}

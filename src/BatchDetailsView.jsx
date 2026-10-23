@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Barcode from 'react-barcode';
@@ -22,7 +22,9 @@ import {
   Scissors, 
   Search, 
   PackageCheck,
-  X
+  X,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 export default function BatchDetailsView({
@@ -38,6 +40,24 @@ export default function BatchDetailsView({
   const [printBatchModal, setPrintBatchModal] = useState({ isOpen: false, batch: null });
   const [createBatchModalOpen, setCreateBatchModalOpen] = useState(false);
   const [batchToDelete, setBatchToDelete] = useState(null);
+
+  // Tab scroll state
+  const tabScrollRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateScrollButtons = useCallback(() => {
+    const el = tabScrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 2);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  }, []);
+
+  const scrollTabs = useCallback((direction) => {
+    const el = tabScrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction === 'left' ? -160 : 160, behavior: 'smooth' });
+  }, []);
 
   const shopId = localStorage.getItem('shop_id');
 
@@ -103,6 +123,26 @@ export default function BatchDetailsView({
   }, [batches, barcode]);
 
   const activeBatch = batches.find(b => b.batch_id === activeBatchId) || batches[0] || null;
+
+  // Initialize scroll arrow visibility and update on resize
+  useEffect(() => {
+    const el = tabScrollRef.current;
+    if (!el) return;
+    updateScrollButtons();
+    const ro = new ResizeObserver(updateScrollButtons);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [batches, updateScrollButtons]);
+
+  // Scroll active tab into view whenever active batch changes
+  useEffect(() => {
+    if (!activeBatchId || !tabScrollRef.current) return;
+    const el = tabScrollRef.current;
+    const activeBtn = el.querySelector(`[data-batch-id="${activeBatchId}"]`);
+    if (activeBtn) {
+      activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    }
+  }, [activeBatchId]);
 
   // Product name inline edit state
   const [isEditingName, setIsEditingName] = useState(false);
@@ -803,79 +843,107 @@ export default function BatchDetailsView({
       </div>
 
       {/* BROWSER-STYLE TAB BAR */}
-      <div 
-        className="flex items-end pl-0 pr-4 border-b border-[var(--border-light)] gap-1 overflow-x-auto overflow-y-hidden hide-scrollbar no-scrollbar shrink-0"
-        style={{ 
-          scrollbarWidth: 'none', 
-          msOverflowStyle: 'none',
-          overflowY: 'hidden'
-        }}
-      >
-        {batches.length === 0 ? (
-          <div className="px-4 py-2 text-xs font-medium text-[var(--text-tertiary)] italic">
-            No batches available
-          </div>
-        ) : (() => {
-          const seenBatchNums = new Set();
-          return batches.map((batch, idx) => {
-            const isActive = activeBatch?.batch_id === batch.batch_id;
-            let batchNum = batch.batch_number;
-            if (!batchNum || seenBatchNums.has(batchNum)) {
-              batchNum = idx + 1;
-              while (seenBatchNums.has(batchNum)) batchNum++;
-            }
-            seenBatchNums.add(batchNum);
-            const batchCode = `${item.barcode}-${String(batchNum).padStart(2, '0')}`;
-            
-            let tabCountLabel = '';
-            if (item.is_cuttable) {
-              const bCount = instances.filter(i => i.is_active && (i.batch_id === batch.batch_id || (!i.batch_id && i.instance_barcode?.startsWith(batchCode)))).length;
-              tabCountLabel = `${bCount} pcs`;
-            } else if (isWarehouseDisabled) {
-              tabCountLabel = `${Number(batch.stock_store || 0) + Number(batch.stock_warehouse || 0)} ${displayUnit}`;
-            } else {
-              tabCountLabel = `${Number(batch.stock_warehouse || 0) + Number(batch.stock_store || 0)} ${displayUnit}`;
-            }
+      <div className="relative flex items-stretch border-b border-[var(--border-light)] shrink-0">
+        {/* Left scroll arrow */}
+        {canScrollLeft && (
+          <button
+            onClick={() => scrollTabs('left')}
+            className="flex items-center justify-center px-2 shrink-0 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/5 transition-colors z-10"
+            aria-label="Scroll tabs left"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+        )}
 
-            return (
-              <button
-                key={batch.batch_id}
-                onClick={() => setActiveBatchId(batch.batch_id)}
-                className={`group relative flex items-center gap-2.5 px-4 py-2.5 rounded-t-lg text-xs transition-colors cursor-pointer whitespace-nowrap select-none ${
-                  isActive 
-                    ? 'font-bold text-[var(--text-primary)] z-10' 
-                    : 'font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/5'
-                }`}
-                style={{
-                  backgroundColor: isActive ? 'var(--bg-tertiary)' : 'transparent',
-                  borderTop: isActive ? '2px solid var(--color-accent)' : '2px solid transparent',
-                  borderLeft: isActive ? '1px solid var(--border-light)' : '1px solid transparent',
-                  borderRight: isActive ? '1px solid var(--border-light)' : '1px solid transparent',
-                  borderBottom: isActive ? '1px solid var(--bg-tertiary)' : '1px solid transparent',
-                  marginBottom: isActive ? '-1px' : '0px'
-                }}
-                title={`View Batch ${batchCode}`}
-              >
-                <Layers className={`w-3.5 h-3.5 ${isActive ? 'text-[var(--color-accent)]' : 'text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]'}`} />
-                <span>Batch {batchCode}</span>
-                <span 
-                  className={`px-1.5 py-0.5 text-[10px] rounded-full font-semibold ${
-                    isActive 
-                      ? 'bg-[var(--color-accent-bg)] text-[var(--color-accent)]' 
-                      : 'bg-white/5 text-[var(--text-tertiary)]'
+        {/* Scrollable tab list */}
+        <div
+          ref={tabScrollRef}
+          className="flex items-end gap-1 overflow-x-auto overflow-y-hidden flex-1 min-w-0"
+          style={{
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            overflowY: 'hidden'
+          }}
+          onScroll={updateScrollButtons}
+        >
+          {batches.length === 0 ? (
+            <div className="px-4 py-2 text-xs font-medium text-[var(--text-tertiary)] italic">
+              No batches available
+            </div>
+          ) : (() => {
+            const seenBatchNums = new Set();
+            return batches.map((batch, idx) => {
+              const isActive = activeBatch?.batch_id === batch.batch_id;
+              let batchNum = batch.batch_number;
+              if (!batchNum || seenBatchNums.has(batchNum)) {
+                batchNum = idx + 1;
+                while (seenBatchNums.has(batchNum)) batchNum++;
+              }
+              seenBatchNums.add(batchNum);
+              const batchCode = `${item.barcode}-${String(batchNum).padStart(2, '0')}`;
+
+              let tabCountLabel = '';
+              if (item.is_cuttable) {
+                const bCount = instances.filter(i => i.is_active && (i.batch_id === batch.batch_id || (!i.batch_id && i.instance_barcode?.startsWith(batchCode)))).length;
+                tabCountLabel = `${bCount} pcs`;
+              } else if (isWarehouseDisabled) {
+                tabCountLabel = `${Number(batch.stock_store || 0) + Number(batch.stock_warehouse || 0)} ${displayUnit}`;
+              } else {
+                tabCountLabel = `${Number(batch.stock_warehouse || 0) + Number(batch.stock_store || 0)} ${displayUnit}`;
+              }
+
+              return (
+                <button
+                  key={batch.batch_id}
+                  data-batch-id={batch.batch_id}
+                  onClick={() => setActiveBatchId(batch.batch_id)}
+                  className={`group relative flex items-center gap-2.5 px-4 py-2.5 rounded-t-lg text-xs transition-colors cursor-pointer whitespace-nowrap select-none shrink-0 ${
+                    isActive
+                      ? 'font-bold text-[var(--text-primary)] z-10'
+                      : 'font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/5'
                   }`}
+                  style={{
+                    backgroundColor: isActive ? 'var(--bg-tertiary)' : 'transparent',
+                    borderTop: isActive ? '2px solid var(--color-accent)' : '2px solid transparent',
+                    borderLeft: isActive ? '1px solid var(--border-light)' : '1px solid transparent',
+                    borderRight: isActive ? '1px solid var(--border-light)' : '1px solid transparent',
+                    borderBottom: isActive ? '1px solid var(--bg-tertiary)' : '1px solid transparent',
+                    marginBottom: isActive ? '-1px' : '0px'
+                  }}
+                  title={`View Batch ${batchCode}`}
                 >
-                  {tabCountLabel}
-                </span>
-              </button>
-            );
-          });
-        })()}
+                  <Layers className={`w-3.5 h-3.5 ${isActive ? 'text-[var(--color-accent)]' : 'text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)]'}`} />
+                  <span>Batch {batchCode}</span>
+                  <span
+                    className={`px-1.5 py-0.5 text-[10px] rounded-full font-semibold ${
+                      isActive
+                        ? 'bg-[var(--color-accent-bg)] text-[var(--color-accent)]'
+                        : 'bg-white/5 text-[var(--text-tertiary)]'
+                    }`}
+                  >
+                    {tabCountLabel}
+                  </span>
+                </button>
+              );
+            });
+          })()}
+        </div>
 
-        {/* NEW BATCH TAB BUTTON */}
+        {/* Right scroll arrow */}
+        {canScrollRight && (
+          <button
+            onClick={() => scrollTabs('right')}
+            className="flex items-center justify-center px-2 shrink-0 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/5 transition-colors z-10"
+            aria-label="Scroll tabs right"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        )}
+
+        {/* NEW BATCH TAB BUTTON — always visible, pinned to the right */}
         <button
           onClick={() => setCreateBatchModalOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-t-lg transition-colors cursor-pointer text-[var(--color-accent)] hover:bg-[var(--color-accent-bg)] ml-1 mb-0.5"
+          className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-t-lg transition-colors cursor-pointer text-[var(--color-accent)] hover:bg-[var(--color-accent-bg)] shrink-0 self-end mb-0.5 border-l border-[var(--border-light)]"
           title="Create New Batch for this item"
         >
           <Plus className="w-3.5 h-3.5" />

@@ -45,10 +45,12 @@ const CartTable = React.memo(function CartTable({
     );
   }
 
+  const handleWheelBlur = (e) => {
+    e.currentTarget.blur();
+  };
+
   return (
-    <div className="flex flex-col min-h-full">
-      <div className="flex-1 overflow-x-auto">
-        <table className="w-full min-w-[760px] xl:min-w-[900px] text-center whitespace-nowrap border-collapse" role="table">
+    <table className="w-full min-w-[760px] xl:min-w-[900px] text-center whitespace-nowrap border-collapse" role="table">
       <thead className="sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
         <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
           <th className="py-4 px-3 w-28 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Barcode</th>
@@ -154,13 +156,13 @@ const CartTable = React.memo(function CartTable({
                     <td className="p-2" onClick={e => e.stopPropagation()}>
                       <div className="relative inline-flex items-center w-full max-w-[120px] mx-auto">
                         <span className="absolute left-3 text-[11px] font-bold" style={{ color: 'var(--text-tertiary)' }}>₹</span>
-                        <input type="number" step="0.01" value={item.customPriceInput !== undefined ? (typeof item.customPriceInput === 'number' ? item.customPriceInput.toFixed(2) : item.customPriceInput) : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChangeGroup(item.groupKey, e.target.value)} onBlur={() => onCustomPriceBlurGroup(item.groupKey)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} MRP`} />
+                        <input type="number" step="0.01" onWheel={handleWheelBlur} value={item.customPriceInput !== undefined ? (typeof item.customPriceInput === 'number' ? item.customPriceInput.toFixed(2) : item.customPriceInput) : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChangeGroup(item.groupKey, e.target.value)} onBlur={() => onCustomPriceBlurGroup(item.groupKey)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} MRP`} />
                       </div>
                     </td>
                     <td className="p-2"  onClick={e => e.stopPropagation()}>
                       <div className="relative inline-flex items-center w-full max-w-[120px] mx-auto">
                         <span className="absolute left-3 text-[11px] font-bold" style={{ color: 'var(--text-tertiary)' }}>₹</span>
-                        <input type="number" step="0.01" value={item.customTotalInput !== undefined ? item.customTotalInput : item.totalPrice.toFixed(2)} onChange={(e) => onCustomTotalChangeGroup(item.groupKey, e.target.value, item.totalBillableQty)} onBlur={() => onCustomPriceBlurGroup(item.groupKey)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} total`} />
+                        <input type="number" step="0.01" onWheel={handleWheelBlur} value={item.customTotalInput !== undefined ? item.customTotalInput : item.totalPrice.toFixed(2)} onChange={(e) => onCustomTotalChangeGroup(item.groupKey, e.target.value, item.totalBillableQty)} onBlur={() => onCustomPriceBlurGroup(item.groupKey)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} total`} />
                       </div>
                     </td>
                     <td className="p-2 text-center align-middle" onClick={e => e.stopPropagation()}>
@@ -298,14 +300,14 @@ const CartTable = React.memo(function CartTable({
                         ) : (
                           <>
                             <div className="relative inline-flex items-center">
-                              <input type="number" step="any" placeholder="L" disabled={activeTab === 'receive'} value={activeTab === 'receive' ? (item.pieceLength || item.default_length || '') : (item.length !== undefined ? item.length : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_length', e.target.value) : onUpdateDimensions(item.id, 'length', e.target.value)} className={`w-24 h-8 pl-2 pr-10 text-sm font-semibold text-center focus:outline-none rounded-md ${activeTab === 'receive' ? 'opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]' : ''}`} style={{ border: '1px solid var(--border-medium)' }} title={activeTab === 'receive' ? "Length is locked during receive" : "Length"} aria-label="Length" />
+                              <input type="number" step="any" onWheel={handleWheelBlur} placeholder="L" disabled={activeTab === 'receive'} value={activeTab === 'receive' ? (item.pieceLength || item.default_length || '') : (item.length !== undefined ? item.length : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_length', e.target.value) : onUpdateDimensions(item.id, 'length', e.target.value)} className={`w-24 h-8 pl-2 pr-10 text-sm font-semibold text-center focus:outline-none rounded-md ${activeTab === 'receive' ? 'opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]' : ''}`} style={{ border: '1px solid var(--border-medium)' }} title={activeTab === 'receive' ? "Length is locked during receive" : "Length"} aria-label="Length" />
                               <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>{item.unit === 'SQFT' ? 'ft' : (item.unit?.toUpperCase() === 'METER' ? 'M' : item.unit)}</span>
                             </div>
                             {item.unit === 'SQFT' && (
                               <>
                                 <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
                                 <div className="relative inline-flex items-center">
-                                  <input type="number" step="any" placeholder="H" disabled={activeTab === 'receive'} value={activeTab === 'receive' ? (item.default_width || '') : (item.width !== undefined ? item.width : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_width', e.target.value) : onUpdateDimensions(item.id, 'width', e.target.value)} className={`w-24 h-8 pl-2 pr-10 text-sm font-semibold text-center focus:outline-none rounded-md ${activeTab === 'receive' ? 'opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]' : ''}`} style={{ border: '1px solid var(--border-medium)' }} title={activeTab === 'receive' ? "Width is locked during receive" : "Height"} aria-label="Height" />
+                                  <input type="number" step="any" onWheel={handleWheelBlur} placeholder="H" disabled={activeTab === 'receive'} value={activeTab === 'receive' ? (item.default_width || '') : (item.width !== undefined ? item.width : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_width', e.target.value) : onUpdateDimensions(item.id, 'width', e.target.value)} className={`w-24 h-8 pl-2 pr-10 text-sm font-semibold text-center focus:outline-none rounded-md ${activeTab === 'receive' ? 'opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]' : ''}`} style={{ border: '1px solid var(--border-medium)' }} title={activeTab === 'receive' ? "Width is locked during receive" : "Height"} aria-label="Height" />
                                   <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>ft</span>
                                 </div>
                               </>
@@ -316,7 +318,7 @@ const CartTable = React.memo(function CartTable({
                             ) : activeTab === 'receive' ? (
                               <input type="number" step="any" min="1" placeholder="Qty" disabled value={item.quantity} className="w-14 h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]" style={{ border: '1px solid var(--border-medium)' }} title="Scan to increase quantity" aria-label="Quantity" />
                             ) : (
-                              <input type="number" step="any" min="1" placeholder="Qty" value={item.rolls !== undefined ? item.rolls : '1'} onChange={(e) => onUpdateDimensions(item.id, 'rolls', e.target.value)} className="w-14 h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)' }} title="Qty" aria-label="Quantity" />
+                              <input type="number" step="any" min="1" onWheel={handleWheelBlur} placeholder="Qty" value={item.rolls !== undefined ? item.rolls : '1'} onChange={(e) => onUpdateDimensions(item.id, 'rolls', e.target.value)} className="w-14 h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)' }} title="Qty" aria-label="Quantity" />
                             )}
                           </>
                         )}
@@ -364,6 +366,7 @@ const CartTable = React.memo(function CartTable({
                                     type="number"
                                     step="1"
                                     min="0"
+                                    onWheel={handleWheelBlur}
                                     value={currentGrams}
                                     onChange={(e) => {
                                       const val = e.target.value;
@@ -402,7 +405,7 @@ const CartTable = React.memo(function CartTable({
                           <>
                             <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-8 h-8 flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border border-[var(--border-medium)] rounded-md bg-[var(--bg-tertiary)] shadow-sm cursor-pointer" aria-label={`Decrease ${item.name} quantity`}>-</button>
                             <div className="relative inline-flex items-center">
-                              <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-20 h-8 pl-3 pr-7 text-sm font-bold text-center bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-all shadow-sm" aria-label={`${item.name} quantity`} style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.1) inset' }} />
+                              <input type="number" step="any" min="0" onWheel={handleWheelBlur} value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-20 h-8 pl-3 pr-7 text-sm font-bold text-center bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-all shadow-sm" aria-label={`${item.name} quantity`} style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.1) inset' }} />
                               <span className="absolute right-2 text-[10px] font-bold pointer-events-none text-[var(--text-tertiary)]">
                                 {formatUnitBadge((item.unit === 'SQFT' || item.is_cuttable) && activeTab !== 'checkout' ? 'PCS' : item.unit)}
                               </span>
@@ -429,7 +432,7 @@ const CartTable = React.memo(function CartTable({
                       <div className="h-8 flex items-center justify-center w-full">
                         <div className="relative flex items-center justify-center w-full max-w-[120px] h-8 mx-auto">
                           <span className="absolute left-3 text-[11px] font-bold pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>₹</span>
-                          <input type="number" step="0.01" value={item.customPriceInput !== undefined ? (typeof item.customPriceInput === 'number' ? item.customPriceInput.toFixed(2) : item.customPriceInput) : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChange(item.id, e.target.value)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} MRP`} />
+                          <input type="number" step="0.01" onWheel={handleWheelBlur} value={item.customPriceInput !== undefined ? (typeof item.customPriceInput === 'number' ? item.customPriceInput.toFixed(2) : item.customPriceInput) : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChange(item.id, e.target.value)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} MRP`} />
                         </div>
                       </div>
                       {hasSubtext && (
@@ -446,7 +449,7 @@ const CartTable = React.memo(function CartTable({
                       <div className="h-8 flex items-center justify-center w-full">
                         <div className="relative flex items-center justify-center w-full max-w-[120px] h-8 mx-auto">
                           <span className="absolute left-3 text-[11px] font-bold pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>₹</span>
-                          <input type="number" step="0.01" value={item.customTotalInput !== undefined ? item.customTotalInput : (sellPrice * billableQty).toFixed(2)} onChange={(e) => onCustomTotalChange(item.id, e.target.value, billableQty)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} total`} />
+                          <input type="number" step="0.01" onWheel={handleWheelBlur} value={item.customTotalInput !== undefined ? item.customTotalInput : (sellPrice * billableQty).toFixed(2)} onChange={(e) => onCustomTotalChange(item.id, e.target.value, billableQty)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} total`} />
                         </div>
                       </div>
                       {hasSubtext && (
@@ -483,8 +486,6 @@ const CartTable = React.memo(function CartTable({
         })()}
           </tbody>
         </table>
-      </div>
-    </div>
   );
 });
 
