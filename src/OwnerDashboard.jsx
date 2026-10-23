@@ -176,7 +176,7 @@ export default function OwnerDashboard() {
 
       {/* MAIN CONTENT */}
       <main
-        className="flex-1 min-w-0 flex flex-col p-3 pb-20 md:p-4 overflow-y-auto overflow-x-hidden relative m-0 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm"
+        className="flex-1 min-w-0 min-h-0 flex flex-col p-3 pb-20 md:p-4 overflow-y-auto overflow-x-hidden relative m-0 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm"
         style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}
         role="main"
         aria-label="Dashboard content"
@@ -196,7 +196,7 @@ export default function OwnerDashboard() {
               viewType={warehouseSubTab}
             />
           ) : (
-            <div className="flex flex-col flex-1 h-full animate-fade-in">
+            <div className="flex flex-col flex-1 h-full min-h-0 animate-fade-in">
               <PageTitleReset
                 title={isWarehouseDisabled ? 'Store Inventory Actions' : 'Main Storage Actions'}
                 onReset={handleResetWarehouse}
@@ -243,12 +243,12 @@ export default function OwnerDashboard() {
                 />
               )}
               {warehouseSubTab === 'receive' && (
-                <div className="flex-1 rounded-lg overflow-hidden border border-[var(--border-light)] bg-[var(--bg-secondary)]">
+                <div className="flex-1 rounded-lg overflow-hidden border border-[var(--border-light)] bg-[var(--bg-secondary)] flex flex-col min-h-0 h-full">
                   <WorkerBilling defaultTab="receive" hideNav={true} />
                 </div>
               )}
               {warehouseSubTab === 'transfer' && !isWarehouseDisabled && (
-                <div className="flex-1 rounded-lg overflow-hidden border border-[var(--border-light)] bg-[var(--bg-secondary)]">
+                <div className="flex-1 rounded-lg overflow-hidden border border-[var(--border-light)] bg-[var(--bg-secondary)] flex flex-col min-h-0 h-full">
                   <WorkerBilling defaultTab="transfer" hideNav={true} />
                 </div>
               )}
@@ -263,8 +263,8 @@ export default function OwnerDashboard() {
         )}
 
         {activeTab === 'checkout' && (
-          <div className="flex flex-col h-full animate-fade-in">
-            <div className="flex-1 rounded-lg overflow-hidden border border-[var(--border-light)] bg-[var(--bg-secondary)]">
+          <div className="flex flex-col flex-1 h-full min-h-0 animate-fade-in">
+            <div className="flex-1 rounded-lg overflow-hidden border border-[var(--border-light)] bg-[var(--bg-secondary)] flex flex-col min-h-0 h-full">
               <WorkerBilling defaultTab="checkout" hideNav={true} />
             </div>
           </div>

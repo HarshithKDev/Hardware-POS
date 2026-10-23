@@ -2367,7 +2367,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           </div>
         </div>
       ) : (
-        <div className="flex flex-col flex-1 min-h-[500px] shadow-sm print:hidden relative" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+        <div className="flex flex-col flex-1 h-full min-h-0 shadow-sm print:hidden relative overflow-hidden" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
           
           {/* Offline Banner */}
           {!isOnline && (
@@ -2423,7 +2423,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             ))}
           </div>
         )}
-        <div className={`p-4 flex flex-col md:flex-row justify-between gap-4 ${(activeTab === 'receive' || activeTab === 'transfer') ? 'hidden md:flex' : ''}`} style={{ borderBottom: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}>
+        <div className={`p-4 shrink-0 flex flex-col md:flex-row justify-between gap-4 ${(activeTab === 'receive' || activeTab === 'transfer') ? 'hidden md:flex' : ''}`} style={{ borderBottom: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}>
           <div className="flex flex-col w-full md:w-auto flex-1 md:flex-none">
             <h2 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>
               {activeTab === 'receive' ? 'Receive Stock' : activeTab === 'transfer' ? 'Move Stock to Store' : 'Checkout Counter'}
@@ -2470,7 +2470,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         </div>
 
         {/* Desktop View */}
-        <div className="hidden md:block flex-1 overflow-y-auto overflow-x-hidden" style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}>
+        <div className="hidden md:block flex-1 min-h-0 overflow-auto" style={{ backgroundColor: 'var(--bg-secondary)' }}>
           <CartTable
             cart={cart}
             selectedCartIndex={selectedCartIndex}
@@ -2489,7 +2489,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         </div>
 
         {/* Mobile View for Checkout */}
-        <div className="md:hidden flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
+        <div className="md:hidden flex-1 min-h-0 overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
           <CartMobileView
             cart={cart}
             activeTab={activeTab}
