@@ -416,7 +416,7 @@ function DashboardDateFilter({
       {/* Calendar Popover Modal */}
       {isOpen && (
         <div
-          className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-[340px] sm:w-84 rounded-xl shadow-2xl p-3.5 z-50 flex flex-col gap-3 animate-scale-in"
+          className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-[320px] sm:w-84 rounded-xl shadow-2xl p-3.5 z-50 flex flex-col gap-3 animate-scale-in"
           style={{
             backgroundColor: 'var(--bg-secondary)',
             border: '1px solid var(--border-medium)',

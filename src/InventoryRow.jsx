@@ -16,10 +16,61 @@ export default function InventoryRow({
   onSelect, 
   onRestore, 
   isSelectionMode, 
-  onOpenBatchDetails 
+  onOpenBatchDetails,
+  onLongPress 
 }) {
   const { isWarehouseDisabled } = useApp();
   const shopId = item.shop_id || localStorage.getItem('shop_id');
+
+  // Long-press handling for mobile selection
+  const timerRef = useRef(null);
+  const startPosRef = useRef({ x: 0, y: 0 });
+  const didLongPressRef = useRef(false);
+  const [isPressing, setIsPressing] = useState(false);
+
+  const startPress = useCallback((clientX, clientY) => {
+    startPosRef.current = { x: clientX, y: clientY };
+    didLongPressRef.current = false;
+    setIsPressing(true);
+    
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      didLongPressRef.current = true;
+      setIsPressing(false);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        try { navigator.vibrate(50); } catch (_) {}
+      }
+      if (onLongPress) {
+        onLongPress(item.barcode);
+      }
+    }, 450);
+  }, [item.barcode, onLongPress]);
+
+  const movePress = useCallback((clientX, clientY) => {
+    const dx = Math.abs(clientX - startPosRef.current.x);
+    const dy = Math.abs(clientY - startPosRef.current.y);
+    if (dx > 10 || dy > 10) {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      setIsPressing(false);
+    }
+  }, []);
+
+  const endPress = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setIsPressing(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
   const { data: pieceCounts } = useQuery({
     queryKey: ['piece_counts', shopId, item.barcode],
     queryFn: async () => {
@@ -454,7 +505,46 @@ export default function InventoryRow({
   return (
     <>
         {/* MOBILE COMPACT CARD LAYOUT */}
-        <td className="md:hidden block p-2.5 sm:p-3 text-left w-full border-none">
+        <td 
+          className={`md:hidden block p-2.5 sm:p-3 text-left w-full border-none select-none transition-all duration-150 ${
+            isSelected 
+              ? 'bg-[var(--color-accent)]/15 ring-2 ring-[var(--color-accent)] rounded-lg' 
+              : isPressing 
+                ? 'scale-[0.99] bg-[var(--bg-tertiary)] opacity-90 rounded-lg' 
+                : ''
+          }`}
+          onTouchStart={(e) => {
+            if (e.touches && e.touches[0]) {
+              startPress(e.touches[0].clientX, e.touches[0].clientY);
+            }
+          }}
+          onTouchMove={(e) => {
+            if (e.touches && e.touches[0]) {
+              movePress(e.touches[0].clientX, e.touches[0].clientY);
+            }
+          }}
+          onTouchEnd={endPress}
+          onTouchCancel={endPress}
+          onMouseDown={(e) => {
+            if (e.button === 0) {
+              startPress(e.clientX, e.clientY);
+            }
+          }}
+          onMouseMove={(e) => {
+            if (isPressing) {
+              movePress(e.clientX, e.clientY);
+            }
+          }}
+          onMouseUp={endPress}
+          onMouseLeave={endPress}
+          onClickCapture={(e) => {
+            if (didLongPressRef.current) {
+              e.stopPropagation();
+              e.preventDefault();
+              didLongPressRef.current = false;
+            }
+          }}
+        >
           {/* Row 1: Barcode, Name, Category & Stock */}
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
@@ -509,6 +599,8 @@ export default function InventoryRow({
           <div className="flex items-center justify-between gap-1.5 mt-2 pt-2 border-t border-[var(--border-light)]">
             <button
               type="button"
+              onTouchStart={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => { 
                 e.stopPropagation(); 
                 setIsHovered(false);
@@ -530,6 +622,8 @@ export default function InventoryRow({
             {viewType === 'recycle' ? (
               <button 
                 type="button"
+                onTouchStart={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => { 
                   e.stopPropagation(); 
                   onRestore && onRestore(item.barcode);
@@ -544,6 +638,8 @@ export default function InventoryRow({
             ) : (
               <button 
                 type="button"
+                onTouchStart={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => { 
                   e.stopPropagation(); 
                   window.dispatchEvent(new CustomEvent('openCreateBatchModal', { detail: item }));

@@ -856,11 +856,11 @@ export default function OwnerLedger({ isActive }) {
                   setDatePageIndex(p => Math.max(0, p - 1));
                 }} 
                 disabled={datePageIndex === 0 && (!customDate || customDate === availableDates[0])} 
-                className="h-8 px-2.5 sm:px-4 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] flex items-center gap-1 shrink-0"
+                className="h-8 px-2.5 sm:px-4 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] flex items-center justify-center gap-1 shrink-0"
                 style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
                 title="Previous Day"
               >
-                <span>&larr; <span className="hidden sm:inline">Previous</span><span className="sm:hidden">Prev</span></span>
+                <span>&larr;<span className="hidden sm:inline"> Previous</span></span>
               </button>
 
               <div className="flex items-center gap-1.5 sm:gap-2 text-xs font-medium text-[var(--text-secondary)] text-center min-w-0">
@@ -886,11 +886,11 @@ export default function OwnerLedger({ isActive }) {
                   setDatePageIndex(p => Math.min(Math.max(0, availableDates.length - 1), p + 1));
                 }} 
                 disabled={availableDates.length === 0 || (datePageIndex >= availableDates.length - 1 && (!customDate || customDate === availableDates[availableDates.length - 1]))} 
-                className="h-8 px-2.5 sm:px-4 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] flex items-center gap-1 shrink-0"
+                className="h-8 px-2.5 sm:px-4 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] flex items-center justify-center gap-1 shrink-0"
                 style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
                 title="Next Day"
               >
-                <span><span className="hidden sm:inline">Next</span><span className="sm:hidden">Next</span> &rarr;</span>
+                <span><span className="hidden sm:inline">Next </span>&rarr;</span>
               </button>
             </>
           ) : (
@@ -898,10 +898,11 @@ export default function OwnerLedger({ isActive }) {
               <button 
                 onClick={() => setSalesPage(p => Math.max(0, p - 1))} 
                 disabled={salesPage === 0} 
-                className="h-8 px-3 sm:px-5 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] shrink-0"
+                className="h-8 px-2.5 sm:px-5 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] shrink-0 flex items-center justify-center"
                 style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+                title="Previous Page"
               >
-                &larr; Prev
+                <span>&larr;<span className="hidden sm:inline"> Prev</span></span>
               </button>
 
               <div className="text-xs text-[var(--text-secondary)] text-center truncate px-1">
@@ -911,10 +912,11 @@ export default function OwnerLedger({ isActive }) {
               <button 
                 onClick={() => setSalesPage(p => p + 1)} 
                 disabled={bills.length < SALES_PER_PAGE} 
-                className="h-8 px-3 sm:px-5 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] shrink-0"
+                className="h-8 px-2.5 sm:px-5 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] shrink-0 flex items-center justify-center"
                 style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+                title="Next Page"
               >
-                Next &rarr;
+                <span><span className="hidden sm:inline">Next </span>&rarr;</span>
               </button>
             </>
           )}

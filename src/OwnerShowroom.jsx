@@ -186,18 +186,20 @@ export default function OwnerShowroom() {
             <button
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] btn-press"
+              className="h-8 px-3 sm:px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] btn-press flex items-center justify-center"
               style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+              title="Previous Page"
             >
-              Previous
+              <span>&larr;<span className="hidden sm:inline"> Previous</span></span>
             </button>
             <button
               onClick={() => setPage(p => p + 1)}
               disabled={!hasMore}
-              className="h-8 px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] btn-press"
+              className="h-8 px-3 sm:px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] btn-press flex items-center justify-center"
               style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+              title="Next Page"
             >
-              Next
+              <span><span className="hidden sm:inline">Next </span>&rarr;</span>
             </button>
           </div>
         )}

@@ -55,28 +55,27 @@ export default function BillDetailsView({
 
   return (
     <div className="flex-1 flex flex-col h-full min-h-0 animate-fade-in text-[var(--text-primary)]">
-      {/* ROW 1: TOP NAVIGATION WITH BACK & PROCESS RETURN BUTTONS */}
+      {/* ROW 1: TOP NAVIGATION WITH BACK & RETURN BUTTONS */}
       <div className="flex items-center justify-between pb-3 mb-3 shrink-0">
         <button
           type="button"
           onClick={onBack}
           aria-label="Back to Sales History"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider text-[var(--text-secondary)] hover:text-white bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] border border-[var(--border-medium)] transition-all cursor-pointer shadow-sm hover:border-[var(--color-accent)] active:scale-95"
+          className="flex items-center justify-center w-9 h-9 rounded-lg text-[var(--text-secondary)] hover:text-white bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] border border-[var(--border-medium)] transition-all cursor-pointer shadow-sm hover:border-[var(--color-accent)] active:scale-95"
           title="Back to Sales History"
         >
-          <ArrowLeft className="w-4 h-4 text-[var(--color-accent)]" />
-          <span>Back to Sales</span>
+          <ArrowLeft className="w-5 h-5 text-[var(--color-accent)]" />
         </button>
 
         {!isVoided && onProcessReturn && (
           <button
             type="button"
             onClick={() => onProcessReturn(currentBill)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-all cursor-pointer shadow-sm hover:border-red-500 active:scale-95"
+            className="flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-bold uppercase tracking-wider text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-all cursor-pointer shadow-sm hover:border-red-500 active:scale-95"
             title="Process Return for this Bill"
           >
             <Undo2 className="w-4 h-4 text-red-400" />
-            <span>Process Return</span>
+            <span>Return</span>
           </button>
         )}
       </div>

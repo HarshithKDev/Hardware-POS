@@ -6,7 +6,7 @@ import { AlertDialog, ConfirmDialog } from './Dialog';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from './AppContext';
 import { startBackgroundSync, stopBackgroundSync } from './services/sync';
-import { WifiOff, ScanBarcode, LayoutDashboard, Moon, Sun, Power } from 'lucide-react';
+import { WifiOff, ScanBarcode, Moon, Sun, Power } from 'lucide-react';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -366,24 +366,7 @@ function App() {
               </div>
             )}
 
-            {userRole === 'owner' && (
-              <>
-                <button
-                  onClick={() => navigate('/owner/dashboard')}
-                  className="h-8 w-8 md:h-9 md:w-auto rounded-md md:px-4 lg:px-6 md:py-2 text-xs font-bold uppercase tracking-wider focus:outline-none transition-colors shrink-0 flex items-center justify-center gap-2"
-                  style={{
-                    backgroundColor: location.pathname.startsWith('/owner') ? 'var(--color-accent)' : 'var(--bg-secondary)',
-                    color: location.pathname.startsWith('/owner') ? 'var(--color-accent-fg)' : 'var(--text-primary)',
-                    border: `1px solid ${location.pathname.startsWith('/owner') ? 'var(--color-accent)' : 'var(--border-medium)'}`,
-                  }}
-                  title="Management Dashboard"
-                >
-                  <span className="hidden md:inline">Management</span>
-                  <LayoutDashboard size={16} className="md:hidden" />
-                </button>
-                <div className="h-6 md:h-7 w-px mx-0.5 md:mx-1 shrink-0" style={{ backgroundColor: 'var(--border-medium)' }} />
-              </>
-            )}
+
 
             <button
               onClick={() => setShowLogoutConfirm(true)}

@@ -314,8 +314,19 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
   };
 
   const toggleSelect = (barcode) => {
-    setSelectedBarcodes(prev => prev.includes(barcode) ? prev.filter(b => b !== barcode) : [...prev, barcode]);
+    setSelectedBarcodes(prev => {
+      const next = prev.includes(barcode) ? prev.filter(b => b !== barcode) : [...prev, barcode];
+      if (next.length === 0 && window.innerWidth < 768) {
+        setIsSelectionMode(false);
+      }
+      return next;
+    });
   };
+
+  const handleLongPress = useCallback((barcode) => {
+    setIsSelectionMode(true);
+    setSelectedBarcodes(prev => prev.includes(barcode) ? prev : [...prev, barcode]);
+  }, []);
 
   const toggleSelectAll = (e) => {
     if (e.target.checked) {
@@ -679,6 +690,17 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
                 <button onClick={bulkDelete} className="h-8 px-4 text-xs font-bold rounded focus:outline-none transition-colors hover:opacity-90 text-white" style={{ backgroundColor: viewType === 'recycle' ? 'var(--color-success)' : 'var(--color-error)' }}>
                   {viewType === 'recycle' ? 'Restore Selected' : 'Delete Selected'}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedBarcodes([]);
+                    setIsSelectionMode(false);
+                  }}
+                  className="h-8 px-3 text-xs font-bold rounded focus:outline-none transition-colors hover:opacity-90 md:hidden cursor-pointer"
+                  style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border-medium)' }}
+                >
+                  Cancel
+                </button>
               </>
             )}
           </div>
@@ -731,6 +753,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
               </div>
             </div>
 
+            {/* Select Items button: desktop only, since mobile uses long-press */}
             <button
               onClick={() => {
                 if (isSelectionMode) {
@@ -739,7 +762,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
                 }
                 setIsSelectionMode(!isSelectionMode);
               }}
-              className="h-11 md:h-10 px-4 text-sm font-medium rounded-md flex items-center justify-center gap-2 transition-colors shrink-0 cursor-pointer"
+              className="hidden md:flex h-11 md:h-10 px-4 text-sm font-medium rounded-md items-center justify-center gap-2 transition-colors shrink-0 cursor-pointer"
               style={{ 
                 backgroundColor: isSelectionMode ? 'var(--color-accent-bg)' : 'var(--bg-secondary)', 
                 color: isSelectionMode ? 'var(--color-accent)' : 'var(--text-secondary)',
@@ -791,6 +814,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
                 onEditChange={handleBulkEditChange}
                 onRestore={handleRestore}
                 isSelectionMode={isSelectionMode}
+                onLongPress={handleLongPress}
                 onOpenBatchDetails={(targetItem) => {
                   if (onOpenBatchDetails) {
                     onOpenBatchDetails(targetItem);
