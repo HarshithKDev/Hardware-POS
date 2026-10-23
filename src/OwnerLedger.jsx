@@ -78,10 +78,10 @@ export default function OwnerLedger({ isActive }) {
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const searchContainerRef = useRef(null);
 
-  const [selectedBill, setSelectedBill] = useState(null);
+  const [selectedBill, setSelectedBill] = useSessionState(`pos_ledger_selected_${shopId}`, null);
   const [billItemsCache, setBillItemsCache] = useState({});
   const [isLoadingItems, setIsLoadingItems] = useState(false);
-  const [returnModalState, setReturnModalState] = useState(null); // { bill, items }
+  const [returnModalState, setReturnModalState] = useSessionState(`pos_ledger_return_modal_${shopId}`, null);
 
   const handleResetLedger = () => {
     setSearchQuery('');
@@ -89,12 +89,15 @@ export default function OwnerLedger({ isActive }) {
     setDatePageIndex(0);
     setCustomDate('');
     setSelectedBill(null);
+    setReturnModalState(null);
     setShowCustomerDropdown(false);
     try {
       window.sessionStorage.removeItem(`pos_ledger_sales_page_${shopId}`);
       window.sessionStorage.removeItem(`pos_ledger_date_idx_${shopId}`);
       window.sessionStorage.removeItem(`pos_ledger_custom_date_${shopId}`);
       window.sessionStorage.removeItem(`pos_ledger_search_${shopId}`);
+      window.sessionStorage.removeItem(`pos_ledger_selected_${shopId}`);
+      window.sessionStorage.removeItem(`pos_ledger_return_modal_${shopId}`);
     } catch (e) {}
   };
 

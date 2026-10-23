@@ -12,13 +12,14 @@ const SHOWROOM_PAGE_SIZE = 20;
 export default function OwnerShowroom() {
   const shopId = localStorage.getItem('shop_id');
   const [page, setPage] = useSessionState(`pos_showroom_page_${shopId}`, 0);
-  const [selectedBill, setSelectedBill] = useState(null);
+  const [selectedBill, setSelectedBill] = useSessionState(`pos_showroom_selected_${shopId}`, null);
 
   const handleResetShowroom = () => {
     setPage(0);
     setSelectedBill(null);
     try {
       window.sessionStorage.removeItem(`pos_showroom_page_${shopId}`);
+      window.sessionStorage.removeItem(`pos_showroom_selected_${shopId}`);
     } catch (e) {}
   };
 

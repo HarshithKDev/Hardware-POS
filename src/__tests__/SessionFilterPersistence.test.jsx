@@ -183,4 +183,61 @@ describe('useSessionState Hook', () => {
     const invMod = await import('../OwnerInventory');
     expect(invMod.default).toBeDefined();
   });
+
+  it('maintains open row details state (e.g. showroom dispatch view) when switching sidebar tabs', () => {
+    function MasterDetailView() {
+      const [selectedRow, setSelectedRow] = useSessionState('pos_test_selected_row', null);
+
+      if (selectedRow) {
+        return (
+          <div data-testid="detail-view">
+            <h2>Details for {selectedRow.customer_name}</h2>
+            <button data-testid="back-btn" onClick={() => setSelectedRow(null)}>
+              Back
+            </button>
+          </div>
+        );
+      }
+
+      return (
+        <div data-testid="master-list">
+          <h1>List View</h1>
+          <button
+            data-testid="row-1"
+            onClick={() => setSelectedRow({ id: 'bill-123', customer_name: 'Satyam patalu' })}
+          >
+            Satyam patalu
+          </button>
+        </div>
+      );
+    }
+
+    // 1. User views list and clicks into row "Satyam patalu"
+    const { unmount } = render(<MasterDetailView />);
+    expect(screen.getByTestId('master-list')).toBeInTheDocument();
+
+    act(() => {
+      fireEvent.click(screen.getByTestId('row-1'));
+    });
+
+    expect(screen.getByTestId('detail-view')).toBeInTheDocument();
+    expect(screen.getByText('Details for Satyam patalu')).toBeInTheDocument();
+
+    // 2. User switches to different sidebar tab (Component unmounts)
+    unmount();
+
+    // 3. User comes back to the sidebar tab (Component remounts)
+    const remounted = render(<MasterDetailView />);
+
+    // User is STILL inside the row details view — not reset to the list!
+    expect(remounted.getByTestId('detail-view')).toBeInTheDocument();
+    expect(remounted.getByText('Details for Satyam patalu')).toBeInTheDocument();
+
+    // 4. Clicking Back button returns to the list
+    act(() => {
+      fireEvent.click(remounted.getByTestId('back-btn'));
+    });
+
+    expect(remounted.getByTestId('master-list')).toBeInTheDocument();
+  });
 });

@@ -90,7 +90,7 @@ export default function BatchDetailsView({
       .sort((a, b) => (a.batch_number || 1) - (b.batch_number || 1));
   }, [rawBatches]);
 
-  const [activeBatchId, setActiveBatchId] = useState(batches[0]?.batch_id || null);
+  const [activeBatchId, setActiveBatchId] = useSessionState(`pos_batch_active_${shopId}_${barcode}`, batches[0]?.batch_id || null);
 
   useEffect(() => {
     if (batches.length > 0) {

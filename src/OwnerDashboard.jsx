@@ -4,6 +4,7 @@ import { useApp } from './AppContext';
 import { PageLoader } from './SharedUI';
 import OwnerStats from './OwnerStats';
 import PageTitleReset from './components/PageTitleReset';
+import { useSessionState } from './hooks/useSessionState';
 
 const OwnerCatalog = lazy(() => import('./OwnerCatalog'));
 const OwnerInventory = lazy(() => import('./OwnerInventory'));
@@ -40,9 +41,8 @@ export default function OwnerDashboard() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [selectedBatchBarcode, setSelectedBatchBarcode] = useState(null);
-
   const shopId = localStorage.getItem('shop_id');
+  const [selectedBatchBarcode, setSelectedBatchBarcode] = useSessionState(`pos_owner_batch_barcode_${shopId}`, null);
   const warehouseSubTab = searchParams.get('wsub') || 'inventory';
 
   useEffect(() => {
@@ -68,6 +68,7 @@ export default function OwnerDashboard() {
     setSearchParams({ wsub: 'inventory' });
     try {
       sessionStorage.removeItem(`pos_owner_warehouse_subtab_${shopId}`);
+      sessionStorage.removeItem(`pos_owner_batch_barcode_${shopId}`);
     } catch (e) {}
     window.dispatchEvent(new CustomEvent('reset_inventory_filters'));
   };
