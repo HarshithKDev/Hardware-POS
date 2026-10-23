@@ -555,7 +555,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
       return (
         <tr
           {...props}
-          className={`hover-row premium-hover ${context?.isSelectionMode ? 'cursor-pointer' : ''} ${isSelected ? 'selected' : ''} block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none border md:border-b md:border-t-0 md:border-l-0 md:border-r-0 border-[var(--border-medium)] md:border-[var(--border-medium)] mb-3 md:mb-0 relative ${isEdit ? 'transition-none' : ''}`}
+          className={`hover-row premium-hover ${context?.isSelectionMode ? 'cursor-pointer' : ''} ${isSelected ? 'selected' : ''} block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none border md:border-b md:border-t-0 md:border-l-0 md:border-r-0 border-[var(--border-medium)] md:border-[var(--border-medium)] mb-3 md:mb-0 relative md:static ${isEdit ? 'transition-none' : ''}`}
           style={{
             ...props.style,
             borderBottom: '1px solid var(--border-medium)',

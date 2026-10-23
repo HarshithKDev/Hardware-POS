@@ -625,6 +625,7 @@ table:not(.thermal-receipt table):not(#printable-receipt table) thead {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   opacity: 1 !important;
+  box-shadow: inset 0 -1px 0 var(--border-medium) !important;
 }
 
 table:not(.thermal-receipt table):not(#printable-receipt table) thead th,
@@ -647,6 +648,7 @@ th[class*="sticky"] {
   -webkit-backdrop-filter: none !important;
   opacity: 1 !important;
   background-clip: padding-box !important;
+  box-shadow: inset 0 -1px 0 var(--border-medium) !important;
 }
 
 /* Table header inner vertical dividers and bottom borders */
@@ -654,7 +656,7 @@ table:not(.thermal-receipt table):not(#printable-receipt table) thead th,
 table:not(.thermal-receipt table):not(#printable-receipt table) thead tr th,
 thead:not(.thermal-receipt thead):not(#printable-receipt thead) th,
 thead:not(.thermal-receipt thead):not(#printable-receipt thead) tr th {
-  box-shadow: 0 1px 0 var(--border-medium) !important;
+  box-shadow: inset 0 -1px 0 var(--border-medium) !important;
 }
 
 table:not(.thermal-receipt table):not(#printable-receipt table) thead th:not(:last-child),
@@ -662,6 +664,7 @@ table:not(.thermal-receipt table):not(#printable-receipt table) thead tr th:not(
 thead:not(.thermal-receipt thead):not(#printable-receipt thead) th:not(:last-child),
 thead:not(.thermal-receipt thead):not(#printable-receipt thead) tr th:not(:last-child) {
   border-right: 1px solid var(--border-medium) !important;
+  box-shadow: inset 0 -1px 0 var(--border-medium) !important;
 }
 
 table:not(.thermal-receipt table):not(#printable-receipt table) thead th:last-child,
@@ -669,6 +672,7 @@ table:not(.thermal-receipt table):not(#printable-receipt table) thead tr th:last
 thead:not(.thermal-receipt thead):not(#printable-receipt thead) th:last-child,
 thead:not(.thermal-receipt thead):not(#printable-receipt thead) tr th:last-child {
   border-right: none !important;
+  box-shadow: inset 0 -1px 0 var(--border-medium) !important;
 }
 
 /* ---------------------------------------------------------------
@@ -718,13 +722,29 @@ thead:not(.thermal-receipt thead):not(#printable-receipt thead) tr th:last-child
 }
 
 .premium-hover {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.15s ease;
 }
 
 .premium-hover:hover {
   background-color: var(--bg-hover) !important;
-  transform: scale(1.002);
-  z-index: 1;
+  transform: none !important;
+}
+
+/* Ensure table rows and cells never glitch or collapse borders on hover */
+tr.premium-hover,
+tr.hover-row,
+tbody tr {
+  transform: none !important;
+}
+
+tbody td {
+  background-clip: padding-box !important;
+}
+
+tbody tr:hover > td,
+tr.premium-hover:hover > td,
+tr.hover-row:hover > td {
+  background-color: var(--bg-hover) !important;
 }
 
 .btn-press {

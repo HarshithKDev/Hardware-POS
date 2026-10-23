@@ -235,7 +235,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
           )}
           <button
             onClick={() => setIsModalOpen(true)}
-            className="h-10 px-4 rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 text-white shadow-sm transition-all active:scale-95 shrink-0"
+            className="h-10 px-4 rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 text-white shadow-sm transition-all active:scale-95 shrink-0 cursor-pointer"
             style={{ backgroundColor: 'var(--color-accent)' }}
           >
             <Plus size={16} strokeWidth={2.5} />
@@ -258,16 +258,9 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
             <h3 className="text-base font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-primary)' }}>
               No Expenses Recorded
             </h3>
-            <p className="text-xs font-medium mb-4" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
               No expenses recorded yet.
             </p>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="h-9 px-4 rounded-lg text-xs font-semibold uppercase tracking-wider text-white shadow-sm cursor-pointer"
-              style={{ backgroundColor: 'var(--color-accent)' }}
-            >
-              + Add Expense
-            </button>
           </div>
         ) : (
           <>

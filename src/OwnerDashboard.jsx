@@ -88,7 +88,6 @@ export default function OwnerDashboard() {
   ], [isWarehouseDisabled]);
 
   const changeTab = (newTab) => {
-    setSelectedBatchBarcode(null);
     navigate(`/owner/${newTab}`);
     setIsSidebarOpen(false);
   };

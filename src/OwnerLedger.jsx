@@ -6,7 +6,7 @@ import { useApp } from './AppContext';
 import { formatDateTime, escapeIlike, formatDayHeader, useSessionState } from './utils';
 import { SALES_PER_PAGE } from './constants';
 import { DialogOverlay } from './Dialog';
-import { Search, Undo2, X, Phone, User, ChevronRight, Calendar } from 'lucide-react';
+import { Search, Undo2, X, Phone, User, Calendar } from 'lucide-react';
 import BillDetailsView from './BillDetailsView';
 import { getInventoryItemByBarcode } from './services/db';
 import PageTitleReset from './components/PageTitleReset';
@@ -688,37 +688,34 @@ export default function OwnerLedger({ isActive }) {
           <div className="w-full max-w-full h-full">
             <table className={`block md:table w-full md:table-fixed text-left border-collapse ${(isLoadingBills && bills.length === 0 || bills.length === 0) ? 'h-full' : ''}`}>
             <colgroup className="hidden md:table-column-group">
-              <col style={{ width: '18%' }} />
               <col style={{ width: '20%' }} />
-              <col style={{ width: '14%' }} />
+              <col style={{ width: '24%' }} />
+              <col style={{ width: '16%' }} />
               <col style={{ width: '12%' }} />
               <col style={{ width: '14%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '10%' }} />
+              <col style={{ width: '14%' }} />
             </colgroup>
             <thead className="hidden md:table-header-group sticky top-0 z-20 glass-header" style={{ borderBottom: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}>
               <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                <th className="py-4 px-3 w-[18%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Date &amp; Time</th>
-                <th className="py-4 px-3 w-[20%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Customer</th>
-                <th className="py-4 px-3 w-[14%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Cashier</th>
+                <th className="py-4 px-3 w-[20%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Date &amp; Time</th>
+                <th className="py-4 px-3 w-[24%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Customer</th>
+                <th className="py-4 px-3 w-[16%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Cashier</th>
                 <th className="py-4 px-3 w-[12%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Payment</th>
                 <th className="py-4 px-3 w-[14%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Total (₹)</th>
-                <th className="py-4 px-3 w-[12%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Action</th>
-                <th className="py-4 px-3 w-[10%] text-center">Details</th>
+                <th className="py-4 px-3 w-[14%] text-center">Action</th>
               </tr>
             </thead>
             <tbody className="block md:table-row-group p-2 md:p-0">
               {isLoadingBills && bills.length === 0 ? (
-                <tr className="block md:table-row border-none" style={{ borderBottom: 'none' }}><td colSpan="7" className="block md:table-cell h-[300px] text-center p-4 border-none" style={{ borderBottom: 'none' }}><PageLoader text="Loading sales..." /></td></tr>
+                <tr className="block md:table-row border-none" style={{ borderBottom: 'none' }}><td colSpan="6" className="block md:table-cell h-[300px] text-center p-4 border-none" style={{ borderBottom: 'none' }}><PageLoader text="Loading sales..." /></td></tr>
               ) : bills.length === 0 ? (
-                <tr className="block md:table-row border-none" style={{ borderBottom: 'none' }}><td colSpan="7" className="block md:table-cell h-[300px] p-0 border-none" style={{ borderBottom: 'none' }}><EmptyState message="No sales found for this period." /></td></tr>
+                <tr className="block md:table-row border-none" style={{ borderBottom: 'none' }}><td colSpan="6" className="block md:table-cell h-[300px] p-0 border-none" style={{ borderBottom: 'none' }}><EmptyState message="No sales found for this period." /></td></tr>
               ) : bills.map(bill => (
                 <tr
                   key={bill.id}
                   onClick={() => setSelectedBill(bill)}
-                  className="cursor-pointer premium-hover block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none border md:border-b md:border-t-0 md:border-l-0 md:border-r-0 border-[var(--border-medium)] md:border-[var(--border-medium)] mb-3 md:mb-0 relative transition-colors"
+                  className="cursor-pointer premium-hover block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none border md:border-b md:border-t-0 md:border-l-0 md:border-r-0 border-[var(--border-medium)] md:border-[var(--border-medium)] mb-3 md:mb-0 relative md:static transition-colors"
                   style={{
-                    backgroundColor: 'var(--bg-secondary)',
                     borderBottom: '1px solid var(--border-medium)',
                   }}
                 >
@@ -772,28 +769,17 @@ export default function OwnerLedger({ isActive }) {
                             <span>Return</span>
                           </button>
                         )}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedBill(bill);
-                          }}
-                          className="px-2.5 py-1 text-xs font-medium rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-1 cursor-pointer"
-                        >
-                          <span>View</span>
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </button>
                       </div>
                     </div>
                   </td>
 
                   {/* Desktop Table Cells - Center Aligned */}
-                  <td className="hidden md:table-cell py-4 px-3 w-[18%] text-sm text-center" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
+                  <td className="hidden md:table-cell py-4 px-3 w-[20%] text-sm text-center" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
                     <div className="font-semibold text-xs text-[var(--text-primary)]">{formatDateTime(bill.created_at).datePart}</div>
                     <div className="text-[11px] text-[var(--text-secondary)]">{formatDateTime(bill.created_at).timePart}</div>
                   </td>
 
-                  <td className="hidden md:table-cell py-4 px-3 w-[20%] text-sm text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                  <td className="hidden md:table-cell py-4 px-3 w-[24%] text-sm text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
                     {bill.customer_phone || bill.customer_name ? (
                       <div className="flex flex-col items-center justify-center">
                         {bill.customer_phone && (
@@ -815,7 +801,7 @@ export default function OwnerLedger({ isActive }) {
                     )}
                   </td>
 
-                  <td className="hidden md:table-cell py-4 px-3 w-[14%] text-sm text-center capitalize" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}>
+                  <td className="hidden md:table-cell py-4 px-3 w-[16%] text-sm text-center capitalize" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}>
                     <span className="font-medium">{bill.cashier_name}</span>
                   </td>
 
@@ -834,7 +820,7 @@ export default function OwnerLedger({ isActive }) {
                   </td>
 
                   {/* Dedicated Return Button on ALL Rows */}
-                  <td className="hidden md:table-cell py-4 px-3 w-[12%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                  <td className="hidden md:table-cell py-4 px-3 w-[14%] text-center">
                     {bill.status === 'voided' ? (
                       <span className="px-2.5 py-1 text-[10px] font-bold uppercase rounded bg-red-500/15 text-red-500 inline-block">
                         RETURNED
@@ -846,31 +832,13 @@ export default function OwnerLedger({ isActive }) {
                           e.stopPropagation();
                           handleOpenReturnModal(bill);
                         }}
-                        className="px-3 py-1.5 text-xs font-semibold rounded-md inline-flex items-center justify-center gap-1.5 transition-all shadow-sm text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 dark:bg-red-950/40 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/60 active:scale-95"
+                        className="px-3 py-1.5 text-xs font-semibold rounded-md inline-flex items-center justify-center gap-1.5 transition-all shadow-sm text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 dark:bg-red-950/40 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/60 active:scale-95 cursor-pointer"
                         title="Process Return for this Bill"
                       >
                         <Undo2 className="w-3.5 h-3.5" />
                         <span>Return</span>
                       </button>
                     )}
-                  </td>
-
-                  {/* View Details Button to open Full-Screen View */}
-                  <td className="hidden md:table-cell py-4 px-3 w-[10%] text-center h-full">
-                    <div className="flex justify-center items-center">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedBill(bill);
-                        }}
-                        className="px-2.5 py-1 text-xs font-medium rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors inline-flex items-center gap-1 cursor-pointer"
-                        title="View Full Bill Details"
-                      >
-                        <span>View</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
                   </td>
                 </tr>
               ))}

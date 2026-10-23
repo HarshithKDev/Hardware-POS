@@ -457,7 +457,7 @@ export default function OwnerAuditLogs() {
             {filteredLogs.map(log => {
               const styles = getActionStyles(log.action_type);
               return (
-                <tr key={log.id} className="transition-colors hover:bg-[var(--bg-hover)] group block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none mb-3 md:mb-0 border border-[var(--border-medium)] md:border-b md:border-t-0 md:border-l-0 md:border-r-0 md:border-[var(--border-medium)] relative" style={{ borderBottom: '1px solid var(--border-medium)' }}>
+                <tr key={log.id} className="transition-colors hover:bg-[var(--bg-hover)] group block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none mb-3 md:mb-0 border border-[var(--border-medium)] md:border-b md:border-t-0 md:border-l-0 md:border-r-0 md:border-[var(--border-medium)] relative md:static" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                   <td className="md:hidden block p-4 border-none w-full">
                     <div className="flex justify-between items-start mb-2 gap-2">
                       <div className="flex-1 min-w-0">

@@ -510,9 +510,6 @@ export default function OwnerCatalog() {
           <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
             Assigned Barcode: <span className=" font-bold text-lg" style={{ color: 'var(--color-accent)' }}>{nextBarcode || '...'}</span>
           </p>
-          <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>
-            Note: This barcode is provisional. It resolves automatically during concurrent saves.
-          </p>
         </div>
       </div>
 

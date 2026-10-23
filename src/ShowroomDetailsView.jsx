@@ -58,7 +58,7 @@ export default function ShowroomDetailsView({
       </div>
 
       {/* ESSENTIAL BILL & CUSTOMER INFO HEADER */}
-      <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] p-5 mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm shrink-0">
+      <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] p-4 sm:p-5 mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm shrink-0">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] mb-1">
             <span>Showroom Dispatch #{currentBill.id.split('-')[0]}</span>
@@ -66,13 +66,13 @@ export default function ShowroomDetailsView({
             <span>{datePart} at {timePart}</span>
           </div>
 
-          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-            <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)]">
+          <div className="flex items-center gap-2.5 mt-1 flex-wrap">
+            <h1 className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
               {currentBill.customer_name || 'Showroom Recipient'}
             </h1>
             {currentBill.customer_phone && (
-              <span className="text-base sm:text-lg font-semibold text-[var(--color-accent)] inline-flex items-center gap-1.5 bg-[var(--bg-tertiary)] px-3 py-1 rounded-lg border border-[var(--border-medium)]">
-                <Phone className="w-4 h-4" />
+              <span className="text-xs font-semibold text-[var(--color-accent)] inline-flex items-center gap-1 bg-[var(--bg-tertiary)] px-2.5 py-0.5 rounded-md border border-[var(--border-medium)]">
+                <Phone className="w-3.5 h-3.5" />
                 {currentBill.customer_phone}
               </span>
             )}
@@ -80,15 +80,12 @@ export default function ShowroomDetailsView({
         </div>
 
         {/* Showroom Dispatched Value */}
-        <div className="md:text-right">
-          <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-0.5">
+        <div className="md:text-right shrink-0">
+          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] block mb-0.5">
             Total Dispatched Value
           </span>
-          <span className="text-3xl sm:text-4xl font-extrabold text-[var(--color-accent)]">
+          <span className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] tabular-nums">
             ₹{Number(currentBill.total_amount || 0).toFixed(2)}
-          </span>
-          <span className="text-[11px] text-[var(--text-tertiary)] block mt-0.5">
-            Not added to shop sales or revenue
           </span>
         </div>
       </div>
@@ -105,13 +102,13 @@ export default function ShowroomDetailsView({
           </div>
         ) : (
           <div className="overflow-x-auto w-full flex-1">
-            <table className="w-full text-left border-collapse table-auto md:table-fixed">
+            <table className="w-full text-center border-collapse table-auto md:table-fixed">
               <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
-                <tr className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                  <th className="py-3.5 px-5 text-left md:w-[48%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Deducted Product</th>
-                  <th className="py-3.5 px-4 text-center md:w-[18%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Qty Deducted</th>
-                  <th className="py-3.5 px-4 text-right md:w-[17%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Unit Value</th>
-                  <th className="py-3.5 px-5 text-right md:w-[17%]">Total Value</th>
+                <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+                  <th className="py-3 px-4 text-center md:w-[40%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Deducted Product</th>
+                  <th className="py-3 px-4 text-center md:w-[20%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Qty Deducted</th>
+                  <th className="py-3 px-4 text-center md:w-[20%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Unit Value</th>
+                  <th className="py-3 px-4 text-center md:w-[20%]">Total Value</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-medium)]">
@@ -126,23 +123,22 @@ export default function ShowroomDetailsView({
                       className="hover:bg-[var(--bg-hover)] transition-colors"
                       style={{ borderBottom: '1px solid var(--border-medium)' }}
                     >
-                      <td className="py-4 px-5" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                        <div className="font-bold text-base sm:text-lg text-[var(--text-primary)]">
+                      <td className="py-3 px-4 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                        <div className="font-semibold text-sm text-[var(--text-primary)]">
                           {it.name}
                         </div>
                       </td>
 
-                      <td className="py-4 px-4 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                        <div className="font-bold text-base sm:text-lg text-[var(--text-primary)]">
-                          {qty} <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase">{it.unit || 'PCS'}</span>
-                        </div>
+                      <td className="py-3 px-4 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                        <span className="font-semibold text-sm text-[var(--text-primary)] tabular-nums">{qty}</span>
+                        <span className="text-xs font-normal text-[var(--text-secondary)] uppercase ml-1">{it.unit || 'PCS'}</span>
                       </td>
 
-                      <td className="py-4 px-4 text-right font-semibold text-base sm:text-lg text-[var(--text-secondary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                      <td className="py-3 px-4 text-center font-medium text-sm text-[var(--text-secondary)] tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
                         ₹{unitPrice.toFixed(2)}
                       </td>
 
-                      <td className="py-4 px-5 text-right font-bold text-base sm:text-lg text-[var(--text-primary)]">
+                      <td className="py-3 px-4 text-center font-bold text-sm text-[var(--text-primary)] tabular-nums">
                         ₹{lineTotal.toFixed(2)}
                       </td>
                     </tr>

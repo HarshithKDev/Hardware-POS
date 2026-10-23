@@ -177,16 +177,15 @@ describe('OwnerLedger (Sales History & Merged Returns)', () => {
     });
   });
 
-  it('opens full screen bill details view when View button is clicked and returns back', async () => {
+  it('opens full screen bill details view when row is clicked and returns back', async () => {
     renderComponent();
 
     await waitFor(() => {
       expect(screen.getAllByText('9876543210').length).toBeGreaterThan(0);
     });
 
-    const viewButtons = screen.getAllByRole('button', { name: /view/i });
-    expect(viewButtons.length).toBeGreaterThan(0);
-    fireEvent.click(viewButtons[0]);
+    const billRowText = screen.getAllByText('9876543210')[0];
+    fireEvent.click(billRowText.closest('tr'));
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /back to sales/i })).toBeInTheDocument();

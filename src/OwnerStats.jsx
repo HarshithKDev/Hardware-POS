@@ -12,7 +12,7 @@ import {
   DEAD_STOCK_ALARM_VALUE,
   STALE_TIME_5MIN,
 } from './constants';
-import { AlertTriangle, Calendar } from 'lucide-react';
+import { AlertTriangle, Calendar, ArrowUpRight } from 'lucide-react';
 import { useSessionState } from './hooks/useSessionState';
 import PageTitleReset from './components/PageTitleReset';
 
@@ -124,9 +124,10 @@ function StatCard({ title, value, accentColor, borderColor, onClick, clickLabel,
           {title}
         </p>
         {onClick && (
-          <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider shrink-0 text-[var(--color-accent)] opacity-80 group-hover:opacity-100 transition-opacity inline-flex items-center gap-0.5 mt-0.5">
-            View ↗
-          </span>
+          <ArrowUpRight
+            className="w-3.5 h-3.5 text-[var(--text-tertiary)] group-hover:text-[var(--color-accent)] transition-colors shrink-0 mt-0.5"
+            aria-hidden="true"
+          />
         )}
       </div>
 
@@ -1283,7 +1284,11 @@ export default function OwnerStats({ isActive }) {
                       </thead>
                       <tbody>
                         {tfSalesDetails.length === 0 ? (
-                          <tr><td colSpan="5" className="h-48 align-middle text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No sales recorded.</td></tr>
+                          <tr style={{ border: 'none', borderBottom: 'none' }} className="border-none hover:bg-transparent">
+                            <td colSpan="5" className="h-64 align-middle text-center text-sm font-medium border-none" style={{ color: 'var(--text-tertiary)', border: 'none' }}>
+                              No sales recorded.
+                            </td>
+                          </tr>
                         ) : tfSalesDetails.map((item, idx) => (
                           <tr key={idx} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                             <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.name}</td>
@@ -1321,7 +1326,11 @@ export default function OwnerStats({ isActive }) {
                     </thead>
                     <tbody className="divide-y divide-[var(--border-medium)]">
                       {activeModal === 'low-store' && lowStoreItems.length === 0 && (
-                        <tr><td colSpan="4" className="h-48 align-middle text-center text-sm font-semibold" style={{ color: 'var(--color-success)' }}>Nothing in low stock.</td></tr>
+                        <tr style={{ border: 'none', borderBottom: 'none' }} className="border-none hover:bg-transparent">
+                          <td colSpan="4" className="h-64 align-middle text-center text-sm font-semibold border-none" style={{ color: 'var(--color-success)', border: 'none' }}>
+                            Nothing in low stock.
+                          </td>
+                        </tr>
                       )}
                       {activeModal === 'low-store' && lowStoreItems.map(item => (
                         <tr key={item.barcode} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>
@@ -1332,7 +1341,11 @@ export default function OwnerStats({ isActive }) {
                         </tr>
                       ))}
                       {activeModal === 'low-warehouse' && lowWarehouseItems.length === 0 && (
-                        <tr><td colSpan="4" className="h-48 align-middle text-center text-sm font-semibold" style={{ color: 'var(--color-success)' }}>Nothing in low stock.</td></tr>
+                        <tr style={{ border: 'none', borderBottom: 'none' }} className="border-none hover:bg-transparent">
+                          <td colSpan="4" className="h-64 align-middle text-center text-sm font-semibold border-none" style={{ color: 'var(--color-success)', border: 'none' }}>
+                            Nothing in low stock.
+                          </td>
+                        </tr>
                       )}
                       {activeModal === 'low-warehouse' && lowWarehouseItems.map(item => (
                         <tr key={item.barcode} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>
@@ -1343,7 +1356,11 @@ export default function OwnerStats({ isActive }) {
                         </tr>
                       ))}
                       {activeModal === 'dead-stock' && deadStockItems.length === 0 && (
-                        <tr><td colSpan="4" className="h-48 align-middle text-center text-sm font-semibold" style={{ color: 'var(--color-success)' }}>Great job! All your stock is active and moving.</td></tr>
+                        <tr style={{ border: 'none', borderBottom: 'none' }} className="border-none hover:bg-transparent">
+                          <td colSpan="4" className="h-64 align-middle text-center text-sm font-semibold border-none" style={{ color: 'var(--color-success)', border: 'none' }}>
+                            Great job! All your stock is active and moving.
+                          </td>
+                        </tr>
                       )}
                       {activeModal === 'dead-stock' && deadStockItems.map(item => (
                         <tr key={item.barcode} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>

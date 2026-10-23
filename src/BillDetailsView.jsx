@@ -6,11 +6,8 @@ import { PageLoader } from './SharedUI';
 import {
   ArrowLeft,
   Phone,
-  Undo2,
-  Printer
+  Undo2
 } from 'lucide-react';
-import { useApp } from './AppContext';
-import ReceiptTemplate from './ReceiptTemplate';
 
 export default function BillDetailsView({
   bill,
@@ -19,8 +16,6 @@ export default function BillDetailsView({
   cachedItems
 }) {
   const [currentBill, setCurrentBill] = useState(bill);
-  const { shopSettings } = useApp();
-  const [isPrintingReceipt, setIsPrintingReceipt] = useState(false);
 
   useEffect(() => {
     setCurrentBill(bill);
@@ -58,192 +53,172 @@ export default function BillDetailsView({
   const isVoided = currentBill.status === 'voided';
   const { datePart, timePart } = formatDateTime(currentBill.created_at);
 
-  const receiptData = {
-    id: currentBill.id,
-    date: currentBill.created_at,
-    items: items.map(it => ({
-      name: it.item_name || it.name || 'Item',
-      unit: it.unit || 'PCS',
-      quantity: Number(it.billable_quantity || it.quantity || 1),
-      price: Number(it.system_price || it.selling_price || it.price_at_sale || 0),
-      customPriceInput: Number(it.price_at_sale || it.final_price || it.selling_price || 0),
-      is_loose_item: it.is_loose_item || false,
-      cut_length: it.cut_length || null
-    })),
-    total: Number(currentBill.total_amount || 0),
-    paymentMethod: currentBill.payment_method || 'CASH',
-    cashAmount: Number(currentBill.cash_amount || 0),
-    upiAmount: Number(currentBill.upi_amount || 0),
-    customerName: currentBill.customer_name,
-    customerPhone: currentBill.customer_phone,
-  };
-
-  const handlePrintReceipt = () => {
-    setIsPrintingReceipt(true);
-    setTimeout(() => {
-      window.print();
-      setIsPrintingReceipt(false);
-    }, 150);
-  };
-
   return (
     <div className="flex-1 flex flex-col h-full min-h-0 animate-fade-in text-[var(--text-primary)]">
-      {/* ROW 1: TOP NAVIGATION WITH BACK BUTTON */}
-      <div className="flex items-center justify-between pb-3 mb-2 shrink-0">
+      {/* ROW 1: TOP NAVIGATION WITH BACK & PROCESS RETURN BUTTONS */}
+      <div className="flex items-center justify-between pb-3 mb-3 shrink-0">
         <button
           type="button"
           onClick={onBack}
           aria-label="Back to Sales History"
-          className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] hover:text-white bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] border border-[var(--border-medium)] transition-all cursor-pointer shadow-sm hover:border-[var(--color-accent)] active:scale-95"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider text-[var(--text-secondary)] hover:text-white bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] border border-[var(--border-medium)] transition-all cursor-pointer shadow-sm hover:border-[var(--color-accent)] active:scale-95"
           title="Back to Sales History"
         >
           <ArrowLeft className="w-4 h-4 text-[var(--color-accent)]" />
-          <span>Back</span>
+          <span>Back to Sales</span>
         </button>
 
-        <div className="flex items-center gap-2">
+        {!isVoided && onProcessReturn && (
           <button
             type="button"
-            onClick={handlePrintReceipt}
-            disabled={isLoadingItems}
-            className="h-8 px-3 rounded-lg border border-[var(--border-medium)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
-            title="Print Receipt"
+            onClick={() => onProcessReturn(currentBill)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-all cursor-pointer shadow-sm hover:border-red-500 active:scale-95"
+            title="Process Return for this Bill"
           >
-            <Printer className="w-3.5 h-3.5 text-[var(--color-accent)]" />
-            <span>Print Receipt</span>
+            <Undo2 className="w-4 h-4 text-red-400" />
+            <span>Process Return</span>
           </button>
-
-          {!isVoided && onProcessReturn && (
-            <button
-              type="button"
-              onClick={() => onProcessReturn(currentBill)}
-              className="h-8 px-3 rounded-lg border border-red-500/50 text-red-400 hover:bg-red-500/10 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
-              title="Process Return for this Bill"
-            >
-              <Undo2 className="w-3.5 h-3.5" />
-              <span>Process Return</span>
-            </button>
-          )}
-        </div>
+        )}
       </div>
 
-      {/* ROW 2: TRANSACTION TITLE, STATUS & METADATA */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 pb-4 mb-4 border-b border-[var(--border-light)] shrink-0">
-        <div className="flex flex-col gap-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] truncate">
-              Bill #{currentBill.id.split('-')[0]}
-            </h1>
+      {/* ROW 2: HERO BANNER HEADER CARD (MATCHING SHOWROOM DESIGN PATTERN) */}
+      <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] p-5 mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm shrink-0">
+        <div>
+          {/* Metadata chips row */}
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] mb-2 flex-wrap">
+            <span>Bill #{currentBill.id.split('-')[0]}</span>
+            <span>•</span>
+            <span>{datePart} at {timePart}</span>
+            <span>•</span>
+            <span>Cashier: <strong className="text-[var(--text-primary)] font-semibold capitalize">{currentBill.cashier_name || 'System'}</strong></span>
 
             {currentBill.payment_method && (
               <span
-                className="px-2.5 py-0.5 text-xs font-bold rounded tracking-wider shrink-0"
-                style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', border: '1px solid rgba(59, 130, 246, 0.3)' }}
+                className="px-2.5 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider"
+                style={{
+                  backgroundColor: currentBill.payment_method === 'CASH'
+                    ? 'rgba(34, 197, 94, 0.15)'
+                    : currentBill.payment_method === 'UPI'
+                      ? 'rgba(59, 130, 246, 0.15)'
+                      : 'rgba(234, 179, 8, 0.15)',
+                  color: currentBill.payment_method === 'CASH'
+                    ? 'var(--color-success)'
+                    : currentBill.payment_method === 'UPI'
+                      ? 'var(--color-accent)'
+                      : 'var(--color-warning)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)'
+                }}
               >
                 {currentBill.payment_method}
               </span>
             )}
 
             {isVoided ? (
-              <span className="shrink-0 px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-red-500/10 text-red-400 border border-red-500/25">
+              <span className="px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full bg-red-500/15 text-red-400 border border-red-500/30">
                 Voided / Returned
               </span>
             ) : (
-              <span className="shrink-0 px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
+              <span className="px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                 Completed
               </span>
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-[var(--text-secondary)] mt-0.5">
-            <span>{datePart} at {timePart}</span>
-            <span className="text-[var(--text-tertiary)] opacity-30">•</span>
-            <span>Cashier: <strong className="text-[var(--text-primary)] font-medium capitalize">{currentBill.cashier_name || 'System'}</strong></span>
-            <span className="text-[var(--text-tertiary)] opacity-30">•</span>
-            <span className="flex items-center gap-1.5">
-              <span>Customer:</span>
-              {currentBill.customer_phone || currentBill.customer_name ? (
-                <span className="font-semibold text-[var(--text-primary)] inline-flex items-center gap-1">
-                  {currentBill.customer_phone && <Phone className="w-3 h-3 text-[var(--color-accent)] inline shrink-0" />}
-                  {currentBill.customer_phone}
-                  {currentBill.customer_name && <span className="text-[var(--text-secondary)] font-normal">({currentBill.customer_name})</span>}
-                </span>
-              ) : (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--bg-hover)] text-[var(--text-secondary)] border border-[var(--border-light)]">
-                  Walk-in Customer
-                </span>
-              )}
+          {/* Customer Title */}
+          <div className="flex items-center gap-2.5 mt-1 flex-wrap">
+            <h1 className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
+              {currentBill.customer_name || (currentBill.customer_phone ? 'Customer' : 'Walk-in Customer')}
+            </h1>
+
+            {currentBill.customer_phone && (
+              <span className="text-xs font-semibold text-[var(--color-accent)] inline-flex items-center gap-1 bg-[var(--bg-tertiary)] px-2.5 py-0.5 rounded-md border border-[var(--border-medium)]">
+                <Phone className="w-3.5 h-3.5" />
+                {currentBill.customer_phone}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Right Side: Total Billed */}
+        <div className="md:text-right shrink-0">
+          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] block mb-0.5">
+            Total Billed
+          </span>
+          <span className={`text-xl sm:text-2xl font-bold tabular-nums ${isVoided ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--text-primary)]'}`}>
+            ₹{Number(currentBill.total_amount || 0).toFixed(2)}
+          </span>
+          {currentBill.payment_method === 'SPLIT' && (
+            <span className="text-xs text-[var(--text-secondary)] block mt-1">
+              Cash: ₹{Number(currentBill.cash_amount || 0).toFixed(2)} • UPI: ₹{Number(currentBill.upi_amount || 0).toFixed(2)}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* ROW 3: CLEAN KPI SUMMARY CARDS */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 shrink-0">
+        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] p-3.5 sm:p-4 shadow-sm flex flex-col justify-between">
+          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+            Total Items
+          </span>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="text-lg sm:text-xl font-bold text-[var(--text-primary)] tabular-nums">
+              {items.length} {items.length === 1 ? 'item' : 'items'}
+            </span>
+            {totalItemsCount !== items.length && (
+              <span className="text-xs text-[var(--text-secondary)]">
+                ({totalItemsCount} units)
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] p-3.5 sm:p-4 shadow-sm flex flex-col justify-between">
+          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+            Discount Given
+          </span>
+          <div className="mt-1">
+            <span className="text-lg sm:text-xl font-bold text-[var(--text-primary)] tabular-nums">
+              {totalDiscount > 0 ? `₹${totalDiscount.toFixed(2)}` : '₹0.00'}
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] p-3.5 sm:p-4 shadow-sm flex flex-col justify-between">
+          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+            Gross Profit
+          </span>
+          <div className="mt-1">
+            <span className={`text-lg sm:text-xl font-bold tabular-nums ${isVoided ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--color-success)]'}`}>
+              ₹{isVoided ? '0.00' : totalProfit.toFixed(2)}
             </span>
           </div>
         </div>
       </div>
 
-      {/* ROW 3: STANDARD METRICS GRID (MATCHING BATCH DETAILS VIEW) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 shrink-0">
-        <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)]">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1">
-            Total Billed
-          </span>
-          <span className={`text-sm sm:text-base font-bold ${isVoided ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--text-primary)]'}`}>
-            ₹{Number(currentBill.total_amount || 0).toFixed(2)}
-          </span>
-          <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">Final amount paid</span>
-        </div>
-
-        <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)]">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1">
-            Items Count
-          </span>
-          <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
-            {items.length} {items.length === 1 ? 'item' : 'items'}
-          </span>
-          <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">{totalItemsCount} total units</span>
-        </div>
-
-        <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)]">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1">
-            Discount Given
-          </span>
-          <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
-            {totalDiscount > 0 ? `₹${totalDiscount.toFixed(2)}` : '₹0.00'}
-          </span>
-          <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">Savings provided</span>
-        </div>
-
-        <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)]">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1">
-            Gross Profit
-          </span>
-          <span className={`text-sm sm:text-base font-bold ${isVoided ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--color-success)]'}`}>
-            ₹{isVoided ? '0.00' : totalProfit.toFixed(2)}
-          </span>
-          <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">Total sale margin</span>
-        </div>
-      </div>
-
       {/* ROW 4: ITEMS LIST TABLE */}
-      <div className="flex-1 overflow-x-hidden overflow-y-auto rounded-lg border border-[var(--border-light)] bg-[var(--bg-secondary)] shadow-sm min-h-0 flex flex-col">
+      <div className="flex-1 overflow-x-hidden overflow-y-auto rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] shadow-sm min-h-0 flex flex-col">
         {isLoadingItems ? (
           <div className="flex-1 flex items-center justify-center p-8">
             <PageLoader text="Loading items..." />
           </div>
         ) : items.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center p-8 text-center text-xs text-[var(--text-tertiary)] font-medium">
+          <div className="flex-1 flex items-center justify-center p-8 text-center text-sm text-[var(--text-tertiary)] font-medium">
             No items recorded for this bill.
           </div>
         ) : (
           <div className="overflow-x-auto w-full flex-1">
-            <table className="w-full text-left border-collapse table-auto md:table-fixed">
+            <table className="w-full text-center border-collapse table-auto md:table-fixed">
               <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                 <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                  <th className="py-3 px-3 text-center w-12" style={{ borderRight: '1px solid var(--border-medium)' }}>#</th>
-                  <th className="py-3 px-4 text-left md:w-[32%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Item Details</th>
+                  <th className="py-3 px-2 text-center w-12" style={{ borderRight: '1px solid var(--border-medium)' }}>#</th>
+                  <th className="py-3 px-3 text-center md:w-[30%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Item Details</th>
                   <th className="py-3 px-3 text-center md:w-[12%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Quantity</th>
-                  <th className="py-3 px-3 text-center md:w-[12%]" style={{ borderRight: '1px solid var(--border-medium)' }}>MRP</th>
-                  <th className="py-3 px-3 text-center md:w-[12%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Sold At</th>
+                  <th className="py-3 px-3 text-center md:w-[11%]" style={{ borderRight: '1px solid var(--border-medium)' }}>MRP</th>
+                  <th className="py-3 px-3 text-center md:w-[11%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Sold At</th>
                   <th className="py-3 px-3 text-center md:w-[10%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Discount</th>
-                  <th className="py-3 px-4 text-center md:w-[12%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Total</th>
-                  <th className="py-3 px-4 text-right md:w-[10%]" style={{ color: 'var(--color-success)' }}>Profit</th>
+                  <th className="py-3 px-3 text-center md:w-[13%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Total</th>
+                  <th className="py-3 px-3 text-center md:w-[13%]" style={{ color: 'var(--color-success)' }}>Profit</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-medium)]">
@@ -258,25 +233,25 @@ export default function BillDetailsView({
                   return (
                     <tr
                       key={it.id || idx}
-                      className="hover:bg-[var(--bg-hover)] transition-colors text-sm"
+                      className="hover:bg-[var(--bg-hover)] transition-colors"
                       style={{ borderBottom: '1px solid var(--border-medium)' }}
                     >
-                      <td className="py-3 px-3 text-center text-xs text-[var(--text-tertiary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                      <td className="py-3 px-2 text-center text-xs text-[var(--text-tertiary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
                         {idx + 1}
                       </td>
 
-                      <td className="py-3 px-4" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                      <td className="py-3 px-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
                         <div className="font-semibold text-sm text-[var(--text-primary)]">
                           {it.name}
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <div className="flex items-center justify-center gap-2 mt-0.5 flex-wrap">
                           {it.barcode && (
-                            <span className="text-[11px] text-[var(--text-tertiary)]">
+                            <span className="text-[11px] text-[var(--text-secondary)] font-mono">
                               #{it.barcode}
                             </span>
                           )}
                           {it.instance_barcode && (
-                            <span className="text-[10px] text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20">
+                            <span className="text-[10px] text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20 font-mono">
                               Piece: {it.instance_barcode}
                             </span>
                           )}
@@ -284,33 +259,31 @@ export default function BillDetailsView({
                       </td>
 
                       <td className="py-3 px-3 text-center font-medium" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                        <div>
-                          {qty} <span className="text-xs text-[var(--text-secondary)]">{it.unit || 'PCS'}</span>
-                        </div>
-                        {it.actual_quantity && Number(it.actual_quantity) !== qty && (
-                          <div className="text-[10px] text-[var(--text-tertiary)]">
-                            Act: {it.actual_quantity} {it.unit}
-                          </div>
-                        )}
+                        <span className="font-semibold text-sm text-[var(--text-primary)] tabular-nums">{qty}</span>
+                        <span className="text-xs font-normal text-[var(--text-secondary)] uppercase ml-1">{it.unit || 'PCS'}</span>
                       </td>
 
-                      <td className="py-3 px-3 text-center text-[var(--text-secondary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                      <td className="py-3 px-3 text-center font-medium text-sm text-[var(--text-secondary)] tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
                         ₹{mrp.toFixed(2)}
                       </td>
 
-                      <td className="py-3 px-3 text-center font-medium text-[var(--text-primary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                      <td className="py-3 px-3 text-center font-semibold text-sm text-[var(--text-primary)] tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
                         ₹{soldPrice.toFixed(2)}
                       </td>
 
-                      <td className="py-3 px-3 text-center text-xs text-[var(--text-secondary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                        {discountPct > 0 ? `${discountPct.toFixed(1)}%` : '—'}
+                      <td className="py-3 px-3 text-center text-xs tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                        {discountPct > 0 ? (
+                          <span className="text-amber-400 font-semibold">{discountPct.toFixed(1)}%</span>
+                        ) : (
+                          <span className="text-[var(--text-tertiary)]">—</span>
+                        )}
                       </td>
 
-                      <td className="py-3 px-4 text-center font-bold text-[var(--text-primary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                      <td className="py-3 px-3 text-center font-bold text-sm text-[var(--text-primary)] tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
                         ₹{lineTotal.toFixed(2)}
                       </td>
 
-                      <td className="py-3 px-4 text-right font-semibold" style={{ color: isVoided ? 'var(--text-secondary)' : 'var(--color-success)' }}>
+                      <td className="py-3 px-3 text-center font-bold text-sm tabular-nums" style={{ color: isVoided ? 'var(--text-secondary)' : 'var(--color-success)' }}>
                         {isVoided ? '₹0.00' : `₹${profit.toFixed(2)}`}
                       </td>
                     </tr>
@@ -321,14 +294,6 @@ export default function BillDetailsView({
           </div>
         )}
       </div>
-
-      {isPrintingReceipt && (
-        <ReceiptTemplate
-          lastReceipt={receiptData}
-          shopSettings={shopSettings}
-          formatDateTime={formatDateTime}
-        />
-      )}
     </div>
   );
 }

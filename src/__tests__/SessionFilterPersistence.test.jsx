@@ -240,4 +240,72 @@ describe('useSessionState Hook', () => {
 
     expect(remounted.getByTestId('master-list')).toBeInTheDocument();
   });
+
+  it('maintains selected product batch view in warehouse/store inventory across sidebar navigation', () => {
+    function DashboardSimulator() {
+      const [tab, setTab] = useState('warehouse');
+      const [selectedBarcode, setSelectedBarcode] = useSessionState('pos_test_batch_barcode', null);
+
+      return (
+        <div>
+          <button data-testid="nav-warehouse" onClick={() => setTab('warehouse')}>Store Inventory</button>
+          <button data-testid="nav-checkout" onClick={() => setTab('checkout')}>Checkout</button>
+          <button data-testid="nav-sales" onClick={() => setTab('sales')}>Sales</button>
+
+          {tab === 'warehouse' && (
+            selectedBarcode ? (
+              <div data-testid="batch-details-view">
+                <h2>Batch Details for #{selectedBarcode}</h2>
+                <button data-testid="back-to-inventory" onClick={() => setSelectedBarcode(null)}>Back to Items</button>
+              </div>
+            ) : (
+              <div data-testid="inventory-table">
+                <h2>All Items Table</h2>
+                <button data-testid="open-item-1002" onClick={() => setSelectedBarcode('1002')}>Open 1002</button>
+              </div>
+            )
+          )}
+          {tab === 'checkout' && <div data-testid="checkout-view">Checkout Content</div>}
+          {tab === 'sales' && <div data-testid="sales-view">Sales Content</div>}
+        </div>
+      );
+    }
+
+    render(<DashboardSimulator />);
+    expect(screen.getByTestId('inventory-table')).toBeInTheDocument();
+
+    // 1. User clicks into item 1002 row
+    act(() => {
+      fireEvent.click(screen.getByTestId('open-item-1002'));
+    });
+    expect(screen.getByTestId('batch-details-view')).toBeInTheDocument();
+    expect(screen.getByText('Batch Details for #1002')).toBeInTheDocument();
+
+    // 2. User navigates to Checkout via sidebar
+    act(() => {
+      fireEvent.click(screen.getByTestId('nav-checkout'));
+    });
+    expect(screen.getByTestId('checkout-view')).toBeInTheDocument();
+
+    // 3. User navigates to Sales via sidebar
+    act(() => {
+      fireEvent.click(screen.getByTestId('nav-sales'));
+    });
+    expect(screen.getByTestId('sales-view')).toBeInTheDocument();
+
+    // 4. User navigates back to Store Inventory via sidebar
+    act(() => {
+      fireEvent.click(screen.getByTestId('nav-warehouse'));
+    });
+
+    // Item 1002 Batch Details view is STILL open!
+    expect(screen.getByTestId('batch-details-view')).toBeInTheDocument();
+    expect(screen.getByText('Batch Details for #1002')).toBeInTheDocument();
+
+    // 5. Clicking Back returns to inventory table
+    act(() => {
+      fireEvent.click(screen.getByTestId('back-to-inventory'));
+    });
+    expect(screen.getByTestId('inventory-table')).toBeInTheDocument();
+  });
 });
