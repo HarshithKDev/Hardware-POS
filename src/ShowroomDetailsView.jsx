@@ -90,7 +90,7 @@ export default function ShowroomDetailsView({
         </div>
       </div>
 
-      {/* ITEMS LIST TABLE */}
+      {/* ITEMS LIST */}
       <div className="flex-1 overflow-x-hidden overflow-y-auto rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] shadow-sm min-h-0 flex flex-col">
         {isLoadingItems ? (
           <div className="flex-1 flex items-center justify-center p-8">
@@ -101,52 +101,101 @@ export default function ShowroomDetailsView({
             No items recorded for this showroom dispatch.
           </div>
         ) : (
-          <div className="overflow-x-auto w-full flex-1">
-            <table className="w-full text-center border-collapse table-auto md:table-fixed">
-              <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
-                <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                  <th className="py-3 px-4 text-center md:w-[40%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Deducted Product</th>
-                  <th className="py-3 px-4 text-center md:w-[20%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Qty Deducted</th>
-                  <th className="py-3 px-4 text-center md:w-[20%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Unit Value</th>
-                  <th className="py-3 px-4 text-center md:w-[20%]">Total Value</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border-medium)]">
-                {items.map((it, idx) => {
-                  const unitPrice = Number(it.price_at_sale || 0);
-                  const qty = Number(it.billable_quantity || it.quantity || 1);
-                  const lineTotal = unitPrice * qty;
+          <>
+            {/* MOBILE CARD VIEW (< 768px): Completely avoids horizontal scrolling */}
+            <div className="block md:hidden divide-y divide-[var(--border-medium)] p-2 space-y-2.5 flex-1 overflow-y-auto">
+              {items.map((it, idx) => {
+                const unitPrice = Number(it.price_at_sale || 0);
+                const qty = Number(it.billable_quantity || it.quantity || 1);
+                const lineTotal = unitPrice * qty;
 
-                  return (
-                    <tr
-                      key={it.id || idx}
-                      className="hover:bg-[var(--bg-hover)] transition-colors"
-                      style={{ borderBottom: '1px solid var(--border-medium)' }}
-                    >
-                      <td className="py-3 px-4 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                        <div className="font-semibold text-sm text-[var(--text-primary)]">
+                return (
+                  <div
+                    key={it.id || idx}
+                    className="p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-light)] shadow-sm space-y-2"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <span className="font-semibold text-sm text-[var(--text-primary)] leading-tight block">
                           {it.name}
-                        </div>
-                      </td>
+                        </span>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-xs text-[var(--text-tertiary)] block">Total</span>
+                        <span className="font-bold text-sm text-[var(--text-primary)] tabular-nums">
+                          ₹{lineTotal.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
 
-                      <td className="py-3 px-4 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                        <span className="font-semibold text-sm text-[var(--text-primary)] tabular-nums">{qty}</span>
-                        <span className="text-xs font-normal text-[var(--text-secondary)] uppercase ml-1">{it.unit || 'PCS'}</span>
-                      </td>
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border-medium)] text-center text-xs">
+                      <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
+                        <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Qty Deducted</span>
+                        <span className="font-semibold text-[var(--text-primary)] tabular-nums">
+                          {qty} <span className="text-[10px] uppercase font-normal">{it.unit || 'PCS'}</span>
+                        </span>
+                      </div>
 
-                      <td className="py-3 px-4 text-center font-medium text-sm text-[var(--text-secondary)] tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                        ₹{unitPrice.toFixed(2)}
-                      </td>
+                      <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
+                        <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Unit Value</span>
+                        <span className="font-semibold text-[var(--text-primary)] tabular-nums">
+                          ₹{unitPrice.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
-                      <td className="py-3 px-4 text-center font-bold text-sm text-[var(--text-primary)] tabular-nums">
-                        ₹{lineTotal.toFixed(2)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+            {/* DESKTOP TABLE VIEW (>= 768px) */}
+            <div className="hidden md:block overflow-x-auto w-full flex-1">
+              <table className="w-full text-center border-collapse table-auto md:table-fixed">
+                <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
+                  <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+                    <th className="py-3 px-4 text-center md:w-[40%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Deducted Product</th>
+                    <th className="py-3 px-4 text-center md:w-[20%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Qty Deducted</th>
+                    <th className="py-3 px-4 text-center md:w-[20%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Unit Value</th>
+                    <th className="py-3 px-4 text-center md:w-[20%]">Total Value</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border-medium)]">
+                  {items.map((it, idx) => {
+                    const unitPrice = Number(it.price_at_sale || 0);
+                    const qty = Number(it.billable_quantity || it.quantity || 1);
+                    const lineTotal = unitPrice * qty;
+
+                    return (
+                      <tr
+                        key={it.id || idx}
+                        className="hover:bg-[var(--bg-hover)] transition-colors"
+                        style={{ borderBottom: '1px solid var(--border-medium)' }}
+                      >
+                        <td className="py-3 px-4 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                          <div className="font-semibold text-sm text-[var(--text-primary)]">
+                            {it.name}
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-4 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                          <span className="font-semibold text-sm text-[var(--text-primary)] tabular-nums">{qty}</span>
+                          <span className="text-xs font-normal text-[var(--text-secondary)] uppercase ml-1">{it.unit || 'PCS'}</span>
+                        </td>
+
+                        <td className="py-3 px-4 text-center font-medium text-sm text-[var(--text-secondary)] tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                          ₹{unitPrice.toFixed(2)}
+                        </td>
+
+                        <td className="py-3 px-4 text-center font-bold text-sm text-[var(--text-primary)] tabular-nums">
+                          ₹{lineTotal.toFixed(2)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

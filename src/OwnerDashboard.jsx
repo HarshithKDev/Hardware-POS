@@ -31,7 +31,8 @@ import {
   Settings,
   Undo2,
   Receipt,
-  Store
+  Store,
+  X
 } from 'lucide-react';
 
 export default function OwnerDashboard() {
@@ -94,33 +95,6 @@ export default function OwnerDashboard() {
 
   return (
     <div className="flex flex-col md:flex-row h-full overflow-hidden relative md:gap-4" style={{ backgroundColor: 'transparent' }}>
-      {/* MOBILE MENU TOGGLE */}
-      <div
-        className="md:hidden flex justify-between items-center px-4 py-2.5 shrink-0"
-        style={{
-          backgroundColor: 'var(--bg-secondary)',
-          borderBottom: '1px solid var(--border-light)',
-        }}
-      >
-        <span className="text-sm font-bold tracking-wide uppercase truncate" style={{ color: 'var(--text-primary)' }}>
-          {navItems.find(item => item.key === activeTab)?.label || 'Hardware POS'}
-        </span>
-        <button
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="px-2.5 py-1.5 rounded-md flex items-center gap-1.5 text-xs font-semibold focus:outline-none transition-colors"
-          style={{
-            backgroundColor: 'var(--bg-tertiary)',
-            color: 'var(--text-primary)',
-            border: '1px solid var(--border-medium)',
-          }}
-          aria-label="Toggle navigation drawer"
-          aria-expanded={isSidebarOpen}
-        >
-          <Menu size={16} />
-          <span className="text-[11px] uppercase tracking-wider">All Tabs</span>
-        </button>
-      </div>
-
       {/* Overlay for mobile drawer */}
       {isSidebarOpen && (
         <div 
@@ -136,12 +110,12 @@ export default function OwnerDashboard() {
         className={`
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
           md:translate-x-0 
-          absolute md:relative top-0 left-0 h-full md:h-full z-50
-          w-64 md:w-56 flex-shrink-0 py-3 md:py-4
+          fixed md:relative top-0 left-0 h-full z-50
+          w-72 max-w-[85vw] md:w-56 flex-shrink-0 py-3 md:py-4
           m-0 md:rounded-xl 
           border-r md:border border-[var(--border-medium)] md:border-[var(--border-light)] 
           shadow-2xl md:shadow-sm transition-transform duration-300 ease-in-out
-          overflow-y-auto
+          overflow-y-auto flex flex-col
         `}
         style={{
           backgroundColor: 'var(--bg-secondary)',
@@ -149,7 +123,24 @@ export default function OwnerDashboard() {
         role="navigation"
         aria-label="Dashboard navigation"
       >
-        <div className="flex flex-col gap-0.5 md:gap-1 px-2.5 md:px-3">
+        {/* Mobile drawer header */}
+        <div className="md:hidden flex items-center justify-between px-4 pb-3 mb-2 border-b border-[var(--border-light)] shrink-0">
+          <div className="flex items-center gap-2">
+            <LayoutDashboard size={18} className="text-[var(--color-accent)]" />
+            <span className="font-bold text-sm tracking-wider uppercase" style={{ color: 'var(--text-primary)' }}>
+              Navigation
+            </span>
+          </div>
+          <button
+            onClick={() => setIsSidebarOpen(false)}
+            className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-white hover:bg-[var(--bg-hover)] transition-colors"
+            aria-label="Close navigation drawer"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-0.5 md:gap-1 px-2.5 md:px-3 flex-1">
           {navItems.map(({ key, label, icon: Icon }) => {
             const isActive = activeTab === key;
             return (
@@ -204,7 +195,8 @@ export default function OwnerDashboard() {
                 tooltip="Click title to reset inventory filters, search, and tabs to default"
               />
               <div
-                className="flex gap-1 mb-6 pb-0 overflow-x-hidden border-b border-[var(--border-light)]"
+                className="flex items-center gap-1.5 mb-5 pb-1 border-b border-[var(--border-light)] overflow-x-auto hide-scrollbar sm:overflow-visible"
+                style={{ scrollbarWidth: 'none' }}
                 role="tablist"
                 aria-label="Inventory tabs"
               >
@@ -213,28 +205,30 @@ export default function OwnerDashboard() {
                   { key: 'receive', label: 'Receive Stock' },
                   ...(!isWarehouseDisabled ? [{ key: 'transfer', label: 'Move to Shop' }] : []),
                   { key: 'recycle', label: 'Recycle Bin' },
-                ].map(({ key, label }) => (
-                  <button
-                    key={key}
-                    onClick={() => {
-                      setSelectedBatchBarcode(null);
-                      setSearchParams({ wsub: key });
-                    }}
-                    className="px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors relative"
-                    style={{
-                      color: warehouseSubTab === key ? 'var(--text-primary)' : 'var(--text-secondary)',
-                      backgroundColor: 'transparent',
-                      borderRadius: 0
-                    }}
-                    role="tab"
-                    aria-selected={warehouseSubTab === key}
-                  >
-                    {label}
-                    {warehouseSubTab === key && (
-                      <div className="absolute bottom-0 left-0 w-full h-[2px]" style={{ backgroundColor: 'var(--color-accent)' }} />
-                    )}
-                  </button>
-                ))}
+                ].map(({ key, label }) => {
+                  const isActive = warehouseSubTab === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        setSelectedBatchBarcode(null);
+                        setSearchParams({ wsub: key });
+                      }}
+                      className={`px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold whitespace-nowrap transition-all rounded-lg sm:rounded-none relative shrink-0 cursor-pointer ${
+                        isActive
+                          ? 'text-[var(--text-primary)] bg-[var(--bg-tertiary)] sm:bg-transparent font-bold'
+                          : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] sm:hover:bg-transparent'
+                      }`}
+                      role="tab"
+                      aria-selected={isActive}
+                    >
+                      {label}
+                      {isActive && (
+                        <div className="hidden sm:block absolute bottom-0 left-0 w-full h-[2px] bg-[var(--color-accent)]" />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
               {warehouseSubTab === 'inventory' && (
                 <OwnerInventory 

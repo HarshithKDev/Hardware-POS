@@ -223,19 +223,19 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
           tooltip="Click title to refresh expenses"
         />
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 w-full sm:w-auto justify-between sm:justify-end">
           {totalExpenses > 0 && (
             <div 
-              className="h-10 px-4 rounded-lg border hidden sm:flex flex-col justify-center text-center shrink-0 min-w-[130px]" 
+              className="h-10 px-3 sm:px-4 rounded-lg border flex flex-col justify-center text-center shrink-0" 
               style={{ backgroundColor: 'var(--color-accent-bg)', borderColor: 'rgba(59, 130, 246, 0.3)' }}
             >
-              <span className="text-[10px] font-bold uppercase tracking-wider leading-none" style={{ color: 'var(--color-accent)' }}>Total Expenses</span>
-              <span className="text-sm font-bold leading-tight mt-0.5" style={{ color: 'var(--color-accent)' }}>₹{totalExpenses.toFixed(2)}</span>
+              <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider leading-none" style={{ color: 'var(--color-accent)' }}>Total Expenses</span>
+              <span className="text-xs sm:text-sm font-bold leading-tight mt-0.5" style={{ color: 'var(--color-accent)' }}>₹{totalExpenses.toFixed(2)}</span>
             </div>
           )}
           <button
             onClick={() => setIsModalOpen(true)}
-            className="h-10 px-4 rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 text-white shadow-sm transition-all active:scale-95 shrink-0 cursor-pointer"
+            className="h-10 px-4 rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 text-white shadow-sm transition-all active:scale-95 shrink-0 cursor-pointer flex-1 sm:flex-initial"
             style={{ backgroundColor: 'var(--color-accent)' }}
           >
             <Plus size={16} strokeWidth={2.5} />

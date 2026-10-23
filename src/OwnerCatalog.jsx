@@ -594,7 +594,7 @@ export default function OwnerCatalog() {
 
           {/* Pricing fields removed. Pricing is now exclusively handled at the batch level in the Inventory tab. */}
 
-          <div className="flex gap-4 lg:col-span-2">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 lg:col-span-2">
             {!isWarehouseDisabled && (
               <div className="flex-1">
                 <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-min-qty-whse">Min Qty (Warehouse)</label>

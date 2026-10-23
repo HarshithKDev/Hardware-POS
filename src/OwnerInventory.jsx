@@ -555,7 +555,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
       return (
         <tr
           {...props}
-          className={`hover-row premium-hover ${context?.isSelectionMode ? 'cursor-pointer' : ''} ${isSelected ? 'selected' : ''} block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none border md:border-b md:border-t-0 md:border-l-0 md:border-r-0 border-[var(--border-medium)] md:border-[var(--border-medium)] mb-3 md:mb-0 relative md:static ${isEdit ? 'transition-none' : ''}`}
+          className={`hover-row premium-hover ${context?.isSelectionMode ? 'cursor-pointer' : ''} ${isSelected ? 'selected' : ''} block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none border md:border-b md:border-t-0 md:border-l-0 md:border-r-0 border-[var(--border-medium)] md:border-[var(--border-medium)] mb-2 md:mb-0 relative md:static ${isEdit ? 'transition-none' : ''}`}
           style={{
             ...props.style,
             borderBottom: '1px solid var(--border-medium)',
@@ -696,37 +696,39 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
               aria-label="Search inventory"
             />
             
-            <div className="w-full md:w-48 lg:w-52 shrink-0">
-              <select
-                value={filterCategory}
-                onChange={handleCategoryChange}
-                className="w-full h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md cursor-pointer truncate"
-                style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
-                aria-label="Filter by category"
-              >
-                <option value="">All Categories</option>
-                {categories?.map((c) => (
-                  <option key={c.name} value={c.name}>{c.name}</option>
-                ))}
-              </select>
-            </div>
+            <div className="grid grid-cols-2 md:flex gap-2 w-full md:w-auto">
+              <div className="w-full md:w-48 lg:w-52 shrink-0">
+                <select
+                  value={filterCategory}
+                  onChange={handleCategoryChange}
+                  className="w-full h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md cursor-pointer truncate"
+                  style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
+                  aria-label="Filter by category"
+                >
+                  <option value="">All Categories</option>
+                  {categories?.map((c) => (
+                    <option key={c.name} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
 
-            <div className="w-full md:w-48 lg:w-52 shrink-0">
-              <select
-                value={filterSubcategory}
-                onChange={(e) => setFilterSubcategory(e.target.value)}
-                className="w-full h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md cursor-pointer truncate disabled:opacity-50"
-                style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
-                aria-label="Filter by subcategory"
-                disabled={availableSubcategories.length === 0}
-              >
-                <option value="">
-                  {availableSubcategories.length === 0 && filterCategory ? 'No Subcategories' : 'All Subcategories'}
-                </option>
-                {availableSubcategories.map((s) => (
-                  <option key={s.name} value={s.name}>{s.name}</option>
-                ))}
-              </select>
+              <div className="w-full md:w-48 lg:w-52 shrink-0">
+                <select
+                  value={filterSubcategory}
+                  onChange={(e) => setFilterSubcategory(e.target.value)}
+                  className="w-full h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md cursor-pointer truncate disabled:opacity-50"
+                  style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
+                  aria-label="Filter by subcategory"
+                  disabled={availableSubcategories.length === 0}
+                >
+                  <option value="">
+                    {availableSubcategories.length === 0 && filterCategory ? 'No Subcategories' : 'All Subcategories'}
+                  </option>
+                  {availableSubcategories.map((s) => (
+                    <option key={s.name} value={s.name}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <button
@@ -737,7 +739,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
                 }
                 setIsSelectionMode(!isSelectionMode);
               }}
-              className="h-11 md:h-10 px-4 text-sm font-medium rounded-md flex items-center gap-2 transition-colors shrink-0"
+              className="h-11 md:h-10 px-4 text-sm font-medium rounded-md flex items-center justify-center gap-2 transition-colors shrink-0 cursor-pointer"
               style={{ 
                 backgroundColor: isSelectionMode ? 'var(--color-accent-bg)' : 'var(--bg-secondary)', 
                 color: isSelectionMode ? 'var(--color-accent)' : 'var(--text-secondary)',
@@ -747,7 +749,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
               </svg>
-              {isSelectionMode ? 'Cancel Selection' : 'Select Items'}
+              <span>{isSelectionMode ? 'Cancel Selection' : 'Select Items'}</span>
             </button>
           </div>
         </div>

@@ -41,7 +41,7 @@ export default function PageTitleReset({
           aria-label={`${title} - Click to reset`}
         >
           <HeadingTag
-            className="text-2xl font-medium m-0 leading-tight transition-colors group-hover:text-[var(--color-accent)]"
+            className="text-xl sm:text-2xl font-semibold m-0 leading-tight transition-colors group-hover:text-[var(--color-accent)]"
             style={{ color: 'var(--text-primary)' }}
           >
             {title}

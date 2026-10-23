@@ -107,7 +107,7 @@ export function DialogOverlay({ isOpen, onClose, children, labelId, maxWidth = '
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelId}
-        className="w-[85%] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl"
+        className="w-[94%] sm:w-full flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl"
         style={{
           maxWidth: maxWidth,
           backgroundColor: 'var(--bg-secondary)',
@@ -216,7 +216,7 @@ export function ConfirmDialog({
   return (
     <DialogOverlay isOpen={isOpen} onClose={onCancel} labelId={labelId}>
       {/* Title */}
-      <div className="flex justify-between items-center px-6 pt-6 pb-2">
+      <div className="flex justify-between items-center px-5 sm:px-6 pt-5 sm:pt-6 pb-2">
         <span
           id={labelId}
           className="text-base font-semibold"
@@ -227,17 +227,17 @@ export function ConfirmDialog({
       </div>
 
       {/* Body */}
-      <div className="px-6 py-4">
+      <div className="px-5 sm:px-6 py-3 sm:py-4">
         <p id={descId} className="text-sm leading-relaxed whitespace-pre-line break-words [overflow-wrap:anywhere]" style={{ color: 'var(--text-secondary)' }}>
           {message}
         </p>
       </div>
 
       {/* Footer */}
-      <div className="px-6 pb-6 pt-2 flex justify-end gap-2">
+      <div className="px-5 sm:px-6 pb-5 sm:pb-6 pt-2 flex items-center justify-end gap-2.5">
         <button
           onClick={onCancel}
-          className="h-10 px-6 text-sm font-medium rounded-md border border-[var(--border-light)] hover:bg-[var(--bg-hover)] transition-colors"
+          className="flex-1 sm:flex-none h-11 sm:h-10 px-4 sm:px-6 text-sm font-medium rounded-md border border-[var(--border-light)] hover:bg-[var(--bg-hover)] transition-colors active:scale-95 cursor-pointer flex items-center justify-center"
           style={{
             backgroundColor: 'transparent',
             color: 'var(--text-primary)',
@@ -247,7 +247,7 @@ export function ConfirmDialog({
         </button>
         <button
           onClick={onConfirm}
-          className={`h-10 px-6 text-sm font-medium rounded-md transition-opacity hover:opacity-90 ${isDestructive ? 'text-white' : ''}`}
+          className={`flex-1 sm:flex-none h-11 sm:h-10 px-4 sm:px-6 text-sm font-semibold rounded-md transition-opacity hover:opacity-90 active:scale-95 cursor-pointer flex items-center justify-center ${isDestructive ? 'text-white' : ''}`}
           style={{ 
             backgroundColor: isDestructive ? 'var(--color-error)' : 'var(--color-accent)', 
             color: isDestructive ? '#fff' : 'var(--color-accent-fg)' 

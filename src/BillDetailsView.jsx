@@ -156,47 +156,47 @@ export default function BillDetailsView({
       </div>
 
       {/* ROW 3: CLEAN KPI SUMMARY CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 shrink-0">
-        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] p-3.5 sm:p-4 shadow-sm flex flex-col justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 shrink-0">
+        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] p-2.5 sm:p-4 shadow-sm flex flex-col justify-between">
+          <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
             Total Items
           </span>
-          <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-lg sm:text-xl font-bold text-[var(--text-primary)] tabular-nums">
+          <div className="mt-1 flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
+            <span className="text-base sm:text-xl font-bold text-[var(--text-primary)] tabular-nums">
               {items.length} {items.length === 1 ? 'item' : 'items'}
             </span>
             {totalItemsCount !== items.length && (
-              <span className="text-xs text-[var(--text-secondary)]">
+              <span className="text-[11px] sm:text-xs text-[var(--text-secondary)]">
                 ({totalItemsCount} units)
               </span>
             )}
           </div>
         </div>
 
-        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] p-3.5 sm:p-4 shadow-sm flex flex-col justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-            Discount Given
+        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] p-2.5 sm:p-4 shadow-sm flex flex-col justify-between">
+          <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+            Discount
           </span>
           <div className="mt-1">
-            <span className="text-lg sm:text-xl font-bold text-[var(--text-primary)] tabular-nums">
+            <span className="text-base sm:text-xl font-bold text-[var(--text-primary)] tabular-nums">
               {totalDiscount > 0 ? `₹${totalDiscount.toFixed(2)}` : '₹0.00'}
             </span>
           </div>
         </div>
 
-        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] p-3.5 sm:p-4 shadow-sm flex flex-col justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] p-2.5 sm:p-4 shadow-sm flex flex-col justify-between">
+          <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
             Gross Profit
           </span>
           <div className="mt-1">
-            <span className={`text-lg sm:text-xl font-bold tabular-nums ${isVoided ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--color-success)]'}`}>
+            <span className={`text-base sm:text-xl font-bold tabular-nums ${isVoided ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--color-success)]'}`}>
               ₹{isVoided ? '0.00' : totalProfit.toFixed(2)}
             </span>
           </div>
         </div>
       </div>
 
-      {/* ROW 4: ITEMS LIST TABLE */}
+      {/* ROW 4: ITEMS LIST */}
       <div className="flex-1 overflow-x-hidden overflow-y-auto rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] shadow-sm min-h-0 flex flex-col">
         {isLoadingItems ? (
           <div className="flex-1 flex items-center justify-center p-8">
@@ -207,46 +207,36 @@ export default function BillDetailsView({
             No items recorded for this bill.
           </div>
         ) : (
-          <div className="overflow-x-auto w-full flex-1">
-            <table className="w-full text-center border-collapse table-auto md:table-fixed">
-              <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
-                <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                  <th className="py-3 px-2 text-center w-12" style={{ borderRight: '1px solid var(--border-medium)' }}>#</th>
-                  <th className="py-3 px-3 text-center md:w-[30%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Item Details</th>
-                  <th className="py-3 px-3 text-center md:w-[12%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Quantity</th>
-                  <th className="py-3 px-3 text-center md:w-[11%]" style={{ borderRight: '1px solid var(--border-medium)' }}>MRP</th>
-                  <th className="py-3 px-3 text-center md:w-[11%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Sold At</th>
-                  <th className="py-3 px-3 text-center md:w-[10%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Discount</th>
-                  <th className="py-3 px-3 text-center md:w-[13%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Total</th>
-                  <th className="py-3 px-3 text-center md:w-[13%]" style={{ color: 'var(--color-success)' }}>Profit</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border-medium)]">
-                {items.map((it, idx) => {
-                  const mrp = Number(it.selling_price || it.system_price || it.price_at_sale || 0);
-                  const soldPrice = Number(it.price_at_sale || 0);
-                  const qty = Number(it.billable_quantity || it.quantity || 1);
-                  const lineTotal = soldPrice * qty;
-                  const discountPct = Number(it.negotiated_discount || (mrp > 0 && soldPrice < mrp ? ((mrp - soldPrice) / mrp) * 100 : 0));
-                  const profit = Number(it.profit || 0);
+          <>
+            {/* MOBILE CARD VIEW (< 768px): Completely avoids horizontal scrolling */}
+            <div className="block md:hidden divide-y divide-[var(--border-medium)] p-2 space-y-2.5 flex-1 overflow-y-auto">
+              {items.map((it, idx) => {
+                const mrp = Number(it.selling_price || it.system_price || it.price_at_sale || 0);
+                const soldPrice = Number(it.price_at_sale || 0);
+                const qty = Number(it.billable_quantity || it.quantity || 1);
+                const lineTotal = soldPrice * qty;
+                const discountPct = Number(it.negotiated_discount || (mrp > 0 && soldPrice < mrp ? ((mrp - soldPrice) / mrp) * 100 : 0));
+                const profit = Number(it.profit || 0);
 
-                  return (
-                    <tr
-                      key={it.id || idx}
-                      className="hover:bg-[var(--bg-hover)] transition-colors"
-                      style={{ borderBottom: '1px solid var(--border-medium)' }}
-                    >
-                      <td className="py-3 px-2 text-center text-xs text-[var(--text-tertiary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                        {idx + 1}
-                      </td>
-
-                      <td className="py-3 px-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                        <div className="font-semibold text-sm text-[var(--text-primary)]">
-                          {it.name}
+                return (
+                  <div
+                    key={it.id || idx}
+                    className="p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-light)] shadow-sm space-y-2.5"
+                  >
+                    {/* Header: Item Name & Index & Total */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[11px] font-bold text-[var(--text-tertiary)] bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded">
+                            #{idx + 1}
+                          </span>
+                          <span className="font-semibold text-sm text-[var(--text-primary)] leading-tight">
+                            {it.name}
+                          </span>
                         </div>
-                        <div className="flex items-center justify-center gap-2 mt-0.5 flex-wrap">
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
                           {it.barcode && (
-                            <span className="text-[11px] text-[var(--text-secondary)] font-mono">
+                            <span className="text-[10px] text-[var(--text-secondary)] font-mono">
                               #{it.barcode}
                             </span>
                           )}
@@ -256,42 +246,144 @@ export default function BillDetailsView({
                             </span>
                           )}
                         </div>
-                      </td>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-xs text-[var(--text-tertiary)] block">Total</span>
+                        <span className="font-bold text-sm text-[var(--text-primary)] tabular-nums">
+                          ₹{lineTotal.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
 
-                      <td className="py-3 px-3 text-center font-medium" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                        <span className="font-semibold text-sm text-[var(--text-primary)] tabular-nums">{qty}</span>
-                        <span className="text-xs font-normal text-[var(--text-secondary)] uppercase ml-1">{it.unit || 'PCS'}</span>
-                      </td>
+                    {/* Pricing & Qty Metrics */}
+                    <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[var(--border-medium)] text-center text-xs">
+                      <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
+                        <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Qty</span>
+                        <span className="font-semibold text-[var(--text-primary)] tabular-nums">
+                          {qty} <span className="text-[10px] uppercase font-normal">{it.unit || 'PCS'}</span>
+                        </span>
+                      </div>
 
-                      <td className="py-3 px-3 text-center font-medium text-sm text-[var(--text-secondary)] tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                        ₹{mrp.toFixed(2)}
-                      </td>
-
-                      <td className="py-3 px-3 text-center font-semibold text-sm text-[var(--text-primary)] tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                        ₹{soldPrice.toFixed(2)}
-                      </td>
-
-                      <td className="py-3 px-3 text-center text-xs tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                        {discountPct > 0 ? (
-                          <span className="text-amber-400 font-semibold">{discountPct.toFixed(1)}%</span>
-                        ) : (
-                          <span className="text-[var(--text-tertiary)]">—</span>
+                      <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
+                        <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Rate</span>
+                        <span className="font-semibold text-[var(--text-primary)] tabular-nums">
+                          ₹{soldPrice.toFixed(2)}
+                        </span>
+                        {mrp > soldPrice && (
+                          <span className="text-[9px] line-through text-[var(--text-tertiary)] block">
+                            ₹{mrp.toFixed(2)}
+                          </span>
                         )}
-                      </td>
+                      </div>
 
-                      <td className="py-3 px-3 text-center font-bold text-sm text-[var(--text-primary)] tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                        ₹{lineTotal.toFixed(2)}
-                      </td>
+                      <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
+                        <span className="text-[10px] uppercase block" style={{ color: isVoided ? 'var(--text-tertiary)' : 'var(--color-success)' }}>
+                          Profit
+                        </span>
+                        <span className="font-bold tabular-nums" style={{ color: isVoided ? 'var(--text-tertiary)' : 'var(--color-success)' }}>
+                          {isVoided ? '₹0.00' : `₹${profit.toFixed(2)}`}
+                        </span>
+                      </div>
+                    </div>
 
-                      <td className="py-3 px-3 text-center font-bold text-sm tabular-nums" style={{ color: isVoided ? 'var(--text-secondary)' : 'var(--color-success)' }}>
-                        {isVoided ? '₹0.00' : `₹${profit.toFixed(2)}`}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                    {discountPct > 0 && (
+                      <div className="flex items-center justify-between text-[11px] px-2 py-1 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                        <span>Discount Applied</span>
+                        <span className="font-bold tabular-nums">{discountPct.toFixed(1)}% OFF</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* DESKTOP TABLE VIEW (>= 768px) */}
+            <div className="hidden md:block overflow-x-auto w-full flex-1">
+              <table className="w-full text-center border-collapse table-auto md:table-fixed">
+                <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
+                  <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+                    <th className="py-3 px-2 text-center w-12" style={{ borderRight: '1px solid var(--border-medium)' }}>#</th>
+                    <th className="py-3 px-3 text-center md:w-[30%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Item Details</th>
+                    <th className="py-3 px-3 text-center md:w-[12%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Quantity</th>
+                    <th className="py-3 px-3 text-center md:w-[11%]" style={{ borderRight: '1px solid var(--border-medium)' }}>MRP</th>
+                    <th className="py-3 px-3 text-center md:w-[11%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Sold At</th>
+                    <th className="py-3 px-3 text-center md:w-[10%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Discount</th>
+                    <th className="py-3 px-3 text-center md:w-[13%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Total</th>
+                    <th className="py-3 px-3 text-center md:w-[13%]" style={{ color: 'var(--color-success)' }}>Profit</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border-medium)]">
+                  {items.map((it, idx) => {
+                    const mrp = Number(it.selling_price || it.system_price || it.price_at_sale || 0);
+                    const soldPrice = Number(it.price_at_sale || 0);
+                    const qty = Number(it.billable_quantity || it.quantity || 1);
+                    const lineTotal = soldPrice * qty;
+                    const discountPct = Number(it.negotiated_discount || (mrp > 0 && soldPrice < mrp ? ((mrp - soldPrice) / mrp) * 100 : 0));
+                    const profit = Number(it.profit || 0);
+
+                    return (
+                      <tr
+                        key={it.id || idx}
+                        className="hover:bg-[var(--bg-hover)] transition-colors"
+                        style={{ borderBottom: '1px solid var(--border-medium)' }}
+                      >
+                        <td className="py-3 px-2 text-center text-xs text-[var(--text-tertiary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                          {idx + 1}
+                        </td>
+
+                        <td className="py-3 px-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                          <div className="font-semibold text-sm text-[var(--text-primary)]">
+                            {it.name}
+                          </div>
+                          <div className="flex items-center justify-center gap-2 mt-0.5 flex-wrap">
+                            {it.barcode && (
+                              <span className="text-[11px] text-[var(--text-secondary)] font-mono">
+                                #{it.barcode}
+                              </span>
+                            )}
+                            {it.instance_barcode && (
+                              <span className="text-[10px] text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20 font-mono">
+                                Piece: {it.instance_barcode}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-3 text-center font-medium" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                          <span className="font-semibold text-sm text-[var(--text-primary)] tabular-nums">{qty}</span>
+                          <span className="text-xs font-normal text-[var(--text-secondary)] uppercase ml-1">{it.unit || 'PCS'}</span>
+                        </td>
+
+                        <td className="py-3 px-3 text-center font-medium text-sm text-[var(--text-secondary)] tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                          ₹{mrp.toFixed(2)}
+                        </td>
+
+                        <td className="py-3 px-3 text-center font-semibold text-sm text-[var(--text-primary)] tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                          ₹{soldPrice.toFixed(2)}
+                        </td>
+
+                        <td className="py-3 px-3 text-center text-xs tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                          {discountPct > 0 ? (
+                            <span className="text-amber-400 font-semibold">{discountPct.toFixed(1)}%</span>
+                          ) : (
+                            <span className="text-[var(--text-tertiary)]">—</span>
+                          )}
+                        </td>
+
+                        <td className="py-3 px-3 text-center font-bold text-sm text-[var(--text-primary)] tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                          ₹{lineTotal.toFixed(2)}
+                        </td>
+
+                        <td className="py-3 px-3 text-center font-bold text-sm tabular-nums" style={{ color: isVoided ? 'var(--text-secondary)' : 'var(--color-success)' }}>
+                          {isVoided ? '₹0.00' : `₹${profit.toFixed(2)}`}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

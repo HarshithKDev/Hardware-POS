@@ -681,7 +681,7 @@ export default function BatchDetailsView({
                   }
                 }}
                 placeholder="Product Name"
-                className="flex-1 min-w-[200px] h-8 px-3 text-base font-bold rounded-lg bg-[var(--bg-input)] border border-[var(--color-accent)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)] shadow-sm"
+                className="w-full sm:w-auto sm:flex-1 min-w-0 h-9 sm:h-8 px-3 text-sm sm:text-base font-bold rounded-lg bg-[var(--bg-input)] border border-[var(--color-accent)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)] shadow-sm"
                 autoFocus
               />
               <button
@@ -1203,155 +1203,247 @@ export default function BatchDetailsView({
                       Whse ({activeBatchPieceStats.whseCount})
                     </button>
                   )}
-                </div>
+                      {/* Instances: Mobile Cards (< 768px) and Desktop Table (>= 768px) */}
+                {isLoadingInstances ? (
+                  <div className="p-8 text-center bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-medium)]">
+                    <Spinner className="w-6 h-6 text-[var(--color-accent)] mx-auto" />
+                  </div>
+                ) : displayedInstances.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-[var(--text-tertiary)] font-medium bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-medium)]">
+                    No cut pieces recorded under this batch for this filter.
+                  </div>
+                ) : (
+                  <>
+                    {/* MOBILE CARD VIEW (< 768px) */}
+                    <div className="block md:hidden space-y-2.5 max-h-[480px] overflow-y-auto">
+                      {displayedInstances.map(piece => {
+                        const isStore = String(piece.location || 'store').toLowerCase() === 'store';
+                        const isCut = Number(piece.current_length) < Number(piece.original_length);
+                        const unitName = item.unit === 'SQFT' ? 'ft' : (item.unit || '');
 
-                {/* Instances Table */}
-                <div 
-                  className="overflow-x-auto rounded-xl border border-[var(--border-medium)] shadow-sm"
-                  style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}
-                >
-                  <div className="max-h-[420px] overflow-y-auto">
-                    <table className="w-full text-center border-collapse text-xs">
-                      <thead 
-                        className="sticky top-0 z-20"
-                        style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}
-                      >
-                        <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                          <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Piece Barcode</th>
-                          <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Original Length</th>
-                          <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Current Length</th>
-                          {item.unit === 'SQFT' && (
-                            <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Width & Area</th>
-                          )}
-                          <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Location</th>
-                          <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Status</th>
-                          <th className="p-3.5 text-center">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {isLoadingInstances ? (
-                          <tr>
-                            <td colSpan={item.unit === 'SQFT' ? 7 : 6} className="p-8 text-center" style={{ borderBottom: '1px solid var(--border-medium)' }}>
-                              <Spinner className="w-6 h-6 text-[var(--color-accent)] mx-auto" />
-                            </td>
-                          </tr>
-                        ) : displayedInstances.length === 0 ? (
-                          <tr>
-                            <td colSpan={item.unit === 'SQFT' ? 7 : 6} className="p-8 text-center text-xs text-[var(--text-tertiary)] font-medium" style={{ borderBottom: '1px solid var(--border-medium)' }}>
-                              No cut pieces recorded under this batch for this filter.
-                            </td>
-                          </tr>
-                        ) : (
-                          displayedInstances.map(piece => {
-                            const isStore = String(piece.location || 'store').toLowerCase() === 'store';
-                            const isCut = Number(piece.current_length) < Number(piece.original_length);
-                            const unitName = item.unit === 'SQFT' ? 'ft' : (item.unit || '');
+                        return (
+                          <div
+                            key={piece.id || piece.instance_barcode}
+                            className="p-3 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-medium)] shadow-sm space-y-2.5"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 font-bold text-sm text-[var(--color-accent)]">
+                                <span>{piece.instance_barcode}</span>
+                                <button
+                                  onClick={() => handleCopyBarcode(piece.instance_barcode)}
+                                  className="p-1 rounded text-[var(--text-tertiary)] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                                  title="Copy Barcode"
+                                >
+                                  {copiedBarcode === piece.instance_barcode ? (
+                                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                  ) : (
+                                    <Copy className="w-3 h-3" />
+                                  )}
+                                </button>
+                              </div>
 
-                            return (
-                              <tr 
-                                key={piece.id || piece.instance_barcode}
-                                className="transition-colors hover:bg-[var(--bg-hover)]"
-                                style={{ borderBottom: '1px solid var(--border-medium)' }}
-                              >
-                                {/* PIECE BARCODE */}
-                                <td className="p-3.5 text-center text-sm font-medium" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                                  <div className="flex items-center justify-center gap-1.5 font-bold text-[var(--color-accent)]">
-                                    <span>{piece.instance_barcode}</span>
-                                    <button
-                                      onClick={() => handleCopyBarcode(piece.instance_barcode)}
-                                      className="p-1 rounded text-[var(--text-tertiary)] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                                      title="Copy Barcode"
-                                    >
-                                      {copiedBarcode === piece.instance_barcode ? (
-                                        <Check className="w-3.5 h-3.5 text-emerald-400" />
-                                      ) : (
-                                        <Copy className="w-3 h-3" />
-                                      )}
-                                    </button>
-                                  </div>
-                                </td>
+                              <div className="flex items-center gap-1.5">
+                                <span 
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${
+                                    isStore 
+                                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                                      : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                                  }`}
+                                >
+                                  {isStore ? 'Store' : 'Warehouse'}
+                                </span>
+                                {isCut && (
+                                  <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                    Cut
+                                  </span>
+                                )}
+                              </div>
+                            </div>
 
-                                {/* ORIGINAL LENGTH */}
-                                <td className="p-3.5 text-center text-sm font-medium text-[var(--text-secondary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border-medium)] text-center text-xs">
+                              <div className="bg-[var(--bg-tertiary)]/50 p-2 rounded">
+                                <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Current Length</span>
+                                <span className="font-bold text-sm text-[var(--text-primary)] tabular-nums">
+                                  {piece.current_length} {unitName}
+                                </span>
+                              </div>
+
+                              <div className="bg-[var(--bg-tertiary)]/50 p-2 rounded">
+                                <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Original Length</span>
+                                <span className="font-semibold text-xs text-[var(--text-secondary)] tabular-nums">
                                   {piece.original_length} {unitName}
-                                </td>
+                                </span>
+                              </div>
+                            </div>
 
-                                {/* CURRENT LENGTH */}
-                                <td className="p-3.5 text-center text-sm" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                                  <div className="flex items-center justify-center gap-1.5">
-                                    <span className="font-bold text-[var(--text-primary)]">
-                                      {piece.current_length} {unitName}
-                                    </span>
-                                    {isCut && (
-                                      <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                                        Cut
+                            {item.unit === 'SQFT' && (
+                              <div className="text-xs text-[var(--text-secondary)] bg-[var(--bg-tertiary)]/30 p-2 rounded text-center">
+                                {item.default_width || 0} ft × {piece.current_length} ft = {' '}
+                                <strong className="text-[var(--text-primary)] font-bold">
+                                  {(Number(piece.current_length) * Number(item.default_width || 0)).toFixed(2)} SQFT
+                                </strong>
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-end gap-2 pt-1 border-t border-[var(--border-medium)]">
+                              <button
+                                onClick={() => setPrintPieceModal({ isOpen: true, piece, qty: 1 })}
+                                className="px-3 py-1.5 rounded-lg border border-[var(--color-accent)] text-[var(--color-accent)] hover:bg-[var(--color-accent-bg)] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                                title="Print Barcode Label for this piece"
+                              >
+                                <Printer className="w-3.5 h-3.5" />
+                                <span>Print Label</span>
+                              </button>
+                              {viewType !== 'recycle' && (
+                                <button
+                                  onClick={() => handleTogglePiece(piece)}
+                                  className="p-1.5 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                                  title="Discard this piece"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* DESKTOP TABLE VIEW (>= 768px) */}
+                    <div 
+                      className="hidden md:block overflow-x-auto rounded-xl border border-[var(--border-medium)] shadow-sm"
+                      style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}
+                    >
+                      <div className="max-h-[420px] overflow-y-auto">
+                        <table className="w-full text-center border-collapse text-xs">
+                          <thead 
+                            className="sticky top-0 z-20"
+                            style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}
+                          >
+                            <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+                              <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Piece Barcode</th>
+                              <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Original Length</th>
+                              <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Current Length</th>
+                              {item.unit === 'SQFT' && (
+                                <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Width & Area</th>
+                              )}
+                              <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Location</th>
+                              <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Status</th>
+                              <th className="p-3.5 text-center">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {displayedInstances.map(piece => {
+                              const isStore = String(piece.location || 'store').toLowerCase() === 'store';
+                              const isCut = Number(piece.current_length) < Number(piece.original_length);
+                              const unitName = item.unit === 'SQFT' ? 'ft' : (item.unit || '');
+
+                              return (
+                                <tr 
+                                  key={piece.id || piece.instance_barcode}
+                                  className="transition-colors hover:bg-[var(--bg-hover)]"
+                                  style={{ borderBottom: '1px solid var(--border-medium)' }}
+                                >
+                                  {/* PIECE BARCODE */}
+                                  <td className="p-3.5 text-center text-sm font-medium" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                                    <div className="flex items-center justify-center gap-1.5 font-bold text-[var(--color-accent)]">
+                                      <span>{piece.instance_barcode}</span>
+                                      <button
+                                        onClick={() => handleCopyBarcode(piece.instance_barcode)}
+                                        className="p-1 rounded text-[var(--text-tertiary)] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                                        title="Copy Barcode"
+                                      >
+                                        {copiedBarcode === piece.instance_barcode ? (
+                                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                        ) : (
+                                          <Copy className="w-3 h-3" />
+                                        )}
+                                      </button>
+                                    </div>
+                                  </td>
+
+                                  {/* ORIGINAL LENGTH */}
+                                  <td className="p-3.5 text-center text-sm font-medium text-[var(--text-secondary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                                    {piece.original_length} {unitName}
+                                  </td>
+
+                                  {/* CURRENT LENGTH */}
+                                  <td className="p-3.5 text-center text-sm" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                                    <div className="flex items-center justify-center gap-1.5">
+                                      <span className="font-bold text-[var(--text-primary)]">
+                                        {piece.current_length} {unitName}
                                       </span>
-                                    )}
-                                  </div>
-                                </td>
+                                      {isCut && (
+                                        <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                          Cut
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
 
-                                {/* SQFT WIDTH & AREA */}
-                                {item.unit === 'SQFT' && (
-                                  <td className="p-3.5 text-center text-sm text-[var(--text-secondary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                                    <span>
-                                      {item.default_width || 0} ft × {piece.current_length} ft = {' '}
-                                      <strong className="text-[var(--text-primary)]">
-                                        {(Number(piece.current_length) * Number(item.default_width || 0)).toFixed(2)} SQFT
-                                      </strong>
+                                  {/* SQFT WIDTH & AREA */}
+                                  {item.unit === 'SQFT' && (
+                                    <td className="p-3.5 text-center text-sm text-[var(--text-secondary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                                      <span>
+                                        {item.default_width || 0} ft × {piece.current_length} ft = {' '}
+                                        <strong className="text-[var(--text-primary)]">
+                                          {(Number(piece.current_length) * Number(item.default_width || 0)).toFixed(2)} SQFT
+                                        </strong>
+                                      </span>
+                                    </td>
+                                  )}
+
+                                  {/* LOCATION */}
+                                  <td className="p-3.5 text-center text-sm" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                                    <span 
+                                      className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border ${
+                                        isStore 
+                                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                                          : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                                      }`}
+                                    >
+                                      {isStore ? 'Store' : 'Warehouse'}
                                     </span>
                                   </td>
-                                )}
 
-                                {/* LOCATION */}
-                                <td className="p-3.5 text-center text-sm" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                                  <span 
-                                    className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border ${
-                                      isStore 
-                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-                                        : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                                    }`}
-                                  >
-                                    {isStore ? 'Store' : 'Warehouse'}
-                                  </span>
-                                </td>
+                                  {/* STATUS */}
+                                  <td className="p-3.5 text-center text-sm" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                                    <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-400">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                      Available
+                                    </span>
+                                  </td>
 
-                                {/* STATUS */}
-                                <td className="p-3.5 text-center text-sm" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                                  <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-400">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                                    Available
-                                  </span>
-                                </td>
-
-                                {/* ACTIONS */}
-                                <td className="p-3.5 text-center text-sm">
-                                  <div className="flex items-center justify-center gap-2">
-                                    <button
-                                      onClick={() => setPrintPieceModal({ isOpen: true, piece, qty: 1 })}
-                                      className="p-1.5 rounded-md border border-[var(--color-accent)] text-[var(--color-accent)] hover:bg-[var(--color-accent-bg)] transition-colors cursor-pointer"
-                                      title="Print Barcode Label for this piece"
-                                    >
-                                      <Printer className="w-3.5 h-3.5" />
-                                    </button>
-                                    {viewType !== 'recycle' && (
+                                  {/* ACTIONS */}
+                                  <td className="p-3.5 text-center text-sm">
+                                    <div className="flex items-center justify-center gap-2">
                                       <button
-                                        onClick={() => handleTogglePiece(piece)}
-                                        className="p-1.5 rounded-md border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
-                                        title="Discard this piece"
+                                        onClick={() => setPrintPieceModal({ isOpen: true, piece, qty: 1 })}
+                                        className="p-1.5 rounded-md border border-[var(--color-accent)] text-[var(--color-accent)] hover:bg-[var(--color-accent-bg)] transition-colors cursor-pointer"
+                                        title="Print Barcode Label for this piece"
                                       >
-                                        <Trash2 className="w-3.5 h-3.5" />
+                                        <Printer className="w-3.5 h-3.5" />
                                       </button>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                                      {viewType !== 'recycle' && (
+                                        <button
+                                          onClick={() => handleTogglePiece(piece)}
+                                          className="p-1.5 rounded-md border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                                          title="Discard this piece"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
+                )}             </div>
               </div>
             ) : null}
           </>

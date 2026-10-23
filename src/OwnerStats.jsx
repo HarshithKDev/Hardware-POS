@@ -1257,22 +1257,57 @@ export default function OwnerStats({ isActive }) {
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               {activeModal === 'profit' && (
                 <>
-                  <div className="grid grid-cols-3 p-4 shrink-0" style={{ backgroundColor: 'var(--color-success-bg)', borderBottom: '1px solid var(--border-medium)' }}>
-                    <div className="text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                      <p className="text-xs font-bold uppercase mb-1" style={{ color: 'var(--text-secondary)' }}>Total Cost of Goods</p>
-                      <p className="text-xl font-medium" style={{ color: 'var(--text-primary)' }}>₹{tfTotalCost.toFixed(2)}</p>
+                  <div className="grid grid-cols-3 p-3 sm:p-4 shrink-0 text-center" style={{ backgroundColor: 'var(--color-success-bg)', borderBottom: '1px solid var(--border-medium)' }}>
+                    <div className="pr-1 sm:pr-2" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                      <p className="text-[10px] sm:text-xs font-bold uppercase mb-0.5 sm:mb-1 truncate" style={{ color: 'var(--text-secondary)' }}>Total Cost</p>
+                      <p className="text-sm sm:text-xl font-medium tabular-nums" style={{ color: 'var(--text-primary)' }}>₹{tfTotalCost.toFixed(2)}</p>
                     </div>
-                    <div className="text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                      <p className="text-xs font-bold uppercase mb-1" style={{ color: 'var(--text-secondary)' }}>Total Sold For</p>
-                      <p className="text-xl font-medium" style={{ color: 'var(--text-primary)' }}>₹{tfTrueRevenue.toFixed(2)}</p>
+                    <div className="px-1 sm:px-2" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                      <p className="text-[10px] sm:text-xs font-bold uppercase mb-0.5 sm:mb-1 truncate" style={{ color: 'var(--text-secondary)' }}>Total Sold</p>
+                      <p className="text-sm sm:text-xl font-medium tabular-nums" style={{ color: 'var(--text-primary)' }}>₹{tfTrueRevenue.toFixed(2)}</p>
                     </div>
-                    <div className="text-center">
-                      <p className="text-xs font-bold uppercase mb-1" style={{ color: 'var(--color-success)' }}>Net Profit Generated</p>
-                      <p className="text-xl font-bold" style={{ color: 'var(--color-success)' }}>₹{tfGrossProfit.toFixed(2)}</p>
+                    <div className="pl-1 sm:pl-2">
+                      <p className="text-[10px] sm:text-xs font-bold uppercase mb-0.5 sm:mb-1 truncate" style={{ color: 'var(--color-success)' }}>Net Profit</p>
+                      <p className="text-sm sm:text-xl font-bold tabular-nums" style={{ color: 'var(--color-success)' }}>₹{tfGrossProfit.toFixed(2)}</p>
                     </div>
                   </div>
-                  <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto w-full modal-scroll">
-                    <table className="w-full text-left border-collapse">
+                  <div className="flex-1 min-h-0 overflow-y-auto w-full modal-scroll">
+                    {/* MOBILE PROFIT CARD LIST */}
+                    <div className="block md:hidden divide-y divide-[var(--border-medium)] p-2.5 space-y-2">
+                      {tfSalesDetails.length === 0 ? (
+                        <div className="h-48 flex items-center justify-center text-sm font-medium" style={{ color: 'var(--text-tertiary)' }}>
+                          No sales recorded.
+                        </div>
+                      ) : (
+                        tfSalesDetails.map((item, idx) => (
+                          <div key={idx} className="p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-light)] shadow-sm space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="font-semibold text-sm text-[var(--text-primary)] leading-tight">{item.name}</span>
+                              <span className="text-xs font-bold text-[var(--color-success)] tabular-nums bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                                +₹{item.lineProfit.toFixed(2)}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[var(--border-medium)] text-center text-xs">
+                              <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
+                                <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Qty</span>
+                                <span className="font-semibold text-[var(--text-primary)] tabular-nums">{item.qty} {item.unit}</span>
+                              </div>
+                              <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
+                                <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Cost</span>
+                                <span className="font-semibold text-[var(--text-secondary)] tabular-nums">₹{item.lineCost.toFixed(2)}</span>
+                              </div>
+                              <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
+                                <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Sold For</span>
+                                <span className="font-semibold text-[var(--text-primary)] tabular-nums">₹{item.lineRev.toFixed(2)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* DESKTOP PROFIT TABLE */}
+                    <table className="hidden md:table w-full text-left border-collapse">
                       <thead className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                         <tr className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                           <th className="p-3" style={{ borderRight: '1px solid var(--border-medium)' }}>Item Sold</th>
@@ -1305,8 +1340,90 @@ export default function OwnerStats({ isActive }) {
               )}
 
               {(activeModal === 'low-store' || activeModal === 'low-warehouse' || activeModal === 'dead-stock') && (
-                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto w-full modal-scroll">
-                  <table className="w-full text-left border-collapse">
+                <div className="flex-1 min-h-0 overflow-y-auto w-full modal-scroll">
+                  {/* MOBILE STOCK CARD VIEW */}
+                  <div className="block md:hidden divide-y divide-[var(--border-medium)] p-2.5 space-y-2">
+                    {activeModal === 'low-store' && lowStoreItems.length === 0 && (
+                      <div className="h-48 flex items-center justify-center text-sm font-semibold text-emerald-400">
+                        Nothing in low stock.
+                      </div>
+                    )}
+                    {activeModal === 'low-store' && lowStoreItems.map(item => (
+                      <div key={item.barcode} className="p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-light)] shadow-sm space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="font-semibold text-sm text-[var(--text-primary)] leading-tight">{item.name}</span>
+                          <span className="text-[11px] font-mono text-[var(--color-accent)] bg-[var(--bg-tertiary)] px-2 py-0.5 rounded border border-[var(--border-medium)]">
+                            #{item.barcode}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border-medium)] text-center text-xs">
+                          <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
+                            <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Min Alert</span>
+                            <span className="font-bold text-[var(--text-tertiary)] tabular-nums">{item.min_quantity_store ?? 10}</span>
+                          </div>
+                          <div className="bg-red-500/10 border border-red-500/20 p-1.5 rounded">
+                            <span className="text-[10px] text-red-400 uppercase block font-semibold">Current Stock</span>
+                            <span className="font-bold text-red-400 tabular-nums">{item.stock_store}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {activeModal === 'low-warehouse' && lowWarehouseItems.length === 0 && (
+                      <div className="h-48 flex items-center justify-center text-sm font-semibold text-emerald-400">
+                        Nothing in low stock.
+                      </div>
+                    )}
+                    {activeModal === 'low-warehouse' && lowWarehouseItems.map(item => (
+                      <div key={item.barcode} className="p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-light)] shadow-sm space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="font-semibold text-sm text-[var(--text-primary)] leading-tight">{item.name}</span>
+                          <span className="text-[11px] font-mono text-[var(--color-accent)] bg-[var(--bg-tertiary)] px-2 py-0.5 rounded border border-[var(--border-medium)]">
+                            #{item.barcode}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border-medium)] text-center text-xs">
+                          <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
+                            <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Min Alert</span>
+                            <span className="font-bold text-[var(--text-tertiary)] tabular-nums">{item.min_quantity_warehouse ?? 50}</span>
+                          </div>
+                          <div className="bg-red-500/10 border border-red-500/20 p-1.5 rounded">
+                            <span className="text-[10px] text-red-400 uppercase block font-semibold">Current Whse</span>
+                            <span className="font-bold text-red-400 tabular-nums">{item.stock_warehouse}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {activeModal === 'dead-stock' && deadStockItems.length === 0 && (
+                      <div className="h-48 flex items-center justify-center text-sm font-semibold text-emerald-400 text-center px-4">
+                        Great job! All your stock is active and moving.
+                      </div>
+                    )}
+                    {activeModal === 'dead-stock' && deadStockItems.map(item => (
+                      <div key={item.barcode} className="p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-light)] shadow-sm space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="font-semibold text-sm text-[var(--text-primary)] leading-tight">{item.name}</span>
+                          <span className="text-[11px] font-mono text-[var(--color-accent)] bg-[var(--bg-tertiary)] px-2 py-0.5 rounded border border-[var(--border-medium)]">
+                            #{item.barcode}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border-medium)] text-center text-xs">
+                          <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
+                            <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Locked Qty</span>
+                            <span className="font-bold text-amber-400 tabular-nums">{item.totalQty}</span>
+                          </div>
+                          <div className="bg-red-500/10 border border-red-500/20 p-1.5 rounded">
+                            <span className="text-[10px] text-red-400 uppercase block font-semibold">Capital Tied Up</span>
+                            <span className="font-bold text-red-400 tabular-nums">₹{item.deadValue.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* DESKTOP STOCK TABLE */}
+                  <table className="hidden md:table w-full text-left border-collapse">
                     <thead className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                       <tr className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                         <th className="p-3 w-32" style={{ borderRight: '1px solid var(--border-medium)' }}>Barcode</th>

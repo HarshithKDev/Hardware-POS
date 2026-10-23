@@ -335,24 +335,79 @@ export default function InventoryRow({
     const data = editData || item;
     return (
       <>
+        {/* MOBILE EDIT CARD LAYOUT */}
+        <td className="md:hidden block p-4 text-left w-full border-none">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-xs font-bold text-[var(--color-accent)]">#{item.barcode}</span>
+            <input type="checkbox" checked={isSelected} onChange={() => onSelect(item.barcode)} className="w-5 h-5 rounded text-accent focus:ring-accent cursor-pointer" />
+          </div>
+          <div className="flex flex-col gap-2.5">
+            <div>
+              <label className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Item Name</label>
+              <input type="text" value={data.name || ''} onChange={e=>onEditChange(item.barcode, 'name', e.target.value)} className="h-10 px-3 w-full text-sm rounded-md focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Category</label>
+                <select value={data.category || ''} onChange={e=>{onEditChange(item.barcode, 'category', e.target.value); onEditChange(item.barcode, 'sub_category', '');}} className="h-10 px-2 w-full text-xs rounded-md focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
+                  <option value="">None</option>
+                  {categories?.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Subcategory</label>
+                <select value={data.sub_category || ''} onChange={e=>onEditChange(item.barcode, 'sub_category', e.target.value)} disabled={!data.category} className="h-10 px-2 w-full text-xs rounded-md focus:outline-none disabled:opacity-50" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
+                  <option value="">None</option>
+                  {availableSubcategories.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className={`grid ${isWarehouseDisabled ? 'grid-cols-1' : 'grid-cols-2'} gap-2`}>
+              {!isWarehouseDisabled && (
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Warehouse Stock</label>
+                  {item.is_cuttable ? (
+                    <div className="h-9 px-2 flex items-center justify-center text-xs rounded bg-[var(--bg-secondary)] text-[var(--text-tertiary)] border border-[var(--border-medium)]">
+                      {pieceCounts ? pieceCounts.warehouse : '...'} PCS
+                    </div>
+                  ) : (
+                    <input type="number" step="any" min="0" value={data.stock_warehouse ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_warehouse', e.target.value)} className="h-9 px-2 w-full text-xs text-center rounded focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                  )}
+                </div>
+              )}
+              <div>
+                <label className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">{isWarehouseDisabled ? 'Total Stock' : 'Store Stock'}</label>
+                {item.is_cuttable ? (
+                  <div className="h-9 px-2 flex items-center justify-center text-xs rounded bg-[var(--bg-secondary)] text-[var(--text-tertiary)] border border-[var(--border-medium)]">
+                    {pieceCounts ? pieceCounts.store : '...'} PCS
+                  </div>
+                ) : (
+                  <input type="number" step="any" min="0" value={data.stock_store ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_store', e.target.value)} className="h-9 px-2 w-full text-xs text-center rounded focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                )}
+              </div>
+            </div>
+          </div>
+        </td>
+
+        {/* DESKTOP TABLE CELLS */}
         {isSelectionMode && (
-          <td className="p-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
+          <td className="hidden md:table-cell p-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
             <input type="checkbox" checked={isSelected} onChange={() => onSelect(item.barcode)} className="w-4 h-4 rounded text-accent focus:ring-accent" />
           </td>
         )}
-        <td className="p-3 text-sm font-semibold tracking-wider" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--color-accent)' }}>{item.barcode}</td>
-        <td className="p-1" style={{ borderRight: '1px solid var(--border-medium)' }}>
+        <td className="hidden md:table-cell p-3 text-sm font-semibold tracking-wider text-center" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--color-accent)' }}>{item.barcode}</td>
+        <td className="hidden md:table-cell p-1" style={{ borderRight: '1px solid var(--border-medium)' }}>
           <input type="text" value={data.name || ''} onChange={e=>onEditChange(item.barcode, 'name', e.target.value)} className="h-8 px-2 w-full text-sm focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
         </td>
         
-        <td className="p-1" style={{ borderRight: '1px solid var(--border-medium)' }}>
+        <td className="hidden md:table-cell p-1" style={{ borderRight: '1px solid var(--border-medium)' }}>
           <select value={data.category || ''} onChange={e=>{onEditChange(item.barcode, 'category', e.target.value); onEditChange(item.barcode, 'sub_category', '');}} className="h-auto py-1.5 pl-2 pr-8 w-full text-xs focus:outline-none truncate cursor-pointer rounded-sm" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
             <option value="">None</option>
             {categories?.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
           </select>
         </td>
 
-        <td className="p-1" style={{ borderRight: '1px solid var(--border-medium)' }}>
+        <td className="hidden md:table-cell p-1" style={{ borderRight: '1px solid var(--border-medium)' }}>
           <select value={data.sub_category || ''} onChange={e=>onEditChange(item.barcode, 'sub_category', e.target.value)} disabled={!data.category} className="h-auto py-1.5 pl-2 pr-8 w-full text-xs focus:outline-none truncate cursor-pointer rounded-sm disabled:opacity-50" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
             <option value="">None</option>
             {availableSubcategories.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
@@ -360,7 +415,7 @@ export default function InventoryRow({
         </td>
 
         <td 
-          className="p-1 text-center cursor-pointer" 
+          className="hidden md:table-cell p-1 text-center cursor-pointer" 
           style={{ borderRight: '1px solid var(--border-medium)' }}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
@@ -368,9 +423,8 @@ export default function InventoryRow({
           <span className="text-xs text-[var(--text-tertiary)] hover:text-[var(--color-accent)] transition-colors">{activeBatches.length} {activeBatches.length === 1 ? 'Batch' : 'Batches'}</span>
         </td>
 
-        {/* Pricing inputs removed from edit mode. Pricing is now batch-level only. */}
         {!isWarehouseDisabled && (
-          <td className="p-1" style={{ borderRight: '1px solid var(--border-medium)' }}>
+          <td className="hidden md:table-cell p-1" style={{ borderRight: '1px solid var(--border-medium)' }}>
             {item.is_cuttable ? (
               <div className="h-8 px-2 w-full text-sm flex justify-center items-center" title="Cannot edit warehouse aggregate directly" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-tertiary)', cursor: 'not-allowed' }}>
                 {pieceCounts ? pieceCounts.warehouse : '...'} <span className="ml-1 text-[10px]">PCS</span>
@@ -380,7 +434,7 @@ export default function InventoryRow({
             )}
           </td>
         )}
-        <td className="p-1" style={{ borderRight: '1px solid var(--border-medium)' }}>
+        <td className="hidden md:table-cell p-1" style={{ borderRight: '1px solid var(--border-medium)' }}>
           {item.is_cuttable ? (
             <div className="h-8 px-2 w-full text-sm flex justify-center items-center" title="Cannot edit store aggregate directly" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-tertiary)', cursor: 'not-allowed' }}>
               {pieceCounts ? pieceCounts.store : '...'} <span className="ml-1 text-[10px]">PCS</span>
@@ -389,7 +443,7 @@ export default function InventoryRow({
             <input type="number" step="any" min="0" value={data.stock_store ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_store', e.target.value)} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
           )}
         </td>
-        <td className="p-1 text-center text-xs text-[var(--text-tertiary)]">
+        <td className="hidden md:table-cell p-1 text-center text-xs text-[var(--text-tertiary)]">
           Editing
         </td>
         {renderBatchTooltip()}
@@ -399,69 +453,110 @@ export default function InventoryRow({
 
   return (
     <>
-        {/* MOBILE CARD LAYOUT */}
-        <td className="md:hidden block p-4 text-left w-full border-none">
-           <div className="flex justify-between items-start mb-2">
-             <div className="flex-1 pr-2">
-               <div className="text-[10px] font-bold tracking-widest text-[var(--color-accent)] mb-1">{item.barcode}</div>
-               <div className="text-base font-bold text-[var(--text-primary)] leading-tight">{item.name}</div>
-               <div className="text-[11px] text-[var(--text-secondary)] mt-1">{item.category} {item.sub_category ? `› ${item.sub_category}` : ''}</div>
-             </div>
-             <div className="flex flex-col items-end gap-2 flex-shrink-0">
-               {isSelectionMode && (
-                 <input type="checkbox" checked={isSelected} onChange={() => onSelect(item.barcode)} onClick={e => e.stopPropagation()} className="w-6 h-6 rounded text-accent focus:ring-accent" />
-               )}
+        {/* MOBILE COMPACT CARD LAYOUT */}
+        <td className="md:hidden block p-2.5 sm:p-3 text-left w-full border-none">
+          {/* Row 1: Barcode, Name, Category & Stock */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] font-mono font-bold text-[var(--color-accent)]">
+                  #{item.barcode}
+                </span>
                 {item.is_loose_item && (
-                  <span className="px-2 py-0.5 text-[9px] font-bold uppercase rounded-full" style={{ backgroundColor: 'rgba(234, 179, 8, 0.1)', color: 'var(--color-warning)', border: '1px solid rgba(234, 179, 8, 0.2)' }}>Loose</span>
+                  <span className="px-1.5 py-0.2 text-[8px] font-bold uppercase rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    Loose
+                  </span>
                 )}
-                <button
-                  type="button"
-                  onClick={(e) => { 
-                    e.stopPropagation(); 
-                    setIsHovered(false);
-                    onOpenBatchDetails && onOpenBatchDetails(item); 
-                  }}
-                  onMouseEnter={handleMouseEnter}
-                  onMouseLeave={handleMouseLeave}
-                  className="px-2.5 py-1 text-[10px] font-bold uppercase rounded-full cursor-pointer transition-all active:scale-95 shadow-sm flex items-center justify-center gap-1.5 w-[96px] h-[26px] hover:brightness-110"
-                  style={{
-                    backgroundColor: item.is_cuttable ? 'var(--color-accent-bg)' : 'rgba(16, 185, 129, 0.1)',
-                    color: item.is_cuttable ? 'var(--color-accent)' : 'var(--color-success)',
-                    border: `1px solid ${item.is_cuttable ? 'rgba(59, 130, 246, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
-                  }}
-                >
-                  <span>{activeBatches.length} {activeBatches.length === 1 ? 'Batch' : 'Batches'}</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                  </svg>
-                </button>
-             </div>
-             
-             {/* Create Batch Button for Mobile */}
-             <div className="absolute top-4 right-4">
-               <button onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('openCreateBatchModal', { detail: item })); }} className="p-1.5 rounded-full" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)' }}>
-                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-               </button>
-             </div>
-             
-           </div>
-           
-             <div className={`grid ${isWarehouseDisabled ? 'grid-cols-1' : 'grid-cols-2'} gap-2 mt-3 pt-3 border-t border-[var(--border-medium)]`}>
-               {!isWarehouseDisabled && (
-                 <div>
-                   <div className="text-[10px] uppercase text-[var(--text-secondary)] font-semibold mb-0.5">Whse Qty</div>
-                   <div className="text-sm font-bold text-[var(--text-primary)]">
-                     {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : totalWhse} <span className="text-[10px] font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : displayUnit}</span>
-                   </div>
-                 </div>
-               )}
-               <div>
-                 <div className="text-[10px] uppercase text-[var(--text-secondary)] font-semibold mb-0.5">{isWarehouseDisabled ? 'Stock Qty' : 'Store Qty'}</div>
-                 <div className="text-sm font-bold text-[var(--text-primary)]">
-                   {item.is_cuttable ? (pieceCounts ? pieceCounts.store : '...') : totalStore} <span className="text-[10px] font-normal text-[var(--text-secondary)]">{item.is_cuttable ? 'PCS' : displayUnit}</span>
-                 </div>
-               </div>
-             </div>
+              </div>
+              <div className="text-sm font-bold text-[var(--text-primary)] leading-tight truncate mt-0.5" title={item.name}>
+                {item.name}
+              </div>
+              {(item.category || item.sub_category) && (
+                <div className="text-[10px] text-[var(--text-tertiary)] truncate mt-0.5">
+                  {item.category}{item.sub_category ? ` › ${item.sub_category}` : ''}
+                </div>
+              )}
+            </div>
+
+            {/* Right side: Stock KPI & Selection Checkbox */}
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="text-right">
+                <div className="text-xs font-bold text-[var(--text-primary)] tabular-nums leading-none">
+                  {item.is_cuttable ? (pieceCounts ? pieceCounts.store : '...') : totalStore}
+                  <span className="text-[9px] font-normal text-[var(--text-secondary)] uppercase ml-0.5">
+                    {item.is_cuttable ? 'PCS' : displayUnit}
+                  </span>
+                </div>
+                {!isWarehouseDisabled && (
+                  <div className="text-[9px] text-[var(--text-tertiary)] tabular-nums mt-0.5">
+                    Whse: {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : totalWhse}
+                  </div>
+                )}
+              </div>
+              {isSelectionMode && (
+                <input 
+                  type="checkbox" 
+                  checked={isSelected} 
+                  onChange={() => onSelect(item.barcode)} 
+                  onClick={e => e.stopPropagation()} 
+                  className="w-4 h-4 rounded text-accent focus:ring-accent cursor-pointer" 
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Row 2: Compact Action Buttons Bar */}
+          <div className="flex items-center justify-between gap-1.5 mt-2 pt-2 border-t border-[var(--border-light)]">
+            <button
+              type="button"
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                setIsHovered(false);
+                onOpenBatchDetails && onOpenBatchDetails(item); 
+              }}
+              className="flex-1 py-1 px-2.5 text-[11px] font-bold uppercase rounded-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5 hover:brightness-110"
+              style={{
+                backgroundColor: item.is_cuttable ? 'var(--color-accent-bg)' : 'rgba(16, 185, 129, 0.1)',
+                color: item.is_cuttable ? 'var(--color-accent)' : 'var(--color-success)',
+                border: `1px solid ${item.is_cuttable ? 'rgba(59, 130, 246, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
+              }}
+            >
+              <span>{activeBatches.length} {activeBatches.length === 1 ? 'Batch' : 'Batches'}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+              </svg>
+            </button>
+
+            {viewType === 'recycle' ? (
+              <button 
+                type="button"
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  onRestore && onRestore(item.barcode);
+                }}
+                className="py-1 px-3 rounded-md transition-all active:scale-95 text-white font-bold text-[11px] uppercase tracking-wider flex items-center justify-center gap-1 shadow-sm hover:opacity-90 cursor-pointer"
+                title="Restore Item"
+                style={{ backgroundColor: 'var(--color-success)' }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
+                <span>Restore</span>
+              </button>
+            ) : (
+              <button 
+                type="button"
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  window.dispatchEvent(new CustomEvent('openCreateBatchModal', { detail: item }));
+                }}
+                className="py-1 px-3 rounded-md transition-all active:scale-95 text-white font-bold text-[11px] uppercase tracking-wider flex items-center justify-center gap-1 shadow-sm hover:opacity-90 cursor-pointer"
+                title="Create New Batch"
+                style={{ backgroundColor: 'var(--color-accent)' }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                <span>Batch</span>
+              </button>
+            )}
+          </div>
         </td>
 
         {/* DESKTOP TABLE LAYOUT */}
