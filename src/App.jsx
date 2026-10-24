@@ -178,7 +178,7 @@ function App() {
       updateManifest(icon192Url, icon512Url);
     };
 
-    const renderContainedIcon = (img, size, paddingRatio = 0.20, isCircularFavicon = false) => {
+    const renderContainedIcon = (img, size, paddingRatio = 0.15, isCircularFavicon = false) => {
       const canvas = document.createElement('canvas');
       canvas.width = size;
       canvas.height = size;
@@ -200,7 +200,7 @@ function App() {
         const nh = img.naturalHeight || img.height || 1;
         const aspect = nw / nh;
 
-        // Bounding box within safe zone (60% of canvas, perfectly framed within circular masks)
+        // Bounding box within safe zone (70% of canvas, perfectly framed within circular masks)
         const maxDim = size * (1 - paddingRatio * 2);
         let drawW = maxDim;
         let drawH = maxDim;
@@ -226,13 +226,13 @@ function App() {
       img.onload = () => {
         try {
           // 1. Favicon (64x64)
-          const favDataUrl = renderContainedIcon(img, 64, 0.14, true);
+          const favDataUrl = renderContainedIcon(img, 64, 0.10, true);
 
           // 2. Apple Touch Icon & PWA 192x192 with safe-zone containment
-          const icon192DataUrl = renderContainedIcon(img, 192, 0.20, false);
+          const icon192DataUrl = renderContainedIcon(img, 192, 0.15, false);
 
           // 3. PWA 512x512 high-res maskable icon
-          const icon512DataUrl = renderContainedIcon(img, 512, 0.20, false);
+          const icon512DataUrl = renderContainedIcon(img, 512, 0.15, false);
 
           setIcons(favDataUrl, icon192DataUrl, icon192DataUrl, icon512DataUrl);
         } catch (canvasErr) {
@@ -248,7 +248,7 @@ function App() {
       // Dynamic avatar when no custom logo is uploaded
       const initial = (shopSettings.shop_name || 'H').trim().charAt(0).toUpperCase();
 
-      const renderInitialIcon = (size, paddingRatio = 0.20) => {
+      const renderInitialIcon = (size, paddingRatio = 0.15) => {
         const canvas = document.createElement('canvas');
         canvas.width = size;
         canvas.height = size;
@@ -272,9 +272,9 @@ function App() {
         return canvas.toDataURL('image/png');
       };
 
-      const favDataUrl = renderInitialIcon(64, 0.12);
-      const icon192DataUrl = renderInitialIcon(192, 0.20);
-      const icon512DataUrl = renderInitialIcon(512, 0.20);
+      const favDataUrl = renderInitialIcon(64, 0.10);
+      const icon192DataUrl = renderInitialIcon(192, 0.15);
+      const icon512DataUrl = renderInitialIcon(512, 0.15);
 
       setIcons(favDataUrl, icon192DataUrl, icon192DataUrl, icon512DataUrl);
     }
