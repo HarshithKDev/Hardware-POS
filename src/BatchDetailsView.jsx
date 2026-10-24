@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Barcode from 'react-barcode';
 import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
-import { Spinner } from './SharedUI';
+import { Spinner, PageLoader } from './SharedUI';
 import { getInventoryItemByBarcode, saveInventoryBatch } from './services/db';
 import PrintBatchModal from './PrintBatchModal';
 import CreateBatchModal from './CreateBatchModal';
@@ -670,8 +670,8 @@ export default function BatchDetailsView({
 
   if (!item && isLoadingItem) {
     return (
-      <div className="flex-1 flex items-center justify-center p-12">
-        <Spinner className="w-8 h-8 text-[var(--color-accent)]" />
+      <div className="flex-1 flex items-center justify-center min-h-[350px] p-12">
+        <PageLoader text="Loading item details..." />
       </div>
     );
   }
@@ -1288,7 +1288,7 @@ export default function BatchDetailsView({
                       {/* Instances: Mobile Cards (< 768px) and Desktop Table (>= 768px) */}
                 {isLoadingInstances ? (
                   <div className="p-8 text-center bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-medium)]">
-                    <Spinner className="w-6 h-6 text-[var(--color-accent)] mx-auto" />
+                    <PageLoader text="Loading cut pieces..." />
                   </div>
                 ) : displayedInstances.length === 0 ? (
                   <div className="p-8 text-center text-xs text-[var(--text-tertiary)] font-medium bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-medium)]">

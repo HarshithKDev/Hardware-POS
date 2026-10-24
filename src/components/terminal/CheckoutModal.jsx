@@ -26,11 +26,11 @@ export default function CheckoutModal({
       aria-labelledby="checkout-title"
     >
       <div 
-        className="w-full sm:w-full max-w-[480px] max-h-[92dvh] sm:max-h-[90dvh] flex flex-col rounded-t-2xl sm:rounded-xl overflow-hidden animate-scale-in border-t sm:border border-[var(--border-light)] shadow-2xl" 
+        className="w-full sm:w-full max-w-[660px] max-h-[92dvh] sm:max-h-[90dvh] flex flex-col rounded-t-2xl sm:rounded-xl overflow-hidden animate-scale-in border-t sm:border border-[var(--border-light)] shadow-2xl" 
         style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
       >
         <div className="sm:hidden w-10 h-1 bg-[var(--border-medium)] rounded-full mx-auto my-2 shrink-0" />
-        <div className="flex justify-between items-center pr-2 pl-4 py-1 sm:py-1" style={{ borderBottom: '1px solid var(--border-light)' }}>
+        <div className="flex justify-between items-center pr-2 pl-4 py-2 sm:py-2.5" style={{ borderBottom: '1px solid var(--border-light)' }}>
           <span id="checkout-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
             Checkout Payment
           </span>
@@ -43,71 +43,73 @@ export default function CheckoutModal({
             ✕
           </button>
         </div>
-        <div className="p-6 overflow-y-auto flex-1">
-          <div className="flex justify-between items-end mb-6 pb-4" style={{ borderBottom: '1px solid var(--border-light)' }}>
+        <div className="p-4 sm:p-5 overflow-y-auto flex-1">
+          <div className="flex justify-between items-end mb-4 pb-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
             <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Total Due</span>
-            <span className="text-4xl font-light" style={{ color: 'var(--color-accent)' }} aria-live="polite">₹{activeTotal.toFixed(2)}</span>
+            <span className="text-3xl sm:text-4xl font-light" style={{ color: 'var(--color-accent)' }} aria-live="polite">₹{activeTotal.toFixed(2)}</span>
           </div>
           
-          <div className="mb-4">
-            <label htmlFor="customer-name" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>
-              Customer Name (Optional)
-            </label>
-            <input 
-              id="customer-name" 
-              type="text" 
-              value={checkoutModal.customerName || ''} 
-              onChange={(e) => setCheckoutModal({ ...checkoutModal, customerName: e.target.value })} 
-              placeholder="e.g. John Doe" 
-              className="w-full h-10 px-4 text-sm focus:outline-none rounded-md" 
-              style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} 
-            />
-          </div>
-          <div className="mb-4">
-            <label htmlFor="customer-phone" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>
-              Customer Phone (Optional)
-            </label>
-            <input 
-              id="customer-phone" 
-              type="text" 
-              value={checkoutModal.customerPhone || ''} 
-              onChange={(e) => setCheckoutModal({ ...checkoutModal, customerPhone: e.target.value })} 
-              placeholder="e.g. 9876543210" 
-              className="w-full h-10 px-4 text-sm focus:outline-none rounded-md" 
-              style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} 
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3.5">
+            <div>
+              <label htmlFor="customer-name" className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                Customer Name (Optional)
+              </label>
+              <input 
+                id="customer-name" 
+                type="text" 
+                value={checkoutModal.customerName || ''} 
+                onChange={(e) => setCheckoutModal({ ...checkoutModal, customerName: e.target.value })} 
+                placeholder="e.g. John Doe" 
+                className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" 
+                style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} 
+              />
+            </div>
+            <div>
+              <label htmlFor="customer-phone" className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-secondary)' }}>
+                Customer Phone (Optional)
+              </label>
+              <input 
+                id="customer-phone" 
+                type="text" 
+                value={checkoutModal.customerPhone || ''} 
+                onChange={(e) => setCheckoutModal({ ...checkoutModal, customerPhone: e.target.value })} 
+                placeholder="e.g. 9876543210" 
+                className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" 
+                style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} 
+              />
+            </div>
           </div>
 
-          <div className="mb-4">
-            <label htmlFor="negotiated-total" className="block text-xs font-bold uppercase tracking-wider mb-2 flex justify-between" style={{ color: 'var(--text-secondary)' }}>
+          <div className="mb-3.5">
+            <label htmlFor="negotiated-total" className="block text-xs font-bold uppercase tracking-wider mb-1.5 flex justify-between" style={{ color: 'var(--text-secondary)' }}>
               <span>Final Negotiated Amount (₹)</span>
-              <span className="opacity-70 font-normal">System: ₹{cartTotal.toFixed(2)}</span>
+              <span className="opacity-70 font-normal">System Total: ₹{cartTotal.toFixed(2)}</span>
             </label>
             <input 
               id="negotiated-total" 
               type="number" 
               step="any" 
               min="0" 
-              autoFocus 
+              autoFocus
               value={checkoutModal.negotiatedTotal} 
               onChange={(e) => { 
                 const v = parseFloat(e.target.value); 
                 setCheckoutModal({ ...checkoutModal, error: '', negotiatedTotal: (isNaN(v) || v < 0) ? '' : e.target.value });
               }} 
               placeholder={`e.g. ${Math.floor(cartTotal)}`} 
-              className="w-full h-12 px-4 text-2xl focus:outline-none rounded-md" 
+              className="w-full h-11 px-3.5 text-xl font-bold focus:outline-none rounded-md" 
               style={{ border: checkoutModal.error ? '1px solid var(--color-error)' : '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} 
             />
             {checkoutModal.negotiatedTotal !== '' && Number(checkoutModal.negotiatedTotal) < minPossibleTotal && userRole !== 'owner' && cashierName !== 'admin' && (
-              <p className="text-xs font-bold mt-2" style={{ color: 'var(--color-error)' }}>
-                Warning: Cannot discount below minimum selling limit (₹{minPossibleTotal.toFixed(2)}). The final bill will automatically be clamped.
+              <p className="text-[11px] font-bold mt-1 leading-tight" style={{ color: 'var(--color-error)' }}>
+                Warning: Cannot discount below minimum selling limit (₹{minPossibleTotal.toFixed(2)}).
               </p>
             )}
           </div>
-          
-          <div className="mb-6">
-            <label className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Payment Method</label>
-            <div className="grid grid-cols-2 gap-2.5 mb-2">
+
+          <div className="mb-3.5">
+            <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-secondary)' }}>Payment Method</label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
               {[
                 { key: 'CASH', label: 'Cash', shortcut: '1' },
                 { key: 'UPI', label: 'UPI', shortcut: '2' },
@@ -139,7 +141,9 @@ export default function CheckoutModal({
             </div>
             {checkoutModal.paymentMethod === 'SHOWROOM' && (
               <div className="p-3 mt-2 rounded-md border flex items-start gap-2.5 animate-fade-in" style={{ backgroundColor: 'rgba(234, 179, 8, 0.08)', borderColor: 'rgba(234, 179, 8, 0.3)', color: 'var(--color-warning)' }}>
-                <span className="text-sm shrink-0">ℹ️</span>
+                <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
                 <p className="text-xs font-medium leading-relaxed">
                   Goods dispatched to showroom. Products are deducted from store inventory and recorded under Showroom without adding to shop sales revenue or profit.
                 </p>

@@ -780,7 +780,9 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
 
             <div className="flex-1 min-h-[300px] md:shadow-sm md:rounded-lg overflow-hidden flex flex-col md:border border-[var(--border-light)]" style={{ backgroundColor: 'transparent' }}>
         {isLoading ? (
-          <div className="flex items-center justify-center h-full"><p style={{color: 'var(--text-tertiary)'}}>Loading inventory...</p></div>
+          <div className="flex items-center justify-center h-full min-h-[350px]">
+            <PageLoader text="Loading inventory..." />
+          </div>
         ) : items.length === 0 ? (
           <EmptyState message="No items found matching the search." icon="search" />
         ) : (

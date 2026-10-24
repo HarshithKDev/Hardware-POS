@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { X, Keyboard, ShoppingBag, CreditCard, Layers, Navigation } from 'lucide-react';
+import { X, Keyboard, ShoppingBag, CreditCard, Layers, Navigation, Info } from 'lucide-react';
 import { DialogOverlay } from './Dialog';
 
 export default function KeyboardShortcutsModal({ isOpen, onClose }) {
@@ -164,7 +164,8 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }) {
           style={{ borderColor: 'var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}
         >
           <span className="flex items-center gap-1.5">
-            💡 Press <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] border border-[var(--border-medium)] font-mono font-bold text-[10px] text-[var(--text-primary)]">F1</kbd> anytime to open this guide
+            <Info size={13} className="text-[var(--color-accent)] inline shrink-0" />
+            <span>Press <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] border border-[var(--border-medium)] font-mono font-bold text-[10px] text-[var(--text-primary)]">F1</kbd> anytime to open this guide</span>
           </span>
           <button
             onClick={onClose}

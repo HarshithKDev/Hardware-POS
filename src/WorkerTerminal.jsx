@@ -24,7 +24,8 @@ import {
   SelectPieceModal,
   ReceiveLengthModal,
   ManualInstanceBarcodeModal,
-  CutLengthModal
+  CutLengthModal,
+  ScrewsModal
 } from './components/terminal';
 import { broadcastStockUpdate, subscribeToStockUpdates } from './services/realtimeStock';
 
@@ -98,6 +99,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [lastReceipt, setLastReceipt] = useState(null);
   const [checkoutModal, setCheckoutModal] = useState({ isOpen: false, cashGiven: '', negotiatedTotal: '', paymentMethod: 'CASH', splitUpi: '', splitCash: '', customerName: '', customerPhone: '', error: '' });
+  const [screwsModal, setScrewsModal] = useState({ isOpen: false, price: '' });
   const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -1237,6 +1239,46 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     }
   };
 
+  const handleSaveScrews = useCallback((priceNum) => {
+    if (!priceNum || isNaN(priceNum) || priceNum <= 0) {
+      showAlertRef.current("Please enter a valid price for the screws.", "Invalid Screws Price");
+      return;
+    }
+
+    setCart(prev => {
+      const existingIdx = prev.findIndex(i => i.is_screw);
+      const screwItem = {
+        id: existingIdx >= 0 ? prev[existingIdx].id : ('screw_' + Date.now()),
+        barcode: 'SCREWS',
+        name: 'Screws',
+        price: priceNum,
+        customPriceInput: priceNum.toFixed(2),
+        selling_price: priceNum.toFixed(2),
+        purchase_cost: '0.00',
+        cost_price: 0,
+        msp: priceNum,
+        msp_price: priceNum.toFixed(2),
+        quantity: 1,
+        billableQuantity: 1,
+        unit: 'SET',
+        discountPct: 0,
+        is_loose_item: false,
+        is_cuttable: false,
+        is_screw: true
+      };
+
+      if (existingIdx >= 0) {
+        const next = [...prev];
+        next[existingIdx] = screwItem;
+        return next;
+      }
+      return [...prev, screwItem];
+    });
+
+    setScrewsModal({ isOpen: false, price: '' });
+    playScanSuccessSound();
+  }, [playScanSuccessSound, setCart]);
+
   const handleCompleteTransaction = async () => {
     if (isCheckingOut) return;
     let finalCart = cart.filter(i => Number(i.quantity) > 0);
@@ -1280,22 +1322,24 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       let totalDiscountToGive = currentCartTotal - targetTotal;
 
       if (totalDiscountToGive > 0) {
-        // Prepare items with their discountable room
-        let discountableItems = finalCart.map(item => {
-          const qty = item.billableQuantity !== undefined && item.billableQuantity !== '' ? Number(item.billableQuantity) : (item.quantity === '' ? 0 : Number(item.quantity));
-          const price = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
-          const msp = Number(item.msp || 0);
-          const currentLineTotal = qty * price;
-          const minLineTotal = qty * msp;
-          return {
-            ref: item,
-            calcQty: qty,
-            currentPrice: price,
-            minPrice: msp,
-            maxDiscountableTotal: Math.max(0, currentLineTotal - minLineTotal),
-            allocatedDiscount: 0
-          };
-        }).filter(i => i.maxDiscountableTotal > 0);
+        // Prepare items with their discountable room — EXCLUDE SCREWS (screw amount stays constant)
+        let discountableItems = finalCart
+          .filter(item => !item.is_screw)
+          .map(item => {
+            const qty = item.billableQuantity !== undefined && item.billableQuantity !== '' ? Number(item.billableQuantity) : (item.quantity === '' ? 0 : Number(item.quantity));
+            const price = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
+            const msp = Number(item.msp || 0);
+            const currentLineTotal = qty * price;
+            const minLineTotal = qty * msp;
+            return {
+              ref: item,
+              calcQty: qty,
+              currentPrice: price,
+              minPrice: msp,
+              maxDiscountableTotal: Math.max(0, currentLineTotal - minLineTotal),
+              allocatedDiscount: 0
+            };
+          }).filter(i => i.maxDiscountableTotal > 0);
 
         const maxTotalDiscountable = discountableItems.reduce((sum, i) => sum + i.maxDiscountableTotal, 0);
 
@@ -1418,6 +1462,15 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
         if (totalDiscountToGive > 0) {
           let originalDiscountableItems = finalCart.map((item, index) => {
+            if (item.is_screw) {
+              return {
+                __cartIndex: index,
+                calcQty: 1,
+                currentPrice: Number(item.price || item.customPriceInput || 0),
+                maxDiscountableTotal: 0,
+                allocatedDiscount: 0
+              };
+            }
             const qty = item.billableQuantity !== undefined && item.billableQuantity !== '' ? Number(item.billableQuantity) : (item.quantity === '' ? 0 : Number(item.quantity));
             const price = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
             const msp = Number(item.msp_price) || Number(item.msp || 0);
@@ -1448,6 +1501,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           }
 
           finalCart = finalCart.map((cartItem, index) => {
+            if (cartItem.is_screw) {
+              return cartItem; // Screw price stays completely untouched!
+            }
             const discItem = originalDiscountableItems.find(i => i.__cartIndex === index);
             if (discItem && discItem.allocatedDiscount > 0) {
               const newPriceRaw = discItem.currentPrice - (discItem.allocatedDiscount / discItem.calcQty);
@@ -1467,8 +1523,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       const paymentMethod = activeTab === 'checkout' ? (checkoutModal.paymentMethod || 'CASH') : null;
       let cashAmount = 0;
       let upiAmount = 0;
+      let totalForPayment = 0;
       if (activeTab === 'checkout') {
-        const totalForPayment = checkoutModal.negotiatedTotal !== '' ? Number(checkoutModal.negotiatedTotal) : calculateTotal();
+        totalForPayment = checkoutModal.negotiatedTotal !== '' ? Number(checkoutModal.negotiatedTotal) : calculateTotal();
         if (paymentMethod === 'CASH') {
           cashAmount = totalForPayment;
         } else if (paymentMethod === 'UPI') {
@@ -1489,7 +1546,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         p_upi_amount: upiAmount,
         p_customer_name: checkoutModal.customerName || null,
         p_customer_phone: checkoutModal.customerPhone || null,
-        p_items: finalCart.map(i => {
+        p_items: finalCart.filter(i => !i.is_screw).map(i => {
           let calcQuantity = Number(i.quantity);
           if (i.is_cuttable) {
             if (i.unit === 'SQFT') {
@@ -1552,7 +1609,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               const updatePayload = {
                 payment_method: payload.p_payment_method,
                 cash_amount: payload.p_cash_amount,
-                upi_amount: payload.p_upi_amount
+                upi_amount: payload.p_upi_amount,
+                total_amount: totalForPayment
               };
               if (shopId) {
                 updatePayload.shop_id = shopId;
@@ -1566,6 +1624,28 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                 updatePayload.status = 'showroom_pending';
               }
               await supabase.from('bills').update(updatePayload).eq('id', successData.bill_id);
+
+              const screwItem = finalCart.find(i => i.is_screw);
+              if (activeTab === 'checkout' && screwItem) {
+                const scPrice = Number(screwItem.customPriceInput || screwItem.price || 0);
+                try {
+                  await supabase.from('bill_items').insert({
+                    bill_id: successData.bill_id,
+                    shop_id: shopId,
+                    barcode: 'SCREWS',
+                    item_name: 'Screws',
+                    quantity: 1,
+                    billable_quantity: 1,
+                    price_at_sale: scPrice,
+                    selling_price: scPrice,
+                    final_price: scPrice,
+                    profit: scPrice,
+                    unit: 'SET'
+                  });
+                } catch (biErr) {
+                  console.warn("Could not insert screws into bill_items:", biErr);
+                }
+              }
             } catch (e) {
               console.warn("Could not save additional bill data.", e);
             }
@@ -1827,7 +1907,14 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         console.warn("Could not clear localStorage cart:", err);
       }
 
-      setCheckoutModal(prev => ({ ...prev, isOpen: false, cashGiven: '', negotiatedTotal: '', error: '' }));
+      setScrewsModal({ isOpen: false, price: '' });
+      setCheckoutModal(prev => ({ 
+        ...prev, 
+        isOpen: false, 
+        cashGiven: '', 
+        negotiatedTotal: '', 
+        error: '' 
+      }));
 
       if (activeTab === 'checkout') {
         playPaymentSuccessSound();
@@ -2237,7 +2324,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   
   const minPossibleTotal = cart.reduce((tot, i) => {
     const qty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : (i.quantity === '' ? 0 : Number(i.quantity));
-    const msp = Number(i.msp_price) || Number(i.msp || 0);
+    const msp = i.is_screw ? (Number(i.price) || 0) : (Number(i.msp_price) || Number(i.msp || 0));
     return tot + Math.round(msp * qty * 100);
   }, 0) / 100;
 
@@ -2328,6 +2415,14 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         cart={cart}
         onSubmit={handleCutLengthSubmit}
         onClose={() => setCutLengthModal({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false })}
+      />
+
+      <ScrewsModal
+        isOpen={screwsModal.isOpen}
+        onClose={() => setScrewsModal({ isOpen: false, price: '' })}
+        onSave={handleSaveScrews}
+        initialPrice={screwsModal.price}
+        isUpdate={cart.some(i => i.is_screw)}
       />
 
       {isMobileScannerTab ? (
@@ -2448,12 +2543,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               {activeTab === 'receive' ? 'Receive Stock' : activeTab === 'transfer' ? 'Move Stock to Store' : 'Checkout Counter'}
             </h2>
             
-            <form onSubmit={(e) => { e.preventDefault(); processScan(manualBarcode); setManualBarcode(''); setShowSuggestions(false); }} className="mt-3 relative w-full md:w-auto">
-              <div className="flex items-center w-full md:w-72 h-10 md:h-9 rounded-md overflow-hidden transition-colors focus-within:border-[var(--color-accent)] focus-within:ring-1 focus-within:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)' }}>
-                <label htmlFor="manual-barcode" className="sr-only">Barcode</label>
-                <input id="manual-barcode" type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} onFocus={() => { setIsInputFocused(true); manualBarcode.trim().length >= 2 && setShowSuggestions(true); }} onBlur={() => { setIsInputFocused(false); setTimeout(() => setShowSuggestions(false), 200); }} placeholder="Search barcode or name..." className="h-full w-full px-3 text-sm focus:outline-none flex-1 bg-transparent border-none outline-none rounded-none focus:ring-0 focus:border-transparent focus:shadow-none" style={{ color: 'var(--text-input)', outline: 'none', border: 'none', boxShadow: 'none' }} autoComplete="off" />
-                <button type="submit" className="h-full px-3 text-sm font-bold focus:outline-none transition-colors border-none rounded-none bg-transparent hover:bg-white/5 focus:ring-0 focus:outline-none shrink-0" style={{ color: 'var(--color-accent)', outline: 'none', border: 'none' }}>ADD</button>
-              </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2.5">
+              <form onSubmit={(e) => { e.preventDefault(); processScan(manualBarcode); setManualBarcode(''); setShowSuggestions(false); }} className="relative w-full md:w-auto">
+                <div className="flex items-center w-full md:w-72 h-10 md:h-9 rounded-md overflow-hidden transition-colors focus-within:border-[var(--color-accent)] focus-within:ring-1 focus-within:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)' }}>
+                  <label htmlFor="manual-barcode" className="sr-only">Barcode</label>
+                  <input id="manual-barcode" type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} onFocus={() => { setIsInputFocused(true); manualBarcode.trim().length >= 2 && setShowSuggestions(true); }} onBlur={() => { setIsInputFocused(false); setTimeout(() => setShowSuggestions(false), 200); }} placeholder="Search barcode or name..." className="h-full w-full px-3 text-sm focus:outline-none flex-1 bg-transparent border-none outline-none rounded-none focus:ring-0 focus:border-transparent focus:shadow-none" style={{ color: 'var(--text-input)', outline: 'none', border: 'none', boxShadow: 'none' }} autoComplete="off" />
+                  <button type="submit" className="h-full px-3 text-sm font-bold focus:outline-none transition-colors border-none rounded-none bg-transparent hover:bg-white/5 focus:ring-0 focus:outline-none shrink-0" style={{ color: 'var(--color-accent)', outline: 'none', border: 'none' }}>ADD</button>
+                </div>
                 {showSuggestions && suggestions.length > 0 && (
                   <ul className="absolute top-[100%] left-0 w-full md:w-64 bg-[var(--bg-secondary)] border border-[var(--border-medium)] z-50 max-h-60 overflow-y-auto shadow-lg mt-1 rounded-sm">
                     {suggestions.map((item) => (
@@ -2479,6 +2575,74 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   </ul>
                 )}
               </form>
+
+              {/* Screws quick add beside search bar */}
+              {activeTab === 'checkout' && (
+                <div className="flex items-center">
+                  {cart.some(i => i.is_screw) ? (
+                    <div 
+                      className="flex items-center h-10 md:h-9 px-3 rounded-md border text-xs font-bold uppercase tracking-wider gap-2 shadow-sm animate-fade-in"
+                      style={{ 
+                        backgroundColor: 'var(--bg-input)', 
+                        borderColor: 'var(--color-accent)', 
+                        color: 'var(--color-accent)' 
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const existing = cart.find(i => i.is_screw);
+                          setScrewsModal({ isOpen: true, price: existing ? String(existing.price) : '' });
+                        }}
+                        className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity"
+                        title="Click to edit screws price"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>Screws: ₹{Number(cart.find(i => i.is_screw)?.price || 0).toFixed(2)}</span>
+                      </button>
+                      <span className="opacity-30">|</span>
+                      <button
+                        type="button"
+                        onClick={() => setCart(prev => prev.filter(i => !i.is_screw))}
+                        className="w-4 h-4 flex items-center justify-center rounded text-[var(--text-secondary)] hover:text-[var(--color-error)] transition-colors cursor-pointer"
+                        title="Remove screws from bill"
+                        aria-label="Remove screws"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setScrewsModal({ isOpen: true, price: '' })}
+                      className="h-10 md:h-9 px-3.5 rounded-md border text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                      style={{
+                        borderColor: 'var(--border-input)',
+                        backgroundColor: 'var(--bg-input)',
+                        color: 'var(--text-secondary)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--border-heavy)';
+                        e.currentTarget.style.color = 'var(--text-primary)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--border-input)';
+                        e.currentTarget.style.color = 'var(--text-secondary)';
+                      }}
+                    >
+                      <svg className="w-3.5 h-3.5" style={{ color: 'var(--color-accent)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                      </svg>
+                      <span>Include Screws</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
           <div className="text-left md:text-right flex flex-col justify-end pt-2 md:pt-0 border-t border-[var(--border-light)] md:border-t-0 shrink-0">
             <span className="text-xs uppercase font-semibold tracking-wider block mb-1" style={{ color: 'var(--text-tertiary)' }}>{activeTab === 'checkout' ? 'Total Price' : 'Total Units'}</span>
@@ -2559,7 +2723,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               )}
             </div>
             <button
-              onClick={() => activeTab === 'checkout' ? setCheckoutModal(prev => ({ ...prev, isOpen: true, cashGiven: '', negotiatedTotal: '', error: '', paymentMethod: 'CASH', splitUpi: '', splitCash: '' })) : handleCompleteTransaction()}
+              onClick={() => activeTab === 'checkout' ? setCheckoutModal(prev => ({ ...prev, isOpen: true, cashGiven: '', negotiatedTotal: '', includeScrews: false, screwsPrice: '', error: '', paymentMethod: 'CASH', splitUpi: '', splitCash: '' })) : handleCompleteTransaction()}
               className="w-full sm:w-auto min-h-[40px] md:h-10 px-6 md:px-8 text-white text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md focus:ring-2 focus:ring-offset-1 flex justify-center items-center gap-2"
               style={{ backgroundColor: 'var(--color-accent)', border: '1px solid transparent' }}
             >
