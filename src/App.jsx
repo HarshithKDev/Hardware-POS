@@ -124,7 +124,7 @@ function App() {
 
     document.title = shopSettings.shop_name;
 
-    const updateManifest = (iconUrl) => {
+    const updateManifest = (icon192Url, icon512Url) => {
       try {
         const dynamicManifest = {
           name: shopSettings.shop_name || 'Hardware POS System',
@@ -136,19 +136,19 @@ function App() {
           background_color: '#121212',
           icons: [
             {
-              src: iconUrl,
+              src: icon192Url,
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any'
             },
             {
-              src: iconUrl,
+              src: icon512Url,
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any'
             },
             {
-              src: iconUrl,
+              src: icon512Url,
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable'
@@ -172,10 +172,52 @@ function App() {
       }
     };
 
-    const setIcons = (faviconUrl, appleTouchUrl, manifestIconUrl) => {
+    const setIcons = (faviconUrl, appleTouchUrl, icon192Url, icon512Url) => {
       if (faviconLink) faviconLink.href = faviconUrl;
       if (appleLink) appleLink.href = appleTouchUrl;
-      updateManifest(manifestIconUrl || appleTouchUrl);
+      updateManifest(icon192Url, icon512Url);
+    };
+
+    const renderContainedIcon = (img, size, paddingRatio = 0.20, isCircularFavicon = false) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+
+      if (isCircularFavicon) {
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+      }
+
+      // Sleek background matching #121212 theme
+      ctx.fillStyle = '#121212';
+      ctx.fillRect(0, 0, size, size);
+
+      if (img) {
+        const nw = img.naturalWidth || img.width || 1;
+        const nh = img.naturalHeight || img.height || 1;
+        const aspect = nw / nh;
+
+        // Bounding box within safe zone (60% of canvas, perfectly framed within circular masks)
+        const maxDim = size * (1 - paddingRatio * 2);
+        let drawW = maxDim;
+        let drawH = maxDim;
+
+        if (aspect > 1) {
+          drawH = maxDim / aspect;
+        } else {
+          drawW = maxDim * aspect;
+        }
+
+        const offsetX = (size - drawW) / 2;
+        const offsetY = (size - drawH) / 2;
+
+        ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+      }
+
+      return canvas.toDataURL('image/png');
     };
 
     if (shopSettings.logo_url) {
@@ -183,87 +225,58 @@ function App() {
       img.crossOrigin = 'anonymous';
       img.onload = () => {
         try {
-          // 1. Favicon (64x64 circular)
-          const favCanvas = document.createElement('canvas');
-          favCanvas.width = 64;
-          favCanvas.height = 64;
-          const favCtx = favCanvas.getContext('2d');
-          favCtx.beginPath();
-          favCtx.arc(32, 32, 32, 0, Math.PI * 2);
-          favCtx.closePath();
-          favCtx.clip();
-          favCtx.drawImage(img, 0, 0, 64, 64);
-          const favDataUrl = favCanvas.toDataURL('image/png');
+          // 1. Favicon (64x64)
+          const favDataUrl = renderContainedIcon(img, 64, 0.14, true);
 
-          // 2. Apple Touch Icon (192x192 with #121212 background for clean home screen icon)
-          const appleCanvas = document.createElement('canvas');
-          appleCanvas.width = 192;
-          appleCanvas.height = 192;
-          const appleCtx = appleCanvas.getContext('2d');
-          appleCtx.fillStyle = '#121212';
-          appleCtx.fillRect(0, 0, 192, 192);
-          appleCtx.drawImage(img, 0, 0, 192, 192);
-          const appleDataUrl = appleCanvas.toDataURL('image/png');
+          // 2. Apple Touch Icon & PWA 192x192 with safe-zone containment
+          const icon192DataUrl = renderContainedIcon(img, 192, 0.20, false);
 
-          setIcons(favDataUrl, appleDataUrl, shopSettings.logo_url || appleDataUrl);
+          // 3. PWA 512x512 high-res maskable icon
+          const icon512DataUrl = renderContainedIcon(img, 512, 0.20, false);
+
+          setIcons(favDataUrl, icon192DataUrl, icon192DataUrl, icon512DataUrl);
         } catch (canvasErr) {
           console.warn('Canvas export tainted by CORS, using direct logo URL for icons:', canvasErr);
-          setIcons(shopSettings.logo_url, shopSettings.logo_url, shopSettings.logo_url);
+          setIcons(shopSettings.logo_url, shopSettings.logo_url, shopSettings.logo_url, shopSettings.logo_url);
         }
       };
       img.onerror = () => {
-        setIcons(shopSettings.logo_url, shopSettings.logo_url, shopSettings.logo_url);
+        setIcons(shopSettings.logo_url, shopSettings.logo_url, shopSettings.logo_url, shopSettings.logo_url);
       };
       img.src = shopSettings.logo_url;
     } else {
       // Dynamic avatar when no custom logo is uploaded
       const initial = (shopSettings.shop_name || 'H').trim().charAt(0).toUpperCase();
 
-      // Favicon
-      const favCanvas = document.createElement('canvas');
-      favCanvas.width = 64;
-      favCanvas.height = 64;
-      const favCtx = favCanvas.getContext('2d');
-      favCtx.fillStyle = '#2563eb';
-      favCtx.beginPath();
-      favCtx.arc(32, 32, 32, 0, Math.PI * 2);
-      favCtx.fill();
-      favCtx.fillStyle = '#ffffff';
-      favCtx.font = 'bold 34px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      favCtx.textAlign = 'center';
-      favCtx.textBaseline = 'middle';
-      favCtx.fillText(initial, 32, 34);
-      const favDataUrl = favCanvas.toDataURL('image/png');
+      const renderInitialIcon = (size, paddingRatio = 0.20) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
 
-      // Apple Touch Icon
-      const appleCanvas = document.createElement('canvas');
-      appleCanvas.width = 192;
-      appleCanvas.height = 192;
-      const appleCtx = appleCanvas.getContext('2d');
-      appleCtx.fillStyle = '#121212';
-      appleCtx.fillRect(0, 0, 192, 192);
-      appleCtx.fillStyle = '#2563eb';
-      const r = 24;
-      appleCtx.beginPath();
-      appleCtx.moveTo(16 + r, 16);
-      appleCtx.lineTo(176 - r, 16);
-      appleCtx.quadraticCurveTo(176, 16, 176, 16 + r);
-      appleCtx.lineTo(176, 176 - r);
-      appleCtx.quadraticCurveTo(176, 176, 176 - r, 176);
-      appleCtx.lineTo(16 + r, 176);
-      appleCtx.quadraticCurveTo(16, 176, 16, 176 - r);
-      appleCtx.lineTo(16, 16 + r);
-      appleCtx.quadraticCurveTo(16, 16, 16 + r, 16);
-      appleCtx.closePath();
-      appleCtx.fill();
-      appleCtx.fillStyle = '#ffffff';
-      appleCtx.font = 'bold 96px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      appleCtx.textAlign = 'center';
-      appleCtx.textBaseline = 'middle';
-      appleCtx.fillText(initial, 96, 100);
-      const appleDataUrl = appleCanvas.toDataURL('image/png');
+        ctx.fillStyle = '#121212';
+        ctx.fillRect(0, 0, size, size);
 
-      setIcons(favDataUrl, appleDataUrl, appleDataUrl);
+        const badgeSize = size * (1 - paddingRatio * 2);
+        ctx.fillStyle = '#2563eb';
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, badgeSize / 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${Math.round(badgeSize * 0.55)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(initial, size / 2, size / 2 + Math.round(badgeSize * 0.04));
+
+        return canvas.toDataURL('image/png');
+      };
+
+      const favDataUrl = renderInitialIcon(64, 0.12);
+      const icon192DataUrl = renderInitialIcon(192, 0.20);
+      const icon512DataUrl = renderInitialIcon(512, 0.20);
+
+      setIcons(favDataUrl, icon192DataUrl, icon192DataUrl, icon512DataUrl);
     }
 
     return () => {
