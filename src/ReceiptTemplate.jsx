@@ -77,12 +77,10 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
       
       <div className="mb-3 flex justify-between border-b border-black border-dashed pb-2 text-black" style={{ color: '#000', fontSize: '12px' }}>
         <div>
-          <p>Txn ID: {lastReceipt.id}</p>
           <p>Date: {datePart}</p>
           {lastReceipt.customerName && <p>Customer: {lastReceipt.customerName}</p>}
         </div>
         <div className="text-right">
-          <p>Type: POS SALE</p>
           <p>Time: {timePart}</p>
           {lastReceipt.customerPhone && <p>Phone: {lastReceipt.customerPhone}</p>}
         </div>
