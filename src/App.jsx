@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { supabase } from './supabaseClient';
 import { Spinner, PageLoader } from './SharedUI';
 import { MobileScannerModal, ProductInfoModal } from './AppModals';
@@ -35,6 +35,7 @@ function App() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncCount, setSyncCount] = useState(0);
+  const manifestBlobUrlRef = useRef(null);
 
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -111,52 +112,165 @@ function App() {
   }, [userRole]);
 
   useEffect(() => {
-    const link = document.getElementById('app-favicon');
+    const faviconLink = document.getElementById('app-favicon') || document.querySelector('link[rel="icon"]');
+    const appleLink = document.getElementById('app-apple-touch-icon') || document.querySelector('link[rel="apple-touch-icon"]');
+    const manifestLink = document.getElementById('app-manifest') || document.querySelector('link[rel="manifest"]');
 
     if (!shopSettings?.shop_name) {
       document.title = 'Hardware POS System';
-      if (link) link.href = '/favicon.ico';
+      if (faviconLink) faviconLink.href = '/favicon.ico';
       return;
     }
 
     document.title = shopSettings.shop_name;
 
+    const updateManifest = (iconUrl) => {
+      try {
+        const dynamicManifest = {
+          name: shopSettings.shop_name || 'Hardware POS System',
+          short_name: (shopSettings.shop_name || 'Hardware POS').slice(0, 16),
+          description: 'Point of Sale & Inventory Management System',
+          start_url: '/',
+          display: 'standalone',
+          theme_color: '#121212',
+          background_color: '#121212',
+          icons: [
+            {
+              src: iconUrl,
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'any'
+            },
+            {
+              src: iconUrl,
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any'
+            },
+            {
+              src: iconUrl,
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable'
+            }
+          ]
+        };
+
+        const blob = new Blob([JSON.stringify(dynamicManifest, null, 2)], { type: 'application/manifest+json' });
+        const blobUrl = URL.createObjectURL(blob);
+
+        if (manifestBlobUrlRef.current) {
+          URL.revokeObjectURL(manifestBlobUrlRef.current);
+        }
+        manifestBlobUrlRef.current = blobUrl;
+
+        if (manifestLink) {
+          manifestLink.href = blobUrl;
+        }
+      } catch (err) {
+        console.error('Failed to inject dynamic manifest:', err);
+      }
+    };
+
+    const setIcons = (faviconUrl, appleTouchUrl, manifestIconUrl) => {
+      if (faviconLink) faviconLink.href = faviconUrl;
+      if (appleLink) appleLink.href = appleTouchUrl;
+      updateManifest(manifestIconUrl || appleTouchUrl);
+    };
+
     if (shopSettings.logo_url) {
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => {
-        const size = 64;
-        const canvas = document.createElement('canvas');
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext('2d');
-        ctx.beginPath();
-        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
-        ctx.closePath();
-        ctx.clip();
-        ctx.drawImage(img, 0, 0, size, size);
-        if (link) link.href = canvas.toDataURL('image/png');
+        try {
+          // 1. Favicon (64x64 circular)
+          const favCanvas = document.createElement('canvas');
+          favCanvas.width = 64;
+          favCanvas.height = 64;
+          const favCtx = favCanvas.getContext('2d');
+          favCtx.beginPath();
+          favCtx.arc(32, 32, 32, 0, Math.PI * 2);
+          favCtx.closePath();
+          favCtx.clip();
+          favCtx.drawImage(img, 0, 0, 64, 64);
+          const favDataUrl = favCanvas.toDataURL('image/png');
+
+          // 2. Apple Touch Icon (192x192 with #121212 background for clean home screen icon)
+          const appleCanvas = document.createElement('canvas');
+          appleCanvas.width = 192;
+          appleCanvas.height = 192;
+          const appleCtx = appleCanvas.getContext('2d');
+          appleCtx.fillStyle = '#121212';
+          appleCtx.fillRect(0, 0, 192, 192);
+          appleCtx.drawImage(img, 0, 0, 192, 192);
+          const appleDataUrl = appleCanvas.toDataURL('image/png');
+
+          setIcons(favDataUrl, appleDataUrl, shopSettings.logo_url || appleDataUrl);
+        } catch (canvasErr) {
+          console.warn('Canvas export tainted by CORS, using direct logo URL for icons:', canvasErr);
+          setIcons(shopSettings.logo_url, shopSettings.logo_url, shopSettings.logo_url);
+        }
+      };
+      img.onerror = () => {
+        setIcons(shopSettings.logo_url, shopSettings.logo_url, shopSettings.logo_url);
       };
       img.src = shopSettings.logo_url;
     } else {
-      // Clean, dynamic shop-initial avatar when no custom logo is uploaded
-      const size = 64;
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#2563eb';
-      ctx.beginPath();
-      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 34px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
+      // Dynamic avatar when no custom logo is uploaded
       const initial = (shopSettings.shop_name || 'H').trim().charAt(0).toUpperCase();
-      ctx.fillText(initial, size / 2, size / 2 + 2);
-      if (link) link.href = canvas.toDataURL('image/png');
+
+      // Favicon
+      const favCanvas = document.createElement('canvas');
+      favCanvas.width = 64;
+      favCanvas.height = 64;
+      const favCtx = favCanvas.getContext('2d');
+      favCtx.fillStyle = '#2563eb';
+      favCtx.beginPath();
+      favCtx.arc(32, 32, 32, 0, Math.PI * 2);
+      favCtx.fill();
+      favCtx.fillStyle = '#ffffff';
+      favCtx.font = 'bold 34px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      favCtx.textAlign = 'center';
+      favCtx.textBaseline = 'middle';
+      favCtx.fillText(initial, 32, 34);
+      const favDataUrl = favCanvas.toDataURL('image/png');
+
+      // Apple Touch Icon
+      const appleCanvas = document.createElement('canvas');
+      appleCanvas.width = 192;
+      appleCanvas.height = 192;
+      const appleCtx = appleCanvas.getContext('2d');
+      appleCtx.fillStyle = '#121212';
+      appleCtx.fillRect(0, 0, 192, 192);
+      appleCtx.fillStyle = '#2563eb';
+      const r = 24;
+      appleCtx.beginPath();
+      appleCtx.moveTo(16 + r, 16);
+      appleCtx.lineTo(176 - r, 16);
+      appleCtx.quadraticCurveTo(176, 16, 176, 16 + r);
+      appleCtx.lineTo(176, 176 - r);
+      appleCtx.quadraticCurveTo(176, 176, 176 - r, 176);
+      appleCtx.lineTo(16 + r, 176);
+      appleCtx.quadraticCurveTo(16, 176, 16, 176 - r);
+      appleCtx.lineTo(16, 16 + r);
+      appleCtx.quadraticCurveTo(16, 16, 16 + r, 16);
+      appleCtx.closePath();
+      appleCtx.fill();
+      appleCtx.fillStyle = '#ffffff';
+      appleCtx.font = 'bold 96px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      appleCtx.textAlign = 'center';
+      appleCtx.textBaseline = 'middle';
+      appleCtx.fillText(initial, 96, 100);
+      const appleDataUrl = appleCanvas.toDataURL('image/png');
+
+      setIcons(favDataUrl, appleDataUrl, appleDataUrl);
     }
+
+    return () => {
+      if (manifestBlobUrlRef.current) {
+        URL.revokeObjectURL(manifestBlobUrlRef.current);
+      }
+    };
   }, [shopSettings?.shop_name, shopSettings?.logo_url]);
 
   const fetchInitialData = useCallback(async () => {
