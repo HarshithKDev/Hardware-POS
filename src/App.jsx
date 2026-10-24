@@ -6,7 +6,7 @@ import { AlertDialog, ConfirmDialog } from './Dialog';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from './AppContext';
 import { startBackgroundSync, stopBackgroundSync } from './services/sync';
-import { WifiOff, ScanBarcode, Moon, Sun, Power } from 'lucide-react';
+import { WifiOff, ScanBarcode, Moon, Sun, LogOut } from 'lucide-react';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -185,30 +185,43 @@ function App() {
       const ctx = canvas.getContext('2d');
 
       if (isCircularFavicon) {
+        // Full circular clip for desktop browser tab favicon
         ctx.beginPath();
         ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
         ctx.closePath();
         ctx.clip();
+        // Transparent outside and behind the circle - no black background border
+      } else {
+        // Dark background matching #121212 theme for mobile home screen icons
+        ctx.fillStyle = '#121212';
+        ctx.fillRect(0, 0, size, size);
       }
-
-      // Sleek background matching #121212 theme
-      ctx.fillStyle = '#121212';
-      ctx.fillRect(0, 0, size, size);
 
       if (img) {
         const nw = img.naturalWidth || img.width || 1;
         const nh = img.naturalHeight || img.height || 1;
         const aspect = nw / nh;
 
-        // Bounding box within safe zone (70% of canvas, perfectly framed within circular masks)
-        const maxDim = size * (1 - paddingRatio * 2);
-        let drawW = maxDim;
-        let drawH = maxDim;
-
-        if (aspect > 1) {
-          drawH = maxDim / aspect;
+        let drawW, drawH;
+        if (isCircularFavicon) {
+          // Circular desktop favicon: fill the circle edge-to-edge so there are NO black borders
+          if (aspect > 1) {
+            drawH = size;
+            drawW = size * aspect;
+          } else {
+            drawW = size;
+            drawH = size / aspect;
+          }
         } else {
-          drawW = maxDim * aspect;
+          // Mobile PWA / touch icons: safe-zone containment
+          const maxDim = size * (1 - paddingRatio * 2);
+          if (aspect > 1) {
+            drawH = maxDim / aspect;
+            drawW = maxDim;
+          } else {
+            drawW = maxDim * aspect;
+            drawH = maxDim;
+          }
         }
 
         const offsetX = (size - drawW) / 2;
@@ -225,8 +238,8 @@ function App() {
       img.crossOrigin = 'anonymous';
       img.onload = () => {
         try {
-          // 1. Favicon (64x64)
-          const favDataUrl = renderContainedIcon(img, 64, 0.10, true);
+          // 1. Favicon (64x64): edge-to-edge circular logo, 0 padding, no black border
+          const favDataUrl = renderContainedIcon(img, 64, 0, true);
 
           // 2. Apple Touch Icon & PWA 192x192 with safe-zone containment
           const icon192DataUrl = renderContainedIcon(img, 192, 0.15, false);
@@ -248,21 +261,31 @@ function App() {
       // Dynamic avatar when no custom logo is uploaded
       const initial = (shopSettings.shop_name || 'H').trim().charAt(0).toUpperCase();
 
-      const renderInitialIcon = (size, paddingRatio = 0.15) => {
+      const renderInitialIcon = (size, paddingRatio = 0.15, isCircularFavicon = false) => {
         const canvas = document.createElement('canvas');
         canvas.width = size;
         canvas.height = size;
         const ctx = canvas.getContext('2d');
 
-        ctx.fillStyle = '#121212';
-        ctx.fillRect(0, 0, size, size);
+        if (isCircularFavicon) {
+          ctx.beginPath();
+          ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+          ctx.closePath();
+          ctx.clip();
+          ctx.fillStyle = '#2563eb';
+          ctx.fillRect(0, 0, size, size);
+        } else {
+          ctx.fillStyle = '#121212';
+          ctx.fillRect(0, 0, size, size);
 
-        const badgeSize = size * (1 - paddingRatio * 2);
-        ctx.fillStyle = '#2563eb';
-        ctx.beginPath();
-        ctx.arc(size / 2, size / 2, badgeSize / 2, 0, Math.PI * 2);
-        ctx.fill();
+          const badgeSize = size * (1 - paddingRatio * 2);
+          ctx.fillStyle = '#2563eb';
+          ctx.beginPath();
+          ctx.arc(size / 2, size / 2, badgeSize / 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
 
+        const badgeSize = isCircularFavicon ? size : size * (1 - paddingRatio * 2);
         ctx.fillStyle = '#ffffff';
         ctx.font = `bold ${Math.round(badgeSize * 0.55)}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
         ctx.textAlign = 'center';
@@ -272,9 +295,9 @@ function App() {
         return canvas.toDataURL('image/png');
       };
 
-      const favDataUrl = renderInitialIcon(64, 0.10);
-      const icon192DataUrl = renderInitialIcon(192, 0.15);
-      const icon512DataUrl = renderInitialIcon(512, 0.15);
+      const favDataUrl = renderInitialIcon(64, 0, true);
+      const icon192DataUrl = renderInitialIcon(192, 0.15, false);
+      const icon512DataUrl = renderInitialIcon(512, 0.15, false);
 
       setIcons(favDataUrl, icon192DataUrl, icon192DataUrl, icon512DataUrl);
     }
@@ -501,7 +524,7 @@ function App() {
               title="Sign Out"
             >
               <span className="hidden md:inline">Sign Out</span>
-              <Power size={15} strokeWidth={2.5} />
+              <LogOut size={15} strokeWidth={2.5} />
             </button>
           </div>
         </div>

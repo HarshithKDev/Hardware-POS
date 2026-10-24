@@ -156,7 +156,13 @@ export default function BatchDetailsView({
 
   // Batch pricing inline edit state
   const [isEditingBatch, setIsEditingBatch] = useState(false);
-  const [batchEditForm, setBatchEditForm] = useState({ cost: '', msp: '', mrp: '' });
+  const [batchEditForm, setBatchEditForm] = useState({ 
+    cost: '', 
+    msp: '', 
+    mrp: '',
+    stock_store: '',
+    stock_warehouse: '' 
+  });
 
   // Min quantity inline edit state
   const [isEditingMinQty, setIsEditingMinQty] = useState(false);
@@ -177,10 +183,12 @@ export default function BatchDetailsView({
       setBatchEditForm({
         cost: activeBatch.purchase_cost ?? item?.cost_price ?? 0,
         msp: activeBatch.msp ?? item?.msp ?? item?.cost_price ?? 0,
-        mrp: activeBatch.selling_price ?? item?.price ?? 0
+        mrp: activeBatch.selling_price ?? item?.price ?? 0,
+        stock_store: activeBatch.stock_store ?? 0,
+        stock_warehouse: activeBatch.stock_warehouse ?? 0
       });
     }
-  }, [activeBatch?.batch_id]);
+  }, [activeBatch?.batch_id, activeBatch?.msp, activeBatch?.selling_price, activeBatch?.stock_store, activeBatch?.stock_warehouse]);
 
   // Self-healing: if warehouse is disabled but any batch has stranded warehouse stock, merge into store stock
   useEffect(() => {
@@ -267,14 +275,25 @@ export default function BatchDetailsView({
     staleTime: 10 * 1000
   });
 
-  // Batch MSP update mutation
+  // Batch MSP and Stock update mutation
   const updateBatchMutation = useMutation({
-    mutationFn: async ({ batch_id, msp }) => {
+    mutationFn: async ({ batch_id, msp, stock_store, stock_warehouse }) => {
+      const updatePayload = {
+        msp: Number(msp)
+      };
+
+      if (!item?.is_cuttable) {
+        if (stock_store !== undefined) {
+          updatePayload.stock_store = Math.max(0, Number(stock_store) || 0);
+        }
+        if (!isWarehouseDisabled && stock_warehouse !== undefined) {
+          updatePayload.stock_warehouse = Math.max(0, Number(stock_warehouse) || 0);
+        }
+      }
+
       let batchQuery = supabase
         .from('inventory_batches')
-        .update({
-          msp: Number(msp)
-        })
+        .update(updatePayload)
         .eq('batch_id', batch_id);
       if (shopId) {
         batchQuery = batchQuery.eq('shop_id', shopId);
@@ -282,10 +301,28 @@ export default function BatchDetailsView({
       const { error } = await batchQuery;
       if (error) throw error;
 
+      // Bump product_master.updated_at directly so delta sync captures the update
+      try {
+        let bumpQuery = supabase
+          .from('product_master')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('barcode', item.barcode);
+        if (shopId) bumpQuery = bumpQuery.eq('shop_id', shopId);
+        await bumpQuery;
+      } catch (e) {}
+
       const oldBatch = batches.find(b => b.batch_id === batch_id);
       const changes = [];
       if (oldBatch) {
         if (Number(oldBatch.msp) !== Number(msp)) changes.push(`MSP: ₹${oldBatch.msp} -> ₹${msp}`);
+        if (!item?.is_cuttable) {
+          if (stock_store !== undefined && Number(oldBatch.stock_store) !== Number(stock_store)) {
+            changes.push(`Store Stock: ${oldBatch.stock_store} -> ${stock_store}`);
+          }
+          if (!isWarehouseDisabled && stock_warehouse !== undefined && Number(oldBatch.stock_warehouse) !== Number(stock_warehouse)) {
+            changes.push(`Warehouse Stock: ${oldBatch.stock_warehouse} -> ${stock_warehouse}`);
+          }
+        }
       }
 
       if (changes.length > 0) {
@@ -294,7 +331,7 @@ export default function BatchDetailsView({
           action_type: 'UPDATE',
           barcode: item.barcode,
           item_name: item.name,
-          changes: `Updated Batch ${oldBatch?.batch_number || 1} MSP: ${changes.join(', ')}`,
+          changes: `Updated Batch ${oldBatch?.batch_number || 1}: ${changes.join(', ')}`,
           performed_by: localStorage.getItem('owner_name') || 'Owner'
         }]);
       }
@@ -306,6 +343,14 @@ export default function BatchDetailsView({
           const bIndex = localItem.batches.findIndex(b => b.batch_id === variables.batch_id);
           if (bIndex >= 0) {
             localItem.batches[bIndex].msp = Number(variables.msp);
+            if (!item?.is_cuttable) {
+              if (variables.stock_store !== undefined) {
+                localItem.batches[bIndex].stock_store = Math.max(0, Number(variables.stock_store) || 0);
+              }
+              if (variables.stock_warehouse !== undefined) {
+                localItem.batches[bIndex].stock_warehouse = Math.max(0, Number(variables.stock_warehouse) || 0);
+              }
+            }
             await saveInventoryBatch([localItem]);
           }
         }
@@ -315,10 +360,10 @@ export default function BatchDetailsView({
       queryClient.invalidateQueries({ queryKey: ['inventory_item'] });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       setIsEditingBatch(false);
-      showAlert('Batch MSP updated successfully.', 'Success');
+      showAlert('Batch details updated successfully.', 'Success');
     },
     onError: (e) => {
-      showAlert('Failed to update batch MSP: ' + e.message, 'Error');
+      showAlert('Failed to update batch: ' + e.message, 'Error');
     }
   });
 
@@ -469,7 +514,7 @@ export default function BatchDetailsView({
       if (!deletedRemotely) {
         let updateQuery = supabase
           .from('inventory_batches')
-          .update({ is_active: false })
+          .update({ is_active: false, stock_store: 0, stock_warehouse: 0 })
           .eq('batch_id', deletingId);
         if (shopId) updateQuery = updateQuery.eq('shop_id', shopId);
         const { error: updErr } = await updateQuery;
@@ -487,12 +532,13 @@ export default function BatchDetailsView({
       } catch (e) {}
 
       const oldBatch = batches.find(b => b.batch_id === deletingId);
+      const removedStock = !item?.is_cuttable ? (Number(oldBatch?.stock_store || 0) + Number(oldBatch?.stock_warehouse || 0)) : 0;
       await supabase.from('audit_logs').insert([{
         shop_id: shopId,
         action_type: 'DELETE',
         barcode: item.barcode,
         item_name: item.name,
-        changes: `Deleted Batch #${oldBatch?.batch_number || 1}`,
+        changes: `Deleted Batch #${oldBatch?.batch_number || 1}${removedStock > 0 ? ` (removed ${removedStock} ${displayUnit} stock)` : ''}`,
         performed_by: localStorage.getItem('owner_name') || 'Owner'
       }]);
 
@@ -747,8 +793,8 @@ export default function BatchDetailsView({
           </p>
         </div>
 
-        {/* MIN QUANTITY (STORE & WHSE) THRESHOLDS */}
-        <div className="shrink-0 self-start sm:self-center">
+        {/* MIN QUANTITY (STORE & WHSE) THRESHOLDS & ADD BATCH */}
+        <div className="shrink-0 self-start sm:self-center flex flex-wrap items-center gap-2.5">
           {isEditingMinQty ? (
             <div className="flex items-center gap-2 bg-[var(--bg-secondary)] px-3 py-1.5 rounded-lg border border-[var(--border-medium)] text-xs shadow-sm animate-fade-in">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
@@ -838,6 +884,17 @@ export default function BatchDetailsView({
                 <span>Edit</span>
               </button>
             </div>
+          )}
+
+          {viewType !== 'recycle' && (
+            <button
+              onClick={() => setCreateBatchModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-white text-xs font-bold tracking-wide hover:brightness-110 active:scale-95 shadow-sm transition-all cursor-pointer"
+              title="Create New Batch for this item"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Batch</span>
+            </button>
           )}
         </div>
       </div>
@@ -939,16 +996,6 @@ export default function BatchDetailsView({
             <ChevronRight className="w-4 h-4" />
           </button>
         )}
-
-        {/* NEW BATCH TAB BUTTON — always visible, pinned to the right */}
-        <button
-          onClick={() => setCreateBatchModalOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-t-lg transition-colors cursor-pointer text-[var(--color-accent)] hover:bg-[var(--color-accent-bg)] shrink-0 self-end mb-0.5 border-l border-[var(--border-light)]"
-          title="Create New Batch for this item"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Add Batch</span>
-        </button>
       </div>
 
       {/* MAIN DETAILS AREA */}
@@ -990,85 +1037,91 @@ export default function BatchDetailsView({
                   </span>
                 </div>
 
-                {/* Batch Action Buttons */}
-                <div className="flex items-center gap-2">
-                  {isEditingBatch ? (
-                    <>
-                      <button
-                        onClick={() => {
-                          updateBatchMutation.mutate({
-                            batch_id: activeBatch.batch_id,
-                            msp: batchEditForm.msp
-                          });
-                        }}
-                        disabled={updateBatchMutation.isPending}
-                        className="h-8 px-3 rounded-lg bg-[var(--color-success)] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm hover:brightness-110 disabled:opacity-50 cursor-pointer"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                        {updateBatchMutation.isPending ? 'Saving...' : 'Save'}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setIsEditingBatch(false);
-                          setBatchEditForm({
-                            cost: activeBatch.purchase_cost ?? item?.cost_price ?? 0,
-                            msp: activeBatch.msp ?? item?.msp ?? item?.cost_price ?? 0,
-                            mrp: activeBatch.selling_price ?? item?.price ?? 0
-                          });
-                        }}
-                        className="h-8 px-3 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      {viewType !== 'recycle' && (
-                        <button
-                          onClick={() => setIsEditingBatch(true)}
-                          className="h-8 px-3 rounded-lg border border-[var(--border-medium)] hover:border-[var(--color-accent)] text-[var(--text-primary)] hover:bg-white/5 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
-                          title="Edit Batch Floor Price (MSP)"
-                        >
-                          <Edit3 className="w-3.5 h-3.5 text-[var(--color-accent)]" />
-                          Edit Price
-                        </button>
+                    {/* Batch Action Buttons */}
+                    <div className="flex items-center gap-2">
+                      {isEditingBatch ? (
+                        <>
+                          <button
+                            onClick={() => {
+                              updateBatchMutation.mutate({
+                                batch_id: activeBatch.batch_id,
+                                msp: batchEditForm.msp,
+                                stock_store: batchEditForm.stock_store,
+                                stock_warehouse: batchEditForm.stock_warehouse
+                              });
+                            }}
+                            disabled={updateBatchMutation.isPending}
+                            className="h-8 px-3 rounded-lg bg-[var(--color-success)] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm hover:brightness-110 disabled:opacity-50 cursor-pointer"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            {updateBatchMutation.isPending ? 'Saving...' : 'Save'}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setIsEditingBatch(false);
+                              setBatchEditForm({
+                                cost: activeBatch.purchase_cost ?? item?.cost_price ?? 0,
+                                msp: activeBatch.msp ?? item?.msp ?? item?.cost_price ?? 0,
+                                mrp: activeBatch.selling_price ?? item?.price ?? 0,
+                                stock_store: activeBatch.stock_store ?? 0,
+                                stock_warehouse: activeBatch.stock_warehouse ?? 0
+                              });
+                            }}
+                            className="h-8 px-3 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          {viewType !== 'recycle' && (
+                            <button
+                              onClick={() => setIsEditingBatch(true)}
+                              className="h-8 px-3 rounded-lg border border-[var(--border-medium)] hover:border-[var(--color-accent)] text-[var(--text-primary)] hover:bg-white/5 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
+                              title={item.is_cuttable ? "Edit Batch Floor Price (MSP)" : "Edit Batch Floor Price & Stock"}
+                            >
+                              <Edit3 className="w-3.5 h-3.5 text-[var(--color-accent)]" />
+                              {item.is_cuttable ? 'Edit Price' : 'Edit Batch'}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setPrintBatchModal({ isOpen: true, batch: activeBatch })}
+                            className="h-8 px-3 rounded-lg border border-[var(--color-accent)] text-[var(--color-accent)] hover:bg-[var(--color-accent-bg)] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
+                            title="Print Barcode Labels for this batch"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            Print Labels
+                          </button>
+                          {viewType !== 'recycle' && (
+                            <button
+                              onClick={() => {
+                                const canDelete = !item.is_cuttable || ((isWarehouseDisabled || Number(activeBatch.stock_warehouse) === 0) && Number(activeBatch.stock_store) === 0 && activeBatchPieceStats.totalCount === 0);
+                                if (canDelete) {
+                                  setBatchToDelete(activeBatch.batch_id);
+                                }
+                              }}
+                              disabled={item.is_cuttable && !((isWarehouseDisabled || Number(activeBatch.stock_warehouse) === 0) && Number(activeBatch.stock_store) === 0 && activeBatchPieceStats.totalCount === 0)}
+                              className={`h-8 px-3 rounded-lg border text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all ${
+                                !item.is_cuttable || ((isWarehouseDisabled || Number(activeBatch.stock_warehouse) === 0) && Number(activeBatch.stock_store) === 0 && activeBatchPieceStats.totalCount === 0)
+                                  ? 'border-red-500/50 text-red-400 hover:bg-red-500/10 cursor-pointer'
+                                  : 'border-white/10 text-[var(--text-tertiary)] opacity-40 cursor-not-allowed'
+                              }`}
+                              title={
+                                !item.is_cuttable
+                                  ? 'Delete batch and remove its stock'
+                                  : (isWarehouseDisabled || Number(activeBatch.stock_warehouse) === 0) && Number(activeBatch.stock_store) === 0 && activeBatchPieceStats.totalCount === 0
+                                    ? 'Delete empty batch'
+                                    : 'Cannot delete batch with existing cut pieces'
+                              }
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              Delete
+                            </button>
+                          )}
+                        </>
                       )}
-                      <button
-                        onClick={() => setPrintBatchModal({ isOpen: true, batch: activeBatch })}
-                        className="h-8 px-3 rounded-lg border border-[var(--color-accent)] text-[var(--color-accent)] hover:bg-[var(--color-accent-bg)] text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
-                        title="Print Barcode Labels for this batch"
-                      >
-                        <Printer className="w-3.5 h-3.5" />
-                        Print Labels
-                      </button>
-                      {viewType !== 'recycle' && (
-                        <button
-                          onClick={() => {
-                            const canDelete = (isWarehouseDisabled || Number(activeBatch.stock_warehouse) === 0) && Number(activeBatch.stock_store) === 0 && activeBatchPieceStats.totalCount === 0;
-                            if (canDelete) {
-                              setBatchToDelete(activeBatch.batch_id);
-                            }
-                          }}
-                          disabled={!((isWarehouseDisabled || Number(activeBatch.stock_warehouse) === 0) && Number(activeBatch.stock_store) === 0 && activeBatchPieceStats.totalCount === 0)}
-                          className={`h-8 px-3 rounded-lg border text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all ${
-                            (isWarehouseDisabled || Number(activeBatch.stock_warehouse) === 0) && Number(activeBatch.stock_store) === 0 && activeBatchPieceStats.totalCount === 0
-                              ? 'border-red-500/50 text-red-400 hover:bg-red-500/10 cursor-pointer'
-                              : 'border-white/10 text-[var(--text-tertiary)] opacity-40 cursor-not-allowed'
-                          }`}
-                          title={
-                            (isWarehouseDisabled || Number(activeBatch.stock_warehouse) === 0) && Number(activeBatch.stock_store) === 0 && activeBatchPieceStats.totalCount === 0
-                              ? 'Delete empty batch'
-                              : 'Cannot delete batch with existing stock or pieces'
-                          }
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          Delete
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
+                    </div>
               </div>
 
               {/* Metrics Grid */}
@@ -1076,18 +1129,17 @@ export default function BatchDetailsView({
                 {/* Cost Price */}
                 <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)]">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1">
-                    Purchase Cost
+                    Cost
                   </span>
                   <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
                     ₹{Number(activeBatch.purchase_cost ?? item.cost_price ?? 0).toFixed(2)}
                   </span>
-                  <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">Acquisition</span>
                 </div>
 
                 {/* MSP */}
                 <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)]">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1">
-                    MSP (Floor Price)
+                    MSP
                   </span>
                   {isEditingBatch ? (
                     <input
@@ -1103,18 +1155,16 @@ export default function BatchDetailsView({
                       ₹{Number(activeBatch.msp ?? item.msp ?? item.cost_price ?? 0).toFixed(2)}
                     </span>
                   )}
-                  <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">Minimum Price</span>
                 </div>
 
                 {/* MRP */}
                 <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)]">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1">
-                    Selling Price (MRP)
+                    MRP
                   </span>
                   <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
                     ₹{Number(activeBatch.selling_price ?? item.price ?? 0).toFixed(2)}
                   </span>
-                  <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">List Price</span>
                 </div>
 
                 {/* Warehouse Stock */}
@@ -1123,12 +1173,28 @@ export default function BatchDetailsView({
                     <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1">
                       Warehouse Stock
                     </span>
-                    <span className="text-sm sm:text-base font-bold text-[var(--color-accent)]">
-                      {item.is_cuttable ? activeBatchPieceStats.whseCount : (activeBatch.stock_warehouse ?? 0)}
-                      <span className="text-xs font-normal text-[var(--text-secondary)] ml-1">
-                        {item.is_cuttable ? 'PCS' : displayUnit}
+                    {isEditingBatch && !item.is_cuttable ? (
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          step="any"
+                          min="0"
+                          value={batchEditForm.stock_warehouse}
+                          onChange={e => setBatchEditForm(prev => ({ ...prev, stock_warehouse: e.target.value }))}
+                          className="w-full h-7 px-2 text-sm font-bold rounded bg-[var(--bg-input)] border border-[var(--color-accent)] text-[var(--color-accent)] focus:outline-none"
+                        />
+                        <span className="text-xs font-normal text-[var(--text-secondary)] uppercase">
+                          {displayUnit}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-sm sm:text-base font-bold text-[var(--color-accent)]">
+                        {item.is_cuttable ? activeBatchPieceStats.whseCount : (activeBatch.stock_warehouse ?? 0)}
+                        <span className="text-xs font-normal text-[var(--text-secondary)] ml-1">
+                          {item.is_cuttable ? 'PCS' : displayUnit}
+                        </span>
                       </span>
-                    </span>
+                    )}
                     {item.is_cuttable && activeBatchPieceStats.whseLen > 0 && (
                       <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">
                         {activeBatchPieceStats.whseLen.toFixed(1)} {item.unit === 'SQFT' ? 'ft' : item.unit} total
@@ -1142,12 +1208,28 @@ export default function BatchDetailsView({
                   <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1">
                     {isWarehouseDisabled ? 'Current Stock' : 'Store Stock'}
                   </span>
-                  <span className="text-sm sm:text-base font-bold text-[var(--color-success)]">
-                    {item.is_cuttable ? activeBatchPieceStats.storeCount : (isWarehouseDisabled ? (Number(activeBatch?.stock_store || 0) + Number(activeBatch?.stock_warehouse || 0)) : (activeBatch?.stock_store ?? 0))}
-                    <span className="text-xs font-normal text-[var(--text-secondary)] ml-1">
-                      {item.is_cuttable ? 'PCS' : displayUnit}
+                  {isEditingBatch && !item.is_cuttable ? (
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        step="any"
+                        min="0"
+                        value={batchEditForm.stock_store}
+                        onChange={e => setBatchEditForm(prev => ({ ...prev, stock_store: e.target.value }))}
+                        className="w-full h-7 px-2 text-sm font-bold rounded bg-[var(--bg-input)] border border-[var(--color-success)] text-[var(--color-success)] focus:outline-none"
+                      />
+                      <span className="text-xs font-normal text-[var(--text-secondary)] uppercase">
+                        {displayUnit}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-sm sm:text-base font-bold text-[var(--color-success)]">
+                      {item.is_cuttable ? activeBatchPieceStats.storeCount : (isWarehouseDisabled ? (Number(activeBatch?.stock_store || 0) + Number(activeBatch?.stock_warehouse || 0)) : (activeBatch?.stock_store ?? 0))}
+                      <span className="text-xs font-normal text-[var(--text-secondary)] ml-1">
+                        {item.is_cuttable ? 'PCS' : displayUnit}
+                      </span>
                     </span>
-                  </span>
+                  )}
                   {item.is_cuttable && activeBatchPieceStats.storeLen > 0 && (
                     <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">
                       {activeBatchPieceStats.storeLen.toFixed(1)} {item.unit === 'SQFT' ? 'ft' : item.unit} total
@@ -1477,8 +1559,17 @@ export default function BatchDetailsView({
       <ConfirmDialog
         isOpen={!!batchToDelete}
         title="Delete Batch"
-        message="Are you sure you want to delete this empty batch? This action will hide the batch from this list."
-        confirmLabel="Delete"
+        message={
+          (() => {
+            const batchObj = batches.find(b => b.batch_id === batchToDelete);
+            const totalStock = batchObj ? (Number(batchObj.stock_store || 0) + Number(batchObj.stock_warehouse || 0)) : 0;
+            if (totalStock > 0 && !item?.is_cuttable) {
+              return `Are you sure you want to delete Batch #${batchObj?.batch_number || 1}? This batch contains ${totalStock} ${displayUnit} of stock, which will be completely removed.`;
+            }
+            return 'Are you sure you want to delete this batch? This action will remove the batch from inventory.';
+          })()
+        }
+        confirmLabel="Delete Batch"
         cancelLabel="Cancel"
         isDestructive={true}
         onConfirm={confirmDeleteBatch}
