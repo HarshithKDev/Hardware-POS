@@ -907,9 +907,9 @@ export default function OwnerStats({ isActive }) {
   // 2. Separate Inventory Query — runs ONCE on load, never re-runs on date change
   const fetchInventoryStats = useCallback(async () => {
     const now = new Date();
-    const thirtyDaysAgo = new Date(now);
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const deadStockStartIso = `${thirtyDaysAgo.toLocaleDateString('en-CA')}T00:00:00`;
+    const oneYearAgo = new Date(now);
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const deadStockStartIso = `${oneYearAgo.toLocaleDateString('en-CA')}T00:00:00`;
 
     let dsBillsQuery = supabase
       .from('bills')
