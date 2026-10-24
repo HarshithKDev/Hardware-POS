@@ -2727,7 +2727,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               className="w-full sm:w-auto min-h-[40px] md:h-10 px-6 md:px-8 text-white text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md focus:ring-2 focus:ring-offset-1 flex justify-center items-center gap-2"
               style={{ backgroundColor: 'var(--color-accent)', border: '1px solid transparent' }}
             >
-              <span>{isCheckingOut ? 'Saving...' : (activeTab === 'checkout' ? 'Pay / Complete' : 'Complete')}</span>
+              <span>{isCheckingOut ? 'Saving...' : 'Complete'}</span>
             </button>
           </div>
         )}
