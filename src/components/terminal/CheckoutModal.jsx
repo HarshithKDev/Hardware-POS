@@ -9,6 +9,7 @@ export default function CheckoutModal({
   activeTotal,
   cartTotal,
   minPossibleTotal,
+  screwPrice = 0,
   userRole,
   cashierName,
   isCheckingOut,
@@ -100,7 +101,18 @@ export default function CheckoutModal({
               className="w-full h-11 px-3.5 text-xl font-bold focus:outline-none rounded-md" 
               style={{ border: checkoutModal.error ? '1px solid var(--color-error)' : '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} 
             />
-            {checkoutModal.negotiatedTotal !== '' && Number(checkoutModal.negotiatedTotal) < minPossibleTotal && userRole !== 'owner' && cashierName !== 'admin' && (
+            {screwPrice > 0 && (
+              <div className="mt-1.5 flex items-center justify-between text-[11px] font-semibold px-2.5 py-1 rounded bg-[var(--bg-tertiary)] border border-[var(--border-light)]" style={{ color: 'var(--text-secondary)' }}>
+                <span>Screws: ₹{screwPrice.toFixed(2)} (Fixed price)</span>
+                <span className="text-[10px] text-[var(--text-tertiary)] font-normal">Discount applies to other items only</span>
+              </div>
+            )}
+            {checkoutModal.negotiatedTotal !== '' && Number(checkoutModal.negotiatedTotal) < screwPrice && (
+              <p className="text-[11px] font-bold mt-1 leading-tight" style={{ color: 'var(--color-error)' }}>
+                Warning: Negotiated amount cannot be less than ₹{screwPrice.toFixed(2)} (Screws price is fixed at ₹{screwPrice.toFixed(2)}).
+              </p>
+            )}
+            {checkoutModal.negotiatedTotal !== '' && Number(checkoutModal.negotiatedTotal) < minPossibleTotal && userRole !== 'owner' && cashierName !== 'admin' && Number(checkoutModal.negotiatedTotal) >= screwPrice && (
               <p className="text-[11px] font-bold mt-1 leading-tight" style={{ color: 'var(--color-error)' }}>
                 Warning: Cannot discount below minimum selling limit (₹{minPossibleTotal.toFixed(2)}).
               </p>

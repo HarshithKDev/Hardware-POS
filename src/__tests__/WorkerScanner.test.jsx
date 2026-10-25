@@ -372,6 +372,158 @@ describe('WorkerScanner Integration', () => {
       expect(db.saveInventoryBatch).toHaveBeenCalled();
     });
   });
+
+  it('allows checkout with screws without stock check errors', async () => {
+    db.getInventoryItemByBarcode.mockImplementation(async (barcode) => {
+      if (barcode === '1001') {
+        return {
+          barcode: '1001',
+          name: 'Finolex Pipe 1001',
+          price: 100,
+          is_cuttable: false,
+          stock_store: 5,
+          batches: [{ batch_id: 'b1', batch_number: 1, stock_store: 5, selling_price: 100 }]
+        };
+      }
+      return null;
+    });
+
+    render(
+      <TestWrapper activeTab="checkout">
+        <WorkerTerminal activeTab="checkout" shopSettings={{ id: 'shop1' }} cashierName="John" />
+      </TestWrapper>
+    );
+
+    const input = await screen.findByPlaceholderText('Search barcode or name...');
+    fireEvent.change(input, { target: { value: '1001' } });
+    fireEvent.submit(input.closest('form'));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Finolex Pipe 1001').length).toBeGreaterThan(0);
+    });
+
+    // Click "Include Screws" button
+    const includeScrewsBtn = screen.getByText('Include Screws');
+    fireEvent.click(includeScrewsBtn);
+
+    // Enter price in screws modal
+    await waitFor(() => {
+      expect(screen.getByText('Include Screws', { selector: 'h3' })).toBeInTheDocument();
+    });
+    const priceInput = screen.getByLabelText(/Price \(₹\)/i);
+    fireEvent.change(priceInput, { target: { value: '15' } });
+
+    // Submit screws modal
+    const addScrewsBtn = screen.getByText('Add to Bill');
+    fireEvent.submit(addScrewsBtn.closest('form'));
+
+    // Verify Screws is now in the cart
+    await waitFor(() => {
+      expect(screen.getByText(/Screws: ₹/i)).toBeInTheDocument();
+      expect(screen.getByText('1 SET')).toBeInTheDocument();
+    });
+
+    // Complete sale (F4)
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F4', bubbles: true }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Complete Sale')).toBeInTheDocument();
+    });
+
+    const negotiatedInput = screen.getByLabelText(/Final Negotiated Amount/i);
+    fireEvent.change(negotiatedInput, { target: { value: '115' } });
+
+    // Press Enter to complete sale
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+    // Verify it completed without throwing "Not enough stock for screws"
+    await waitFor(() => {
+      expect(db.saveInventoryBatch).toHaveBeenCalled();
+    });
+  });
+
+  it('negotiated total discount applies exclusively to other products and leaves screws price unchanged', async () => {
+    db.getInventoryItemByBarcode.mockImplementation(async (barcode) => {
+      if (barcode === '1001') {
+        return {
+          barcode: '1001',
+          name: 'Finolex Pipe 1001',
+          price: 100,
+          msp: 80,
+          msp_price: 80,
+          is_cuttable: false,
+          stock_store: 5,
+          batches: [{ batch_id: 'b1', batch_number: 1, stock_store: 5, selling_price: 100, msp: 80 }]
+        };
+      }
+      return null;
+    });
+
+    const { supabase } = await import('../supabaseClient');
+
+    render(
+      <TestWrapper activeTab="checkout">
+        <WorkerTerminal activeTab="checkout" shopSettings={{ id: 'shop1' }} cashierName="John" />
+      </TestWrapper>
+    );
+
+    const input = await screen.findByPlaceholderText('Search barcode or name...');
+    fireEvent.change(input, { target: { value: '1001' } });
+    fireEvent.submit(input.closest('form'));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Finolex Pipe 1001').length).toBeGreaterThan(0);
+    });
+
+    // Add screws at ₹30
+    const includeScrewsBtn = screen.getByText('Include Screws');
+    fireEvent.click(includeScrewsBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Include Screws', { selector: 'h3' })).toBeInTheDocument();
+    });
+    const priceInput = screen.getByLabelText(/Price \(₹\)/i);
+    fireEvent.change(priceInput, { target: { value: '30' } });
+
+    const addScrewsBtn = screen.getByText('Add to Bill');
+    fireEvent.submit(addScrewsBtn.closest('form'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Screws: ₹/i)).toBeInTheDocument();
+    });
+
+    // Open checkout modal (F4)
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F4', bubbles: true }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Complete Sale')).toBeInTheDocument();
+      // Should show screws helper
+      expect(screen.getByText(/Screws: ₹30\.00 \(Fixed price\)/i)).toBeInTheDocument();
+    });
+
+    // Enter negotiated total: 120 (Cart total was 100 + 30 = 130, discount is 10)
+    const negotiatedInput = screen.getByLabelText(/Final Negotiated Amount/i);
+    fireEvent.change(negotiatedInput, { target: { value: '120' } });
+
+    // Press Enter to complete sale
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+    await waitFor(() => {
+      expect(supabase.rpc).toHaveBeenCalledWith(
+        'process_pos_transaction_unsafe',
+        expect.objectContaining({
+          p_items: expect.arrayContaining([
+            expect.objectContaining({
+              barcode: '1001',
+              final_price: 90 // Full ₹10 discount applied to the pipe
+            })
+          ])
+        })
+      );
+      // Screws inserted at exact untouched price of ₹30
+      expect(supabase.from).toHaveBeenCalledWith('bill_items');
+    });
+  });
 });
 
 

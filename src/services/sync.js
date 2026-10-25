@@ -303,6 +303,27 @@ export const flushOfflineQueue = async (userRole = 'worker') => {
                     updatePayload.status = 'showroom_pending';
                   }
                   await supabase.from('bills').update(updatePayload).eq('id', data.bill_id);
+
+                  if (tx.screw_item) {
+                    const scPrice = Number(tx.screw_item.customPriceInput || tx.screw_item.price || 0);
+                    try {
+                      await supabase.from('bill_items').insert({
+                        bill_id: data.bill_id,
+                        shop_id: shopId,
+                        barcode: 'SCREWS',
+                        item_name: 'Screws',
+                        quantity: 1,
+                        billable_quantity: 1,
+                        price_at_sale: scPrice,
+                        selling_price: scPrice,
+                        final_price: scPrice,
+                        profit: scPrice,
+                        unit: 'SET'
+                      });
+                    } catch (biErr) {
+                      console.warn("Could not insert screws into bill_items during offline queue flush:", biErr);
+                    }
+                  }
                 } catch (billUpdateErr) {
                   console.warn("Could not save additional bill metadata during offline queue flush:", billUpdateErr);
                 }

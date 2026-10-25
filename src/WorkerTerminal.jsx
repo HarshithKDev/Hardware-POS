@@ -1102,6 +1102,17 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
   const applyCustomPriceBlur = useCallback((id) => setCart(prev => prev.map(i => {
     if (i.id === id) {
+      if (i.is_screw || i.barcode === 'SCREWS') {
+        const val = Number(i.customPriceInput) || Number(i.price || 0);
+        return {
+          ...i,
+          price: val,
+          selling_price: val.toFixed(2),
+          customPriceInput: val.toFixed(2),
+          customTotalInput: val.toFixed(2),
+          discountPct: 0
+        };
+      }
       const qty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : (i.quantity === '' ? 0 : Number(i.quantity));
       let val = Number(i.customPriceInput); if (isNaN(val)) val = Number(i.price || 0);
       const msp = Number(i.msp_price) || Number(i.msp || 0); const mrp = Number(i.price || 0);
@@ -1170,6 +1181,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       let priceChanged = false;
       let itemRemoved = false;
       const updatedItemsRaw = await Promise.all(itemsToRestore.map(async (item) => {
+        if (item.is_screw || item.barcode === 'SCREWS') {
+          return item;
+        }
         const liveItem = await getInventoryItemByBarcode(item.barcode);
         if (!liveItem) {
           itemRemoved = true;
@@ -1322,13 +1336,28 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       let totalDiscountToGive = currentCartTotal - targetTotal;
 
       if (totalDiscountToGive > 0) {
+        const screwItem = finalCart.find(i => i.is_screw || i.barcode === 'SCREWS');
+        const screwPrice = screwItem ? Number(screwItem.customPriceInput || screwItem.price || 0) : 0;
+        const otherItems = finalCart.filter(item => !item.is_screw && item.barcode !== 'SCREWS');
+
+        if (otherItems.length === 0) {
+          showAlert(`Screws price (₹${screwPrice.toFixed(2)}) is fixed and cannot be discounted. Discount is only applicable to other items.`, "Screws Price Fixed");
+          setIsCheckingOut(false);
+          return;
+        }
+
+        if (targetTotal < screwPrice) {
+          showAlert(`Negotiated amount cannot be less than ₹${screwPrice.toFixed(2)} (Screws price is fixed at ₹${screwPrice.toFixed(2)}).`, "Invalid Total");
+          setIsCheckingOut(false);
+          return;
+        }
+
         // Prepare items with their discountable room — EXCLUDE SCREWS (screw amount stays constant)
-        let discountableItems = finalCart
-          .filter(item => !item.is_screw)
+        let discountableItems = otherItems
           .map(item => {
             const qty = item.billableQuantity !== undefined && item.billableQuantity !== '' ? Number(item.billableQuantity) : (item.quantity === '' ? 0 : Number(item.quantity));
             const price = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
-            const msp = Number(item.msp || 0);
+            const msp = (userRole === 'owner' || cashierName === 'admin') ? 0 : (Number(item.msp_price) || Number(item.msp || 0));
             const currentLineTotal = qty * price;
             const minLineTotal = qty * msp;
             return {
@@ -1384,71 +1413,77 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     setIsCheckingOut(true);
     try {
       if ((activeTab === 'checkout' || activeTab === 'transfer') && navigator.onLine) {
-        const barcodes = [...new Set(finalCart.map(item => item.barcode))];
+        // Untracked screws have no inventory batch or stock records; exclude from stock check
+        const stockItems = finalCart.filter(item => !item.is_screw && item.barcode !== 'SCREWS');
+        const barcodes = [...new Set(stockItems.map(item => item.barcode))];
         const stockField = activeTab === 'transfer' ? 'stock_warehouse' : 'stock_store';
         const currentShopId = shopSettings?.id || localStorage.getItem('shop_id');
-        let batchQuery = supabase
-          .from('inventory_batches')
-          .select('barcode, batch_id, stock_store, stock_warehouse, selling_price, msp')
-          .in('barcode', barcodes)
-          .eq('is_active', true);
-        if (currentShopId) {
-          batchQuery = batchQuery.eq('shop_id', currentShopId);
-        }
-        const { data: liveBatches, error: stockError } = await batchQuery;
-
-        if (stockError) {
-          if (stockError.message !== 'Failed to fetch' && stockError.code !== '503') {
-            throw stockError;
+        
+        if (barcodes.length > 0) {
+          let batchQuery = supabase
+            .from('inventory_batches')
+            .select('barcode, batch_id, stock_store, stock_warehouse, selling_price, msp')
+            .in('barcode', barcodes)
+            .eq('is_active', true);
+          if (currentShopId) {
+            batchQuery = batchQuery.eq('shop_id', currentShopId);
           }
-        } else if (liveBatches) {
-          // Sum stock per barcode across all active batches
-          const stockByBarcode = {};
-          liveBatches.forEach(b => {
-            stockByBarcode[b.barcode] = (stockByBarcode[b.barcode] || 0) + Number(b[stockField] || 0);
-          });
+          const { data: liveBatches, error: stockError } = await batchQuery;
 
-          for (const cartItem of finalCart) {
-            const available = stockByBarcode[cartItem.barcode] ?? 0;
-            if (available < cartItem.quantity) {
-              const loc = activeTab === 'transfer' ? 'warehouse' : 'shop';
-              throw new Error(`Not enough stock for ${cartItem.name}! Only ${available} available in the ${loc}.`);
+          if (stockError) {
+            if (stockError.message !== 'Failed to fetch' && stockError.code !== '503') {
+              throw stockError;
             }
-          }
-
-          // P0 FIX: Live price verification (checkout only)
-          if (activeTab === 'checkout') {
-            const priceByBatch = {};
+          } else if (liveBatches) {
+            // Sum stock per barcode across all active batches
+            const stockByBarcode = {};
             liveBatches.forEach(b => {
-              priceByBatch[`${b.barcode}_${b.batch_id}`] = {
-                selling_price: Number(b.selling_price || 0),
-                msp: Number(b.msp || 0)
-              };
+              stockByBarcode[b.barcode] = (stockByBarcode[b.barcode] || 0) + Number(b[stockField] || 0);
             });
 
-            let priceChanged = false;
-            const priceUpdatedCart = finalCart.map(cartItem => {
-              const key = `${cartItem.barcode}_${cartItem.batch_id}`;
-              const live = priceByBatch[key];
-              if (live && Math.abs(live.selling_price - Number(cartItem.selling_price || 0)) > 0.01) {
-                priceChanged = true;
-                const wasCustomized = cartItem.customPriceInput != cartItem.selling_price;
-                return {
-                  ...cartItem,
-                  selling_price: live.selling_price.toFixed(2),
-                  price: live.selling_price,
-                  msp: live.msp,
-                  msp_price: live.msp.toFixed(2),
-                  customPriceInput: wasCustomized ? cartItem.customPriceInput : live.selling_price.toFixed(2)
-                };
+            for (const cartItem of stockItems) {
+              const available = stockByBarcode[cartItem.barcode] ?? 0;
+              if (available < cartItem.quantity) {
+                const loc = activeTab === 'transfer' ? 'warehouse' : 'shop';
+                throw new Error(`Not enough stock for ${cartItem.name}! Only ${available} available in the ${loc}.`);
               }
-              return cartItem;
-            });
+            }
 
-            if (priceChanged) {
-              setCart(priceUpdatedCart);
-              setIsCheckingOut(false);
-              throw new Error('Prices have been updated since items were scanned. The cart has been refreshed with current prices. Please review and try again.');
+            // P0 FIX: Live price verification (checkout only)
+            if (activeTab === 'checkout') {
+              const priceByBatch = {};
+              liveBatches.forEach(b => {
+                priceByBatch[`${b.barcode}_${b.batch_id}`] = {
+                  selling_price: Number(b.selling_price || 0),
+                  msp: Number(b.msp || 0)
+                };
+              });
+
+              let priceChanged = false;
+              const priceUpdatedCart = finalCart.map(cartItem => {
+                if (cartItem.is_screw || cartItem.barcode === 'SCREWS') return cartItem;
+                const key = `${cartItem.barcode}_${cartItem.batch_id}`;
+                const live = priceByBatch[key];
+                if (live && Math.abs(live.selling_price - Number(cartItem.selling_price || 0)) > 0.01) {
+                  priceChanged = true;
+                  const wasCustomized = cartItem.customPriceInput != cartItem.selling_price;
+                  return {
+                    ...cartItem,
+                    selling_price: live.selling_price.toFixed(2),
+                    price: live.selling_price,
+                    msp: live.msp,
+                    msp_price: live.msp.toFixed(2),
+                    customPriceInput: wasCustomized ? cartItem.customPriceInput : live.selling_price.toFixed(2)
+                  };
+                }
+                return cartItem;
+              });
+
+              if (priceChanged) {
+                setCart(priceUpdatedCart);
+                setIsCheckingOut(false);
+                throw new Error('Prices have been updated since items were scanned. The cart has been refreshed with current prices. Please review and try again.');
+              }
             }
           }
         }
@@ -1461,19 +1496,22 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         let totalDiscountToGive = currentCartTotal - targetTotal;
 
         if (totalDiscountToGive > 0) {
+          const screwItem = finalCart.find(i => i.is_screw || i.barcode === 'SCREWS');
+          const fixedScrewPrice = screwItem ? Number(screwItem.customPriceInput || screwItem.price || 0) : 0;
+
           let originalDiscountableItems = finalCart.map((item, index) => {
-            if (item.is_screw) {
+            if (item.is_screw || item.barcode === 'SCREWS') {
               return {
                 __cartIndex: index,
                 calcQty: 1,
-                currentPrice: Number(item.price || item.customPriceInput || 0),
+                currentPrice: fixedScrewPrice,
                 maxDiscountableTotal: 0,
                 allocatedDiscount: 0
               };
             }
             const qty = item.billableQuantity !== undefined && item.billableQuantity !== '' ? Number(item.billableQuantity) : (item.quantity === '' ? 0 : Number(item.quantity));
             const price = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
-            const msp = Number(item.msp_price) || Number(item.msp || 0);
+            const msp = (userRole === 'owner' || cashierName === 'admin') ? 0 : (Number(item.msp_price) || Number(item.msp || 0));
             return {
               __cartIndex: index,
               calcQty: qty,
@@ -1501,8 +1539,15 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           }
 
           finalCart = finalCart.map((cartItem, index) => {
-            if (cartItem.is_screw) {
-              return cartItem; // Screw price stays completely untouched!
+            if (cartItem.is_screw || cartItem.barcode === 'SCREWS') {
+              // Screw price stays completely untouched — exactly as specified!
+              return {
+                ...cartItem,
+                price: fixedScrewPrice,
+                customPriceInput: fixedScrewPrice.toFixed(2),
+                selling_price: fixedScrewPrice.toFixed(2),
+                discountPct: 0
+              };
             }
             const discItem = originalDiscountableItems.find(i => i.__cartIndex === index);
             if (discItem && discItem.allocatedDiscount > 0) {
@@ -1546,7 +1591,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         p_upi_amount: upiAmount,
         p_customer_name: checkoutModal.customerName || null,
         p_customer_phone: checkoutModal.customerPhone || null,
-        p_items: finalCart.filter(i => !i.is_screw).map(i => {
+        screw_item: finalCart.find(i => i.is_screw || i.barcode === 'SCREWS') || null,
+        p_items: finalCart.filter(i => !i.is_screw && i.barcode !== 'SCREWS').map(i => {
           let calcQuantity = Number(i.quantity);
           if (i.is_cuttable) {
             if (i.unit === 'SQFT') {
@@ -1625,7 +1671,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               }
               await supabase.from('bills').update(updatePayload).eq('id', successData.bill_id);
 
-              const screwItem = finalCart.find(i => i.is_screw);
+              const screwItem = finalCart.find(i => i.is_screw || i.barcode === 'SCREWS');
               if (activeTab === 'checkout' && screwItem) {
                 const scPrice = Number(screwItem.customPriceInput || screwItem.price || 0);
                 try {
@@ -2322,9 +2368,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const cartTotal = calculateTotal();
   const cartUnits = calculateTotalUnits();
   
+  const screwInCart = cart.find(i => i.is_screw || i.barcode === 'SCREWS');
+  const screwPriceInCart = screwInCart ? Number(screwInCart.customPriceInput || screwInCart.price || 0) : 0;
+
   const minPossibleTotal = cart.reduce((tot, i) => {
     const qty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : (i.quantity === '' ? 0 : Number(i.quantity));
-    const msp = i.is_screw ? (Number(i.price) || 0) : (Number(i.msp_price) || Number(i.msp || 0));
+    const msp = (i.is_screw || i.barcode === 'SCREWS') ? Number(i.customPriceInput || i.price || 0) : (Number(i.msp_price) || Number(i.msp || 0));
     return tot + Math.round(msp * qty * 100);
   }, 0) / 100;
 
@@ -2350,6 +2399,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         activeTotal={activeTotal}
         cartTotal={cartTotal}
         minPossibleTotal={minPossibleTotal}
+        screwPrice={screwPriceInCart}
         userRole={userRole}
         cashierName={cashierName}
         isCheckingOut={isCheckingOut}
