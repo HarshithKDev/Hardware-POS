@@ -190,7 +190,7 @@ const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQ
               <p className="text-[10px] uppercase font-bold mt-1" style={{ color: 'var(--text-tertiary)' }}>Length per piece: {item.pieceLength} {item.unit}</p>
             )}
             <p className="text-xs mt-1 mb-1" style={{ color: 'var(--color-accent)' }}>#{item.scanned_barcode || item.instance_barcode || item.barcode}</p>
-            {activeTab === 'checkout' && (
+            {activeTab === 'checkout' && !item.is_screw && item.barcode !== 'SCREWS' && (
               <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>
                 MRP: ₹{Number(item.price || 0).toFixed(2)}{item.is_loose_item && item.unit?.toUpperCase() === 'KG' ? '/kg' : ''} • <span className="group/msp cursor-help">MSP: {userRole === 'owner' ? `₹${Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}${item.is_loose_item && item.unit?.toUpperCase() === 'KG' ? '/kg' : ''}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}{item.is_loose_item && item.unit?.toUpperCase() === 'KG' ? '/kg' : ''}</span></span>}</span>
               </p>
@@ -315,6 +315,14 @@ const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQ
                         <span className="text-[10px] text-[var(--text-tertiary)] font-normal mt-0.5">
                           ({Number(safeQty).toFixed(3)} kg)
                         </span>
+                      </div>
+                    );
+                  }
+
+                  if (item.is_screw || item.barcode === 'SCREWS') {
+                    return (
+                      <div className="w-20 h-8 flex items-center justify-center text-xs font-bold bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md text-[var(--text-secondary)]">
+                        1 SET
                       </div>
                     );
                   }

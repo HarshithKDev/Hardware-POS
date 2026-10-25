@@ -2472,7 +2472,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         onClose={() => setScrewsModal({ isOpen: false, price: '' })}
         onSave={handleSaveScrews}
         initialPrice={screwsModal.price}
-        isUpdate={cart.some(i => i.is_screw)}
+        isUpdate={cart.some(i => i.is_screw || i.barcode === 'SCREWS')}
       />
 
       {isMobileScannerTab ? (
@@ -2629,7 +2629,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               {/* Screws quick add beside search bar */}
               {activeTab === 'checkout' && (
                 <div className="flex items-center">
-                  {cart.some(i => i.is_screw) ? (
+                  {cart.some(i => i.is_screw || i.barcode === 'SCREWS') ? (
                     <div 
                       className="flex items-center h-10 md:h-9 px-3 rounded-md border text-xs font-bold uppercase tracking-wider gap-2 shadow-sm animate-fade-in"
                       style={{ 
@@ -2641,8 +2641,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                       <button
                         type="button"
                         onClick={() => {
-                          const existing = cart.find(i => i.is_screw);
-                          setScrewsModal({ isOpen: true, price: existing ? String(existing.price) : '' });
+                          const existing = cart.find(i => i.is_screw || i.barcode === 'SCREWS');
+                          const currentVal = existing ? (existing.customPriceInput !== undefined ? String(existing.customPriceInput) : String(existing.price || '')) : '';
+                          setScrewsModal({ isOpen: true, price: currentVal });
                         }}
                         className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity"
                         title="Click to edit screws price"
@@ -2650,12 +2651,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                         </svg>
-                        <span>Screws: ₹{Number(cart.find(i => i.is_screw)?.price || 0).toFixed(2)}</span>
+                        <span>Screws: ₹{Number(cart.find(i => i.is_screw || i.barcode === 'SCREWS')?.customPriceInput !== undefined ? cart.find(i => i.is_screw || i.barcode === 'SCREWS')?.customPriceInput : (cart.find(i => i.is_screw || i.barcode === 'SCREWS')?.price || 0)).toFixed(2)}</span>
                       </button>
                       <span className="opacity-30">|</span>
                       <button
                         type="button"
-                        onClick={() => setCart(prev => prev.filter(i => !i.is_screw))}
+                        onClick={() => setCart(prev => prev.filter(i => !i.is_screw && i.barcode !== 'SCREWS'))}
                         className="w-4 h-4 flex items-center justify-center rounded text-[var(--text-secondary)] hover:text-[var(--color-error)] transition-colors cursor-pointer"
                         title="Remove screws from bill"
                         aria-label="Remove screws"

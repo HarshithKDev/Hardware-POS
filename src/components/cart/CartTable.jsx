@@ -271,7 +271,7 @@ const CartTable = React.memo(function CartTable({
                   {item.pieceLength && (
                     <p className="text-[10px] uppercase font-bold mt-1" style={{ color: 'var(--text-tertiary)' }}>Length per piece: {item.pieceLength} {item.unit}</p>
                   )}
-                  {activeTab === 'checkout' && !item.is_screw && (
+                  {activeTab === 'checkout' && !item.is_screw && item.barcode !== 'SCREWS' && (
                     <div className="flex justify-center gap-2 mt-1">
                         <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
                           MRP: ₹{Number(item.price || 0).toFixed(2)}{isLooseKg ? '/kg' : ''}
@@ -432,21 +432,25 @@ const CartTable = React.memo(function CartTable({
                 </td>
                 {activeTab === 'checkout' && (<>
                   <td className="p-2 text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                    <div className="flex flex-col items-center justify-center">
-                      <div className="h-8 flex items-center justify-center w-full">
-                        <div className="relative flex items-center justify-center w-full max-w-[120px] h-8 mx-auto">
-                          <span className="absolute left-3 text-[11px] font-bold pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>₹</span>
-                          <input type="number" step="0.01" onWheel={handleWheelBlur} value={item.customPriceInput !== undefined ? (typeof item.customPriceInput === 'number' ? item.customPriceInput.toFixed(2) : item.customPriceInput) : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChange(item.id, e.target.value)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} MRP`} />
+                    {item.is_screw || item.barcode === 'SCREWS' ? (
+                      <span className="text-sm font-bold text-[var(--text-tertiary)]">—</span>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center">
+                        <div className="h-8 flex items-center justify-center w-full">
+                          <div className="relative flex items-center justify-center w-full max-w-[120px] h-8 mx-auto">
+                            <span className="absolute left-3 text-[11px] font-bold pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>₹</span>
+                            <input type="number" step="0.01" onWheel={handleWheelBlur} value={item.customPriceInput !== undefined ? (typeof item.customPriceInput === 'number' ? item.customPriceInput.toFixed(2) : item.customPriceInput) : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChange(item.id, e.target.value)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} MRP`} />
+                          </div>
                         </div>
+                        {hasSubtext && (
+                          <div className="h-4 flex items-center justify-center mt-1">
+                            {isLooseKg ? (
+                              <span className="text-[10px] text-[var(--text-tertiary)] font-normal leading-none">per kg</span>
+                            ) : null}
+                          </div>
+                        )}
                       </div>
-                      {hasSubtext && (
-                        <div className="h-4 flex items-center justify-center mt-1">
-                          {isLooseKg ? (
-                            <span className="text-[10px] text-[var(--text-tertiary)] font-normal leading-none">per kg</span>
-                          ) : null}
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </td>
                   <td className="p-2 text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>
                     <div className="flex flex-col items-center justify-center">

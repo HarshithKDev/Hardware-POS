@@ -420,7 +420,7 @@ describe('WorkerScanner Integration', () => {
     // Verify Screws is now in the cart
     await waitFor(() => {
       expect(screen.getByText(/Screws: ₹/i)).toBeInTheDocument();
-      expect(screen.getByText('1 SET')).toBeInTheDocument();
+      expect(screen.getAllByText('1 SET').length).toBeGreaterThan(0);
     });
 
     // Complete sale (F4)

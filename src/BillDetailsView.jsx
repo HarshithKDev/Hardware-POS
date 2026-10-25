@@ -266,9 +266,9 @@ export default function BillDetailsView({
                       <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
                         <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Rate</span>
                         <span className="font-semibold text-[var(--text-primary)] tabular-nums">
-                          ₹{soldPrice.toFixed(2)}
+                          {it.barcode === 'SCREWS' || it.is_screw ? '—' : `₹${soldPrice.toFixed(2)}`}
                         </span>
-                        {mrp > soldPrice && (
+                        {mrp > soldPrice && it.barcode !== 'SCREWS' && !it.is_screw && (
                           <span className="text-[9px] line-through text-[var(--text-tertiary)] block">
                             ₹{mrp.toFixed(2)}
                           </span>
@@ -354,15 +354,15 @@ export default function BillDetailsView({
                         </td>
 
                         <td className="py-3 px-3 text-center font-medium text-sm text-[var(--text-secondary)] tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                          ₹{mrp.toFixed(2)}
+                          {it.barcode === 'SCREWS' || it.is_screw ? '—' : `₹${mrp.toFixed(2)}`}
                         </td>
 
                         <td className="py-3 px-3 text-center font-semibold text-sm text-[var(--text-primary)] tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                          ₹{soldPrice.toFixed(2)}
+                          {it.barcode === 'SCREWS' || it.is_screw ? '—' : `₹${soldPrice.toFixed(2)}`}
                         </td>
 
                         <td className="py-3 px-3 text-center text-xs tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                          {discountPct > 0 ? (
+                          {discountPct > 0 && it.barcode !== 'SCREWS' && !it.is_screw ? (
                             <span className="text-amber-400 font-semibold">{discountPct.toFixed(1)}%</span>
                           ) : (
                             <span className="text-[var(--text-tertiary)]">—</span>

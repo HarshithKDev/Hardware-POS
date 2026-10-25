@@ -10,7 +10,10 @@ const formatGramRate = (ratePerKg) => {
 
 export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateTime, isPreview = false }) {
   if (!lastReceipt || lastReceipt.type !== 'checkout') return null;
-  const totalSavings = lastReceipt.items?.reduce((acc, item) => acc + (Math.max(0, ((Math.round(item.mrp * 100) - Math.round(item.finalRate * 100)) * item.quantity) / 100)), 0) || 0;
+  const totalSavings = lastReceipt.items?.reduce((acc, item) => {
+    if (item.is_screw || item.barcode === 'SCREWS') return acc;
+    return acc + (Math.max(0, ((Math.round(item.mrp * 100) - Math.round(item.finalRate * 100)) * item.quantity) / 100));
+  }, 0) || 0;
   const fnFormat = typeof formatDateTime === 'function' ? formatDateTime : defaultFormatDateTime;
   const { datePart = '', timePart = '' } = fnFormat(lastReceipt.date) || {};
 
@@ -111,8 +114,9 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
             const displayQty = isLooseKg 
               ? `${item.grams !== undefined ? item.grams : Math.round(Number(item.quantity) * 1000)} g` 
               : `${item.quantity} ${item.unit}`;
-            const displayMrp = isLooseKg ? formatGramRate(item.mrp) : item.mrp.toFixed(2);
-            const displayRate = isLooseKg ? formatGramRate(item.finalRate) : item.finalRate.toFixed(2);
+            const isScrew = Boolean(item.is_screw || item.barcode === 'SCREWS');
+            const displayMrp = isScrew ? '—' : (isLooseKg ? formatGramRate(item.mrp) : item.mrp.toFixed(2));
+            const displayRate = isScrew ? '—' : (isLooseKg ? formatGramRate(item.finalRate) : item.finalRate.toFixed(2));
 
             return (
               <tr key={i} className="hover:!bg-transparent" style={{ backgroundColor: 'transparent' }}>

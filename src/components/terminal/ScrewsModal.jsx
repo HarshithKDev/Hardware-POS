@@ -46,10 +46,10 @@ export default function ScrewsModal({
         <div className="flex justify-between items-center pr-2.5 pl-4 py-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
           <div>
             <h3 id="screws-modal-title" className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
-              {isUpdate ? 'Update Screws Price' : 'Include Screws'}
+              {isUpdate ? 'Update Screws Total' : 'Include Screws'}
             </h3>
             <span className="text-[10px] block opacity-70 mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-              Untracked item · Fixed price (never discounted)
+              Untracked item · Fixed total (never discounted)
             </span>
           </div>
           <button
@@ -68,7 +68,7 @@ export default function ScrewsModal({
         <form onSubmit={handleSubmit}>
           <div className="p-5">
             <label htmlFor="screws-modal-price" className="block text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>
-              Sold Price (₹) <span className="text-[var(--color-error)]">*</span>
+              Total Price (₹) <span className="text-[var(--color-error)]">*</span>
             </label>
             <input
               id="screws-modal-price"
