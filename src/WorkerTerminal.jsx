@@ -318,6 +318,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       const cleanBarcode = scannedCode.trim();
       if (!cleanBarcode) return;
 
+      if (activeTab === 'checkout' && cleanBarcode.toUpperCase() === 'SCREWS') {
+        const existing = cartRef.current.find(i => i.is_screw || i.barcode === 'SCREWS');
+        const currentVal = existing ? (existing.customPriceInput !== undefined ? String(existing.customPriceInput) : String(existing.price || '')) : '';
+        setScrewsModal({ isOpen: true, price: currentVal });
+        return;
+      }
+
       let scannedInstanceBarcode = null;
       let scannedBatchNumber = null;
     let searchBarcode = cleanBarcode.replace(/\s+/g, '-'); // Scanner keyboard mapping issues sometimes turn hyphens into spaces
