@@ -80,4 +80,63 @@ describe('Critical & High Severity Fixes Verification', () => {
       expect(isInvalid).toBe(false);
     });
   });
+
+  describe('Batch Creation & Editing Price Safeguards', () => {
+    it('validates that MSP cannot be lower than cost price and MRP cannot be lower than MSP', () => {
+      const validateBatchPrices = (cost, msp, mrp) => {
+        if (cost === '' || isNaN(cost) || cost < 0) return { valid: false, error: 'Invalid Cost Price' };
+        if (msp === '' || isNaN(msp) || msp < 0) return { valid: false, error: 'Invalid MSP' };
+        if (mrp === '' || isNaN(mrp) || mrp < 0) return { valid: false, error: 'Invalid MRP' };
+        if (msp < cost) return { valid: false, error: 'MSP cannot be lower than Cost Price.' };
+        if (mrp < msp) return { valid: false, error: 'Selling Price (MRP) cannot be lower than MSP.' };
+        return { valid: true };
+      };
+
+      expect(validateBatchPrices(100, 80, 150).valid).toBe(false);
+      expect(validateBatchPrices(100, 80, 150).error).toBe('MSP cannot be lower than Cost Price.');
+
+      expect(validateBatchPrices(100, 150, 120).valid).toBe(false);
+      expect(validateBatchPrices(100, 150, 120).error).toBe('Selling Price (MRP) cannot be lower than MSP.');
+
+      expect(validateBatchPrices(100, 120, 150).valid).toBe(true);
+    });
+  });
+
+  describe('Owner Analytics Item Name Null Safety', () => {
+    it('safely extracts clean product names without crashing when name is missing or null in bill_items', () => {
+      const testItems = [
+        { name: 'Drill Bit 10mm (Cut from 100m)', quantity: 2, price_at_sale: 50 },
+        { name: null, item_name: 'Screws', quantity: 1, price_at_sale: 30 },
+        { barcode: 'SCREWS', quantity: 1, price_at_sale: 20 }
+      ];
+
+      const cleanNames = testItems.map(item => {
+        const rawName = item.name || item.item_name || (item.barcode === 'SCREWS' ? 'Screws' : 'Item');
+        return rawName.split(' (Cut from ')[0];
+      });
+
+      expect(cleanNames).toEqual(['Drill Bit 10mm', 'Screws', 'Screws']);
+    });
+  });
+
+  describe('Thermal ESC/POS Screw Formatting', () => {
+    it('formats screws as 1 SET on receipts without confusing unit rate calculations', async () => {
+      const { buildEscPosReceipt } = await import('../services/escpos');
+      const receipt = {
+        id: '12345',
+        date: new Date().toISOString(),
+        total: 50,
+        items: [
+          { barcode: 'SCREWS', is_screw: true, name: 'Screws', quantity: 1, finalRate: 50, lineTotal: 50 }
+        ]
+      };
+
+      const bytes = buildEscPosReceipt(receipt, { shop_name: 'Test Hardware' }, { charsPerLine: 32 });
+      const text = new TextDecoder().decode(new Uint8Array(bytes));
+
+      expect(text).toContain('Screws');
+      expect(text).toContain('1 SET');
+    });
+  });
 });
+

@@ -203,22 +203,23 @@ export function buildEscPosReceipt(receiptData, shopSettings = {}, options = {})
   // Items
   const items = receiptData?.items || [];
   items.forEach(item => {
-    const itemName = item.name || 'Item';
-    const qty = Number(item.quantity || 1);
-    const unit = item.unit || 'PCS';
+    const isScrew = Boolean(item.is_screw || item.barcode === 'SCREWS');
+    const itemName = item.name || (isScrew ? 'Screws' : 'Item');
+    const qty = isScrew ? 1 : Number(item.quantity || 1);
+    const unit = isScrew ? 'SET' : (item.unit || 'PCS');
     const rate = Number(item.finalRate || item.selling_price || item.price || 0);
     const amt = Number(item.lineTotal || (qty * rate)).toFixed(2);
 
     if (charsPerLine === 48) {
       const namePart = itemName.slice(0, colFormat.name).padEnd(colFormat.name);
-      const qtyPart = `${qty}${unit}`.slice(0, colFormat.qty).padStart(colFormat.qty);
-      const ratePart = rate.toFixed(1).padStart(colFormat.rate);
+      const qtyPart = isScrew ? '1 SET'.padStart(colFormat.qty) : `${qty}${unit}`.slice(0, colFormat.qty).padStart(colFormat.qty);
+      const ratePart = isScrew ? '—'.padStart(colFormat.rate) : rate.toFixed(1).padStart(colFormat.rate);
       const amtPart = amt.padStart(colFormat.amt);
       addText(`${namePart}${qtyPart}${ratePart}${amtPart}\n`);
     } else {
       // 58mm wrap: Print full item name on first line, then qty & amount on second line
       addText(`${itemName}\n`);
-      const qtyStr = `  ${qty} ${unit} @ ${rate.toFixed(2)}`;
+      const qtyStr = isScrew ? `  1 SET` : `  ${qty} ${unit} @ ${rate.toFixed(2)}`;
       const amtStr = `Rs.${amt}`;
       const spaces = Math.max(1, charsPerLine - qtyStr.length - amtStr.length);
       addText(`${qtyStr}${' '.repeat(spaces)}${amtStr}\n`);

@@ -117,7 +117,7 @@ export default function ShowroomDetailsView({
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <span className="font-semibold text-sm text-[var(--text-primary)] leading-tight block">
-                          {it.name}
+                          {it.name || it.item_name || 'Item'}
                         </span>
                       </div>
                       <div className="text-right shrink-0">
@@ -173,7 +173,7 @@ export default function ShowroomDetailsView({
                       >
                         <td className="py-3 px-4 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
                           <div className="font-semibold text-sm text-[var(--text-primary)]">
-                            {it.name}
+                            {it.name || it.item_name || 'Item'}
                           </div>
                         </td>
 

@@ -131,6 +131,27 @@ export default function CreateBatchModal({ item, onClose, onBatchCreated }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (createBatchMutation.isPending) return;
+    const cost = Number(form.cost_price);
+    const msp = Number(form.msp);
+    const price = Number(form.price);
+
+    if (form.cost_price === '' || isNaN(cost) || cost < 0) {
+      return showAlert("Please enter a valid Cost Price (greater than or equal to 0).", "Validation Error");
+    }
+    if (form.msp === '' || isNaN(msp) || msp < 0) {
+      return showAlert("Please enter a valid Minimum Selling Price (MSP).", "Validation Error");
+    }
+    if (form.price === '' || isNaN(price) || price < 0) {
+      return showAlert("Please enter a valid Selling Price (MRP).", "Validation Error");
+    }
+    if (msp < cost) {
+      return showAlert("MSP cannot be lower than Cost Price.", "Validation Error");
+    }
+    if (price < msp) {
+      return showAlert("Selling Price (MRP) cannot be lower than MSP.", "Validation Error");
+    }
+
     createBatchMutation.mutate(form);
   };
 

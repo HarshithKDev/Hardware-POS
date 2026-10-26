@@ -230,7 +230,7 @@ export default function BillDetailsView({
                             #{idx + 1}
                           </span>
                           <span className="font-semibold text-sm text-[var(--text-primary)] leading-tight">
-                            {it.name}
+                            {it.name || it.item_name || (it.barcode === 'SCREWS' ? 'Screws' : 'Item')}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -332,7 +332,7 @@ export default function BillDetailsView({
 
                         <td className="py-3 px-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
                           <div className="font-semibold text-sm text-[var(--text-primary)]">
-                            {it.name}
+                            {it.name || it.item_name || (it.barcode === 'SCREWS' ? 'Screws' : 'Item')}
                           </div>
                           <div className="flex items-center justify-center gap-2 mt-0.5 flex-wrap">
                             {it.barcode && (

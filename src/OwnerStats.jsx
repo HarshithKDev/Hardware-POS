@@ -854,7 +854,8 @@ export default function OwnerStats({ isActive }) {
       const productStats = {};
 
       itemsData.forEach(item => {
-        const cleanName = item.name.split(' (Cut from ')[0];
+        const rawName = item.name || item.item_name || 'Item';
+        const cleanName = rawName.split(' (Cut from ')[0];
         const qty = Number(item.billable_quantity || item.quantity || 0);
         const price = Number(item.price_at_sale || 0);
         const lineCost = item.cost_allocated !== undefined && item.cost_allocated !== null ? Number(item.cost_allocated) : (Number(item.cost_at_sale || 0) * Number(item.quantity || 0));
@@ -972,8 +973,9 @@ export default function OwnerStats({ isActive }) {
       );
       const items = batchResults.flatMap(r => r.data || []);
       items.forEach(it => {
-        const cleanName = it.name.split(' (Cut from ')[0].trim().toLowerCase();
-        deadStockSoldNames.add(cleanName);
+        const rawName = it.name || it.item_name || '';
+        const cleanName = rawName ? rawName.split(' (Cut from ')[0].trim().toLowerCase() : '';
+        if (cleanName) deadStockSoldNames.add(cleanName);
       });
     }
 

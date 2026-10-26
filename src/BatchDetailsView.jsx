@@ -1043,6 +1043,31 @@ export default function BatchDetailsView({
                         <>
                           <button
                             onClick={() => {
+                              const numMsp = Number(batchEditForm.msp);
+                              if (isNaN(numMsp) || numMsp <= 0 || batchEditForm.msp === '') {
+                                showAlert("Please enter a valid positive Minimum Selling Price (MSP).", "Validation Error");
+                                return;
+                              }
+                              const maxMrp = Number(activeBatch.selling_price || item?.price || 0);
+                              if (maxMrp > 0 && numMsp > maxMrp) {
+                                showAlert(`MSP (₹${numMsp.toFixed(2)}) cannot exceed the MRP / Selling Price (₹${maxMrp.toFixed(2)}).`, "Validation Error");
+                                return;
+                              }
+                              const costPrice = Number(activeBatch.purchase_cost || item?.cost_price || 0);
+                              if (costPrice > 0 && numMsp < costPrice) {
+                                showAlert(`MSP (₹${numMsp.toFixed(2)}) cannot be lower than the purchase cost (₹${costPrice.toFixed(2)}).`, "Validation Error");
+                                return;
+                              }
+                              if (!item?.is_cuttable) {
+                                if (batchEditForm.stock_store !== undefined && (isNaN(Number(batchEditForm.stock_store)) || Number(batchEditForm.stock_store) < 0)) {
+                                  showAlert("Store stock cannot be negative.", "Validation Error");
+                                  return;
+                                }
+                                if (!isWarehouseDisabled && batchEditForm.stock_warehouse !== undefined && (isNaN(Number(batchEditForm.stock_warehouse)) || Number(batchEditForm.stock_warehouse) < 0)) {
+                                  showAlert("Warehouse stock cannot be negative.", "Validation Error");
+                                  return;
+                                }
+                              }
                               updateBatchMutation.mutate({
                                 batch_id: activeBatch.batch_id,
                                 msp: batchEditForm.msp,

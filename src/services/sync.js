@@ -311,6 +311,7 @@ export const flushOfflineQueue = async (userRole = 'worker') => {
                         bill_id: data.bill_id,
                         shop_id: shopId,
                         barcode: 'SCREWS',
+                        name: 'Screws',
                         item_name: 'Screws',
                         quantity: 1,
                         billable_quantity: 1,
