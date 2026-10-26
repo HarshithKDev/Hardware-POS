@@ -69,12 +69,19 @@ export function CartProvider({ children, activeTab }) {
     return () => clearTimeout(timer);
   }, [heldCarts, activeTab, shopId]);
 
-  // Syncing cart changes to active session
+  // Syncing cart changes to active session and held carts
   useEffect(() => {
     setCartSessions(prev => {
       if (prev[activeCartTab] === cart) return prev;
       return { ...prev, [activeCartTab]: cart };
     });
+    if (activeCartTab && activeCartTab.startsWith('held_')) {
+      setHeldCarts(prev => {
+        const target = prev.find(c => c.id === activeCartTab);
+        if (!target || target.items === cart) return prev;
+        return prev.map(c => c.id === activeCartTab ? { ...c, items: cart } : c);
+      });
+    }
   }, [cart, activeCartTab]);
 
 
@@ -89,6 +96,20 @@ export function CartProvider({ children, activeTab }) {
       setCart(cartSessions[tabId] || (hc ? hc.items : []));
     }
   }, [cartSessions, heldCarts]);
+
+  const cancelHeldCart = useCallback((cartId) => {
+    setHeldCarts(prev => prev.filter(c => c.id !== cartId));
+    setCartSessions(prev => {
+      const next = { ...prev };
+      delete next[cartId];
+      return next;
+    });
+    if (activeCartTab === cartId) {
+      setActiveCartTab('local');
+      setCart(cartSessions['local'] || []);
+    }
+    showToast('Held cart canceled');
+  }, [activeCartTab, cartSessions, showToast]);
 
   const clearCart = useCallback(() => {
     setCart([]);
@@ -194,6 +215,7 @@ export function CartProvider({ children, activeTab }) {
     activeCartTab, setActiveCartTab, switchCartTab,
     cartSessions, setCartSessions,
     heldCarts, setHeldCarts,
+    cancelHeldCart,
     clearCart,
     updateQuantity,
     updateDimensions,

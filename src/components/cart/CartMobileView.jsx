@@ -5,8 +5,15 @@ import { useCart } from '../../contexts/CartContext';
 import { useApp } from '../../AppContext';
 import { formatUnitBadge } from './CartTable';
 
-const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQuantity, onUpdateDimensions, onRemoveItem }) {
-  const { cart } = useCart();
+const CartMobileView = React.memo(function CartMobileView({ 
+  activeTab, 
+  onUpdateQuantity, 
+  onUpdateDimensions, 
+  onRemoveItem,
+  onCancelHeldCart,
+  onBackToLocal
+}) {
+  const { cart, activeCartTab, cancelHeldCart, switchCartTab } = useCart();
   const { userRole } = useApp();
   const [expandedGroups, setExpandedGroups] = React.useState({});
 
@@ -14,6 +21,36 @@ const CartMobileView = React.memo(function CartMobileView({ activeTab, onUpdateQ
     setExpandedGroups(prev => ({ ...prev, [groupKey]: !prev[groupKey] }));
   };
   if (cart.length === 0) {
+    if (activeCartTab && activeCartTab.startsWith('held_')) {
+      return (
+        <div className="p-8 text-center flex flex-col items-center justify-center">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-error)' }}>
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+          </div>
+          <p className="text-base font-bold mb-1" style={{ color: 'var(--text-primary)' }}>This Held Cart is Empty</p>
+          <p className="text-xs mb-4" style={{ color: 'var(--text-tertiary)' }}>All items have been removed from this held cart.</p>
+          <div className="flex flex-col w-full gap-2">
+            <button
+              type="button"
+              onClick={() => onCancelHeldCart ? onCancelHeldCart(activeCartTab) : cancelHeldCart(activeCartTab)}
+              className="w-full py-3 text-sm font-bold uppercase tracking-wider rounded-md text-white transition-opacity hover:opacity-90 shadow-sm flex items-center justify-center gap-2"
+              style={{ backgroundColor: 'var(--color-error)' }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              Cancel & Delete Held Cart
+            </button>
+            <button
+              type="button"
+              onClick={() => onBackToLocal ? onBackToLocal() : switchCartTab('local')}
+              className="w-full py-3 text-sm font-bold uppercase tracking-wider rounded-md transition-colors"
+              style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
+            >
+              ← Back to Local Cart
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="p-10 text-center text-sm font-semibold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>Cart Empty</div>
     );

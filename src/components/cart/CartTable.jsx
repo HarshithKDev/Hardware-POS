@@ -27,9 +27,11 @@ const CartTable = React.memo(function CartTable({
   onCustomPriceChangeGroup, 
   onCustomTotalChangeGroup, 
   onCustomPriceBlurGroup, 
-  onRemoveItem 
+  onRemoveItem,
+  onCancelHeldCart,
+  onBackToLocal
 }) {
-  const { cart } = useCart();
+  const { cart, activeCartTab, cancelHeldCart, switchCartTab } = useCart();
   const { userRole } = useApp();
   const [expandedGroups, setExpandedGroups] = React.useState({});
 
@@ -37,6 +39,41 @@ const CartTable = React.memo(function CartTable({
     setExpandedGroups(prev => ({ ...prev, [groupKey]: !prev[groupKey] }));
   };
   if (cart.length === 0) {
+    if (activeCartTab && activeCartTab.startsWith('held_')) {
+      return (
+        <div className="h-full flex flex-col items-center justify-center min-h-[320px] text-center p-6" data-testid="empty-held-cart-view">
+          <div className="w-14 h-14 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-error)' }}>
+            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </div>
+          <p className="text-base font-bold mb-1" style={{ color: 'var(--text-primary)' }}>This Held Cart is Empty</p>
+          <p className="text-xs mb-5 max-w-sm" style={{ color: 'var(--text-tertiary)' }}>All items have been removed from this held cart. You can cancel and delete it completely, or return to your local cart.</p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              data-testid="empty-held-cart-cancel"
+              onClick={() => onCancelHeldCart ? onCancelHeldCart(activeCartTab) : cancelHeldCart(activeCartTab)}
+              className="px-5 py-2.5 text-xs font-bold uppercase tracking-wider rounded-md text-white transition-opacity hover:opacity-90 shadow-sm flex items-center gap-2"
+              style={{ backgroundColor: 'var(--color-error)' }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Cancel & Delete Held Cart
+            </button>
+            <button
+              type="button"
+              onClick={() => onBackToLocal ? onBackToLocal() : switchCartTab('local')}
+              className="px-5 py-2.5 text-xs font-bold uppercase tracking-wider rounded-md transition-colors"
+              style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
+            >
+              ← Back to Local Cart
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="h-full flex flex-col items-center justify-center min-h-[300px]">
         <p className="text-sm font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--text-tertiary)' }}>Ready</p>
@@ -120,6 +157,8 @@ const CartTable = React.memo(function CartTable({
             if (item.isGroup) {
               const isExpanded = expandedGroups[item.groupKey];
               const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
+              const groupMsp = Number(item.msp_price) || Number(item.msp) || Number(item.cost_price) || 0;
+              const isGroupBelowMsp = activeTab === 'checkout' && groupMsp > 0 && sellPrice < groupMsp;
               return (
                 <React.Fragment key={item.id}>
                   {/* Parent Row */}
@@ -154,15 +193,57 @@ const CartTable = React.memo(function CartTable({
                       </div>
                     </td>
                     <td className="p-2" onClick={e => e.stopPropagation()}>
-                      <div className="relative inline-flex items-center w-full max-w-[120px] mx-auto">
-                        <span className="absolute left-3 text-[11px] font-bold" style={{ color: 'var(--text-tertiary)' }}>₹</span>
-                        <input type="number" step="0.01" onWheel={handleWheelBlur} value={item.customPriceInput !== undefined ? (typeof item.customPriceInput === 'number' ? item.customPriceInput.toFixed(2) : item.customPriceInput) : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChangeGroup(item.groupKey, e.target.value)} onBlur={() => onCustomPriceBlurGroup(item.groupKey)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} MRP`} />
+                      <div className="flex flex-col items-center justify-center">
+                        <div className="relative inline-flex items-center w-full max-w-[120px] mx-auto">
+                          <span className="absolute left-3 text-[11px] font-bold" style={{ color: 'var(--text-tertiary)' }}>₹</span>
+                          <input 
+                            type="number" 
+                            step="0.01" 
+                            min={groupMsp > 0 ? groupMsp : 0}
+                            onWheel={handleWheelBlur} 
+                            value={item.customPriceInput !== undefined ? (typeof item.customPriceInput === 'number' ? item.customPriceInput.toFixed(2) : item.customPriceInput) : Number(item.price || 0).toFixed(2)} 
+                            onChange={(e) => onCustomPriceChangeGroup(item.groupKey, e.target.value)} 
+                            onBlur={() => onCustomPriceBlurGroup(item.groupKey)} 
+                            onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                            placeholder="0.00" 
+                            className={`w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 ${isGroupBelowMsp ? 'focus:ring-[var(--color-error)]' : 'focus:ring-[var(--color-accent)]'}`} 
+                            style={{ 
+                              border: isGroupBelowMsp ? '1px solid var(--color-error)' : '1px solid var(--border-medium)', 
+                              color: isGroupBelowMsp ? 'var(--color-error)' : 'var(--text-primary)' 
+                            }} 
+                            aria-label={`${item.name} MRP`} 
+                          />
+                        </div>
+                        {isGroupBelowMsp && (
+                          <div className="h-4 flex items-center justify-center mt-1">
+                            <span className="text-[10px] font-bold leading-none" style={{ color: 'var(--color-error)' }}>
+                              Min: ₹{groupMsp.toFixed(2)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="p-2"  onClick={e => e.stopPropagation()}>
-                      <div className="relative inline-flex items-center w-full max-w-[120px] mx-auto">
-                        <span className="absolute left-3 text-[11px] font-bold" style={{ color: 'var(--text-tertiary)' }}>₹</span>
-                        <input type="number" step="0.01" onWheel={handleWheelBlur} value={item.customTotalInput !== undefined ? item.customTotalInput : item.totalPrice.toFixed(2)} onChange={(e) => onCustomTotalChangeGroup(item.groupKey, e.target.value, item.totalBillableQty)} onBlur={() => onCustomPriceBlurGroup(item.groupKey)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} total`} />
+                      <div className="flex flex-col items-center justify-center">
+                        <div className="relative inline-flex items-center w-full max-w-[120px] mx-auto">
+                          <span className="absolute left-3 text-[11px] font-bold" style={{ color: 'var(--text-tertiary)' }}>₹</span>
+                          <input 
+                            type="number" 
+                            step="0.01" 
+                            onWheel={handleWheelBlur} 
+                            value={item.customTotalInput !== undefined ? item.customTotalInput : item.totalPrice.toFixed(2)} 
+                            onChange={(e) => onCustomTotalChangeGroup(item.groupKey, e.target.value, item.totalBillableQty)} 
+                            onBlur={() => onCustomPriceBlurGroup(item.groupKey)} 
+                            onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                            placeholder="0.00" 
+                            className={`w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 ${isGroupBelowMsp ? 'focus:ring-[var(--color-error)]' : 'focus:ring-[var(--color-accent)]'}`} 
+                            style={{ 
+                              border: isGroupBelowMsp ? '1px solid var(--color-error)' : '1px solid var(--border-medium)', 
+                              color: 'var(--text-primary)' 
+                            }} 
+                            aria-label={`${item.name} total`} 
+                          />
+                        </div>
                       </div>
                     </td>
                     <td className="p-2 text-center align-middle" onClick={e => e.stopPropagation()}>
@@ -236,6 +317,8 @@ const CartTable = React.memo(function CartTable({
             const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
             const billableQty = item.billableQuantity !== undefined && item.billableQuantity !== '' ? Number(item.billableQuantity) : safeQty;
             const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
+            const itemMsp = Number(item.msp_price) || Number(item.msp) || Number(item.cost_price) || 0;
+            const isItemBelowMsp = !item.is_screw && item.barcode !== 'SCREWS' && activeTab === 'checkout' && itemMsp > 0 && sellPrice < itemMsp;
             const isLooseKg = Boolean(
               item.is_loose_item && (
                 item.unit?.toUpperCase() === 'KG' || 
@@ -439,16 +522,38 @@ const CartTable = React.memo(function CartTable({
                         <div className="h-8 flex items-center justify-center w-full">
                           <div className="relative flex items-center justify-center w-full max-w-[120px] h-8 mx-auto">
                             <span className="absolute left-3 text-[11px] font-bold pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>₹</span>
-                            <input type="number" step="0.01" onWheel={handleWheelBlur} value={item.customPriceInput !== undefined ? (typeof item.customPriceInput === 'number' ? item.customPriceInput.toFixed(2) : item.customPriceInput) : Number(item.price || 0).toFixed(2)} onChange={(e) => onCustomPriceChange(item.id, e.target.value)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} MRP`} />
+                            <input 
+                              type="number" 
+                              step="0.01" 
+                              min={itemMsp > 0 ? itemMsp : 0}
+                              onWheel={handleWheelBlur} 
+                              value={item.customPriceInput !== undefined ? (typeof item.customPriceInput === 'number' ? item.customPriceInput.toFixed(2) : item.customPriceInput) : Number(item.price || 0).toFixed(2)} 
+                              onChange={(e) => onCustomPriceChange(item.id, e.target.value)} 
+                              onBlur={() => onCustomPriceBlur(item.id)} 
+                              onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                              placeholder="0.00" 
+                              className={`w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 ${isItemBelowMsp ? 'focus:ring-[var(--color-error)]' : 'focus:ring-[var(--color-accent)]'}`} 
+                              style={{ 
+                                border: isItemBelowMsp ? '1px solid var(--color-error)' : '1px solid var(--border-medium)', 
+                                color: isItemBelowMsp ? 'var(--color-error)' : 'var(--text-primary)' 
+                              }} 
+                              aria-label={`${item.name} MRP`} 
+                            />
                           </div>
                         </div>
-                        {hasSubtext && (
+                        {isItemBelowMsp ? (
+                          <div className="h-4 flex items-center justify-center mt-1">
+                            <span className="text-[10px] font-bold leading-none" style={{ color: 'var(--color-error)' }}>
+                              Min: ₹{itemMsp.toFixed(2)}
+                            </span>
+                          </div>
+                        ) : hasSubtext ? (
                           <div className="h-4 flex items-center justify-center mt-1">
                             {isLooseKg ? (
                               <span className="text-[10px] text-[var(--text-tertiary)] font-normal leading-none">per kg</span>
                             ) : null}
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     )}
                   </td>
@@ -457,7 +562,22 @@ const CartTable = React.memo(function CartTable({
                       <div className="h-8 flex items-center justify-center w-full">
                         <div className="relative flex items-center justify-center w-full max-w-[120px] h-8 mx-auto">
                           <span className="absolute left-3 text-[11px] font-bold pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>₹</span>
-                          <input type="number" step="0.01" onWheel={handleWheelBlur} value={item.customTotalInput !== undefined ? item.customTotalInput : (sellPrice * billableQty).toFixed(2)} onChange={(e) => onCustomTotalChange(item.id, e.target.value, billableQty)} onBlur={() => onCustomPriceBlur(item.id)} placeholder="0.00" className="w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 focus:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }} aria-label={`${item.name} total`} />
+                          <input 
+                            type="number" 
+                            step="0.01" 
+                            onWheel={handleWheelBlur} 
+                            value={item.customTotalInput !== undefined ? item.customTotalInput : (sellPrice * billableQty).toFixed(2)} 
+                            onChange={(e) => onCustomTotalChange(item.id, e.target.value, billableQty)} 
+                            onBlur={() => onCustomPriceBlur(item.id)} 
+                            onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                            placeholder="0.00" 
+                            className={`w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 ${isItemBelowMsp ? 'focus:ring-[var(--color-error)]' : 'focus:ring-[var(--color-accent)]'}`} 
+                            style={{ 
+                              border: isItemBelowMsp ? '1px solid var(--color-error)' : '1px solid var(--border-medium)', 
+                              color: 'var(--text-primary)' 
+                            }} 
+                            aria-label={`${item.name} total`} 
+                          />
                         </div>
                       </div>
                       {hasSubtext && (

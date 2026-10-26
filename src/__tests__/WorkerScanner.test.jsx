@@ -524,6 +524,246 @@ describe('WorkerScanner Integration', () => {
       expect(supabase.from).toHaveBeenCalledWith('bill_items');
     });
   });
+
+  it('strictly enforces MSP of other items when screws are in the cart even for owner, showing warning, disabling complete button, and preventing checkout below min allowed total', async () => {
+    const showAlertMock = vi.fn();
+    vi.spyOn(AppContext, 'useApp').mockReturnValue({
+      showAlert: showAlertMock,
+      showConfirm: vi.fn(),
+      showToast: vi.fn(),
+      alertConfig: { isOpen: false },
+      confirmConfig: { isOpen: false },
+      userRole: 'owner',
+      isWarehouseDisabled: false
+    });
+
+    db.getInventoryItemByBarcode.mockImplementation(async (barcode) => {
+      if (barcode === '1001') {
+        return {
+          barcode: '1001',
+          name: 'Finolex Pipe 1001',
+          price: 100,
+          msp: 80,
+          msp_price: 80,
+          is_cuttable: false,
+          stock_store: 5,
+          batches: [{ batch_id: 'b1', batch_number: 1, stock_store: 5, selling_price: 100, msp: 80 }]
+        };
+      }
+      return null;
+    });
+
+    const { supabase } = await import('../supabaseClient');
+    supabase.rpc.mockClear();
+
+    render(
+      <TestWrapper activeTab="checkout">
+        <WorkerTerminal activeTab="checkout" shopSettings={{ id: 'shop1' }} cashierName="Owner" />
+      </TestWrapper>
+    );
+
+    const input = await screen.findByPlaceholderText('Search barcode or name...');
+    fireEvent.change(input, { target: { value: '1001' } });
+    fireEvent.submit(input.closest('form'));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Finolex Pipe 1001').length).toBeGreaterThan(0);
+    });
+
+    // Add screws at ₹20
+    const includeScrewsBtn = screen.getByText('Include Screws');
+    fireEvent.click(includeScrewsBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Include Screws', { selector: 'h3' })).toBeInTheDocument();
+    });
+    const priceInput = screen.getByLabelText(/Price \(₹\)/i);
+    fireEvent.change(priceInput, { target: { value: '20' } });
+
+    const addScrewsBtn = screen.getByText('Add to Bill');
+    fireEvent.submit(addScrewsBtn.closest('form'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Screws: ₹/i)).toBeInTheDocument();
+    });
+
+    // Open checkout modal (F4)
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F4', bubbles: true }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Complete Sale')).toBeInTheDocument();
+      expect(screen.getByText(/Min Allowed: ₹100\.00/i)).toBeInTheDocument();
+    });
+
+    // Enter negotiated total: 50 (above screw price 20, but below minPossibleTotal 100)
+    const negotiatedInput = screen.getByLabelText(/Final Negotiated Amount/i);
+    fireEvent.change(negotiatedInput, { target: { value: '50' } });
+
+    // Warning must be displayed
+    await waitFor(() => {
+      expect(screen.getByText(/Cannot discount below minimum selling limit/i)).toBeInTheDocument();
+      expect(screen.getByText(/Products cannot be sold below MSP/i)).toBeInTheDocument();
+    });
+
+    // Complete Sale button must be disabled
+    const completeBtn = screen.getByText('Complete Sale').closest('button');
+    expect(completeBtn).toBeDisabled();
+
+    // Trigger Enter key to attempt submission
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+    // Must trigger minimum price error alert and NOT call supabase.rpc
+    expect(showAlertMock).toHaveBeenCalledWith(
+      expect.stringContaining('Absolute minimum allowed total is ₹100.00'),
+      'Minimum Price Error'
+    );
+    expect(supabase.rpc).not.toHaveBeenCalled();
+  });
+
+  it('allows holding a cart and canceling the held cart completely via tab ✕ button or banner', async () => {
+    const showConfirmMock = vi.fn((msg, callback) => {
+      if (callback) callback();
+    });
+
+    vi.spyOn(AppContext, 'useApp').mockReturnValue({
+      showAlert: vi.fn(),
+      showConfirm: showConfirmMock,
+      showToast: vi.fn(),
+      alertConfig: { isOpen: false },
+      confirmConfig: { isOpen: false },
+    });
+
+    db.getInventoryItemByBarcode.mockImplementation(async (barcode) => {
+      if (barcode === '1001') {
+        return {
+          barcode: '1001',
+          name: 'Finolex Pipe 1001',
+          price: 100,
+          msp: 80,
+          msp_price: 80,
+          is_cuttable: false,
+          stock_store: 5,
+          batches: [{ batch_id: 'b1', batch_number: 1, stock_store: 5, selling_price: 100, msp: 80 }]
+        };
+      }
+      return null;
+    });
+
+    render(
+      <TestWrapper activeTab="checkout">
+        <WorkerTerminal activeTab="checkout" shopSettings={{ id: 'shop1' }} cashierName="John" />
+      </TestWrapper>
+    );
+
+    // Add item to local cart
+    const input = await screen.findByPlaceholderText('Search barcode or name...');
+    fireEvent.change(input, { target: { value: '1001' } });
+    fireEvent.submit(input.closest('form'));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Finolex Pipe 1001').length).toBeGreaterThan(0);
+    });
+
+    // Click Hold Cart
+    const holdCartBtn = screen.getByText('Hold Cart');
+    fireEvent.click(holdCartBtn);
+
+    // After holding, held cart tab should appear with close button
+    await waitFor(() => {
+      const cancelHeldBtn = screen.getByTitle(/Cancel and discard/i);
+      expect(cancelHeldBtn).toBeInTheDocument();
+    });
+
+    // Switch to held cart by clicking the tab
+    const heldTabBtn = screen.getByTitle(/Switch to Hold/i);
+    fireEvent.click(heldTabBtn);
+
+    // Bottom action bar should show "Cancel Held Cart" button
+    await waitFor(() => {
+      expect(screen.getByTestId('bottom-cancel-held-cart')).toBeInTheDocument();
+    });
+
+    // Click "Cancel Held Cart" on the bottom action bar
+    const bottomCancelBtn = screen.getByTestId('bottom-cancel-held-cart');
+    fireEvent.click(bottomCancelBtn);
+
+    // Expect showConfirm to have been called with "Cancel Held Cart"
+    expect(showConfirmMock).toHaveBeenCalledWith(
+      expect.stringContaining('Cancel "Hold'),
+      expect.any(Function),
+      'Cancel Held Cart',
+      'Cancel Cart',
+      'Keep Cart',
+      true
+    );
+
+    // After confirmation, held cart is removed and we are back to Local Cart
+    await waitFor(() => {
+      expect(screen.queryByTestId('bottom-cancel-held-cart')).not.toBeInTheDocument();
+      expect(screen.queryByTitle(/Cancel and discard/i)).not.toBeInTheDocument();
+    });
+  });
+
+  it('strictly clamps unit price to MSP in the cart table even when edited by owner', async () => {
+    const showAlertMock = vi.fn();
+    vi.spyOn(AppContext, 'useApp').mockReturnValue({
+      showAlert: showAlertMock,
+      showConfirm: vi.fn(),
+      showToast: vi.fn(),
+      alertConfig: { isOpen: false },
+      confirmConfig: { isOpen: false },
+      userRole: 'owner',
+      isWarehouseDisabled: false
+    });
+
+    db.getInventoryItemByBarcode.mockImplementation(async (barcode) => {
+      if (barcode === '1196-01') {
+        return {
+          barcode: '1196-01',
+          name: '13 x 11 Laxmi Vendi',
+          price: 2600,
+          msp: 1900,
+          msp_price: 1900,
+          is_cuttable: false,
+          stock_store: 5,
+          batches: [{ batch_id: 'b1', batch_number: 1, stock_store: 5, selling_price: 2600, msp: 1900 }]
+        };
+      }
+      return null;
+    });
+
+    render(
+      <TestWrapper activeTab="checkout">
+        <WorkerTerminal activeTab="checkout" shopSettings={{ id: 'shop1' }} cashierName="Owner" />
+      </TestWrapper>
+    );
+
+    const input = await screen.findByPlaceholderText('Search barcode or name...');
+    fireEvent.change(input, { target: { value: '1196-01' } });
+    fireEvent.submit(input.closest('form'));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('13 x 11 Laxmi Vendi').length).toBeGreaterThan(0);
+    });
+
+    // Find the MRP price input in the cart table
+    const mrpInput = screen.getByLabelText(/13 x 11 Laxmi Vendi MRP/i);
+    expect(mrpInput.value).toBe('2600.00');
+
+    // Type 1200 (below MSP 1900)
+    fireEvent.change(mrpInput, { target: { value: '1200' } });
+
+    // On blur, it must clamp to 1900 and trigger alert
+    fireEvent.blur(mrpInput);
+
+    await waitFor(() => {
+      expect(showAlertMock).toHaveBeenCalledWith(
+        expect.stringContaining('Cannot sell 13 x 11 Laxmi Vendi below MSP (₹1900.00)'),
+        'Price Error'
+      );
+      expect(mrpInput.value).toBe('1900.00');
+    });
+  });
 });
 
 

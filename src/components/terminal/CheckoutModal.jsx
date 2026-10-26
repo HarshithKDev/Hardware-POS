@@ -18,6 +18,11 @@ export default function CheckoutModal({
 }) {
   if (!isOpen) return null;
 
+  const isInvalidNegotiatedTotal = checkoutModal.negotiatedTotal !== '' && (
+    Number(checkoutModal.negotiatedTotal) < minPossibleTotal || 
+    Number(checkoutModal.negotiatedTotal) < screwPrice
+  );
+
   return (
     <div
       className="fixed inset-0 flex items-end sm:items-center justify-center z-[100] print:hidden px-0 sm:px-4 animate-fade-in"
@@ -82,9 +87,11 @@ export default function CheckoutModal({
           </div>
 
           <div className="mb-3.5">
-            <label htmlFor="negotiated-total" className="block text-xs font-bold uppercase tracking-wider mb-1.5 flex justify-between" style={{ color: 'var(--text-secondary)' }}>
+            <label htmlFor="negotiated-total" className="block text-xs font-bold uppercase tracking-wider mb-1.5 flex justify-between items-center" style={{ color: 'var(--text-secondary)' }}>
               <span>Final Negotiated Amount (₹)</span>
-              <span className="opacity-70 font-normal">System Total: ₹{cartTotal.toFixed(2)}</span>
+              <span className="opacity-70 font-normal text-[11px]">
+                System Total: ₹{cartTotal.toFixed(2)}{minPossibleTotal > 0 ? ` | Min Allowed: ₹${minPossibleTotal.toFixed(2)}` : ''}
+              </span>
             </label>
             <input 
               id="negotiated-total" 
@@ -99,7 +106,13 @@ export default function CheckoutModal({
               }} 
               placeholder={`e.g. ${Math.floor(cartTotal)}`} 
               className="w-full h-11 px-3.5 text-xl font-bold focus:outline-none rounded-md" 
-              style={{ border: checkoutModal.error ? '1px solid var(--color-error)' : '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} 
+              style={{ 
+                border: (checkoutModal.error || (checkoutModal.negotiatedTotal !== '' && (Number(checkoutModal.negotiatedTotal) < minPossibleTotal || Number(checkoutModal.negotiatedTotal) < screwPrice))) 
+                  ? '1px solid var(--color-error)' 
+                  : '1px solid var(--border-input)', 
+                backgroundColor: 'var(--bg-input)', 
+                color: 'var(--text-input)' 
+              }} 
             />
             {screwPrice > 0 && (
               <div className="mt-1.5 flex items-center justify-between text-[11px] font-semibold px-2.5 py-1 rounded bg-[var(--bg-tertiary)] border border-[var(--border-light)]" style={{ color: 'var(--text-secondary)' }}>
@@ -112,9 +125,9 @@ export default function CheckoutModal({
                 Warning: Negotiated amount cannot be less than ₹{screwPrice.toFixed(2)} (Screws price is fixed at ₹{screwPrice.toFixed(2)}).
               </p>
             )}
-            {checkoutModal.negotiatedTotal !== '' && Number(checkoutModal.negotiatedTotal) < minPossibleTotal && userRole !== 'owner' && cashierName !== 'admin' && Number(checkoutModal.negotiatedTotal) >= screwPrice && (
+            {checkoutModal.negotiatedTotal !== '' && Number(checkoutModal.negotiatedTotal) < minPossibleTotal && Number(checkoutModal.negotiatedTotal) >= screwPrice && (
               <p className="text-[11px] font-bold mt-1 leading-tight" style={{ color: 'var(--color-error)' }}>
-                Warning: Cannot discount below minimum selling limit (₹{minPossibleTotal.toFixed(2)}).
+                Warning: Cannot discount below minimum selling limit (₹{minPossibleTotal.toFixed(2)}{screwPrice > 0 ? ` including ₹${screwPrice.toFixed(2)} for screws` : ''}). Products cannot be sold below MSP.
               </p>
             )}
           </div>
@@ -317,8 +330,9 @@ export default function CheckoutModal({
           <button 
             type="button"
             onClick={onCompleteTransaction} 
-            disabled={isCheckingOut} 
-            className="flex-1 sm:flex-initial min-h-[44px] md:min-h-0 md:h-10 px-4 sm:px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 flex justify-center items-center gap-2 min-w-[140px] cursor-pointer" 
+            disabled={isCheckingOut || isInvalidNegotiatedTotal} 
+            title={isInvalidNegotiatedTotal ? `Cannot complete sale: Negotiated amount is below minimum allowed total (₹${minPossibleTotal.toFixed(2)})` : undefined}
+            className={`flex-1 sm:flex-initial min-h-[44px] md:min-h-0 md:h-10 px-4 sm:px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 flex justify-center items-center gap-2 min-w-[140px] ${isCheckingOut || isInvalidNegotiatedTotal ? 'cursor-not-allowed' : 'cursor-pointer'}`} 
             style={{ backgroundColor: checkoutModal.paymentMethod === 'SHOWROOM' ? 'var(--color-warning)' : 'var(--color-accent)' }}
           >
             {isCheckingOut ? <Spinner className="w-4 h-4 text-white" /> : (

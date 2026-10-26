@@ -142,4 +142,82 @@ describe('CartContext Financial Math', () => {
     });
     expect(result.current.activeCartTab).toBe('local');
   });
+
+  it('allows canceling a held cart and switches back to local cart if currently active', () => {
+    const { result } = renderHook(() => useCart(), { wrapper });
+
+    act(() => {
+      result.current.setCart([{ id: 'local-1', name: 'Item 1', quantity: 2, price: 50 }]);
+      result.current.setHeldCarts([
+        { id: 'held_1', name: 'Hold 1', items: [{ id: 'held-item-1', name: 'Held Product', quantity: 1, price: 100 }] },
+        { id: 'held_2', name: 'Hold 2', items: [{ id: 'held-item-2', name: 'Another Product', quantity: 3, price: 20 }] }
+      ]);
+    });
+
+    act(() => {
+      result.current.switchCartTab('held_1');
+    });
+
+    expect(result.current.activeCartTab).toBe('held_1');
+    expect(result.current.cart.length).toBe(1);
+    expect(result.current.cart[0].id).toBe('held-item-1');
+
+    // Now cancel the currently active held cart
+    act(() => {
+      result.current.cancelHeldCart('held_1');
+    });
+
+    // held_1 should be removed
+    expect(result.current.heldCarts.find(c => c.id === 'held_1')).toBeUndefined();
+    expect(result.current.heldCarts.length).toBe(1);
+    expect(result.current.heldCarts[0].id).toBe('held_2');
+
+    // Should have automatically switched back to local cart
+    expect(result.current.activeCartTab).toBe('local');
+    expect(result.current.cart[0].id).toBe('local-1');
+  });
+
+  it('allows canceling an inactive held cart without disrupting active local cart', () => {
+    const { result } = renderHook(() => useCart(), { wrapper });
+
+    act(() => {
+      result.current.setCart([{ id: 'local-1', name: 'Item 1', quantity: 2, price: 50 }]);
+      result.current.setHeldCarts([
+        { id: 'held_1', name: 'Hold 1', items: [{ id: 'held-item-1', name: 'Held Product', quantity: 1, price: 100 }] }
+      ]);
+    });
+
+    expect(result.current.activeCartTab).toBe('local');
+
+    // Cancel held_1 while on local
+    act(() => {
+      result.current.cancelHeldCart('held_1');
+    });
+
+    expect(result.current.heldCarts.length).toBe(0);
+    expect(result.current.activeCartTab).toBe('local');
+    expect(result.current.cart.length).toBe(1);
+  });
+
+  it('syncs heldCarts item changes in real-time when items are modified on a held cart', () => {
+    const { result } = renderHook(() => useCart(), { wrapper });
+
+    act(() => {
+      result.current.setHeldCarts([
+        { id: 'held_1', name: 'Hold 1', items: [{ id: 'item-1', name: 'Original', quantity: 1, price: 10 }] }
+      ]);
+    });
+
+    act(() => {
+      result.current.switchCartTab('held_1');
+    });
+
+    // User removes product from held cart
+    act(() => {
+      result.current.setCart([]);
+    });
+
+    // heldCarts should automatically sync
+    expect(result.current.heldCarts[0].items.length).toBe(0);
+  });
 });

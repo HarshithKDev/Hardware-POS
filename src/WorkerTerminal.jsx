@@ -76,7 +76,7 @@ function getQuickTenderOptions(total) {
 // Main WorkerTerminal component (orchestrator)
 // ---------------------------------------------------------------
 export default function WorkerTerminal({ activeTab, shopSettings, cashierName }) {
-  const { showAlert, showConfirm, alertConfig, confirmConfig, userRole, isWarehouseDisabled } = useApp();
+  const { showAlert, showConfirm, alertConfig, confirmConfig, userRole, isWarehouseDisabled, showToast } = useApp();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -92,7 +92,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     activeCartTab, setActiveCartTab, switchCartTab,
     cartSessions, setCartSessions, 
     heldCarts, setHeldCarts,
-    clearCart
+    clearCart,
+    cancelHeldCart
   } = useCart();
   const [manualBarcode, setManualBarcode] = useState('');
   const [isMobileScannerOpen, setIsMobileScannerOpen] = useState(false);
@@ -1122,27 +1123,28 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       }
       const qty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : (i.quantity === '' ? 0 : Number(i.quantity));
       let val = Number(i.customPriceInput); if (isNaN(val)) val = Number(i.price || 0);
-      const msp = Number(i.msp_price) || Number(i.msp || 0); const mrp = Number(i.price || 0);
-      if (val < msp && userRole !== 'owner' && cashierName !== 'admin') {
-        setTimeout(() => showAlertRef.current(`Cannot sell ${i.name} below MSP (₹${msp})`, "Price Error"), 0);
+      const msp = Number(i.msp_price) || Number(i.msp) || Number(i.cost_price) || 0;
+      const mrp = Number(i.price || 0);
+      if (val < msp && msp > 0) {
+        setTimeout(() => showAlertRef.current(`Cannot sell ${i.name} below MSP (₹${msp.toFixed(2)})`, "Price Error"), 0);
         val = msp;
       }
       const disc = (mrp > 0 && val < mrp) ? ((mrp - val) / mrp) * 100 : 0;
       return { ...i, customPriceInput: val, customTotalInput: (val * qty).toFixed(2), discountPct: disc };
     }
     return i;
-  })), [userRole, cashierName, setCart]);
+  })), [setCart]);
 
   const handleCustomPriceBlurGroup = useCallback((groupKey) => {
     setCart(prev => {
       return prev.map(i => {
         const iKey = i.barcode + '_' + (i.batch_id || 'default');
         if (iKey === groupKey && i.is_cuttable) {
-          const msp = Number(i.msp_price) || Number(i.msp || 0);
+          const msp = Number(i.msp_price) || Number(i.msp) || Number(i.cost_price) || 0;
           let val = Number(i.customPriceInput);
           if (isNaN(val) || val <= 0) val = Number(i.price);
-          if (val < msp && userRole !== 'owner' && cashierName !== 'admin') {
-            setTimeout(() => showAlertRef.current(`Cannot sell ${i.name} below MSP (₹${msp})`, "Price Error"), 0);
+          if (val < msp && msp > 0) {
+            setTimeout(() => showAlertRef.current(`Cannot sell ${i.name} below MSP (₹${msp.toFixed(2)})`, "Price Error"), 0);
             val = msp;
           }
           let newDisc = 0;
@@ -1155,7 +1157,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         return i;
       });
     });
-  }, [cart, userRole, cashierName, setCart]);
+  }, [cart, setCart]);
 
   const calculateTotal = useCallback(() => cart.reduce((tot, i) => {
     const qty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : (i.quantity === '' ? 0 : Number(i.quantity));
@@ -1233,28 +1235,46 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     }
   }, [cartSessions, heldCarts, switchCartTab]);
 
+  const handleCancelHeldCart = useCallback((cartId) => {
+    const targetId = cartId || activeCartTab;
+    const targetCart = heldCarts.find(c => c.id === targetId);
+    showConfirm(
+      `Cancel "${targetCart?.name || 'this held cart'}"? All items will be discarded.`,
+      () => {
+        cancelHeldCart(targetId);
+      },
+      'Cancel Held Cart',
+      'Cancel Cart',
+      'Keep Cart',
+      true
+    );
+  }, [activeCartTab, heldCarts, cancelHeldCart, showConfirm]);
+
+  const handleDiscardPendingCart = useCallback((pcId) => {
+    const currentShopId = shopSettings?.id || localStorage.getItem('shop_id');
+    let delQuery = supabase.from('pending_carts').delete().eq('id', pcId);
+    if (currentShopId) {
+      delQuery = delQuery.eq('shop_id', currentShopId);
+    }
+    delQuery.then().catch(console.error);
+    setCartSessions(prev => {
+      const next = { ...prev };
+      delete next[pcId];
+      return next;
+    });
+    if (activeCartTab === pcId) {
+      switchCartTab('local');
+    }
+    if (showToast) {
+      showToast('Worker cart discarded');
+    }
+  }, [activeCartTab, shopSettings?.id, switchCartTab, showToast]);
+
   const handleCancelSale = () => {
     if (activeCartTab.startsWith('held_')) {
-      setHeldCarts(prev => prev.filter(c => c.id !== activeCartTab));
-      setCartSessions(prev => {
-        const next = { ...prev };
-        delete next[activeCartTab];
-        return next;
-      });
-      switchCartTab('local');
+      cancelHeldCart(activeCartTab);
     } else if (activeCartTab !== 'local') {
-      const currentShopId = shopSettings?.id || localStorage.getItem('shop_id');
-      let delQuery = supabase.from('pending_carts').delete().eq('id', activeCartTab);
-      if (currentShopId) {
-        delQuery = delQuery.eq('shop_id', currentShopId);
-      }
-      delQuery.then().catch(console.error);
-      setCartSessions(prev => {
-        const next = { ...prev };
-        delete next[activeCartTab];
-        return next;
-      });
-      switchCartTab('local');
+      handleDiscardPendingCart(activeCartTab);
     } else {
       setCart([]);
     }
@@ -1300,12 +1320,69 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     playScanSuccessSound();
   }, [playScanSuccessSound, setCart]);
 
+  const handleOpenCheckoutModal = useCallback(() => {
+    // Safety check: Ensure no item is below MSP before opening checkout
+    let hasClamped = false;
+    let clampedNames = [];
+    const clampedCart = cart.map(i => {
+      if (i.is_screw || i.barcode === 'SCREWS') return i;
+      const qty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : (i.quantity === '' ? 0 : Number(i.quantity));
+      const currentPrice = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0);
+      const msp = Number(i.msp_price) || Number(i.msp) || Number(i.cost_price) || 0;
+      if (msp > 0 && currentPrice < msp) {
+        hasClamped = true;
+        clampedNames.push(i.name);
+        return {
+          ...i,
+          customPriceInput: msp,
+          customTotalInput: (msp * qty).toFixed(2),
+          discountPct: Number(i.price) > 0 ? Math.max(0, ((Number(i.price) - msp) / Number(i.price)) * 100) : 0
+        };
+      }
+      return i;
+    });
+
+    if (hasClamped) {
+      setCart(clampedCart);
+      showAlert(`Cannot sell below MSP. ${clampedNames.join(', ')} adjusted to minimum selling price (MSP).`, "Price Below MSP");
+      return;
+    }
+
+    setCheckoutModal(prev => ({
+      ...prev,
+      isOpen: true,
+      cashGiven: '',
+      negotiatedTotal: '',
+      includeScrews: false,
+      screwsPrice: '',
+      error: '',
+      paymentMethod: 'CASH',
+      splitUpi: '',
+      splitCash: ''
+    }));
+  }, [cart, showAlert, setCart]);
+
   const handleCompleteTransaction = async () => {
     if (isCheckingOut) return;
     let finalCart = cart.filter(i => Number(i.quantity) > 0);
     if (finalCart.length === 0) return;
 
     if (activeTab === 'checkout') {
+      const subMspItem = finalCart.find(i => {
+        if (i.is_screw || i.barcode === 'SCREWS') return false;
+        const price = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0);
+        const msp = Number(i.msp_price) || Number(i.msp) || Number(i.cost_price) || 0;
+        return msp > 0 && price < msp;
+      });
+      if (subMspItem) {
+        const msp = Number(subMspItem.msp_price) || Number(subMspItem.msp) || Number(subMspItem.cost_price) || 0;
+        const price = subMspItem.customPriceInput !== undefined && subMspItem.customPriceInput !== '' ? Number(subMspItem.customPriceInput) : Number(subMspItem.price || 0);
+        const errMsg = `Cannot sell ${subMspItem.name} below MSP (Price: ₹${price.toFixed(2)}, MSP: ₹${msp.toFixed(2)}).`;
+        setCheckoutModal(prev => ({ ...prev, error: errMsg }));
+        showAlert(errMsg, "Price Below MSP");
+        return;
+      }
+
       if (checkoutModal.negotiatedTotal === '') {
         setCheckoutModal(prev => ({ ...prev, error: "Please enter the Final Negotiated Amount. If there is no discount, enter the exact System Total." }));
         return;
@@ -1348,13 +1425,17 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         const otherItems = finalCart.filter(item => !item.is_screw && item.barcode !== 'SCREWS');
 
         if (otherItems.length === 0) {
-          showAlert(`Screws price (₹${screwPrice.toFixed(2)}) is fixed and cannot be discounted. Discount is only applicable to other items.`, "Screws Price Fixed");
+          const errMsg = `Screws price (₹${screwPrice.toFixed(2)}) is fixed and cannot be discounted. Discount is only applicable to other items.`;
+          setCheckoutModal(prev => ({ ...prev, error: errMsg }));
+          showAlert(errMsg, "Screws Price Fixed");
           setIsCheckingOut(false);
           return;
         }
 
         if (targetTotal < screwPrice) {
-          showAlert(`Negotiated amount cannot be less than ₹${screwPrice.toFixed(2)} (Screws price is fixed at ₹${screwPrice.toFixed(2)}).`, "Invalid Total");
+          const errMsg = `Negotiated amount cannot be less than ₹${screwPrice.toFixed(2)} (Screws price is fixed at ₹${screwPrice.toFixed(2)}).`;
+          setCheckoutModal(prev => ({ ...prev, error: errMsg }));
+          showAlert(errMsg, "Invalid Total");
           setIsCheckingOut(false);
           return;
         }
@@ -1364,7 +1445,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           .map(item => {
             const qty = item.billableQuantity !== undefined && item.billableQuantity !== '' ? Number(item.billableQuantity) : (item.quantity === '' ? 0 : Number(item.quantity));
             const price = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
-            const msp = (userRole === 'owner' || cashierName === 'admin') ? 0 : (Number(item.msp_price) || Number(item.msp || 0));
+            const msp = Number(item.msp_price) || Number(item.msp) || Number(item.cost_price) || 0;
             const currentLineTotal = qty * price;
             const minLineTotal = qty * msp;
             return {
@@ -1379,8 +1460,17 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
         const maxTotalDiscountable = discountableItems.reduce((sum, i) => sum + i.maxDiscountableTotal, 0);
 
-        if (totalDiscountToGive > maxTotalDiscountable && userRole !== 'owner' && cashierName !== 'admin') {
-          showAlert(`Cannot sell for ₹${targetTotal.toFixed(2)}. Absolute minimum allowed total is ₹${(currentCartTotal - maxTotalDiscountable).toFixed(2)}.`, "Minimum Price Error");
+        const otherItemsMspTotal = otherItems.reduce((sum, item) => {
+          const qty = item.billableQuantity !== undefined && item.billableQuantity !== '' ? Number(item.billableQuantity) : (item.quantity === '' ? 0 : Number(item.quantity));
+          const msp = Number(item.msp_price) || Number(item.msp) || Number(item.cost_price) || 0;
+          return sum + (qty * msp);
+        }, 0);
+        const minAllowedTotal = Math.round((otherItemsMspTotal + screwPrice) * 100) / 100;
+
+        if (targetTotal < minAllowedTotal || totalDiscountToGive > maxTotalDiscountable) {
+          const errMsg = `Cannot sell for ₹${targetTotal.toFixed(2)}. Absolute minimum allowed total is ₹${minAllowedTotal.toFixed(2)}${screwPrice > 0 ? ` (including ₹${screwPrice.toFixed(2)} for screws)` : ''}. Products cannot be sold below MSP.`;
+          setCheckoutModal(prev => ({ ...prev, error: errMsg }));
+          showAlert(errMsg, "Minimum Price Error");
           setIsCheckingOut(false);
           return;
         }
@@ -1518,7 +1608,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             }
             const qty = item.billableQuantity !== undefined && item.billableQuantity !== '' ? Number(item.billableQuantity) : (item.quantity === '' ? 0 : Number(item.quantity));
             const price = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
-            const msp = (userRole === 'owner' || cashierName === 'admin') ? 0 : (Number(item.msp_price) || Number(item.msp || 0));
+            const msp = Number(item.msp_price) || Number(item.msp) || Number(item.cost_price) || 0;
             return {
               __cartIndex: index,
               calcQty: qty,
@@ -2127,16 +2217,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         e.preventDefault();
         if (cart.length > 0) {
           if (activeTab === 'checkout') {
-            setCheckoutModal(prev => ({
-              ...prev,
-              isOpen: true,
-              cashGiven: '',
-              negotiatedTotal: '',
-              error: '',
-              paymentMethod: 'CASH',
-              splitUpi: '',
-              splitCash: ''
-            }));
+            handleOpenCheckoutModal();
           } else {
             handleCompleteTransaction();
           }
@@ -2225,16 +2306,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       if (e.key === ' ' && cart.length > 0 && activeTab === 'checkout' && barcodeBuffer.current.length === 0) {
         e.preventDefault();
         barcodeBuffer.current = '';
-        setCheckoutModal(prev => ({
-          ...prev,
-          isOpen: true,
-          cashGiven: '',
-          negotiatedTotal: '',
-          error: '',
-          paymentMethod: 'CASH',
-          splitUpi: '',
-          splitCash: ''
-        }));
+        handleOpenCheckoutModal();
         return;
       }
 
@@ -2380,7 +2452,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
   const minPossibleTotal = cart.reduce((tot, i) => {
     const qty = i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : (i.quantity === '' ? 0 : Number(i.quantity));
-    const msp = (i.is_screw || i.barcode === 'SCREWS') ? Number(i.customPriceInput || i.price || 0) : (Number(i.msp_price) || Number(i.msp || 0));
+    const msp = (i.is_screw || i.barcode === 'SCREWS') ? Number(i.customPriceInput || i.price || 0) : (Number(i.msp_price) || Number(i.msp) || Number(i.cost_price) || 0);
     return tot + Math.round(msp * qty * 100);
   }, 0) / 100;
 
@@ -2486,7 +2558,19 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         <div className="flex flex-col flex-1 bg-[var(--bg-primary)] overflow-hidden" style={{ minHeight: 'calc(100vh - 160px)' }}>
           {cart.length > 0 && (
             <div className="p-4 flex-shrink-0 flex gap-2" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
-              <button onClick={() => showConfirm("Clear cart?", handleCancelSale, 'Clear Cart', 'Clear Cart', 'Keep Cart', true)} className="w-1/3 py-4 text-white font-black uppercase tracking-widest text-lg shadow-lg rounded-lg transition-all active:scale-95" style={{ backgroundColor: 'var(--color-error)' }}>CLEAR</button>
+              <button 
+                onClick={() => {
+                  if (activeCartTab.startsWith('held_')) {
+                    handleCancelHeldCart(activeCartTab);
+                  } else {
+                    showConfirm("Clear cart?", handleCancelSale, 'Clear Cart', 'Clear Cart', 'Keep Cart', true);
+                  }
+                }} 
+                className="w-1/3 py-4 text-white font-black uppercase tracking-widest text-xs md:text-sm shadow-lg rounded-lg transition-all active:scale-95 flex items-center justify-center text-center" 
+                style={{ backgroundColor: 'var(--color-error)' }}
+              >
+                {activeCartTab.startsWith('held_') ? 'CANCEL HELD' : 'CLEAR'}
+              </button>
               <button onClick={handleCompleteTransaction} className="w-2/3 py-4 text-white font-black uppercase tracking-widest text-lg shadow-lg rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2" style={{ backgroundColor: 'var(--color-accent)' }}>
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                 COMPLETE {cart.length}
@@ -2502,11 +2586,40 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           )}
           <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
             {cart.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center p-6">
-                <svg className="w-20 h-20 mb-6 opacity-30" fill="currentColor" viewBox="0 0 20 20" style={{ color: 'var(--text-secondary)' }}><path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" /></svg>
-                <p className="text-xl font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>List is Empty</p>
-                <p className="text-base mt-2 font-medium" style={{ color: 'var(--text-tertiary)' }}>Tap the green button below to start.</p>
-              </div>
+              activeCartTab && activeCartTab.startsWith('held_') ? (
+                <div className="h-full flex flex-col items-center justify-center text-center p-6 my-auto">
+                  <div className="w-14 h-14 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-error)' }}>
+                    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  </div>
+                  <p className="text-lg font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>This Held Cart is Empty</p>
+                  <p className="text-sm mt-1 mb-5 font-medium" style={{ color: 'var(--text-tertiary)' }}>All items have been removed from this held cart.</p>
+                  <div className="flex flex-col w-full max-w-xs gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => handleCancelHeldCart(activeCartTab)}
+                      className="w-full py-3.5 text-white font-bold uppercase tracking-wider text-xs shadow-md rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2"
+                      style={{ backgroundColor: 'var(--color-error)' }}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      Cancel & Delete Held Cart
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => switchCartTab('local')}
+                      className="w-full py-3.5 font-bold uppercase tracking-wider text-xs rounded-lg transition-all active:scale-95"
+                      style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
+                    >
+                      ← Back to Local Cart
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-center p-6">
+                  <svg className="w-20 h-20 mb-6 opacity-30" fill="currentColor" viewBox="0 0 20 20" style={{ color: 'var(--text-secondary)' }}><path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" /></svg>
+                  <p className="text-xl font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>List is Empty</p>
+                  <p className="text-base mt-2 font-medium" style={{ color: 'var(--text-tertiary)' }}>Tap the green button below to start.</p>
+                </div>
+              )
             ) : (
               <CartMobileView
                 cart={cart}
@@ -2514,6 +2627,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                 onUpdateQuantity={updateQuantity}
                 onUpdateDimensions={updateDimensions}
                 onRemoveItem={handleRemoveItem}
+                onCancelHeldCart={() => handleCancelHeldCart(activeCartTab)}
+                onBackToLocal={() => switchCartTab('local')}
               />
             )}
           </div>
@@ -2550,10 +2665,11 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
           {/* Header Block */}
           {activeTab === 'checkout' && (pendingCarts.length > 0 || heldCarts.length > 0) && (
-          <div className="flex gap-1 p-2 bg-[var(--bg-tertiary)] border-b border-[var(--border-medium)] overflow-x-hidden md:overflow-x-auto whitespace-nowrap scrollbar-hide">
+          <div className="flex gap-1.5 p-2 bg-[var(--bg-tertiary)] border-b border-[var(--border-medium)] overflow-x-hidden md:overflow-x-auto whitespace-nowrap scrollbar-hide items-center">
             <button 
+              type="button"
               onClick={() => handleRestoreCart('local')}
-              className="px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors"
+              className="px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors shrink-0"
               style={{
                 backgroundColor: activeCartTab === 'local' ? 'var(--color-accent)' : 'var(--bg-primary)',
                 color: activeCartTab === 'local' ? '#fff' : 'var(--text-secondary)',
@@ -2562,38 +2678,93 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             >
               Local Cart
             </button>
-            {heldCarts.map(hc => (
-              <button 
-                key={hc.id}
-                onClick={() => handleRestoreCart(hc.id)}
-                className="px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors flex gap-2 items-center"
-                style={{
-                  backgroundColor: activeCartTab === hc.id ? 'var(--color-accent)' : 'var(--bg-primary)',
-                  color: activeCartTab === hc.id ? '#fff' : 'var(--text-secondary)',
-                  border: `1px solid ${activeCartTab === hc.id ? 'var(--color-accent)' : 'var(--border-medium)'}`
-                }}
-              >
-                {hc.name}
-                <span className="bg-white/20 px-1.5 rounded-full text-[10px]">{hc.items?.length || 0}</span>
-              </button>
-            ))}
-            {pendingCarts.map(pc => (
-              <button 
-                key={pc.id}
-                onClick={() => handleRestoreCart(pc.id, pc.items)}
-                className="px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors flex gap-2 items-center"
-                style={{
-                  backgroundColor: activeCartTab === pc.id ? 'var(--color-accent)' : 'var(--bg-primary)',
-                  color: activeCartTab === pc.id ? '#fff' : 'var(--text-secondary)',
-                  border: `1px solid ${activeCartTab === pc.id ? 'var(--color-accent)' : 'var(--border-medium)'}`
-                }}
-              >
-                {pc.worker_name}'s Cart
-                <span className="bg-white/20 px-1.5 rounded-full text-[10px]">{pc.items?.length || 0}</span>
-              </button>
-            ))}
+            {heldCarts.map(hc => {
+              const isActive = activeCartTab === hc.id;
+              return (
+                <div
+                  key={hc.id}
+                  className="inline-flex items-center rounded-sm transition-colors text-xs font-bold uppercase tracking-wider overflow-hidden shrink-0"
+                  style={{
+                    backgroundColor: isActive ? 'var(--color-accent)' : 'var(--bg-primary)',
+                    color: isActive ? '#fff' : 'var(--text-secondary)',
+                    border: `1px solid ${isActive ? 'var(--color-accent)' : 'var(--border-medium)'}`
+                  }}
+                >
+                  <button 
+                    type="button"
+                    onClick={() => handleRestoreCart(hc.id)}
+                    className="px-3 py-1.5 flex gap-2 items-center hover:opacity-90 focus:outline-none"
+                    title={`Switch to ${hc.name}`}
+                  >
+                    <span>{hc.name}</span>
+                    <span className="bg-white/20 px-1.5 rounded-full text-[10px]">{hc.items?.length || 0}</span>
+                  </button>
+                  <button
+                    type="button"
+                    data-testid={`cancel-held-cart-${hc.id}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCancelHeldCart(hc.id);
+                    }}
+                    className="px-2 py-1.5 transition-colors opacity-70 hover:opacity-100 hover:text-red-300 focus:outline-none"
+                    title={`Cancel and discard ${hc.name}`}
+                    aria-label={`Cancel and discard ${hc.name}`}
+                  >
+                    <svg className="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              );
+            })}
+            {pendingCarts.map(pc => {
+              const isActive = activeCartTab === pc.id;
+              return (
+                <div
+                  key={pc.id}
+                  className="inline-flex items-center rounded-sm transition-colors text-xs font-bold uppercase tracking-wider overflow-hidden shrink-0"
+                  style={{
+                    backgroundColor: isActive ? 'var(--color-accent)' : 'var(--bg-primary)',
+                    color: isActive ? '#fff' : 'var(--text-secondary)',
+                    border: `1px solid ${isActive ? 'var(--color-accent)' : 'var(--border-medium)'}`
+                  }}
+                >
+                  <button 
+                    type="button"
+                    onClick={() => handleRestoreCart(pc.id, pc.items)}
+                    className="px-3 py-1.5 flex gap-2 items-center hover:opacity-90 focus:outline-none"
+                    title={`Switch to ${pc.worker_name}'s Cart`}
+                  >
+                    <span>{pc.worker_name}'s Cart</span>
+                    <span className="bg-white/20 px-1.5 rounded-full text-[10px]">{pc.items?.length || 0}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      showConfirm(
+                        `Discard ${pc.worker_name}'s Cart?`,
+                        () => handleDiscardPendingCart(pc.id),
+                        'Discard Cart',
+                        'Discard',
+                        'Keep Cart',
+                        true
+                      );
+                    }}
+                    className="px-2 py-1.5 transition-colors opacity-70 hover:opacity-100 hover:text-red-300 focus:outline-none"
+                    title={`Discard ${pc.worker_name}'s Cart`}
+                    aria-label={`Discard ${pc.worker_name}'s Cart`}
+                  >
+                    <svg className="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
+
         <div className={`p-4 shrink-0 flex flex-col md:flex-row justify-between gap-4 ${(activeTab === 'receive' || activeTab === 'transfer') ? 'hidden md:flex' : ''}`} style={{ borderBottom: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}>
           <div className="flex flex-col w-full md:w-auto flex-1 md:flex-none">
             <h2 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>
@@ -2734,6 +2905,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             onCustomTotalChangeGroup={handleCustomTotalChangeGroup}
             onCustomPriceBlurGroup={handleCustomPriceBlurGroup}
             onRemoveItem={handleRemoveItem}
+            onCancelHeldCart={() => handleCancelHeldCart(activeCartTab)}
+            onBackToLocal={() => switchCartTab('local')}
           />
         </div>
 
@@ -2757,19 +2930,53 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             onCustomTotalChange={handleCustomTotalChange}
             onCustomPriceBlur={applyCustomPriceBlur}
             onRemoveItem={handleRemoveItem}
+            onCancelHeldCart={() => handleCancelHeldCart(activeCartTab)}
+            onBackToLocal={() => switchCartTab('local')}
           />
         </div>
 
         {cart.length > 0 && !isInputFocused && (
           <div className="p-3 md:p-4 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
             <div className="flex w-full sm:w-auto gap-2 md:gap-3">
-              <button
-                onClick={() => showConfirm("Clear all items?", handleCancelSale, activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items', 'Clear', 'Cancel', true)}
-                className="flex-1 sm:flex-none min-h-[40px] md:h-10 px-4 md:px-5 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md flex items-center justify-center gap-2"
-                style={{ backgroundColor: 'transparent', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
-              >
-                <span>{activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items'}</span>
-              </button>
+              {activeCartTab.startsWith('held_') ? (
+                <button
+                  type="button"
+                  data-testid="bottom-cancel-held-cart"
+                  onClick={() => handleCancelHeldCart(activeCartTab)}
+                  className="flex-1 sm:flex-none min-h-[40px] md:h-10 px-4 md:px-5 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md flex items-center justify-center gap-2 transition-all active:scale-95"
+                  style={{ backgroundColor: 'transparent', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  <span>Cancel Held Cart</span>
+                </button>
+              ) : activeCartTab !== 'local' ? (
+                <button
+                  type="button"
+                  onClick={() => showConfirm(
+                    "Discard this worker cart?",
+                    () => handleDiscardPendingCart(activeCartTab),
+                    'Discard Cart',
+                    'Discard',
+                    'Keep Cart',
+                    true
+                  )}
+                  className="flex-1 sm:flex-none min-h-[40px] md:h-10 px-4 md:px-5 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md flex items-center justify-center gap-2 transition-all active:scale-95"
+                  style={{ backgroundColor: 'transparent', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
+                >
+                  <span>Discard Cart</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => showConfirm("Clear all items?", handleCancelSale, activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items', 'Clear', 'Cancel', true)}
+                  className="flex-1 sm:flex-none min-h-[40px] md:h-10 px-4 md:px-5 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md flex items-center justify-center gap-2 transition-all active:scale-95"
+                  style={{ backgroundColor: 'transparent', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
+                >
+                  <span>{activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items'}</span>
+                </button>
+              )}
               {activeTab === 'checkout' && activeCartTab === 'local' && (
                 <button
                   onClick={handleHoldCart}
@@ -2781,7 +2988,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               )}
             </div>
             <button
-              onClick={() => activeTab === 'checkout' ? setCheckoutModal(prev => ({ ...prev, isOpen: true, cashGiven: '', negotiatedTotal: '', includeScrews: false, screwsPrice: '', error: '', paymentMethod: 'CASH', splitUpi: '', splitCash: '' })) : handleCompleteTransaction()}
+              onClick={() => activeTab === 'checkout' ? handleOpenCheckoutModal() : handleCompleteTransaction()}
               className="w-full sm:w-auto min-h-[40px] md:h-10 px-6 md:px-8 text-white text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md focus:ring-2 focus:ring-offset-1 flex justify-center items-center gap-2"
               style={{ backgroundColor: 'var(--color-accent)', border: '1px solid transparent' }}
             >
