@@ -1348,11 +1348,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       return;
     }
 
+    const initialTotal = calculateTotal();
+
     setCheckoutModal(prev => ({
       ...prev,
       isOpen: true,
       cashGiven: '',
-      negotiatedTotal: '',
+      negotiatedTotal: initialTotal > 0 ? String(Number(initialTotal.toFixed(2))) : '',
       includeScrews: false,
       screwsPrice: '',
       error: '',
@@ -1360,7 +1362,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       splitUpi: '',
       splitCash: ''
     }));
-  }, [cart, showAlert, setCart]);
+  }, [cart, showAlert, setCart, calculateTotal]);
 
   const handleCompleteTransaction = async () => {
     if (isCheckingOut) return;

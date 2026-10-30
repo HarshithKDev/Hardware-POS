@@ -764,6 +764,80 @@ describe('WorkerScanner Integration', () => {
       expect(mrpInput.value).toBe('1900.00');
     });
   });
+
+  it('auto-fills Final Negotiated Amount with cart total when opening checkout, allowing immediate completion without retyping', async () => {
+    vi.spyOn(AppContext, 'useApp').mockReturnValue({
+      showAlert: vi.fn(),
+      showConfirm: vi.fn(),
+      showToast: vi.fn(),
+      alertConfig: { isOpen: false },
+      confirmConfig: { isOpen: false },
+      userRole: 'worker',
+      isWarehouseDisabled: false
+    });
+
+    db.getInventoryItemByBarcode.mockImplementation(async (barcode) => {
+      if (barcode === '1001') {
+        return {
+          barcode: '1001',
+          name: 'Finolex Pipe 1001',
+          price: 100,
+          msp: 80,
+          msp_price: 80,
+          is_cuttable: false,
+          stock_store: 5,
+          batches: [{ batch_id: 'b1', batch_number: 1, stock_store: 5, selling_price: 100, msp: 80 }]
+        };
+      }
+      return null;
+    });
+
+    const { supabase } = await import('../supabaseClient');
+    supabase.rpc.mockClear();
+
+    render(
+      <TestWrapper activeTab="checkout">
+        <WorkerTerminal activeTab="checkout" shopSettings={{ id: 'shop1' }} cashierName="Worker 1" />
+      </TestWrapper>
+    );
+
+    const input = await screen.findByPlaceholderText('Search barcode or name...');
+    fireEvent.change(input, { target: { value: '1001' } });
+    fireEvent.submit(input.closest('form'));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Finolex Pipe 1001').length).toBeGreaterThan(0);
+    });
+
+    // Open checkout modal (F4)
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F4', bubbles: true }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Complete Sale')).toBeInTheDocument();
+    });
+
+    // Verify Final Negotiated Amount is auto-filled with system total (100)
+    const negotiatedInput = screen.getByLabelText(/Final Negotiated Amount/i);
+    expect(negotiatedInput.value).toBe('100');
+
+    // Complete sale without touching the negotiated amount
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+    await waitFor(() => {
+      expect(supabase.rpc).toHaveBeenCalledWith(
+        'process_pos_transaction_unsafe',
+        expect.objectContaining({
+          p_items: expect.arrayContaining([
+            expect.objectContaining({
+              barcode: '1001',
+              final_price: 100
+            })
+          ])
+        })
+      );
+    });
+  });
 });
+
 
 

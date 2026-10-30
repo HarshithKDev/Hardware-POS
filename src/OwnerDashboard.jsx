@@ -72,6 +72,9 @@ export default function OwnerDashboard() {
       sessionStorage.removeItem(`pos_owner_batch_barcode_${shopId}`);
     } catch (e) {}
     window.dispatchEvent(new CustomEvent('reset_inventory_filters'));
+    import('./services/sync').then(({ syncInventoryToLocal }) => {
+      syncInventoryToLocal('owner', { forceFull: true });
+    }).catch(err => console.warn('Full sync on reset failed:', err));
   };
 
   const navItems = useMemo(() => [

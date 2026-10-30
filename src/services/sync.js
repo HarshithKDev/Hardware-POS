@@ -351,6 +351,71 @@ export const flushOfflineQueue = async (userRole = 'worker') => {
 
 let syncInterval = null;
 let currentRole = 'worker';
+let realtimeSyncChannel = null;
+
+export const reconcileDeletedItems = async (userRole = 'owner') => {
+  try {
+    const currentShopId = localStorage.getItem('shop_id');
+    const tableName = userRole === 'owner' ? 'product_master' : 'product_master_public';
+    let bcQuery = supabase.from(tableName).select('barcode');
+    if (currentShopId) bcQuery = bcQuery.eq('shop_id', currentShopId);
+    if (userRole !== 'owner') bcQuery = bcQuery.eq('is_active', true);
+    const { data: remoteRows, error: bcErr } = await bcQuery;
+    if (!bcErr && remoteRows) {
+      const remoteBarcodeSet = new Set(remoteRows.map(r => String(r.barcode)));
+      await deleteOrphanedInventory(remoteBarcodeSet);
+      return true;
+    }
+  } catch (e) {
+    console.warn('[Sync] Reconcile deleted items note:', e?.message);
+  }
+  return false;
+};
+
+export const startRealtimeSync = (userRole = 'worker') => {
+  if (typeof window === 'undefined' || !supabase) return;
+  if (realtimeSyncChannel) return;
+
+  const currentShopId = localStorage.getItem('shop_id');
+  const channelName = currentShopId ? `pos_catalog_rt_${currentShopId}` : 'pos_catalog_rt_global';
+
+  realtimeSyncChannel = supabase.channel(channelName)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'product_master' },
+      async (payload) => {
+        console.log('[RealtimeSync] product_master change detected:', payload.eventType);
+        if (payload.eventType === 'DELETE') {
+          const deletedBarcode = payload.old?.barcode;
+          if (deletedBarcode) {
+            await deleteInventoryItemByBarcode(deletedBarcode, currentShopId);
+          }
+          await reconcileDeletedItems(userRole);
+          window.dispatchEvent(new CustomEvent('inventory_sync_complete', { detail: { event: 'DELETE', barcode: deletedBarcode } }));
+        } else {
+          await syncInventoryToLocal(userRole);
+          window.dispatchEvent(new CustomEvent('inventory_sync_complete', { detail: { event: payload.eventType } }));
+        }
+      }
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'inventory_batches' },
+      async (payload) => {
+        console.log('[RealtimeSync] inventory_batches change detected:', payload.eventType);
+        await syncInventoryToLocal(userRole);
+        window.dispatchEvent(new CustomEvent('inventory_sync_complete', { detail: { event: payload.eventType } }));
+      }
+    )
+    .subscribe();
+};
+
+export const stopRealtimeSync = () => {
+  if (realtimeSyncChannel) {
+    supabase.removeChannel(realtimeSyncChannel);
+    realtimeSyncChannel = null;
+  }
+};
 
 const handleOnlineSync = () => {
   console.log('Network is back online. Flushing queue and running delta sync...');
@@ -361,6 +426,8 @@ export const startBackgroundSync = (userRole = 'worker') => {
   currentRole = userRole;
   // Initial sync (will be delta if already cached, full if initial launch)
   syncInventoryToLocal(userRole).then(() => flushOfflineQueue(userRole));
+
+  startRealtimeSync(userRole);
 
   window.addEventListener('online', handleOnlineSync);
 
@@ -379,5 +446,6 @@ export const stopBackgroundSync = () => {
     clearInterval(syncInterval);
     syncInterval = null;
   }
+  stopRealtimeSync();
   window.removeEventListener('online', handleOnlineSync);
 };

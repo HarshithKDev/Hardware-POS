@@ -461,7 +461,9 @@ export const deleteOrphanedInventory = async (syncedBarcodes) => {
   const shopId = localStorage.getItem('shop_id');
   while (cursor) {
     const itemShopId = cursor.value.shop_id;
-    if ((!itemShopId || itemShopId === shopId) && !syncedBarcodes.has(cursor.value.barcode)) {
+    const bc = cursor.value.barcode;
+    const bcStr = String(bc);
+    if ((!itemShopId || itemShopId === shopId) && !syncedBarcodes.has(bcStr) && !syncedBarcodes.has(bc)) {
       cursor.delete();
     }
     cursor = await cursor.continue();

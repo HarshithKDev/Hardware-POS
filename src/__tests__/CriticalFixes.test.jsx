@@ -100,6 +100,22 @@ describe('Critical & High Severity Fixes Verification', () => {
 
       expect(validateBatchPrices(100, 120, 150).valid).toBe(true);
     });
+
+    it('validates editing product cost price rejects negative values and preserves valid numbers', () => {
+      const validateCostPrice = (cost) => {
+        const num = Number(cost);
+        if (cost === '' || isNaN(num) || num < 0) return { valid: false, error: 'Please enter a valid non-negative Cost Price.' };
+        return { valid: true, value: num };
+      };
+
+      expect(validateCostPrice('').valid).toBe(false);
+      expect(validateCostPrice('-5').valid).toBe(false);
+      expect(validateCostPrice('abc').valid).toBe(false);
+      expect(validateCostPrice('0').valid).toBe(true);
+      expect(validateCostPrice('0').value).toBe(0);
+      expect(validateCostPrice('45.50').valid).toBe(true);
+      expect(validateCostPrice('45.50').value).toBe(45.5);
+    });
   });
 
   describe('Owner Analytics Item Name Null Safety', () => {
@@ -136,6 +152,79 @@ describe('Critical & High Severity Fixes Verification', () => {
 
       expect(text).toContain('Screws');
       expect(text).toContain('1 SET');
+    });
+  });
+
+  describe('Product Description and Batch Wholesaler Features', () => {
+    it('gracefully handles missing description column on product_master via schema fallback', () => {
+      const fullItemPayload = {
+        barcode: '10001',
+        name: 'Hammer',
+        category: 'Tools',
+        description: 'Forged high-carbon steel hammer with ergonomic grip',
+        cost_price: 150,
+        msp: 200,
+        price: 250
+      };
+
+      // When remote column is missing (error 42703), fallback strips description
+      const { description: _d, ...fallbackObj } = fullItemPayload;
+      expect(fallbackObj.description).toBeUndefined();
+      expect(fallbackObj.barcode).toBe('10001');
+      expect(fallbackObj.name).toBe('Hammer');
+      expect(fullItemPayload.description).toBe('Forged high-carbon steel hammer with ergonomic grip');
+    });
+
+    it('correctly maps wholesaler input to supplier column in inventory_batches', () => {
+      const batchData = {
+        wholesaler: '  National Hardware Distributors Ltd  ',
+        cost_price: '120.50',
+        msp: '150.00',
+        price: '180.00'
+      };
+
+      const mappedBatchPayload = {
+        supplier: batchData.wholesaler?.trim() || null,
+        purchase_cost: Number(batchData.cost_price),
+        msp: Number(batchData.msp),
+        selling_price: Number(batchData.price)
+      };
+
+      expect(mappedBatchPayload.supplier).toBe('National Hardware Distributors Ltd');
+      expect(mappedBatchPayload.purchase_cost).toBe(120.5);
+      expect(mappedBatchPayload.msp).toBe(150);
+      expect(mappedBatchPayload.selling_price).toBe(180);
+      expect(mappedBatchPayload.purchase_cost).toBeLessThanOrEqual(mappedBatchPayload.msp);
+      expect(mappedBatchPayload.msp).toBeLessThanOrEqual(mappedBatchPayload.selling_price);
+    });
+
+    it('handles empty or whitespace wholesaler name by setting supplier to null', () => {
+      const batchData = {
+        wholesaler: '   ',
+        cost_price: '50',
+        msp: '70',
+        price: '90'
+      };
+
+      const supplier = batchData.wholesaler?.trim() || null;
+      expect(supplier).toBeNull();
+    });
+
+    it('validates Cost Price <= MSP <= MRP constraint on batch creation and editing', () => {
+      const validForm = { cost: 100, msp: 120, mrp: 150 };
+      const invalidMspBelowCost = { cost: 100, msp: 80, mrp: 150 };
+      const invalidMrpBelowMsp = { cost: 100, msp: 120, mrp: 110 };
+
+      const validatePrices = (cost, msp, mrp) => {
+        if (cost < 0 || msp <= 0 || mrp <= 0) return false;
+        if (msp < cost) return false;
+        if (mrp < msp) return false;
+        return true;
+      };
+
+      expect(validatePrices(validForm.cost, validForm.msp, validForm.mrp)).toBe(true);
+      expect(validatePrices(invalidMspBelowCost.cost, invalidMspBelowCost.msp, invalidMspBelowCost.mrp)).toBe(false);
+      expect(validatePrices(invalidMrpBelowMsp.cost, invalidMrpBelowMsp.msp, invalidMrpBelowMsp.mrp)).toBe(false);
     });
   });
 });

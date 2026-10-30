@@ -99,6 +99,7 @@ export default function CheckoutModal({
               step="any" 
               min="0" 
               autoFocus
+              onFocus={(e) => e.target.select()}
               value={checkoutModal.negotiatedTotal} 
               onChange={(e) => { 
                 const v = parseFloat(e.target.value); 

@@ -437,6 +437,19 @@ export default function InventoryRow({
                 )}
               </div>
             </div>
+            <div>
+              <label className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Cost Price (₹)</label>
+              <input
+                type="number"
+                step="any"
+                min="0"
+                value={data.cost_price ?? ''}
+                onChange={e => onEditChange(item.barcode, 'cost_price', e.target.value)}
+                placeholder="0.00"
+                className="h-10 px-3 w-full text-sm rounded-md focus:outline-none"
+                style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
+              />
+            </div>
           </div>
         </td>
 

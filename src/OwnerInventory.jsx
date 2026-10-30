@@ -63,6 +63,21 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
 
   const queryClient = useQueryClient();
 
+  useEffect(() => {
+    // Reconcile and purge any remote-deleted items on mount
+    import('./services/sync').then(({ reconcileDeletedItems }) => {
+      reconcileDeletedItems('owner').then(() => {
+        queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      });
+    }).catch(err => console.warn('Reconcile on mount error:', err));
+
+    const handleSyncComplete = () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    };
+    window.addEventListener('inventory_sync_complete', handleSyncComplete);
+    return () => window.removeEventListener('inventory_sync_complete', handleSyncComplete);
+  }, [queryClient]);
+
   // Debounced search (fixes #17)
   const debouncedSetSearch = useMemo(
     () => debounce((val) => setDebouncedSearch(val), 300),
@@ -447,19 +462,34 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
       // First update Supabase
       const { error } = await supabase.from('product_master').upsert(itemsToSave, { onConflict: 'shop_id, barcode' });
       if (error) throw error;
+
+      // Update active batches in inventory_batches for items where cost_price was edited
+      for (const it of itemsToSave) {
+        if (it.cost_price !== undefined && it.cost_price !== '') {
+          let bQuery = supabase
+            .from('inventory_batches')
+            .update({ purchase_cost: Number(it.cost_price) })
+            .eq('barcode', it.barcode)
+            .eq('is_active', true);
+          if (shopId) bQuery = bQuery.eq('shop_id', shopId);
+          await bQuery;
+        }
+      }
       
       // Then update local IDB
       await saveInventoryBatch(itemsToSave);
       
       const auditLogs = itemsToSave.map(item => ({
+        shop_id: shopId,
         action_type: 'UPDATE',
         barcode: item.barcode,
         item_name: item.name,
-        changes: `Item updated via Global Edit`,
+        changes: `Item updated via Global Edit${item.cost_price !== undefined ? ` (Cost Price: ₹${item.cost_price})` : ''}`,
         performed_by: localStorage.getItem('owner_name') || 'Owner'
       }));
       await supabase.from('audit_logs').insert(auditLogs);
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory_item'] });
       setIsGlobalEditMode(false);
       setBulkEditData({});
       setSelectedBarcodes([]);

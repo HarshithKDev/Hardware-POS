@@ -7,7 +7,12 @@ import { useApp } from './AppContext';
 export default function CreateBatchModal({ item, onClose, onBatchCreated }) {
   const { showAlert } = useApp();
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ cost_price: '', msp: '', price: '' });
+  const [form, setForm] = useState({ 
+    wholesaler: '',
+    cost_price: item?.cost_price !== undefined && item?.cost_price !== null ? String(item.cost_price) : '', 
+    msp: item?.msp !== undefined && item?.msp !== null ? String(item.msp) : '', 
+    price: item?.price !== undefined && item?.price !== null ? String(item.price) : '' 
+  });
 
   const createBatchMutation = useMutation({
     mutationFn: async (batchData) => {
@@ -37,6 +42,7 @@ export default function CreateBatchModal({ item, onClose, onBatchCreated }) {
         shop_id: shopId,
         barcode: item.barcode,
         batch_number: nextBatchNum,
+        supplier: batchData.wholesaler?.trim() || null,
         purchase_cost: Number(batchData.cost_price),
         msp: Number(batchData.msp),
         selling_price: Number(batchData.price),
@@ -48,11 +54,16 @@ export default function CreateBatchModal({ item, onClose, onBatchCreated }) {
       const { error } = await supabase.from('inventory_batches').insert([insertPayload]);
       if (error) throw error;
 
-      // Bump product_master.updated_at so delta sync and listeners recognize the change
+      // Bump product_master.updated_at and pricing so delta sync and listeners recognize the change
       try {
         let bumpQuery = supabase
           .from('product_master')
-          .update({ updated_at: new Date().toISOString() })
+          .update({ 
+            cost_price: Number(batchData.cost_price),
+            msp: Number(batchData.msp),
+            price: Number(batchData.price),
+            updated_at: new Date().toISOString() 
+          })
           .eq('barcode', item.barcode);
         if (shopId) bumpQuery = bumpQuery.eq('shop_id', shopId);
         await bumpQuery;
@@ -64,7 +75,7 @@ export default function CreateBatchModal({ item, onClose, onBatchCreated }) {
           action_type: 'CREATE',
           barcode: item.barcode,
           item_name: item.name,
-          changes: `Created Batch #${nextBatchNum} | Cost: ₹${insertPayload.purchase_cost} | MSP: ₹${insertPayload.msp} | MRP: ₹${insertPayload.selling_price}`,
+          changes: `Created Batch #${nextBatchNum}${insertPayload.supplier ? ` | Wholesaler: ${insertPayload.supplier}` : ''} | Cost: ₹${insertPayload.purchase_cost} | MSP: ₹${insertPayload.msp} | MRP: ₹${insertPayload.selling_price}`,
           performed_by: localStorage.getItem('owner_name') || 'Owner'
         }]);
       } catch (err) {
@@ -167,6 +178,10 @@ export default function CreateBatchModal({ item, onClose, onBatchCreated }) {
 
         <div className="p-4 md:p-6 overflow-y-auto custom-scrollbar">
           <form id="createBatchForm" onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="batch-wholesaler">Wholesaler / Supplier Name (Optional)</label>
+              <input id="batch-wholesaler" type="text" value={form.wholesaler} onChange={(e) => setForm({ ...form, wholesaler: e.target.value })} placeholder="e.g. Acme Hardware Wholesale" className="w-full h-11 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+            </div>
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="batch-cost">Cost Price (₹){item.unit ? ` PER ${item.unit.toUpperCase()}` : ''}</label>
               <input id="batch-cost" type="number" step="any" min="0" required autoFocus value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} placeholder="0.00" className="w-full h-11 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />

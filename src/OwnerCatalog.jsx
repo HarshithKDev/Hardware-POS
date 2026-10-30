@@ -14,7 +14,7 @@ export default function OwnerCatalog() {
   const queryClient = useQueryClient();
 
   const [form, setForm] = useState({
-    name: '', category: '', sub_category: '', cost_price: '',
+    name: '', category: '', sub_category: '', description: '', cost_price: '',
     msp: '', price: '', unit: 'PCS', min_quantity_warehouse: '', min_quantity_store: '', item_type: 'standard',
     default_length: '', default_width: '', billing_increment: '0.01', billing_method: 'exact'
   });
@@ -22,7 +22,7 @@ export default function OwnerCatalog() {
 
   const handleResetCatalog = () => {
     setForm({
-      name: '', category: '', sub_category: '', cost_price: '',
+      name: '', category: '', sub_category: '', description: '', cost_price: '',
       msp: '', price: '', unit: 'PCS', min_quantity_warehouse: '', min_quantity_store: '', item_type: 'standard',
       default_length: '', default_width: '', billing_increment: '0.01', billing_method: 'exact'
     });
@@ -124,13 +124,14 @@ export default function OwnerCatalog() {
       let currentBarcode = itemData.barcode;
       // Retry loop to handle TOCTOU collision when multiple users create items at once
       for (let attempt = 0; attempt < BARCODE_RETRY_ATTEMPTS; attempt++) {
-        const { error } = await supabase.from('product_master').insert([{
+        const insertObj = {
           id: generateId(),
           shop_id: shopId,
           barcode: currentBarcode,
           name: itemData.name,
           category: itemData.category || null,
           sub_category: itemData.sub_category || null,
+          description: itemData.description?.trim() || null,
           unit: itemData.unit,
           min_quantity_warehouse: isWarehouseDisabled ? 0 : (Number(itemData.min_quantity_warehouse) || 0),
           min_quantity_store: Number(itemData.min_quantity_store) || 0,
@@ -144,7 +145,17 @@ export default function OwnerCatalog() {
           msp: Number(itemData.msp) || 0,
           cost_price: Number(itemData.cost_price) || 0,
           is_active: true
-        }]);
+        };
+
+        let { error } = await supabase.from('product_master').insert([insertObj]);
+
+        // Graceful fallback if description column is not yet migrated on remote database
+        if (error && (error.message?.includes('description') || error.code === '42703')) {
+          console.warn('description column not yet in remote product_master, inserting without description column:', error.message);
+          const { description: _d, ...fallbackObj } = insertObj;
+          const retryRes = await supabase.from('product_master').insert([fallbackObj]);
+          error = retryRes.error;
+        }
 
         if (!error) {
           // Do not insert an initial batch. Batches will be created explicitly from the Inventory tab.
@@ -190,7 +201,7 @@ export default function OwnerCatalog() {
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['nextBarcode'] });
 
-      setForm({ name: '', category: '', sub_category: '', unit: 'PCS', min_quantity_warehouse: '', min_quantity_store: '', item_type: 'standard', default_length: '', default_width: '', billing_increment: '0.01', billing_method: 'exact' });
+      setForm({ name: '', category: '', sub_category: '', description: '', cost_price: '', unit: 'PCS', min_quantity_warehouse: '', min_quantity_store: '', item_type: 'standard', default_length: '', default_width: '', billing_increment: '0.01', billing_method: 'exact' });
       showAlert(`Added "${savedItem.name}" with Barcode ${savedItem.barcode}.`, "Success");
 
       // Track in Audit Logs
@@ -201,7 +212,7 @@ export default function OwnerCatalog() {
           barcode: savedItem.barcode,
           item_name: savedItem.name,
           performed_by: localStorage.getItem('owner_name') || 'Owner',
-          changes: `Item: ${savedItem.name} | Category: ${savedItem.category || 'N/A'} | Sub-Category: ${savedItem.sub_category || 'N/A'} | Type: ${savedItem.is_cuttable ? 'Cuttable' : (savedItem.is_loose_item ? 'Loose' : 'Standard')}`
+          changes: `Item: ${savedItem.name}${savedItem.description ? ` | Description: ${savedItem.description}` : ''} | Category: ${savedItem.category || 'N/A'} | Sub-Category: ${savedItem.sub_category || 'N/A'} | Type: ${savedItem.is_cuttable ? 'Cuttable' : (savedItem.is_loose_item ? 'Loose' : 'Standard')}`
         }]);
       } catch (err) {
         console.error("Failed to log item creation", err);
@@ -267,6 +278,7 @@ export default function OwnerCatalog() {
     sheet.columns = [
       { header: 'barcode', key: 'barcode', width: 15 },
       { header: 'name', key: 'name', width: 35 },
+      { header: 'description', key: 'description', width: 30 },
       { header: 'category', key: 'category', width: 20 },
       { header: 'sub_category', key: 'sub_category', width: 20 },
       { header: 'cost_price', key: 'cost_price', width: 15 },
@@ -282,17 +294,17 @@ export default function OwnerCatalog() {
 
     // Add sample rows
     sheet.addRow({
-      barcode: '001001', name: 'Standard Item Example', category: catNames[0] || 'Hardware', sub_category: subCatNames[0] || 'Nails',
+      barcode: '001001', name: 'Standard Item Example', description: 'Grade A steel fastener', category: catNames[0] || 'Hardware', sub_category: subCatNames[0] || 'Nails',
       cost_price: 50, msp: 60, price: 75, unit: 'PCS', type: 'Standard',
       min_quantity_warehouse: 10, min_quantity_store: 5
     });
     sheet.addRow({
-      barcode: '', name: 'Loose Item Example (Screws)', category: catNames[0] || 'Hardware', sub_category: subCatNames[0] || 'Screws',
+      barcode: '', name: 'Loose Item Example (Screws)', description: 'Galvanized wood screw', category: catNames[0] || 'Hardware', sub_category: subCatNames[0] || 'Screws',
       cost_price: 5, msp: 8, price: 10, unit: 'PCS', type: 'Loose',
       min_quantity_warehouse: 100, min_quantity_store: 50
     });
     sheet.addRow({
-      barcode: '', name: 'Cuttable Item Example (Pipe)', category: catNames[0] || 'Plumbing', sub_category: subCatNames[0] || 'Pipes',
+      barcode: '', name: 'Cuttable Item Example (Pipe)', description: 'Schedule 40 PVC pipe', category: catNames[0] || 'Plumbing', sub_category: subCatNames[0] || 'Pipes',
       cost_price: 120, msp: 150, price: 180, unit: 'FT', type: 'Cuttable',
       default_length: 20, min_quantity_warehouse: 50, min_quantity_store: 10
     });
@@ -352,6 +364,7 @@ export default function OwnerCatalog() {
           name: String(row.name || row.Name || '').trim(),
           category: String(row.category || row.Category || 'Uncategorized').trim(),
           sub_category: String(row.sub_category || row.Subcategory || '').trim(),
+          description: String(row.description || row.Description || '').trim() || null,
           cost_price: Number(row.cost_price || row.Cost || 0),
           msp: Number(row.msp || row.MSP || 0),
           price: Number(row.price || row.Price || row.MRP || 0),
@@ -454,13 +467,19 @@ export default function OwnerCatalog() {
           is_active: row.is_active,
           billing_increment: 0.01,
           billing_method: 'exact',
+          description: row.description || null,
           price: Number(row.price || row.Selling_Price || 0),
           msp: Number(row.msp || row.MSP || 0),
           cost_price: Number(row.cost_price || row.Cost_Price || 0)
         });
       });
         
-      const { error } = await supabase.from('product_master').insert(productMasterData);
+      let { error } = await supabase.from('product_master').insert(productMasterData);
+      if (error && (error.message?.includes('description') || error.code === '42703')) {
+        const fallbackData = productMasterData.map(({ description: _d, ...rest }) => rest);
+        const retryRes = await supabase.from('product_master').insert(fallbackData);
+        error = retryRes.error;
+      }
       if (error) throw error;
 
       try {
@@ -518,6 +537,21 @@ export default function OwnerCatalog() {
           <div className="md:col-span-2 lg:col-span-4">
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-name">Item Name</label>
             <input id="item-name" type="text" autoFocus required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. 10mm Steel Rebar" className="w-full h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+          </div>
+
+          <div className="md:col-span-2 lg:col-span-4">
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-description">
+              Product Description (Optional)
+            </label>
+            <textarea
+              id="item-description"
+              rows={2}
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="e.g. High-tensile corrosion-resistant steel rebar suitable for heavy construction..."
+              className="w-full p-3 text-sm focus:outline-none rounded-md resize-none"
+              style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
+            />
           </div>
 
           <div className="lg:col-span-2">
