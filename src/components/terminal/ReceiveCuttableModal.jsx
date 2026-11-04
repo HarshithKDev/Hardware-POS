@@ -84,7 +84,7 @@ export default function ReceiveCuttableModal({
               <div className="text-right">
                 <span className="text-[var(--text-secondary)] block">Whse Available:</span>
                 <span className="text-[var(--color-warning)] font-bold text-sm">
-                  {maxAvailablePieces} PCS ({batch.stock_warehouse} {unitLabel})
+                  {maxAvailablePieces} {isSqft ? 'ROLLS' : 'PCS'} ({batch.stock_warehouse} {unitLabel})
                 </span>
               </div>
             )}
