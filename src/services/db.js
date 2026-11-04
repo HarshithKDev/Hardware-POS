@@ -258,19 +258,19 @@ const applySort = (items, sortOption, currentShopId) => {
   else if (sortOption === 'subcategory-asc') items.sort((a, b) => (a.sub_category || '').localeCompare(b.sub_category || ''));
   else if (sortOption === 'subcategory-desc') items.sort((a, b) => (b.sub_category || '').localeCompare(a.sub_category || ''));
   else if (sortOption === 'whsestock-asc') items.sort((a, b) => {
-    const getWhse = (item) => item.is_cuttable ? (pieceCountCache[`${currentShopId || 'default'}_${item.barcode}`]?.warehouse || 0) : (item.batches?.length ? item.batches.filter(b => b.is_active !== false).reduce((sum, batch) => sum + Number(batch.stock_warehouse), 0) : Number(item.stock_warehouse || 0));
+    const getWhse = (item) => (item.batches?.length ? item.batches.filter(b => b.is_active !== false).reduce((sum, batch) => sum + Number(batch.stock_warehouse), 0) : Number(item.stock_warehouse || 0));
     return getWhse(a) - getWhse(b);
   });
   else if (sortOption === 'whsestock-desc') items.sort((a, b) => {
-    const getWhse = (item) => item.is_cuttable ? (pieceCountCache[`${currentShopId || 'default'}_${item.barcode}`]?.warehouse || 0) : (item.batches?.length ? item.batches.filter(b => b.is_active !== false).reduce((sum, batch) => sum + Number(batch.stock_warehouse), 0) : Number(item.stock_warehouse || 0));
+    const getWhse = (item) => (item.batches?.length ? item.batches.filter(b => b.is_active !== false).reduce((sum, batch) => sum + Number(batch.stock_warehouse), 0) : Number(item.stock_warehouse || 0));
     return getWhse(b) - getWhse(a);
   });
   else if (sortOption === 'storestock-asc') items.sort((a, b) => {
-    const getStore = (item) => item.is_cuttable ? (pieceCountCache[`${currentShopId || 'default'}_${item.barcode}`]?.store || 0) : (item.batches?.length ? item.batches.filter(b => b.is_active !== false).reduce((sum, batch) => sum + Number(batch.stock_store), 0) : Number(item.stock_store || 0));
+    const getStore = (item) => (item.batches?.length ? item.batches.filter(b => b.is_active !== false).reduce((sum, batch) => sum + Number(batch.stock_store), 0) : Number(item.stock_store || 0));
     return getStore(a) - getStore(b);
   });
   else if (sortOption === 'storestock-desc') items.sort((a, b) => {
-    const getStore = (item) => item.is_cuttable ? (pieceCountCache[`${currentShopId || 'default'}_${item.barcode}`]?.store || 0) : (item.batches?.length ? item.batches.filter(b => b.is_active !== false).reduce((sum, batch) => sum + Number(batch.stock_store), 0) : Number(item.stock_store || 0));
+    const getStore = (item) => (item.batches?.length ? item.batches.filter(b => b.is_active !== false).reduce((sum, batch) => sum + Number(batch.stock_store), 0) : Number(item.stock_store || 0));
     return getStore(b) - getStore(a);
   });
   else items.sort((a, b) => compareBarcodes(a.barcode, b.barcode));
@@ -333,21 +333,6 @@ export const getInventoryByQuery = async ({ limit, offset, search, category, sub
 
     if (isExplicitCustomSort) {
       allItems = scoredItems.map(s => s.item);
-      if (sortOption?.startsWith('whsestock') || sortOption?.startsWith('storestock')) {
-        const cuttableItems = allItems.filter(i => i.is_cuttable);
-        const uncachedItems = cuttableItems.filter(i => !pieceCountCache[`${currentShopId || 'default'}_${i.barcode}`]);
-        if (uncachedItems.length > 0) {
-          const promises = uncachedItems.map(async (item) => {
-            try {
-              const { data } = await supabase.rpc('get_piece_counts', { p_barcode: String(item.barcode) });
-              pieceCountCache[`${currentShopId || 'default'}_${item.barcode}`] = data || { warehouse: 0, store: 0 };
-            } catch (err) {
-              pieceCountCache[`${currentShopId || 'default'}_${item.barcode}`] = { warehouse: 0, store: 0 };
-            }
-          });
-          await Promise.all(promises);
-        }
-      }
       applySort(allItems, sortOption, currentShopId);
     } else {
       // Relevance-ranked order
@@ -360,22 +345,6 @@ export const getInventoryByQuery = async ({ limit, offset, search, category, sub
       allItems = scoredItems.map(s => s.item);
     }
   } else {
-    // No search query: fetch stock counts if needed and apply requested sortOption
-    if (sortOption?.startsWith('whsestock') || sortOption?.startsWith('storestock')) {
-      const cuttableItems = allItems.filter(i => i.is_cuttable);
-      const uncachedItems = cuttableItems.filter(i => !pieceCountCache[`${currentShopId || 'default'}_${i.barcode}`]);
-      if (uncachedItems.length > 0) {
-        const promises = uncachedItems.map(async (item) => {
-          try {
-            const { data } = await supabase.rpc('get_piece_counts', { p_barcode: String(item.barcode) });
-            pieceCountCache[`${currentShopId || 'default'}_${item.barcode}`] = data || { warehouse: 0, store: 0 };
-          } catch (err) {
-            pieceCountCache[`${currentShopId || 'default'}_${item.barcode}`] = { warehouse: 0, store: 0 };
-          }
-        });
-        await Promise.all(promises);
-      }
-    }
     applySort(allItems, sortOption, currentShopId);
   }
 

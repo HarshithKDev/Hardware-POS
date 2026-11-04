@@ -62,7 +62,11 @@ const CartMobileView = React.memo(function CartMobileView({
         <div className="flex justify-between items-start mb-4 gap-4">
           <div className="flex flex-col flex-1">
             <span className="font-bold text-xl leading-tight" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
-            {item.instance_barcode && <span className=" text-sm mt-1" style={{ color: 'var(--color-accent)' }}>Piece #{item.instance_barcode}</span>}
+            {item.is_cuttable && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-[var(--bg-tertiary)] border border-[var(--border-medium)] text-[var(--color-accent)] mt-1 self-start">
+                {item.quantity} {item.unit === 'SQFT' ? 'Rolls' : 'Pieces'} ({item.actual_quantity !== undefined ? item.actual_quantity : Math.round(Number(item.quantity || 1) * Number(item.default_length || 12) * (item.unit === 'SQFT' ? Number(item.default_width || 3) : 1) * 100) / 100} {item.unit})
+              </span>
+            )}
           </div>
           <button 
             onClick={() => onRemoveItem(item.id)} 
@@ -187,7 +191,7 @@ const CartMobileView = React.memo(function CartMobileView({
                          <div className="flex justify-between items-center pl-2">
                              <div className="flex items-center gap-2">
                                  <span className="text-sm font-bold text-[var(--border-medium)]" style={{ color: 'var(--text-tertiary)' }}>↳</span>
-                                 <span className="text-xs  font-bold" style={{ color: 'var(--text-secondary)' }}>Piece #{child.instance_barcode || 'Unknown'}</span>
+                                 <span className="text-xs  font-bold" style={{ color: 'var(--text-secondary)' }}>{child.is_full_piece ? `${child.cut_pieces || 1} Full Piece(s)` : `${child.cut_pieces || 1} cuts × ${child.cut_length}ft`}</span>
                              </div>
                              <button type="button" onClick={() => onRemoveItem(child.id)} className="p-1 rounded transition-colors focus:outline-none" style={{ color: 'var(--text-secondary)' }} aria-label={`Remove piece`}>✕</button>
                          </div>
@@ -226,7 +230,7 @@ const CartMobileView = React.memo(function CartMobileView({
             {item.pieceLength && (
               <p className="text-[10px] uppercase font-bold mt-1" style={{ color: 'var(--text-tertiary)' }}>Length per piece: {item.pieceLength} {item.unit}</p>
             )}
-            <p className="text-xs mt-1 mb-1" style={{ color: 'var(--color-accent)' }}>#{item.scanned_barcode || item.instance_barcode || item.barcode}</p>
+            <p className="text-xs mt-1 mb-1" style={{ color: 'var(--color-accent)' }}>#{item.scanned_barcode || item.barcode}</p>
             {activeTab === 'checkout' && !item.is_screw && item.barcode !== 'SCREWS' && (
               <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>
                 MRP: ₹{Number(item.price || 0).toFixed(2)}{item.is_loose_item && item.unit?.toUpperCase() === 'KG' ? '/kg' : ''} • <span className="group/msp cursor-help">MSP: {userRole === 'owner' ? `₹${Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}${item.is_loose_item && item.unit?.toUpperCase() === 'KG' ? '/kg' : ''}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}{item.is_loose_item && item.unit?.toUpperCase() === 'KG' ? '/kg' : ''}</span></span>}</span>
@@ -238,51 +242,52 @@ const CartMobileView = React.memo(function CartMobileView({
           )}
         </div>
         <div className="flex justify-between items-center mt-1 pt-3" style={{ borderTop: '1px solid var(--border-light)' }}>
-          {item.unit === 'SQFT' && item.is_cuttable && activeTab === 'checkout' ? (
-            <div className="flex items-center gap-2 w-full justify-between mt-1">
-              <div className="flex items-center gap-2">
-                {item.instance_barcode ? (
-                  <>
-                    <span className="font-bold text-sm bg-[var(--bg-tertiary)] px-3 py-1.5 rounded-sm border border-[var(--border-medium)]" style={{ color: 'var(--text-primary)' }}>{item.length} ft</span>
-                    <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
-                    <span className="font-bold text-sm bg-[var(--bg-tertiary)] px-3 py-1.5 rounded-sm border border-[var(--border-medium)]" style={{ color: 'var(--text-primary)' }}>{item.width} ft</span>
-                  </>
-                ) : (
-                  <>
-                    <div className="relative inline-flex items-center">
-                      <input type="number" step="any" placeholder="L" value={item.length !== undefined ? item.length : ''} onChange={(e) => onUpdateDimensions(item.id, 'length', e.target.value)} className="w-20 h-10 pl-2 pr-8 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} aria-label="Length" />
-                      <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>ft</span>
-                    </div>
-                    <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
-                    <div className="relative inline-flex items-center">
-                      <input type="number" step="any" placeholder="H" value={item.width !== undefined ? item.width : ''} onChange={(e) => onUpdateDimensions(item.id, 'width', e.target.value)} className="w-20 h-10 pl-2 pr-8 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} aria-label="Height" />
-                      <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>ft</span>
-                    </div>
-                    <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
-                    <input type="number" step="any" min="1" placeholder="Qty" value={item.rolls !== undefined ? item.rolls : '1'} onChange={(e) => onUpdateDimensions(item.id, 'rolls', e.target.value)} className="w-14 h-10 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)', borderRadius: '4px' }} aria-label="Rolls" />
-                  </>
-                )}
-              </div>
-              <div className="flex flex-col items-end justify-center">
-                <div className="inline-flex items-center gap-1.5 bg-[var(--bg-tertiary)] px-3 py-1.5 rounded-md border border-[var(--border-medium)]">
-                  <span className="font-bold text-lg leading-none" style={{ color: 'var(--text-primary)' }}>{safeQty}</span>
-                  <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>{item.unit}</span>
+          {item.is_cuttable ? (
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-1.5">
+                <button 
+                  type="button" 
+                  onMouseDown={(e) => e.preventDefault()} 
+                  onClick={() => onUpdateQuantity(item.id, Math.max(activeTab === 'checkout' ? 0.1 : 1, safeQty - 1))} 
+                  className="w-10 h-10 flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border border-[var(--border-medium)] rounded-md bg-[var(--bg-tertiary)] shadow-sm text-lg leading-none"
+                >
+                  -
+                </button>
+                <div className="relative inline-flex items-center">
+                  <input
+                    type="number"
+                    step={activeTab === 'checkout' ? "any" : "1"}
+                    min={activeTab === 'checkout' ? "0" : "1"}
+                    value={item.quantity}
+                    onChange={(e) => onUpdateQuantity(item.id, e.target.value)}
+                    className="w-20 h-10 text-center font-bold text-sm bg-[var(--bg-input)] border border-[var(--border-medium)] rounded-md text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)]"
+                  />
+                  <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none text-[var(--text-tertiary)]">
+                    {activeTab === 'checkout' ? item.unit : (item.unit === 'SQFT' ? 'ROLLS' : 'PCS')}
+                  </span>
                 </div>
+                <button 
+                  type="button" 
+                  onMouseDown={(e) => e.preventDefault()} 
+                  onClick={() => onUpdateQuantity(item.id, safeQty + 1)} 
+                  className="w-10 h-10 flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border border-[var(--border-medium)] rounded-md bg-[var(--bg-tertiary)] shadow-sm text-lg leading-none"
+                >
+                  +
+                </button>
+              </div>
+              <div className="text-right">
+                <span className="text-xs text-[var(--text-tertiary)] block">
+                  {item.is_full_piece ? `${item.cut_pieces || 1} × ${item.cut_length || item.default_length} ${item.unit || 'FT'}` : (item.cut_pieces ? `${item.cut_pieces} cuts × ${item.cut_length} ${item.unit || 'FT'}` : `${safeQty} ${item.unit}`)}
+                </span>
+                {item.scrap_action === 'discard' && (
+                  <span className="text-[10px] text-amber-400 font-bold block">(+{item.scrap_leftover}ft discarded)</span>
+                )}
               </div>
             </div>
           ) : (
             <div className="flex items-center">
               <div className="flex items-center gap-1.5">
-                {item.instance_barcode ? (
-                  <div className="relative inline-flex items-center">
-                    <div className="w-20 h-8 pr-7 flex items-center justify-center text-sm font-bold bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md text-[var(--text-primary)] shadow-sm">
-                      1
-                    </div>
-                    <span className="absolute right-2 text-[10px] font-bold pointer-events-none text-[var(--text-tertiary)]">
-                      {formatUnitBadge(item.unit === 'SQFT' && activeTab !== 'checkout' ? 'ROLLS' : item.unit)}
-                    </span>
-                  </div>
-                ) : (() => {
+                {(() => {
                   const isLooseKg = Boolean(
                     item.is_loose_item && (
                       item.unit?.toUpperCase() === 'KG' || 

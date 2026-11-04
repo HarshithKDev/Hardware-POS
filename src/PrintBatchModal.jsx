@@ -6,44 +6,6 @@ import { supabase } from './supabaseClient';
 export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }) {
   const [qty, setQty] = useState(10);
   const [isPrinting, setIsPrinting] = useState(false);
-  const [nextSeqForCuttable, setNextSeqForCuttable] = useState(1);
-
-  // When selectedBatch changes, calculate the next sequence number if cuttable
-  useEffect(() => {
-    if (item && selectedBatch && item.is_cuttable) {
-      const fetchMaxSeq = async () => {
-        const batchPrefix = `${item.barcode}-${String(selectedBatch.batch_number || 1).padStart(2, '0')}`;
-        
-        const shopId = item.shop_id || localStorage.getItem('shop_id');
-        let query = supabase
-          .from('stock_instances')
-          .select('instance_barcode')
-          .eq('parent_barcode', item.barcode)
-          .ilike('instance_barcode', `${batchPrefix}%`);
-        if (shopId) {
-          query = query.eq('shop_id', shopId);
-        }
-        
-        const { data } = await query;
-
-        let maxSeq = 0;
-        if (data && data.length > 0) {
-          data.forEach(row => {
-            const instanceBarcode = row.instance_barcode;
-            if (instanceBarcode.startsWith(batchPrefix)) {
-              const seqStr = instanceBarcode.slice(batchPrefix.length);
-              const seq = parseInt(seqStr, 10);
-              if (!isNaN(seq) && seq > maxSeq) {
-                maxSeq = seq;
-              }
-            }
-          });
-        }
-        setNextSeqForCuttable(maxSeq + 1);
-      };
-      fetchMaxSeq();
-    }
-  }, [item, selectedBatch]);
 
   if (!isOpen || !item || !selectedBatch) return null;
 
@@ -73,7 +35,7 @@ export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }
             <div className="flex flex-col items-center justify-center p-4 bg-white border border-[var(--border-medium)] rounded-lg mx-auto w-[250px] shadow-sm">
               <p className="text-[10px] font-bold text-black mb-1 w-full text-center truncate">{item.name}</p>
               <Barcode 
-                value={item.is_cuttable ? `${printBarcodeValue}${String(nextSeqForCuttable).padStart(2, '0')}` : printBarcodeValue} 
+                value={printBarcodeValue} 
                 width={1.5} 
                 height={30} 
                 fontSize={12} 
@@ -99,9 +61,6 @@ export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }
 
             <div className="mt-2 text-xs text-[var(--text-secondary)] bg-[var(--bg-tertiary)] p-3 rounded-md border border-[var(--border-light)]">
               <p><strong>Batch {batchNumberStr}:</strong> Labels will be printed with MRP ₹{Number(selectedBatch.selling_price || 0).toFixed(2)}.</p>
-              {item.is_cuttable && (
-                <p className="mt-1">Unique sequence numbers will be generated starting from {String(nextSeqForCuttable).padStart(2, '0')}.</p>
-              )}
             </div>
           </div>
 
@@ -136,7 +95,7 @@ export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }
             }
           `}} />
           {Array.from({ length: Number(qty) || 1 }).map((_, index) => {
-            const barcodeVal = item.is_cuttable ? `${printBarcodeValue}${String(nextSeqForCuttable + index).padStart(2, '0')}` : printBarcodeValue;
+            const barcodeVal = printBarcodeValue;
             return (
               <div key={`${barcodeVal}-${index}`} className="thermal-barcode" style={{ backgroundColor: '#ffffff', width: '50mm', height: '25mm', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', pageBreakAfter: 'always' }}>
                 <p style={{ color: '#000000', fontSize: '9px', fontWeight: 'bold', lineHeight: 1, margin: 0, marginBottom: '2px', textAlign: 'center', width: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</p>

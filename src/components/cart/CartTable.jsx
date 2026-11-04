@@ -273,14 +273,18 @@ const CartTable = React.memo(function CartTable({
                       >
                         <td className="py-4 px-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
                           <div className="flex items-center justify-center gap-2">
-                            <svg className="w-4 h-4" style={{ color: 'var(--border-heavy)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5v8a2 2 0 002 2h7M14 11l4 4-4 4" />
-                            </svg>
-                            <span className="text-xs  font-bold" style={{ color: 'var(--text-tertiary)' }}>{child.instance_barcode || 'Unknown'}</span>
+                            <span className="text-xs font-bold" style={{ color: 'var(--text-tertiary)' }}>
+                              {child.is_full_piece ? 'Full Piece' : (child.cut_pieces ? `${child.cut_pieces} cuts` : 'Cut Piece')}
+                            </span>
                           </div>
                         </td>
                         <td className="py-4 px-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                           <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>Cut Piece</span>
+                          <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>
+                            {child.is_full_piece ? `${child.cut_pieces || 1} Full Piece(s)` : `${child.cut_pieces || 1} × ${child.cut_length} ft`}
+                          </span>
+                          {child.scrap_action === 'discard' && (
+                            <span className="text-[9px] text-amber-400 block mt-0.5">({child.scrap_leftover}ft scrap discarded)</span>
+                          )}
                         </td>
                         <td className="p-2 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
                           {child.unit === 'SQFT' ? (
@@ -366,53 +370,55 @@ const CartTable = React.memo(function CartTable({
                   )}
                 </td>
                 <td className="p-2 text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                  {(item.unit === 'SQFT' && item.is_cuttable && activeTab === 'checkout') || (item.is_cuttable && activeTab === 'receive') ? (
+                  {item.is_cuttable ? (
                     <div className="flex flex-col items-center justify-center">
-                      <div className="h-8 flex items-center justify-center gap-2">
-                        {item.instance_barcode && activeTab !== 'receive' ? (
-                          <div className="flex items-center gap-2">
-                              <span className="font-bold text-sm bg-[var(--bg-tertiary)] px-3 py-1.5 rounded-md border border-[var(--border-medium)]" style={{ color: 'var(--text-primary)' }}>
-                                {item.length} ft
-                              </span>
-                              <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
-                              <span className="font-bold text-sm bg-[var(--bg-tertiary)] px-3 py-1.5 rounded-md border border-[var(--border-medium)]" style={{ color: 'var(--text-primary)' }}>
-                                {item.width} ft
-                              </span>
-                              <span className="text-[10px] font-bold ml-2" style={{ color: 'var(--color-accent)' }}>{safeQty} sqft</span>
-                          </div>
+                      <div className="h-8 flex items-center justify-center gap-1.5">
+                        <button 
+                          type="button" 
+                          onMouseDown={(e) => e.preventDefault()} 
+                          onClick={() => onUpdateQuantity(item.id, Math.max(activeTab === 'checkout' ? 0.1 : 1, safeQty - 1))} 
+                          className="w-8 h-8 flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border border-[var(--border-medium)] rounded-md bg-[var(--bg-tertiary)] shadow-sm cursor-pointer"
+                          aria-label="Decrease quantity"
+                        >
+                          -
+                        </button>
+                        <div className="relative inline-flex items-center">
+                          <input 
+                            type="number" 
+                            step={activeTab === 'checkout' ? "any" : "1"} 
+                            min={activeTab === 'checkout' ? "0" : "1"} 
+                            onWheel={handleWheelBlur} 
+                            value={item.quantity} 
+                            onChange={(e) => onUpdateQuantity(item.id, e.target.value)} 
+                            className="w-20 h-8 pl-3 pr-7 text-sm font-bold text-center bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-all shadow-sm" 
+                            aria-label={`${item.name} quantity`} 
+                          />
+                          <span className="absolute right-2 text-[10px] font-bold pointer-events-none text-[var(--text-tertiary)]">
+                            {activeTab === 'checkout' ? item.unit : (item.unit === 'SQFT' ? 'ROLLS' : 'PCS')}
+                          </span>
+                        </div>
+                        <button 
+                          type="button" 
+                          onMouseDown={(e) => e.preventDefault()} 
+                          onClick={() => onUpdateQuantity(item.id, safeQty + 1)} 
+                          className="w-8 h-8 flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border border-[var(--border-medium)] rounded-md bg-[var(--bg-tertiary)] shadow-sm cursor-pointer"
+                          aria-label="Increase quantity"
+                        >
+                          +
+                        </button>
+                      </div>
+                      <div className="h-4 flex flex-col items-center justify-center mt-1">
+                        {activeTab === 'checkout' ? (
+                          <span className="text-[10px] text-[var(--text-tertiary)] font-normal leading-none">
+                            {item.is_full_piece ? `${item.cut_pieces || 1} × ${item.cut_length || item.default_length} ${item.unit || 'FT'}` : (item.cut_pieces ? `${item.cut_pieces} cuts × ${item.cut_length} ${item.unit || 'FT'}` : `${safeQty} ${item.unit}`)}
+                            {item.scrap_action === 'discard' && <span className="text-amber-400 font-bold ml-1">(+{item.scrap_leftover}ft scrap discarded)</span>}
+                          </span>
                         ) : (
-                          <>
-                            <div className="relative inline-flex items-center">
-                              <input type="number" step="any" onWheel={handleWheelBlur} placeholder="L" disabled={activeTab === 'receive'} value={activeTab === 'receive' ? (item.pieceLength || item.default_length || '') : (item.length !== undefined ? item.length : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_length', e.target.value) : onUpdateDimensions(item.id, 'length', e.target.value)} className={`w-24 h-8 pl-2 pr-10 text-sm font-semibold text-center focus:outline-none rounded-md ${activeTab === 'receive' ? 'opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]' : ''}`} style={{ border: '1px solid var(--border-medium)' }} title={activeTab === 'receive' ? "Length is locked during receive" : "Length"} aria-label="Length" />
-                              <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>{item.unit === 'SQFT' ? 'ft' : (item.unit?.toUpperCase() === 'METER' ? 'M' : item.unit)}</span>
-                            </div>
-                            {item.unit === 'SQFT' && (
-                              <>
-                                <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
-                                <div className="relative inline-flex items-center">
-                                  <input type="number" step="any" onWheel={handleWheelBlur} placeholder="H" disabled={activeTab === 'receive'} value={activeTab === 'receive' ? (item.default_width || '') : (item.width !== undefined ? item.width : '')} onChange={(e) => activeTab === 'receive' ? onUpdateDimensions(item.id, 'default_width', e.target.value) : onUpdateDimensions(item.id, 'width', e.target.value)} className={`w-24 h-8 pl-2 pr-10 text-sm font-semibold text-center focus:outline-none rounded-md ${activeTab === 'receive' ? 'opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]' : ''}`} style={{ border: '1px solid var(--border-medium)' }} title={activeTab === 'receive' ? "Width is locked during receive" : "Height"} aria-label="Height" />
-                                  <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>ft</span>
-                                </div>
-                              </>
-                            )}
-                            <span className="font-bold text-sm" style={{ color: 'var(--text-tertiary)' }}>×</span>
-                            {item.instance_barcode && activeTab === 'receive' ? (
-                              <div className="w-14 h-8 px-2 text-sm font-bold flex items-center justify-center bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-medium)] rounded-md" title="Quantity is locked to 1 for specific piece">1</div>
-                            ) : activeTab === 'receive' ? (
-                              <input type="number" step="any" min="1" placeholder="Qty" disabled value={item.quantity} className="w-14 h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]" style={{ border: '1px solid var(--border-medium)' }} title="Scan to increase quantity" aria-label="Quantity" />
-                            ) : (
-                              <input type="number" step="any" min="1" onWheel={handleWheelBlur} placeholder="Qty" value={item.rolls !== undefined ? item.rolls : '1'} onChange={(e) => onUpdateDimensions(item.id, 'rolls', e.target.value)} className="w-14 h-8 px-2 text-sm font-semibold text-center focus:outline-none rounded-md" style={{ border: '1px solid var(--border-medium)' }} title="Qty" aria-label="Quantity" />
-                            )}
-                          </>
-                        )}
-                        {activeTab === 'checkout' && (
-                          <div className="flex flex-col ml-3 text-left">
-                            <span className="font-bold text-base leading-none" style={{ color: 'var(--color-accent)' }}>{safeQty}</span>
-                            <span className="text-[10px] font-bold uppercase mt-0.5" style={{ color: 'var(--text-secondary)' }}>{item.unit}</span>
-                          </div>
+                          <span className="text-[10px] text-[var(--color-accent)] font-semibold leading-none">
+                            ({item.actual_quantity !== undefined ? item.actual_quantity : Math.round(safeQty * Number(item.default_length || 12) * (item.unit === 'SQFT' ? Number(item.default_width || 3) : 1) * 100) / 100} {item.unit})
+                          </span>
                         )}
                       </div>
-                      {hasSubtext && <div className="h-4 mt-1" />}
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center">

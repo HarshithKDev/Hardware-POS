@@ -25,7 +25,9 @@ import {
   ReceiveLengthModal,
   ManualInstanceBarcodeModal,
   CutLengthModal,
-  ScrewsModal
+  ScrewsModal,
+  ReceiveCuttableModal,
+  CuttableCheckoutModal
 } from './components/terminal';
 import { broadcastStockUpdate, subscribeToStockUpdates } from './services/realtimeStock';
 
@@ -138,10 +140,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   }, [cart.length]);
 
   // Cuttable item states
-  const [selectPieceModal, setSelectPieceModal] = useState({ isOpen: false, item: null, instances: [], isLoading: false, action: 'checkout' });
-  const [cutLengthModal, setCutLengthModal] = useState({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false });
-  const [receiveLengthModal, setReceiveLengthModal] = useState({ isOpen: false, item: null, length: '', batch: null, instanceBarcode: null });
-  const [manualInstanceBarcodeModal, setManualInstanceBarcodeModal] = useState({ isOpen: false, item: null, batch: null, barcodeInput: '', prefix: '', error: null });
+  const [receiveCuttableModal, setReceiveCuttableModal] = useState({ isOpen: false, modalData: null });
+  const [cuttableCheckoutModal, setCuttableCheckoutModal] = useState({ isOpen: false, modalData: null });
   
   // Batch selection
   const [selectBatchModal, setSelectBatchModal] = useState({ isOpen: false, item: null, batches: [] });
@@ -171,7 +171,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   
   useEffect(() => {
     // Prevent state desync ("COMMAREA Loss") by resetting modals when navigating between tabs
-    setCutLengthModal({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false });
+    setCuttableCheckoutModal({ isOpen: false, modalData: null });
+    setReceiveCuttableModal({ isOpen: false, modalData: null });
     setLooseItemModal({ isOpen: false, item: null, qty: '' });
     setManualBarcode('');
     setSuggestions([]);
@@ -221,7 +222,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       getCartItems: () => cartRef.current || [],
       onStockUpdate: () => {
         queryClient.invalidateQueries({ queryKey: ['inventory'] });
-        queryClient.invalidateQueries({ queryKey: ['piece_counts'] });
       },
       onCartConflict: ({ item, remainingStoreStock }) => {
         playScanErrorSound();
@@ -271,38 +271,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         });
         
         let finalSuggestions = parentData || [];
-        
-        // Check if search matches any active stock instances for current shop (when online)
-        if (navigator.onLine && supabase) {
-          try {
-            const shopId = localStorage.getItem('shop_id');
-            let instQuery = supabase.from('stock_instances')
-              .select('instance_barcode, current_length, parent_barcode, inventory:product_master(name, unit)')
-              .ilike('instance_barcode', `%${searchStr}%`)
-              .eq('is_active', true);
-            if (shopId) {
-              instQuery = instQuery.eq('shop_id', shopId);
-            }
-            const { data: instData } = await instQuery.limit(5);
-              
-            if (instData && instData.length > 0) {
-              const instanceSuggestions = instData.map(inst => {
-                const parentName = inst.inventory?.name || 'Unknown Item';
-                const parentUnit = inst.inventory?.unit || 'UNIT';
-                return {
-                  barcode: inst.instance_barcode,
-                  name: `${parentName} (Piece #${inst.instance_barcode.slice(-6)}) [${inst.current_length} ${parentUnit === 'SQFT' ? 'ft' : parentUnit}]`,
-                  isInstancePlaceholder: true // Just a visual flag
-                };
-              });
-              
-              // Add specific instances to the top of the list
-              finalSuggestions = [...instanceSuggestions, ...finalSuggestions];
-            }
-          } catch (instErr) {
-            console.warn("Stock instance suggestion error (offline/unavailable):", instErr);
-          }
-        }
         
         setSuggestions(finalSuggestions);
         setShowSuggestions(true);
@@ -375,210 +343,122 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     if (item) {
       const currentTab = activeTabRef.current;
 
-      // Cuttable items receive logic
-      if (item.is_cuttable && currentTab === 'receive') {
-        if (scannedInstanceBarcode) {
-          // Find the batch to attach its prices
-          let batch = null;
-          if (scannedBatchNumber !== null) {
-            batch = (item.batches || []).find(b => b.batch_number === scannedBatchNumber);
-            if (!batch) {
-              playScanErrorSound();
-              showAlertRef.current(`Batch #${String(scannedBatchNumber).padStart(2,'0')} of ${item.name} not found.`, "Batch Not Found");
+      // Cuttable items logic (Receive, Transfer, Checkout)
+      if (item.is_cuttable) {
+        // Resolve batch
+        let selectedBatch = null;
+        if (scannedBatchNumber !== null && item.batches) {
+          selectedBatch = item.batches.find(b => b.batch_number === scannedBatchNumber);
+        }
+
+        if (!selectedBatch && item.batches) {
+          if (item.batches.length === 1) {
+            selectedBatch = item.batches[0];
+          } else if (item.batches.length > 1) {
+            if (currentTab === 'checkout') {
+              const activeWithStock = item.batches.filter(b => Number(b.stock_store || 0) > 0);
+              if (activeWithStock.length === 1) {
+                selectedBatch = activeWithStock[0];
+              } else {
+                setSelectBatchModal({ isOpen: true, item, batches: item.batches });
+                setManualBarcode('');
+                return;
+              }
+            } else {
+              setSelectBatchModal({ isOpen: true, item, batches: item.batches });
+              setManualBarcode('');
               return;
             }
           }
-          if (!batch && item.batches && item.batches.length > 0) {
-            batch = item.batches[0]; // fallback
-          }
-
-          // 1. Initial synchronous check (fast path)
-          if (cartRef.current.some(c => c.instance_barcode === scannedInstanceBarcode)) {
-            playScanErrorSound();
-            showAlertRef.current(`Piece #${scannedInstanceBarcode} is already in the cart!`, "Duplicate Scan");
-            return;
-          }
-
-          // 2. Asynchronous check against database
-          const { data: existingInstance } = await supabase.from('stock_instances')
-            .select('id')
-            .eq('instance_barcode', scannedInstanceBarcode)
-            .maybeSingle();
-
-          if (existingInstance) {
-            playScanErrorSound();
-            showAlertRef.current(`Piece #${scannedInstanceBarcode} already exists in the warehouse!`, "Already Exists");
-            return;
-          }
-
-          // 3. Pure state update with race-condition fallback
-          playScanSuccessSound();
-          setCart(prev => {
-            if (prev.some(c => c.instance_barcode === scannedInstanceBarcode)) {
-              return prev; // Silently ignore duplicates to maintain purity
-            }
-            return [...prev, {
-              ...item, 
-              id: generateId(), 
-              instance_barcode: scannedInstanceBarcode,
-              scanned_barcode: cleanBarcode,
-              batch_id: batch ? batch.batch_id : null,
-              batch_number: batch ? batch.batch_number : null,
-              customPriceInput: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2), 
-              discountPct: 0, 
-              quantity: 1, 
-              unit: item.unit, 
-              length: '', 
-              width: '', 
-              default_length: item.default_length, 
-              default_width: item.default_width, 
-              has_preset_length: !!item.default_length, 
-              has_preset_width: !!item.default_width, 
-              purchase_cost: Number(batch?.purchase_cost ?? (item.cost_price || 0)).toFixed(2), 
-              selling_price: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2), 
-              msp_price: Number(calculateMSP(batch, item)).toFixed(2),
-              price: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2),
-              msp: Number(calculateMSP(batch, item)).toFixed(2)
-            }];
-          });
-        } else {
-          let autoSelectedBatch = null;
-          if (scannedBatchNumber !== null && item.batches) {
-            const specificBatch = item.batches.find(b => b.batch_number === scannedBatchNumber);
-            if (specificBatch) {
-              autoSelectedBatch = specificBatch;
-            } else {
-              playScanErrorSound();
-              return showAlertRef.current(`Batch #${String(scannedBatchNumber).padStart(2,'0')} of ${item.name} not found.`, "Batch Not Found");
-            }
-          }
-
-          let availableBatches = item.batches ? [...item.batches] : [];
-
-          if (autoSelectedBatch) {
-            availableBatches = [autoSelectedBatch];
-          }
-
-          if (availableBatches.length > 1 && !autoSelectedBatch) {
-            setSelectBatchModal({ isOpen: true, item, batches: availableBatches });
-            setManualBarcode('');
-            return;
-          } else if (availableBatches.length === 1 && !autoSelectedBatch) {
-            autoSelectedBatch = availableBatches[0];
-          } else if (availableBatches.length === 0) {
-            playScanErrorSound();
-            return showAlertRef.current(`No batches exist for ${item.name}. Please create a batch first.`, "No Batches");
-          }
-
-          setManualInstanceBarcodeModal({
-            isOpen: true,
-            item,
-            batch: autoSelectedBatch,
-            prefix: autoSelectedBatch ? `${item.barcode}-${String(autoSelectedBatch.batch_number).padStart(2, '0')}` : item.barcode,
-            barcodeInput: ''
-          });
         }
-        setManualBarcode('');
-        return;
-      }
 
-      // Cuttable items transfer logic
-      if (item.is_cuttable && currentTab === 'transfer') {
-        if (scannedInstanceBarcode) {
-          // Verify instance exists and get length if transferring
-          let instLength = item.default_length;
-          let instBatchId = null;
-          const shopId = item.shop_id || shopSettings?.id || localStorage.getItem('shop_id');
-          let instQuery = supabase.from('stock_instances').select('current_length, batch_id').eq('instance_barcode', scannedInstanceBarcode);
-          if (shopId) {
-            instQuery = instQuery.eq('shop_id', shopId);
-          }
-          const { data } = await instQuery.maybeSingle();
-          if (!data) {
-            playScanErrorSound();
-            return showAlertRef.current(`Piece #${scannedInstanceBarcode} does not exist!`, "Not Found");
-          }
-          if (!data.current_length || data.current_length <= 0) {
-            playScanErrorSound();
-            return showAlertRef.current(`Piece #${scannedInstanceBarcode} has no length left!`, "Empty Piece");
-          }
-          instLength = data.current_length;
-          instBatchId = data.batch_id;
+        if (!selectedBatch && (!item.batches || item.batches.length === 0)) {
+          playScanErrorSound();
+          showAlertRef.current(`No batches exist for ${item.name}. Please create a batch first in Inventory.`, "No Batches");
+          setManualBarcode('');
+          return;
+        }
 
-          // Add the scanned instance barcode directly to the cart as 1 piece
-          setCart(prev => {
-            const idx = prev.findIndex(c => c.instance_barcode === scannedInstanceBarcode);
-            if (idx >= 0) {
-              playScanErrorSound();
-              showAlertRef.current(`Piece #${scannedInstanceBarcode} is already in the cart!`, "Already Added");
-              return prev; // Already scanned
-            }
+        if (currentTab === 'receive') {
+          // Check if already in cart
+          const existingItem = cartRef.current.find(c => c.barcode === item.barcode && c.batch_id === selectedBatch?.batch_id);
+          if (existingItem) {
             playScanSuccessSound();
-            return [...prev, { ...item, id: generateId(), instance_barcode: scannedInstanceBarcode, batch_id: instBatchId, quantity: 1, unit: item.unit, length: '', width: '', default_length: item.default_length, default_width: item.default_width, pieceLength: instLength }];
+            setCart(prev => prev.map(c => {
+              if (c.barcode === item.barcode && c.batch_id === selectedBatch?.batch_id) {
+                const newPieces = (Number(c.quantity) || 0) + 1;
+                const isSqft = c.unit === 'SQFT';
+                const dLen = Number(c.default_length) || (isSqft ? 100 : 12);
+                const dWid = isSqft ? (Number(c.default_width) || 3) : 1;
+                const totalDim = isSqft ? (newPieces * dLen * dWid) : (newPieces * dLen);
+                return {
+                  ...c,
+                  quantity: newPieces,
+                  actual_quantity: totalDim,
+                  billableQuantity: totalDim
+                };
+              }
+              return c;
+            }));
+          } else {
+            setReceiveCuttableModal({
+              isOpen: true,
+              modalData: { item, batch: selectedBatch, action: 'receive' }
+            });
+          }
+          setManualBarcode('');
+          return;
+        }
+
+        if (currentTab === 'transfer') {
+          const existingItem = cartRef.current.find(c => c.barcode === item.barcode && c.batch_id === selectedBatch?.batch_id);
+          if (existingItem) {
+            const isSqft = item.unit === 'SQFT';
+            const dLen = Number(item.default_length) || (isSqft ? 100 : 12);
+            const dWid = isSqft ? (Number(item.default_width) || 3) : 1;
+            const singlePieceDim = isSqft ? (dLen * dWid) : dLen;
+            const currentPieces = Number(existingItem.quantity) || 0;
+            const maxPieces = Math.floor((Number(selectedBatch?.stock_warehouse) || 0) / singlePieceDim);
+
+            if (currentPieces + 1 > maxPieces) {
+              playScanErrorSound();
+              showAlertRef.current(`Only ${maxPieces} pieces available in warehouse for ${item.name}.`, "Stock Limit");
+              setManualBarcode('');
+              return;
+            }
+
+            playScanSuccessSound();
+            setCart(prev => prev.map(c => {
+              if (c.barcode === item.barcode && c.batch_id === selectedBatch?.batch_id) {
+                const newPieces = currentPieces + 1;
+                const totalDim = newPieces * singlePieceDim;
+                return {
+                  ...c,
+                  quantity: newPieces,
+                  actual_quantity: totalDim,
+                  billableQuantity: totalDim
+                };
+              }
+              return c;
+            }));
+          } else {
+            setReceiveCuttableModal({
+              isOpen: true,
+              modalData: { item, batch: selectedBatch, action: 'transfer' }
+            });
+          }
+          setManualBarcode('');
+          return;
+        }
+
+        if (currentTab === 'checkout') {
+          setCuttableCheckoutModal({
+            isOpen: true,
+            modalData: { item, batch: selectedBatch }
           });
           setManualBarcode('');
           return;
-        } else {
-          // They searched the generic parent name in transfer mode
-          setSelectPieceModal({ isOpen: true, item, instances: [], isLoading: true, action: 'transfer' });
-          if (navigator.onLine) {
-            supabase.rpc('get_stock_instances', { p_barcode: String(item.barcode) })
-              .then(({ data }) => {
-                const activeWarehousePieces = (data || []).filter(p => p.is_active && p.location === 'Warehouse');
-                setSelectPieceModal(prev => ({ ...prev, instances: activeWarehousePieces, isLoading: false }));
-              })
-              .catch(() => setSelectPieceModal(prev => ({ ...prev, isLoading: false })));
-          } else {
-            setSelectPieceModal(prev => ({ ...prev, isLoading: false }));
-            playScanErrorSound();
-            showAlertRef.current("Cannot view active pieces while offline.", "Offline");
-          }
-          return;
         }
-      }
-
-      // Cuttable items logic (only applies in Checkout/Sale mode)
-      if (item.is_cuttable && currentTab === 'checkout') {
-        if (scannedInstanceBarcode) {
-          // They scanned a specific piece directly
-          setCutLengthModal({
-            isOpen: true,
-            item,
-            instance: { instance_barcode: scannedInstanceBarcode, current_length: '...' },
-            cutQty: '',
-            discardScrap: false
-          });
-          
-          if (navigator.onLine) {
-            const shopId = item.shop_id || shopSettings?.id || localStorage.getItem('shop_id');
-            let instQuery = supabase.from('stock_instances').select('*').eq('instance_barcode', scannedInstanceBarcode);
-            if (shopId) {
-              instQuery = instQuery.eq('shop_id', shopId);
-            }
-            instQuery.maybeSingle().then(({ data }) => {
-              if (data) {
-                setCutLengthModal(prev => prev.instance?.instance_barcode === scannedInstanceBarcode ? { ...prev, instance: data } : prev);
-              } else {
-                setCutLengthModal(prev => prev.instance?.instance_barcode === scannedInstanceBarcode ? { ...prev, instance: { instance_barcode: scannedInstanceBarcode, current_length: '?' } } : prev);
-              }
-            });
-          }
-        } else {
-          // They searched the generic parent name
-          setSelectPieceModal({ isOpen: true, item, instances: [], isLoading: true, action: 'checkout' });
-          if (navigator.onLine) {
-            supabase.rpc('get_stock_instances', { p_barcode: String(item.barcode) })
-              .then(({ data }) => {
-                const activeStorePieces = (data || []).filter(p => p.is_active && p.location === 'Store');
-                setSelectPieceModal(prev => ({ ...prev, instances: activeStorePieces, isLoading: false }));
-              })
-              .catch(() => setSelectPieceModal(prev => ({ ...prev, isLoading: false })));
-          } else {
-            setSelectPieceModal(prev => ({ ...prev, isLoading: false }));
-            showAlertRef.current("Cannot view active pieces while offline.", "Offline");
-          }
-        }
-        return;
       }
 
       // Normal items batch auto-selection if scanned a specific batch barcode
@@ -787,15 +667,26 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     const item = selectBatchModal.item;
     setSelectBatchModal({ isOpen: false, item: null, batches: [] });
     
-    if (item.is_cuttable && activeTabRef.current === 'receive') {
-      setManualInstanceBarcodeModal({
-        isOpen: true,
-        item,
-        batch,
-        prefix: `${item.barcode}-${String(batch.batch_number).padStart(2, '0')}`,
-        barcodeInput: ''
-      });
-      return;
+    if (item.is_cuttable) {
+      if (activeTabRef.current === 'receive') {
+        setReceiveCuttableModal({
+          isOpen: true,
+          modalData: { item, batch, action: 'receive' }
+        });
+        return;
+      } else if (activeTabRef.current === 'transfer') {
+        setReceiveCuttableModal({
+          isOpen: true,
+          modalData: { item, batch, action: 'transfer' }
+        });
+        return;
+      } else if (activeTabRef.current === 'checkout') {
+        setCuttableCheckoutModal({
+          isOpen: true,
+          modalData: { item, batch }
+        });
+        return;
+      }
     }
     
     playScanSuccessSound();
@@ -827,141 +718,85 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     });
   };
 
-  const handleCutLengthSubmit = (e) => {
-    if (e) e.preventDefault();
-    const { item, instance, cutQty, discardScrap } = cutLengthModal;
-    const addQty = Math.round((Number(cutQty) || 0) * 100) / 100;
-
-    if (addQty <= 0) {
-      setCutLengthModal({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false });
-      return;
-    }
-
-    const currentLength = Number(instance.current_length);
-    const alreadyInCart = cart.filter(c => c.instance_barcode === instance.instance_barcode).reduce((tot, c) => tot + ((Number(c.length) || Number(c.pieceLength) || 0) * (Number(c.rolls) || 1)), 0);
-    const availableLength = Math.round((currentLength - alreadyInCart) * 100) / 100;
-    if (!isNaN(currentLength) && addQty > availableLength) {
-      playScanErrorSound();
-      if (alreadyInCart > 0) {
-        showAlert(`You already have ${alreadyInCart}${item.unit} of this piece in the cart. You only have ${availableLength.toFixed(2)}${item.unit} left!`, "Invalid Cut");
-      } else {
-        showAlert(`You are trying to cut ${addQty}${item.unit}, but the piece only has ${currentLength}${item.unit} left!`, "Invalid Cut");
-      }
-      return;
-    }
-
+  const handleReceiveCuttableSubmit = ({ pieces, totalDimension, item, batch }) => {
     playScanSuccessSound();
     setCart(prev => {
-      const batch = item.batches?.find(b => b.batch_id === instance.batch_id);
-      const sellingPrice = batch?.selling_price ?? (item.price || 0);
-      const purchaseCost = batch?.purchase_cost ?? (item.cost_price || 0);
-      const mspPrice = batch?.msp ?? (item.msp || 0);
-
+      const existingIdx = prev.findIndex(c => c.barcode === item.barcode && c.batch_id === batch?.batch_id);
+      if (existingIdx >= 0) {
+        const updated = [...prev];
+        const newPieces = (Number(updated[existingIdx].quantity) || 0) + pieces;
+        const isSqft = item.unit === 'SQFT';
+        const dLen = Number(item.default_length) || (isSqft ? 100 : 12);
+        const dWid = isSqft ? (Number(item.default_width) || 3) : 1;
+        const totalDim = isSqft ? (newPieces * dLen * dWid) : (newPieces * dLen);
+        updated[existingIdx] = {
+          ...updated[existingIdx],
+          quantity: newPieces,
+          actual_quantity: totalDim,
+          billableQuantity: totalDim
+        };
+        return updated;
+      }
       return [...prev, {
         ...item,
         id: generateId(),
-        instance_barcode: instance.instance_barcode,
-        batch_id: instance.batch_id,
-        batch_number: batch?.batch_number ?? null,
-        purchase_cost: Number(purchaseCost).toFixed(2),
-        selling_price: Number(sellingPrice).toFixed(2),
-        msp_price: Number(mspPrice).toFixed(2),
-        price: Number(sellingPrice).toFixed(2),
-        msp: Number(mspPrice).toFixed(2),
-        discard_scrap: discardScrap && (availableLength - addQty < 1) && (availableLength - addQty > 0),
-        name: item.name,
-        customPriceInput: Number(sellingPrice).toFixed(2),
-        discountPct: 0,
-        quantity: item.unit === 'SQFT' ? parseFloat((addQty * (Number(item.default_width) || 1)).toFixed(2)) : addQty,
-        billableQuantity: (item.billing_method || 'exact') === 'round_up' ? Math.ceil(Number(item.unit === 'SQFT' ? parseFloat((addQty * (Number(item.default_width) || 1)).toFixed(2)) : addQty) * 2) / 2 : (item.unit === 'SQFT' ? parseFloat((addQty * (Number(item.default_width) || 1)).toFixed(2)) : addQty),
-        unit: item.unit || 'PCS',
-        length: addQty, 
-        width: Number(item.default_width) || '',
-        pieceLength: addQty,
-        rolls: '1',
-        max_available_length: currentLength
-      }];
-    });
-    setCutLengthModal({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false });
-  };
-
-  const addReceivedCuttableItem = (item, length, batch, instanceBarcode = null) => {
-    playScanSuccessSound();
-    setCart(prev => {
-      return [...prev, { 
-        ...item, 
-        id: generateId(),
-        instance_barcode: instanceBarcode,
-        scanned_barcode: instanceBarcode || (batch ? `${item.barcode}-${String(batch.batch_number).padStart(2, '0')}` : item.barcode),
-        quantity: 1, 
-        billableQuantity: 1,
-        pieceLength: length, 
+        scanned_barcode: batch?.batch_number ? `${item.barcode}-${String(batch.batch_number).padStart(2, '0')}` : item.barcode,
         batch_id: batch?.batch_id || null,
         batch_number: batch?.batch_number || null,
-        customPriceInput: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2),
+        quantity: pieces,
+        actual_quantity: totalDimension,
+        billableQuantity: totalDimension,
+        unit: item.unit,
+        default_length: item.default_length,
+        default_width: item.default_width,
         purchase_cost: Number(batch?.purchase_cost ?? (item.cost_price || 0)).toFixed(2),
         selling_price: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2),
         msp_price: Number(calculateMSP(batch, item)).toFixed(2),
         price: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2),
-        msp: Number(batch?.msp ?? (item.msp || 0)).toFixed(2)
+        msp: Number(calculateMSP(batch, item)).toFixed(2),
+        customPriceInput: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2),
+        discountPct: 0,
+        is_cuttable: true,
+        instance_barcode: null
       }];
     });
+    setReceiveCuttableModal({ isOpen: false, modalData: null });
   };
 
-  const handleReceiveLengthSubmit = (e) => {
-    if (e) e.preventDefault();
-    if (!receiveLengthModal.length) return;
-    addReceivedCuttableItem(receiveLengthModal.item, receiveLengthModal.length, receiveLengthModal.batch, receiveLengthModal.instanceBarcode);
-    setReceiveLengthModal({ isOpen: false, item: null, length: '', batch: null, instanceBarcode: null });
-  };
-
-  const handleManualInstanceBarcodeSubmit = async (e) => {
-    if (e) e.preventDefault();
-    const { item, batch, barcodeInput, prefix } = manualInstanceBarcodeModal;
-    
-    const cleanInput = (barcodeInput || '').trim();
-    if (cleanInput.length < 2) {
-      playScanErrorSound();
-      setManualInstanceBarcodeModal(prev => ({ ...prev, error: "Please enter exactly 2 digits (e.g. 03)." }));
-      return;
-    }
-
-    const fullBarcode = `${prefix}${cleanInput}`;
-
-    if (cart.some(c => c.instance_barcode === fullBarcode)) {
-      playScanErrorSound();
-      setManualInstanceBarcodeModal(prev => ({ ...prev, error: `Piece #${fullBarcode} is already in the cart!` }));
-      return;
-    }
-
-    try {
-      const shopId = item.shop_id || shopSettings?.id || localStorage.getItem('shop_id');
-      let existQuery = supabase.from('stock_instances').select('id').eq('instance_barcode', fullBarcode);
-      if (shopId) {
-        existQuery = existQuery.eq('shop_id', shopId);
-      }
-      const { data: existing } = await existQuery.maybeSingle();
-      if (existing) {
-        playScanErrorSound();
-        setManualInstanceBarcodeModal(prev => ({ ...prev, error: `Piece #${fullBarcode} already exists in the system!` }));
-        return;
-      }
-    } catch (err) {
-      console.error(err);
-    }
-
-    if (item.default_length) {
-      addReceivedCuttableItem(item, item.default_length, batch, fullBarcode);
-    } else {
-      setReceiveLengthModal({
-        isOpen: true,
-        item,
-        batch,
-        length: '',
-        instanceBarcode: fullBarcode
-      });
-    }
-    setManualInstanceBarcodeModal({ isOpen: false, item: null, batch: null, barcodeInput: '', prefix: '' });
+  const handleCuttableCheckoutSubmit = (data) => {
+    playScanSuccessSound();
+    const { item, batch, mode, billableQty, deductQty, cutPieces, cutLength, scrapAction, scrapLeftover } = data;
+    const sellPrice = Number(batch?.selling_price ?? (item.price || 0));
+    setCart(prev => {
+      return [...prev, {
+        ...item,
+        id: generateId(),
+        scanned_barcode: batch?.batch_number ? `${item.barcode}-${String(batch.batch_number).padStart(2, '0')}` : item.barcode,
+        batch_id: batch?.batch_id || null,
+        batch_number: batch?.batch_number || null,
+        quantity: billableQty,
+        actual_quantity: deductQty,
+        billableQuantity: billableQty,
+        cut_pieces: cutPieces,
+        cut_length: cutLength,
+        is_full_piece: mode === 'full',
+        scrap_action: scrapAction,
+        scrap_leftover: scrapLeftover,
+        unit: item.unit,
+        default_length: item.default_length,
+        default_width: item.default_width,
+        purchase_cost: Number(batch?.purchase_cost ?? (item.cost_price || 0)).toFixed(2),
+        selling_price: Number(sellPrice).toFixed(2),
+        msp_price: Number(calculateMSP(batch, item)).toFixed(2),
+        price: Number(sellPrice).toFixed(2),
+        msp: Number(calculateMSP(batch, item)).toFixed(2),
+        customPriceInput: Number(sellPrice).toFixed(2),
+        discountPct: 0,
+        is_cuttable: true,
+        instance_barcode: null
+      }];
+    });
+    setCuttableCheckoutModal({ isOpen: false, modalData: null });
   };
 
   const updateQuantity = useCallback((id, val, explicitGrams) => {
@@ -982,23 +817,30 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           );
 
           if (activeTab === 'checkout' && val !== '') {
-            if (i.is_cuttable && i.instance_barcode && i.unit !== 'SQFT') {
-              const maxLength = Number(i.max_available_length || 0);
-              if (newQty > maxLength) {
-                limitMsg = `You only have ${maxLength} ${i.unit} left on this piece.`;
-                newQty = maxLength;
-              }
-            } else {
-              const maxStock = i.batch_id && i.batches ? Number(i.batches.find(b => b.batch_id === i.batch_id)?.stock_store || 0) : Number(i.stock_store || 0);
-              if (newQty > maxStock) {
-                limitMsg = isLooseKg 
-                  ? `You only have ${maxStock} kg in this batch in the store.`
-                  : `You only have ${maxStock} in this batch in the store.`;
-                newQty = maxStock;
-              }
+            const maxStock = i.batch_id && i.batches ? Number(i.batches.find(b => b.batch_id === i.batch_id)?.stock_store || 0) : Number(i.stock_store || 0);
+            if (newQty > maxStock) {
+              limitMsg = isLooseKg 
+                ? `You only have ${maxStock} kg in this batch in the store.`
+                : `You only have ${maxStock} in this batch in the store.`;
+              newQty = maxStock;
             }
           }
           
+          if (i.is_cuttable && (activeTab === 'receive' || activeTab === 'transfer')) {
+            const isSqft = i.unit === 'SQFT';
+            const dLen = Number(i.default_length) || (isSqft ? 100 : 12);
+            const dWid = isSqft ? (Number(i.default_width) || 3) : 1;
+            const singleDim = isSqft ? (dLen * dWid) : dLen;
+            const totalDim = Math.round((Number(newQty) || 0) * singleDim * 100) / 100;
+            return {
+              ...i,
+              quantity: newQty,
+              actual_quantity: totalDim,
+              billableQuantity: totalDim,
+              customTotalInput: undefined
+            };
+          }
+
           let billableQty = newQty;
           const method = i.billing_method || 'exact';
           if (method === 'round_up' && newQty !== '') {
@@ -1480,31 +1322,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       }
     }
 
-    if (activeTab === 'transfer') {
-      const missingInstance = finalCart.filter(i => i.unit === 'SQFT' && !i.instance_barcode);
-      if (missingInstance.length > 0) {
-        showAlert(`For cuttable items, you MUST scan the unique roll barcode to transfer it. You cannot transfer the generic item.`, "Unique Barcode Required");
-        return;
-      }
-    }
-
     if (activeTab === 'receive') {
-      const missingDefaults = finalCart.filter(i => i.unit === 'SQFT' && (!i.default_length || !i.default_width));
+      const missingDefaults = finalCart.filter(i => i.is_cuttable && !i.default_length);
       if (missingDefaults.length > 0) {
-        showAlert(`Please set Default Roll Dimensions in the Catalog for: ${missingDefaults.map(i => i.name).join(', ')}`, "Missing Dimensions");
-        return;
-      }
-    }
-
-    if (activeTab === 'checkout') {
-      const missingInstance = finalCart.filter(i => i.unit === 'SQFT' && !i.instance_barcode);
-      if (missingInstance.length > 0) {
-        showAlert(`For cuttable items, you MUST scan the unique roll barcode to sell it.`, "Unique Barcode Required");
-        return;
-      }
-      const missingDimensions = finalCart.filter(i => i.unit === 'SQFT' && (!i.length || !i.width));
-      if (missingDimensions.length > 0) {
-        showAlert(`Please specify Length and Height for all Cuttable Stock items.`, "Missing Dimensions");
+        showAlert(`Please set Default Length in the Catalog for: ${missingDefaults.map(i => i.name).join(', ')}`, "Missing Dimensions");
         return;
       }
     }
@@ -1694,23 +1515,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         p_items: finalCart.filter(i => !i.is_screw && i.barcode !== 'SCREWS').map(i => {
           let calcQuantity = Number(i.quantity);
           if (i.is_cuttable) {
-            if (i.unit === 'SQFT') {
-              if (activeTab === 'receive') {
-                calcQuantity = Number(i.quantity) * Number(i.default_length) * Number(i.default_width);
-              } else if (activeTab === 'transfer') {
-                let pl = Number(i.pieceLength);
-                if (isNaN(pl)) pl = Number(i.default_length);
-                calcQuantity = pl * Number(i.default_width);
-              }
+            if (activeTab === 'receive' || activeTab === 'transfer') {
+              const isSqft = i.unit === 'SQFT';
+              const dLen = Number(i.default_length) || (isSqft ? 100 : 12);
+              const dWid = isSqft ? (Number(i.default_width) || 3) : 1;
+              calcQuantity = Math.round(Number(i.quantity) * dLen * (isSqft ? dWid : 1) * 100) / 100;
             } else {
-              // For METER/FT etc, receive/transfer quantity is just the length
-              if (activeTab === 'receive') {
-                calcQuantity = Number(i.quantity) * Number(i.default_length);
-              } else if (activeTab === 'transfer') {
-                let pl = Number(i.pieceLength);
-                if (isNaN(pl)) pl = Number(i.default_length);
-                calcQuantity = pl;
-              }
+              calcQuantity = Number(i.actual_quantity !== undefined ? i.actual_quantity : i.quantity);
             }
           }
           const finalPrice = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0);
@@ -1719,14 +1530,14 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             name: i.name,
             batch_id: i.batch_id || null,
             actual_quantity: calcQuantity,
-            billable_quantity: i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : calcQuantity,
+            billable_quantity: i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : (i.is_cuttable ? Number(i.quantity) : calcQuantity),
             system_price: i.selling_price !== undefined ? Number(i.selling_price) : Number(i.price || 0),
             final_price: finalPrice,
             negotiated_discount: i.discountPct || 0,
             unit: i.unit,
-            instance_barcode: i.instance_barcode || null,
-            cut_length: i.is_cuttable ? ((Number(i.length) || Number(i.pieceLength) || 0) * (Number(i.rolls) || 1)) : null,
-            discard_scrap: i.discard_scrap || false,
+            instance_barcode: null,
+            cut_length: i.cut_length || null,
+            discard_scrap: i.scrap_action === 'discard',
             num_rolls: (activeTab === 'receive' && i.is_cuttable) ? Number(i.quantity) : null,
             default_length: i.default_length ? Number(i.default_length) : null,
             default_width: i.default_width ? Number(i.default_width) : null,
@@ -1915,18 +1726,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                 if (shopId) updateProd = updateProd.eq('shop_id', shopId);
                 await updateProd;
               }
-
-              if (item.is_cuttable) {
-                let updateInst = supabase
-                  .from('stock_instances')
-                  .update({ location: 'Store' })
-                  .eq('parent_barcode', item.barcode)
-                  .eq('location', 'Warehouse');
-                if (shopId) {
-                  updateInst = updateInst.eq('shop_id', shopId);
-                }
-                await updateInst;
-              }
             }
           }
         } catch (e) {
@@ -1936,9 +1735,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['inventory_item'] });
       queryClient.invalidateQueries({ queryKey: ['product_master'] });
-      // Also invalidate piece_counts for cuttable items so WHSE/STORE QTY refreshes
-      queryClient.invalidateQueries({ queryKey: ['piece_counts'] });
-      queryClient.invalidateQueries({ queryKey: ['stock_instances'] });
       queryClient.invalidateQueries({ queryKey: ['bills'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       queryClient.invalidateQueries({ queryKey: ['sales-trend'] });
@@ -1950,8 +1746,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         // Trigger background sync to ensure true consistency with server
         syncInventoryToLocal(userRole).then(() => {
           queryClient.invalidateQueries({ queryKey: ['inventory'] });
-          queryClient.invalidateQueries({ queryKey: ['piece_counts'] });
-          queryClient.invalidateQueries({ queryKey: ['stock_instances'] });
         });
       }
 
@@ -2074,8 +1868,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         // Force a sync to fix local IDB drift if transaction failed due to stock mismatch
         syncInventoryToLocal(userRole).then(() => {
           queryClient.invalidateQueries({ queryKey: ['inventory'] });
-          queryClient.invalidateQueries({ queryKey: ['piece_counts'] });
-          queryClient.invalidateQueries({ queryKey: ['stock_instances'] });
         });
       }
     } finally {
@@ -2201,7 +1993,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       }
 
       // If other modals are open, skip hotkeys
-      if (looseItemModal.isOpen || selectPieceModal.isOpen || cutLengthModal.isOpen || receiveLengthModal.isOpen) {
+      if (looseItemModal.isOpen || receiveCuttableModal.isOpen || cuttableCheckoutModal.isOpen) {
         return;
       }
 
@@ -2429,9 +2221,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     calculateTotal,
     printPreviewOpen,
     looseItemModal.isOpen,
-    selectPieceModal.isOpen,
-    cutLengthModal.isOpen,
-    receiveLengthModal.isOpen,
+    receiveCuttableModal.isOpen,
+    cuttableCheckoutModal.isOpen,
     cart,
     selectedCartIndex,
     activeTab,
@@ -2511,42 +2302,18 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         onClose={() => setLooseItemModal({ isOpen: false, item: null, qty: '' })}
       />
 
-      <SelectPieceModal
-        isOpen={selectPieceModal.isOpen}
-        selectPieceModal={selectPieceModal}
-        setSelectPieceModal={setSelectPieceModal}
-        cart={cart}
-        setCart={setCart}
-        generateId={generateId}
-        setManualBarcode={setManualBarcode}
-        setCutLengthModal={setCutLengthModal}
-        showAlertRef={showAlertRef}
-        onClose={() => setSelectPieceModal({ isOpen: false, item: null, instances: [], isLoading: false, action: 'checkout' })}
+      <ReceiveCuttableModal
+        isOpen={receiveCuttableModal.isOpen}
+        modalData={receiveCuttableModal.modalData}
+        onSubmit={handleReceiveCuttableSubmit}
+        onClose={() => setReceiveCuttableModal({ isOpen: false, modalData: null })}
       />
 
-      <ReceiveLengthModal
-        isOpen={receiveLengthModal.isOpen}
-        receiveLengthModal={receiveLengthModal}
-        setReceiveLengthModal={setReceiveLengthModal}
-        onSubmit={handleReceiveLengthSubmit}
-        onClose={() => setReceiveLengthModal({ isOpen: false, item: null, length: '', batch: null, instanceBarcode: null })}
-      />
-
-      <ManualInstanceBarcodeModal
-        isOpen={manualInstanceBarcodeModal.isOpen}
-        manualInstanceBarcodeModal={manualInstanceBarcodeModal}
-        setManualInstanceBarcodeModal={setManualInstanceBarcodeModal}
-        onSubmit={handleManualInstanceBarcodeSubmit}
-        onClose={() => setManualInstanceBarcodeModal({ isOpen: false, item: null, batch: null, barcodeInput: '', prefix: '', error: null })}
-      />
-
-      <CutLengthModal
-        isOpen={cutLengthModal.isOpen}
-        cutLengthModal={cutLengthModal}
-        setCutLengthModal={setCutLengthModal}
-        cart={cart}
-        onSubmit={handleCutLengthSubmit}
-        onClose={() => setCutLengthModal({ isOpen: false, item: null, instance: null, cutQty: '', discardScrap: false })}
+      <CuttableCheckoutModal
+        isOpen={cuttableCheckoutModal.isOpen}
+        modalData={cuttableCheckoutModal.modalData}
+        onSubmit={handleCuttableCheckoutSubmit}
+        onClose={() => setCuttableCheckoutModal({ isOpen: false, modalData: null })}
       />
 
       <ScrewsModal

@@ -71,45 +71,8 @@ export default function InventoryRow({
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, []);
-  const { data: pieceCounts } = useQuery({
-    queryKey: ['piece_counts', shopId, item.barcode],
-    queryFn: async () => {
-      let query = supabase
-        .from('stock_instances')
-        .select('location, batch_id')
-        .eq('parent_barcode', String(item.barcode))
-        .eq('is_active', true)
-        .gt('current_length', 0);
-      if (shopId) {
-        query = query.eq('shop_id', shopId);
-      }
-      const { data, error } = await query;
-        
-      if (error) {
-        console.error("Piece counts error for", item.barcode, error);
-        throw error;
-      }
-      
-      const counts = { warehouse: 0, store: 0, byBatch: {} };
-      data?.forEach(instance => {
-        const loc = (instance.location || 'store').toLowerCase();
-        if (loc === 'warehouse') counts.warehouse++;
-        else counts.store++;
-        
-        if (instance.batch_id) {
-          if (!counts.byBatch[instance.batch_id]) counts.byBatch[instance.batch_id] = { warehouse: 0, store: 0 };
-          if (loc === 'warehouse') counts.byBatch[instance.batch_id].warehouse++;
-          else counts.byBatch[instance.batch_id].store++;
-        }
-      });
-      
-      return counts;
-    },
-    enabled: !!item.is_cuttable,
-    staleTime: 30 * 1000,
-  });
 
-  const displayUnit = (item.unit?.toLowerCase() === 'kg' || item.unit?.toLowerCase() === 'grams') ? 'kg' : item.unit?.toLowerCase() === 'meter' ? 'm' : item.unit?.toLowerCase() === 'sqft' ? 'ft' : (item.unit || '');
+  const displayUnit = (item.unit?.toLowerCase() === 'kg' || item.unit?.toLowerCase() === 'grams') ? 'kg' : item.unit?.toLowerCase() === 'meter' ? 'm' : item.unit?.toLowerCase() === 'sqft' ? 'sqft' : (item.unit || '');
   const availableSubcategories = subcategories?.filter(sub => sub.category_name === (editData?.category || item.category)) || [];
   const activeBatches = useMemo(() => {
     const seenIds = new Set();
@@ -417,24 +380,12 @@ export default function InventoryRow({
               {!isWarehouseDisabled && (
                 <div>
                   <label className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Warehouse Stock</label>
-                  {item.is_cuttable ? (
-                    <div className="h-9 px-2 flex items-center justify-center text-xs rounded bg-[var(--bg-secondary)] text-[var(--text-tertiary)] border border-[var(--border-medium)]">
-                      {pieceCounts ? pieceCounts.warehouse : '...'} PCS
-                    </div>
-                  ) : (
-                    <input type="number" step="any" min="0" value={data.stock_warehouse ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_warehouse', e.target.value)} className="h-9 px-2 w-full text-xs text-center rounded focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-                  )}
+                  <input type="number" step="any" min="0" value={data.stock_warehouse ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_warehouse', e.target.value)} className="h-9 px-2 w-full text-xs text-center rounded focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                 </div>
               )}
               <div>
                 <label className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">{isWarehouseDisabled ? 'Total Stock' : 'Store Stock'}</label>
-                {item.is_cuttable ? (
-                  <div className="h-9 px-2 flex items-center justify-center text-xs rounded bg-[var(--bg-secondary)] text-[var(--text-tertiary)] border border-[var(--border-medium)]">
-                    {pieceCounts ? pieceCounts.store : '...'} PCS
-                  </div>
-                ) : (
-                  <input type="number" step="any" min="0" value={data.stock_store ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_store', e.target.value)} className="h-9 px-2 w-full text-xs text-center rounded focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-                )}
+                <input type="number" step="any" min="0" value={data.stock_store ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_store', e.target.value)} className="h-9 px-2 w-full text-xs text-center rounded focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
               </div>
             </div>
             <div>
@@ -489,23 +440,11 @@ export default function InventoryRow({
 
         {!isWarehouseDisabled && (
           <td className="hidden md:table-cell p-1" style={{ borderRight: '1px solid var(--border-medium)' }}>
-            {item.is_cuttable ? (
-              <div className="h-8 px-2 w-full text-sm flex justify-center items-center" title="Cannot edit warehouse aggregate directly" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-tertiary)', cursor: 'not-allowed' }}>
-                {pieceCounts ? pieceCounts.warehouse : '...'} <span className="ml-1 text-[10px]">PCS</span>
-              </div>
-            ) : (
-              <input type="number" step="any" min="0" value={data.stock_warehouse ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_warehouse', e.target.value)} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-            )}
+            <input type="number" step="any" min="0" value={data.stock_warehouse ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_warehouse', e.target.value)} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
           </td>
         )}
         <td className="hidden md:table-cell p-1" style={{ borderRight: '1px solid var(--border-medium)' }}>
-          {item.is_cuttable ? (
-            <div className="h-8 px-2 w-full text-sm flex justify-center items-center" title="Cannot edit store aggregate directly" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-tertiary)', cursor: 'not-allowed' }}>
-              {pieceCounts ? pieceCounts.store : '...'} <span className="ml-1 text-[10px]">PCS</span>
-            </div>
-          ) : (
-            <input type="number" step="any" min="0" value={data.stock_store ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_store', e.target.value)} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-          )}
+          <input type="number" step="any" min="0" value={data.stock_store ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_store', e.target.value)} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
         </td>
         <td className="hidden md:table-cell p-1 text-center text-xs text-[var(--text-tertiary)]">
           Editing
@@ -585,14 +524,14 @@ export default function InventoryRow({
             <div className="flex items-center gap-2 shrink-0">
               <div className="text-right">
                 <div className="text-xs font-bold text-[var(--text-primary)] tabular-nums leading-none">
-                  {item.is_cuttable ? (pieceCounts ? pieceCounts.store : '...') : totalStore}
+                  {totalStore}
                   <span className="text-[9px] font-normal text-[var(--text-secondary)] uppercase ml-0.5">
-                    {item.is_cuttable ? 'PCS' : displayUnit}
+                    {displayUnit}
                   </span>
                 </div>
                 {!isWarehouseDisabled && (
                   <div className="text-[9px] text-[var(--text-tertiary)] tabular-nums mt-0.5">
-                    Whse: {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : totalWhse}
+                    Whse: {totalWhse} {displayUnit}
                   </div>
                 )}
               </div>
@@ -711,11 +650,11 @@ export default function InventoryRow({
       {/* Pricing removed from parent row */}
       {!isWarehouseDisabled && (
         <td className="hidden md:table-cell p-3 w-24 lg:w-28 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
-          {item.is_cuttable ? (pieceCounts ? pieceCounts.warehouse : '...') : totalWhse} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : displayUnit}</span>
+          {totalWhse} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{displayUnit}</span>
         </td>
       )}
       <td className="hidden md:table-cell p-3 w-24 lg:w-28 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
-        {item.is_cuttable ? (pieceCounts ? pieceCounts.store : '...') : totalStore} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{item.is_cuttable ? 'PCS' : displayUnit}</span>
+        {totalStore} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{displayUnit}</span>
       </td>
       <td className="hidden md:table-cell p-3 w-28 lg:w-32 text-center">
         {viewType === 'recycle' ? (

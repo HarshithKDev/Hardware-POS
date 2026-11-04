@@ -396,56 +396,32 @@ export default function OwnerLedger({ isActive }) {
         if (billError) throw billError;
       }
 
-      // Restore stock for selected items
+      // Restore stock for selected items directly to inventory_batches
       for (const item of itemsToReturn) {
         const qtyToRestore = item.returnQuantity;
-        if (item.instance_barcode) {
-          let instQuery = supabase.from('stock_instances').select('original_length, current_length').eq('instance_barcode', item.instance_barcode);
+        let targetBatchId = item.batch_id;
+        if (!targetBatchId) {
+           let bQuery = supabase.from('inventory_batches').select('batch_id').eq('barcode', item.barcode);
+           if (shopId) {
+             bQuery = bQuery.eq('shop_id', shopId);
+           }
+           const { data: batches } = await bQuery.limit(1);
+           if (batches && batches.length > 0) targetBatchId = batches[0].batch_id;
+        }
+        
+        if (targetBatchId) {
+          let bStockQuery = supabase.from('inventory_batches').select('stock_store').eq('batch_id', targetBatchId);
           if (shopId) {
-            instQuery = instQuery.eq('shop_id', shopId);
+            bStockQuery = bStockQuery.eq('shop_id', shopId);
           }
-          const { data: inst } = await instQuery.maybeSingle();
-          if (inst) {
-            const currentLen = Number(inst.current_length || 0);
-            const maxLen = Number(inst.original_length || currentLen + Number(qtyToRestore));
-            const restoredLen = Math.min(maxLen, currentLen + Number(qtyToRestore));
-            let updateInst = supabase
-              .from('stock_instances')
-              .update({ 
-                status: 'available', 
-                current_length: restoredLen 
-              })
-              .eq('instance_barcode', item.instance_barcode);
+          const { data: batch } = await bStockQuery.maybeSingle();
+          if (batch) {
+            const newStock = Number(batch.stock_store || 0) + Number(qtyToRestore);
+            let updateBatch = supabase.from('inventory_batches').update({ stock_store: newStock }).eq('batch_id', targetBatchId);
             if (shopId) {
-              updateInst = updateInst.eq('shop_id', shopId);
+              updateBatch = updateBatch.eq('shop_id', shopId);
             }
-            await updateInst;
-          }
-        } else {
-          let targetBatchId = item.batch_id;
-          if (!targetBatchId) {
-             let bQuery = supabase.from('inventory_batches').select('batch_id').eq('barcode', item.barcode);
-             if (shopId) {
-               bQuery = bQuery.eq('shop_id', shopId);
-             }
-             const { data: batches } = await bQuery.limit(1);
-             if (batches && batches.length > 0) targetBatchId = batches[0].batch_id;
-          }
-          
-          if (targetBatchId) {
-            let bStockQuery = supabase.from('inventory_batches').select('stock_store').eq('batch_id', targetBatchId);
-            if (shopId) {
-              bStockQuery = bStockQuery.eq('shop_id', shopId);
-            }
-            const { data: batch } = await bStockQuery.maybeSingle();
-            if (batch) {
-              const newStock = Number(batch.stock_store || 0) + qtyToRestore;
-              let updateBatch = supabase.from('inventory_batches').update({ stock_store: newStock }).eq('batch_id', targetBatchId);
-              if (shopId) {
-                updateBatch = updateBatch.eq('shop_id', shopId);
-              }
-              await updateBatch;
-            }
+            await updateBatch;
           }
         }
 
@@ -489,8 +465,6 @@ export default function OwnerLedger({ isActive }) {
       showAlert(`Successfully returned ${isAll ? 'full bill' : 'selected items'}.`, "Success");
       queryClient.invalidateQueries({ queryKey: ['bills'] });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
-      queryClient.invalidateQueries({ queryKey: ['piece_counts'] });
-      queryClient.invalidateQueries({ queryKey: ['stock_instances'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       
       if (!isAll) {

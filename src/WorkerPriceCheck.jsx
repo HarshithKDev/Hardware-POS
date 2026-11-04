@@ -184,15 +184,6 @@ export default function WorkerPriceCheck() {
           if (!isNaN(batchNum) && parentItem.batches) {
             matchedBatch = parentItem.batches.find(b => Number(b.batch_number) === batchNum);
           }
-
-          if (parentItem.is_cuttable) {
-            const { data: inst } = await supabase
-              .from('stock_instances')
-              .select('*')
-              .eq('instance_barcode', rawBarcode)
-              .maybeSingle();
-            if (inst) matchedInstance = inst;
-          }
         }
       }
 
@@ -226,30 +217,11 @@ export default function WorkerPriceCheck() {
       setScannedItem({
         ...matchedItem,
         activeBatch: matchedBatch,
-        activeInstance: matchedInstance,
         scannedCode: rawBarcode
       });
       setRevealedMsp(false);
       setIsScanning(false);
-
-      if (matchedItem.is_cuttable) {
-        setIsLoadingInstances(true);
-        const shopId = localStorage.getItem('shop_id');
-        let instQuery = supabase
-          .from('stock_instances')
-          .select('*')
-          .eq('parent_barcode', String(matchedItem.barcode))
-          .eq('is_active', true)
-          .gt('current_length', 0);
-        if (shopId) {
-          instQuery = instQuery.eq('shop_id', shopId);
-        }
-        const { data: instances } = await instQuery;
-        setAvailableInstances(instances || []);
-        setIsLoadingInstances(false);
-      } else {
-        setAvailableInstances([]);
-      }
+      setAvailableInstances([]);
     } catch (err) {
       console.error("Item lookup error:", err);
       showAlert("Failed to retrieve item information.", "Error");

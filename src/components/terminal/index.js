@@ -6,3 +6,6 @@ export { default as ReceiveLengthModal } from './ReceiveLengthModal';
 export { default as ManualInstanceBarcodeModal } from './ManualInstanceBarcodeModal';
 export { default as CutLengthModal } from './CutLengthModal';
 export { default as ScrewsModal } from './ScrewsModal';
+export { default as ReceiveCuttableModal } from './ReceiveCuttableModal';
+export { default as CuttableCheckoutModal } from './CuttableCheckoutModal';
+

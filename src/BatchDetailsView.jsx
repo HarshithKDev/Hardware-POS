@@ -1,7 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import Barcode from 'react-barcode';
 import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
 import { Spinner, PageLoader } from './SharedUI';
@@ -18,9 +16,7 @@ import {
   Trash2, 
   Plus, 
   Check, 
-  Copy, 
   Scissors, 
-  Search, 
   PackageCheck,
   X,
   ChevronLeft,
@@ -248,40 +244,6 @@ export default function BatchDetailsView({
     }
   }, [isWarehouseDisabled, item?.barcode, item?.batches, shopId, queryClient]);
 
-  // Cuttable instances state
-  const [locationFilter, setLocationFilter] = useSessionState(`pos_batch_loc_${shopId}_${barcode}`, 'ALL'); // 'ALL' | 'STORE' | 'WAREHOUSE'
-  const [searchQuery, setSearchQuery] = useSessionState(`pos_batch_search_${shopId}_${barcode}`, '');
-  const [copiedBarcode, setCopiedBarcode] = useState(null);
-
-  // Piece Print Preview Modal
-  const [printPieceModal, setPrintPieceModal] = useState({ isOpen: false, piece: null, qty: 1 });
-  const [isPrintingPiece, setIsPrintingPiece] = useState(false);
-
-  // Fetch cuttable instances for this parent item
-  const { data: instances = [], isLoading: isLoadingInstances } = useQuery({
-    queryKey: ['stock_instances', item?.barcode],
-    queryFn: async () => {
-      if (!item?.barcode) return [];
-      try {
-        const { data, error } = await supabase.rpc('get_stock_instances', { p_barcode: String(item.barcode) });
-        if (!error && data) return data;
-      } catch (err) {
-        console.warn('RPC get_stock_instances failed, falling back to direct table select', err);
-      }
-      let instQuery = supabase
-        .from('stock_instances')
-        .select('*')
-        .eq('parent_barcode', String(item.barcode));
-      if (shopId) {
-        instQuery = instQuery.eq('shop_id', shopId);
-      }
-      const { data, error } = await instQuery;
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!(item?.is_cuttable && item?.barcode),
-    staleTime: 10 * 1000
-  });
 
   // Batch Pricing and Stock update mutation
   const updateBatchMutation = useMutation({
@@ -295,13 +257,11 @@ export default function BatchDetailsView({
         selling_price: effectiveMrp
       };
 
-      if (!item?.is_cuttable) {
-        if (stock_store !== undefined) {
-          updatePayload.stock_store = Math.max(0, Number(stock_store) || 0);
-        }
-        if (!isWarehouseDisabled && stock_warehouse !== undefined) {
-          updatePayload.stock_warehouse = Math.max(0, Number(stock_warehouse) || 0);
-        }
+      if (stock_store !== undefined) {
+        updatePayload.stock_store = Math.max(0, Number(stock_store) || 0);
+      }
+      if (!isWarehouseDisabled && stock_warehouse !== undefined) {
+        updatePayload.stock_warehouse = Math.max(0, Number(stock_warehouse) || 0);
       }
 
       let batchQuery = supabase
@@ -340,13 +300,11 @@ export default function BatchDetailsView({
         if (Number(oldBatch.purchase_cost ?? 0) !== Number(cost)) changes.push(`Cost: ₹${oldBatch.purchase_cost ?? 0} -> ₹${cost}`);
         if (Number(oldBatch.msp) !== Number(msp)) changes.push(`MSP: ₹${oldBatch.msp} -> ₹${msp}`);
         if (Number(oldBatch.selling_price ?? 0) !== Number(mrp)) changes.push(`MRP: ₹${oldBatch.selling_price ?? 0} -> ₹${mrp}`);
-        if (!item?.is_cuttable) {
-          if (stock_store !== undefined && Number(oldBatch.stock_store) !== Number(stock_store)) {
-            changes.push(`Store Stock: ${oldBatch.stock_store} -> ${stock_store}`);
-          }
-          if (!isWarehouseDisabled && stock_warehouse !== undefined && Number(oldBatch.stock_warehouse) !== Number(stock_warehouse)) {
-            changes.push(`Warehouse Stock: ${oldBatch.stock_warehouse} -> ${stock_warehouse}`);
-          }
+        if (stock_store !== undefined && Number(oldBatch.stock_store) !== Number(stock_store)) {
+          changes.push(`Store Stock: ${oldBatch.stock_store} -> ${stock_store}`);
+        }
+        if (!isWarehouseDisabled && stock_warehouse !== undefined && Number(oldBatch.stock_warehouse) !== Number(stock_warehouse)) {
+          changes.push(`Warehouse Stock: ${oldBatch.stock_warehouse} -> ${stock_warehouse}`);
         }
       }
 
@@ -381,13 +339,11 @@ export default function BatchDetailsView({
               if (variables.mrp !== undefined) {
                 localItem.batches[bIndex].selling_price = Number(variables.mrp);
               }
-              if (!item?.is_cuttable) {
-                if (variables.stock_store !== undefined) {
-                  localItem.batches[bIndex].stock_store = Math.max(0, Number(variables.stock_store) || 0);
-                }
-                if (variables.stock_warehouse !== undefined) {
-                  localItem.batches[bIndex].stock_warehouse = Math.max(0, Number(variables.stock_warehouse) || 0);
-                }
+              if (variables.stock_store !== undefined) {
+                localItem.batches[bIndex].stock_store = Math.max(0, Number(variables.stock_store) || 0);
+              }
+              if (variables.stock_warehouse !== undefined) {
+                localItem.batches[bIndex].stock_warehouse = Math.max(0, Number(variables.stock_warehouse) || 0);
               }
             }
           }
@@ -618,7 +574,7 @@ export default function BatchDetailsView({
       } catch (e) {}
 
       const oldBatch = batches.find(b => b.batch_id === deletingId);
-      const removedStock = !item?.is_cuttable ? (Number(oldBatch?.stock_store || 0) + Number(oldBatch?.stock_warehouse || 0)) : 0;
+      const removedStock = Number(oldBatch?.stock_store || 0) + Number(oldBatch?.stock_warehouse || 0);
       await supabase.from('audit_logs').insert([{
         shop_id: shopId,
         action_type: 'DELETE',
@@ -664,95 +620,7 @@ export default function BatchDetailsView({
     }
   };
 
-  // Filter instances belonging to the active batch
-  const activeBatchInstances = useMemo(() => {
-    if (!item?.is_cuttable || !instances) return [];
-    if (!activeBatch) return [];
 
-    return instances.filter(inst => {
-      if (!inst.is_active) return false;
-      if (inst.batch_id === activeBatch.batch_id) return true;
-      const batchPrefix = `${item.barcode}-${String(activeBatch.batch_number || 1).padStart(2, '0')}`;
-      if (!inst.batch_id && inst.instance_barcode?.startsWith(batchPrefix)) return true;
-      if (!inst.batch_id && batches.length === 1) return true;
-      return false;
-    });
-  }, [instances, activeBatch, item, batches.length]);
-
-  // Computed pieces metrics for the active batch
-  const activeBatchPieceStats = useMemo(() => {
-    const whse = activeBatchInstances.filter(i => (i.location || '').toLowerCase() === 'warehouse');
-    const store = activeBatchInstances.filter(i => (i.location || 'store').toLowerCase() === 'store');
-    const whseLen = whse.reduce((sum, i) => sum + Number(i.current_length || 0), 0);
-    const storeLen = store.reduce((sum, i) => sum + Number(i.current_length || 0), 0);
-    return {
-      whseCount: whse.length,
-      storeCount: store.length,
-      totalCount: activeBatchInstances.length,
-      whseLen,
-      storeLen,
-      totalLen: whseLen + storeLen
-    };
-  }, [activeBatchInstances]);
-
-  // Filtered instances to display in the table based on location
-  const displayedInstances = useMemo(() => {
-    let result = activeBatchInstances;
-    if (locationFilter === 'STORE') {
-      result = result.filter(i => (i.location || 'store').toLowerCase() === 'store');
-    } else if (locationFilter === 'WAREHOUSE') {
-      result = result.filter(i => (i.location || '').toLowerCase() === 'warehouse');
-    }
-    return result;
-  }, [activeBatchInstances, locationFilter]);
-
-  // Handle Piece Discard
-  const handleTogglePiece = async (piece) => {
-    const action = piece.is_active ? 'discard' : 'restore';
-    showConfirm(`Are you sure you want to ${action} piece #${piece.instance_barcode}?`, async () => {
-      try {
-        const { error } = await supabase.rpc('toggle_stock_instance', {
-          p_id: piece.id,
-          p_is_active: !piece.is_active
-        });
-        if (error) throw error;
-
-        await supabase.from('audit_logs').insert([{
-          shop_id: shopId,
-          action_type: 'UPDATE',
-          barcode: item.barcode,
-          item_name: item.name,
-          changes: `Piece #${piece.instance_barcode} was ${action}ed (Length: ${piece.current_length} ${item.unit === 'SQFT' ? 'ft' : (item.unit || 'PCS')})`,
-          performed_by: localStorage.getItem('owner_name') || 'Owner'
-        }]);
-
-        showAlert(`Piece #${piece.instance_barcode} ${action}ed successfully.`, 'Success');
-        queryClient.invalidateQueries({ queryKey: ['stock_instances', item.barcode] });
-        queryClient.invalidateQueries({ queryKey: ['piece_counts', item.barcode] });
-        queryClient.invalidateQueries({ queryKey: ['inventory_item', barcode] });
-        queryClient.invalidateQueries({ queryKey: ['inventory'] });
-      } catch (err) {
-        console.error(err);
-        showAlert(`Failed to ${action} piece: ` + err.message, 'Error');
-      }
-    });
-  };
-
-  const handleCopyBarcode = (bCode) => {
-    if (!bCode) return;
-    navigator.clipboard.writeText(bCode);
-    setCopiedBarcode(bCode);
-    setTimeout(() => setCopiedBarcode(null), 2000);
-  };
-
-  const executePiecePrint = () => {
-    setIsPrintingPiece(true);
-    setTimeout(() => {
-      window.print();
-      setIsPrintingPiece(false);
-      setPrintPieceModal({ isOpen: false, piece: null, qty: 1 });
-    }, 500);
-  };
 
   if (!item && isLoadingItem) {
     return (
@@ -776,7 +644,7 @@ export default function BatchDetailsView({
     );
   }
 
-  const displayUnit = (item.unit?.toLowerCase() === 'kg' || item.unit?.toLowerCase() === 'grams') ? 'kg' : item.unit?.toLowerCase() === 'meter' ? 'm' : item.unit?.toLowerCase() === 'sqft' ? 'ft' : (item.unit || 'PCS');
+  const displayUnit = (item.unit?.toLowerCase() === 'kg' || item.unit?.toLowerCase() === 'grams') ? 'kg' : item.unit?.toLowerCase() === 'meter' ? 'm' : item.unit?.toLowerCase() === 'sqft' ? 'sqft' : (item.unit || 'PCS');
 
   return (
     <div className="flex-1 flex flex-col h-full min-h-0 animate-fade-in">
@@ -1096,15 +964,8 @@ export default function BatchDetailsView({
               seenBatchNums.add(batchNum);
               const batchCode = `${item.barcode}-${String(batchNum).padStart(2, '0')}`;
 
-              let tabCountLabel = '';
-              if (item.is_cuttable) {
-                const bCount = instances.filter(i => i.is_active && (i.batch_id === batch.batch_id || (!i.batch_id && i.instance_barcode?.startsWith(batchCode)))).length;
-                tabCountLabel = `${bCount} pcs`;
-              } else if (isWarehouseDisabled) {
-                tabCountLabel = `${Number(batch.stock_store || 0) + Number(batch.stock_warehouse || 0)} ${displayUnit}`;
-              } else {
-                tabCountLabel = `${Number(batch.stock_warehouse || 0) + Number(batch.stock_store || 0)} ${displayUnit}`;
-              }
+              const totalBatchStock = Number(batch.stock_store || 0) + (isWarehouseDisabled ? 0 : Number(batch.stock_warehouse || 0));
+              const tabCountLabel = `${totalBatchStock} ${displayUnit}`;
 
               return (
                 <button
@@ -1291,24 +1152,10 @@ export default function BatchDetailsView({
                           {viewType !== 'recycle' && (
                             <button
                               onClick={() => {
-                                const canDelete = !item.is_cuttable || ((isWarehouseDisabled || Number(activeBatch.stock_warehouse) === 0) && Number(activeBatch.stock_store) === 0 && activeBatchPieceStats.totalCount === 0);
-                                if (canDelete) {
-                                  setBatchToDelete(activeBatch.batch_id);
-                                }
+                                setBatchToDelete(activeBatch.batch_id);
                               }}
-                              disabled={item.is_cuttable && !((isWarehouseDisabled || Number(activeBatch.stock_warehouse) === 0) && Number(activeBatch.stock_store) === 0 && activeBatchPieceStats.totalCount === 0)}
-                              className={`h-8 px-3 rounded-lg border text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all ${
-                                !item.is_cuttable || ((isWarehouseDisabled || Number(activeBatch.stock_warehouse) === 0) && Number(activeBatch.stock_store) === 0 && activeBatchPieceStats.totalCount === 0)
-                                  ? 'border-red-500/50 text-red-400 hover:bg-red-500/10 cursor-pointer'
-                                  : 'border-white/10 text-[var(--text-tertiary)] opacity-40 cursor-not-allowed'
-                              }`}
-                              title={
-                                !item.is_cuttable
-                                  ? 'Delete batch and remove its stock'
-                                  : (isWarehouseDisabled || Number(activeBatch.stock_warehouse) === 0) && Number(activeBatch.stock_store) === 0 && activeBatchPieceStats.totalCount === 0
-                                    ? 'Delete empty batch'
-                                    : 'Cannot delete batch with existing cut pieces'
-                              }
+                              className="h-8 px-3 rounded-lg border border-red-500/50 text-red-400 hover:bg-red-500/10 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
+                              title="Delete batch and remove its stock"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                               Delete
@@ -1383,16 +1230,11 @@ export default function BatchDetailsView({
                       Warehouse Stock
                     </span>
                     <span className="text-sm sm:text-base font-bold text-[var(--color-accent)]">
-                      {item.is_cuttable ? activeBatchPieceStats.whseCount : (activeBatch.stock_warehouse ?? 0)}
+                      {activeBatch.stock_warehouse ?? 0}
                       <span className="text-xs font-normal text-[var(--text-secondary)] ml-1">
-                        {item.is_cuttable ? 'PCS' : displayUnit}
+                        {displayUnit}
                       </span>
                     </span>
-                    {item.is_cuttable && activeBatchPieceStats.whseLen > 0 && (
-                      <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">
-                        {activeBatchPieceStats.whseLen.toFixed(1)} {item.unit === 'SQFT' ? 'ft' : item.unit} total
-                      </span>
-                    )}
                   </div>
                 )}
 
@@ -1402,309 +1244,44 @@ export default function BatchDetailsView({
                     {isWarehouseDisabled ? 'Current Stock' : 'Store Stock'}
                   </span>
                   <span className="text-sm sm:text-base font-bold text-[var(--color-success)]">
-                    {item.is_cuttable ? activeBatchPieceStats.storeCount : (isWarehouseDisabled ? (Number(activeBatch?.stock_store || 0) + Number(activeBatch?.stock_warehouse || 0)) : (activeBatch?.stock_store ?? 0))}
+                    {isWarehouseDisabled ? (Number(activeBatch?.stock_store || 0) + Number(activeBatch?.stock_warehouse || 0)) : (activeBatch?.stock_store ?? 0)}
                     <span className="text-xs font-normal text-[var(--text-secondary)] ml-1">
-                      {item.is_cuttable ? 'PCS' : displayUnit}
+                      {displayUnit}
                     </span>
                   </span>
-                  {item.is_cuttable && activeBatchPieceStats.storeLen > 0 && (
-                    <span className="text-[10px] text-[var(--text-tertiary)] block mt-0.5">
-                      {activeBatchPieceStats.storeLen.toFixed(1)} {item.unit === 'SQFT' ? 'ft' : item.unit} total
-                    </span>
-                  )}
                 </div>
               </div>
 
-            {/* INSTANCES SECTION */}
-            {item.is_cuttable ? (
-              <div className="flex flex-col gap-3.5 pt-2">
-                {/* Header: Instances title */}
-                <div className="flex items-center gap-2.5">
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-primary)]">
-                    Instances
-                  </h3>
-                  <span className="px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-[var(--bg-secondary)] border border-[var(--border-light)] text-[var(--text-secondary)]">
-                    {activeBatchInstances.length} Available
+            {/* CUTTABLE ITEM SPECIFICATION CARD */}
+            {item.is_cuttable && (
+              <div className="p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-light)] flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-lg bg-[var(--color-accent-bg)] text-[var(--color-accent)]">
+                    <Scissors className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
+                      {item.unit === 'SQFT' ? 'Mesh Roll Specification' : 'Pipe Specification'}
+                    </h4>
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                      {item.unit === 'SQFT' ? (
+                        <>Roll Dimensions: <strong className="text-[var(--text-primary)]">{item.default_width || 0} ft (W) × {item.default_length || 0} ft (L)</strong> = {((Number(item.default_width) || 0) * (Number(item.default_length) || 0)).toFixed(0)} SQFT per roll</>
+                      ) : (
+                        <>Standard Length: <strong className="text-[var(--text-primary)]">{item.default_length || 0} {item.unit || 'ft'}</strong></>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block">
+                    Billed By
+                  </span>
+                  <span className="text-xs font-bold text-[var(--color-accent)]">
+                    Strictly per {item.unit === 'SQFT' ? 'sq.ft' : (item.unit || 'ft')}
                   </span>
                 </div>
-
-                {/* Location Filter Box (on the left below Instances) */}
-                <div className="inline-flex items-center bg-[var(--bg-secondary)] p-1 rounded-lg border border-[var(--border-light)] w-fit shadow-sm">
-                  <button
-                    onClick={() => setLocationFilter('ALL')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
-                      locationFilter === 'ALL'
-                        ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] shadow-sm border border-[var(--border-light)]'
-                        : 'text-[var(--text-secondary)] hover:text-white'
-                    }`}
-                  >
-                    All ({activeBatchInstances.length})
-                  </button>
-                  <button
-                    onClick={() => setLocationFilter('STORE')}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
-                      locationFilter === 'STORE'
-                        ? 'bg-[var(--bg-tertiary)] text-[var(--color-success)] shadow-sm border border-[var(--border-light)]'
-                        : 'text-[var(--text-secondary)] hover:text-white'
-                    }`}
-                  >
-                    Store ({activeBatchPieceStats.storeCount})
-                  </button>
-                  {!isWarehouseDisabled && (
-                    <button
-                      onClick={() => setLocationFilter('WAREHOUSE')}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all cursor-pointer ${
-                        locationFilter === 'WAREHOUSE'
-                          ? 'bg-[var(--bg-tertiary)] text-[var(--color-accent)] shadow-sm border border-[var(--border-light)]'
-                          : 'text-[var(--text-secondary)] hover:text-white'
-                      }`}
-                    >
-                      Whse ({activeBatchPieceStats.whseCount})
-                    </button>
-                  )}
-                      {/* Instances: Mobile Cards (< 768px) and Desktop Table (>= 768px) */}
-                {isLoadingInstances ? (
-                  <div className="p-8 text-center bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-medium)]">
-                    <PageLoader text="Loading cut pieces..." />
-                  </div>
-                ) : displayedInstances.length === 0 ? (
-                  <div className="p-8 text-center text-xs text-[var(--text-tertiary)] font-medium bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-medium)]">
-                    No cut pieces recorded under this batch for this filter.
-                  </div>
-                ) : (
-                  <>
-                    {/* MOBILE CARD VIEW (< 768px) */}
-                    <div className="block md:hidden space-y-2.5 max-h-[480px] overflow-y-auto">
-                      {displayedInstances.map(piece => {
-                        const isStore = String(piece.location || 'store').toLowerCase() === 'store';
-                        const isCut = Number(piece.current_length) < Number(piece.original_length);
-                        const unitName = item.unit === 'SQFT' ? 'ft' : (item.unit || '');
-
-                        return (
-                          <div
-                            key={piece.id || piece.instance_barcode}
-                            className="p-3 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-medium)] shadow-sm space-y-2.5"
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1.5 font-bold text-sm text-[var(--color-accent)]">
-                                <span>{piece.instance_barcode}</span>
-                                <button
-                                  onClick={() => handleCopyBarcode(piece.instance_barcode)}
-                                  className="p-1 rounded text-[var(--text-tertiary)] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                                  title="Copy Barcode"
-                                >
-                                  {copiedBarcode === piece.instance_barcode ? (
-                                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                                  ) : (
-                                    <Copy className="w-3 h-3" />
-                                  )}
-                                </button>
-                              </div>
-
-                              <div className="flex items-center gap-1.5">
-                                <span 
-                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${
-                                    isStore 
-                                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-                                      : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                                  }`}
-                                >
-                                  {isStore ? 'Store' : 'Warehouse'}
-                                </span>
-                                {isCut && (
-                                  <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                                    Cut
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border-medium)] text-center text-xs">
-                              <div className="bg-[var(--bg-tertiary)]/50 p-2 rounded">
-                                <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Current Length</span>
-                                <span className="font-bold text-sm text-[var(--text-primary)] tabular-nums">
-                                  {piece.current_length} {unitName}
-                                </span>
-                              </div>
-
-                              <div className="bg-[var(--bg-tertiary)]/50 p-2 rounded">
-                                <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Original Length</span>
-                                <span className="font-semibold text-xs text-[var(--text-secondary)] tabular-nums">
-                                  {piece.original_length} {unitName}
-                                </span>
-                              </div>
-                            </div>
-
-                            {item.unit === 'SQFT' && (
-                              <div className="text-xs text-[var(--text-secondary)] bg-[var(--bg-tertiary)]/30 p-2 rounded text-center">
-                                {item.default_width || 0} ft × {piece.current_length} ft = {' '}
-                                <strong className="text-[var(--text-primary)] font-bold">
-                                  {(Number(piece.current_length) * Number(item.default_width || 0)).toFixed(2)} SQFT
-                                </strong>
-                              </div>
-                            )}
-
-                            <div className="flex items-center justify-end gap-2 pt-1 border-t border-[var(--border-medium)]">
-                              <button
-                                onClick={() => setPrintPieceModal({ isOpen: true, piece, qty: 1 })}
-                                className="px-3 py-1.5 rounded-lg border border-[var(--color-accent)] text-[var(--color-accent)] hover:bg-[var(--color-accent-bg)] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-                                title="Print Barcode Label for this piece"
-                              >
-                                <Printer className="w-3.5 h-3.5" />
-                                <span>Print Label</span>
-                              </button>
-                              {viewType !== 'recycle' && (
-                                <button
-                                  onClick={() => handleTogglePiece(piece)}
-                                  className="p-1.5 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
-                                  title="Discard this piece"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* DESKTOP TABLE VIEW (>= 768px) */}
-                    <div 
-                      className="hidden md:block overflow-x-auto rounded-xl border border-[var(--border-medium)] shadow-sm"
-                      style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}
-                    >
-                      <div className="max-h-[420px] overflow-y-auto">
-                        <table className="w-full text-center border-collapse text-xs">
-                          <thead 
-                            className="sticky top-0 z-20"
-                            style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}
-                          >
-                            <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                              <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Piece Barcode</th>
-                              <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Original Length</th>
-                              <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Current Length</th>
-                              {item.unit === 'SQFT' && (
-                                <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Width & Area</th>
-                              )}
-                              <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Location</th>
-                              <th className="p-3.5 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Status</th>
-                              <th className="p-3.5 text-center">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {displayedInstances.map(piece => {
-                              const isStore = String(piece.location || 'store').toLowerCase() === 'store';
-                              const isCut = Number(piece.current_length) < Number(piece.original_length);
-                              const unitName = item.unit === 'SQFT' ? 'ft' : (item.unit || '');
-
-                              return (
-                                <tr 
-                                  key={piece.id || piece.instance_barcode}
-                                  className="transition-colors hover:bg-[var(--bg-hover)]"
-                                  style={{ borderBottom: '1px solid var(--border-medium)' }}
-                                >
-                                  {/* PIECE BARCODE */}
-                                  <td className="p-3.5 text-center text-sm font-medium" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                                    <div className="flex items-center justify-center gap-1.5 font-bold text-[var(--color-accent)]">
-                                      <span>{piece.instance_barcode}</span>
-                                      <button
-                                        onClick={() => handleCopyBarcode(piece.instance_barcode)}
-                                        className="p-1 rounded text-[var(--text-tertiary)] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-                                        title="Copy Barcode"
-                                      >
-                                        {copiedBarcode === piece.instance_barcode ? (
-                                          <Check className="w-3.5 h-3.5 text-emerald-400" />
-                                        ) : (
-                                          <Copy className="w-3 h-3" />
-                                        )}
-                                      </button>
-                                    </div>
-                                  </td>
-
-                                  {/* ORIGINAL LENGTH */}
-                                  <td className="p-3.5 text-center text-sm font-medium text-[var(--text-secondary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                                    {piece.original_length} {unitName}
-                                  </td>
-
-                                  {/* CURRENT LENGTH */}
-                                  <td className="p-3.5 text-center text-sm" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                                    <div className="flex items-center justify-center gap-1.5">
-                                      <span className="font-bold text-[var(--text-primary)]">
-                                        {piece.current_length} {unitName}
-                                      </span>
-                                      {isCut && (
-                                        <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                                          Cut
-                                        </span>
-                                      )}
-                                    </div>
-                                  </td>
-
-                                  {/* SQFT WIDTH & AREA */}
-                                  {item.unit === 'SQFT' && (
-                                    <td className="p-3.5 text-center text-sm text-[var(--text-secondary)]" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                                      <span>
-                                        {item.default_width || 0} ft × {piece.current_length} ft = {' '}
-                                        <strong className="text-[var(--text-primary)]">
-                                          {(Number(piece.current_length) * Number(item.default_width || 0)).toFixed(2)} SQFT
-                                        </strong>
-                                      </span>
-                                    </td>
-                                  )}
-
-                                  {/* LOCATION */}
-                                  <td className="p-3.5 text-center text-sm" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                                    <span 
-                                      className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border ${
-                                        isStore 
-                                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-                                          : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                                      }`}
-                                    >
-                                      {isStore ? 'Store' : 'Warehouse'}
-                                    </span>
-                                  </td>
-
-                                  {/* STATUS */}
-                                  <td className="p-3.5 text-center text-sm" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                                    <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-400">
-                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                                      Available
-                                    </span>
-                                  </td>
-
-                                  {/* ACTIONS */}
-                                  <td className="p-3.5 text-center text-sm">
-                                    <div className="flex items-center justify-center gap-2">
-                                      <button
-                                        onClick={() => setPrintPieceModal({ isOpen: true, piece, qty: 1 })}
-                                        className="p-1.5 rounded-md border border-[var(--color-accent)] text-[var(--color-accent)] hover:bg-[var(--color-accent-bg)] transition-colors cursor-pointer"
-                                        title="Print Barcode Label for this piece"
-                                      >
-                                        <Printer className="w-3.5 h-3.5" />
-                                      </button>
-                                      {viewType !== 'recycle' && (
-                                        <button
-                                          onClick={() => handleTogglePiece(piece)}
-                                          className="p-1.5 rounded-md border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
-                                          title="Discard this piece"
-                                        >
-                                          <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
-                                      )}
-                                    </div>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </>
-                )}             </div>
               </div>
-            ) : null}
+            )}
           </>
         )}
       </div>
@@ -1740,7 +1317,7 @@ export default function BatchDetailsView({
           (() => {
             const batchObj = batches.find(b => b.batch_id === batchToDelete);
             const totalStock = batchObj ? (Number(batchObj.stock_store || 0) + Number(batchObj.stock_warehouse || 0)) : 0;
-            if (totalStock > 0 && !item?.is_cuttable) {
+            if (totalStock > 0) {
               return `Are you sure you want to delete Batch #${batchObj?.batch_number || 1}? This batch contains ${totalStock} ${displayUnit} of stock, which will be completely removed.`;
             }
             return 'Are you sure you want to delete this batch? This action will remove the batch from inventory.';
@@ -1753,119 +1330,6 @@ export default function BatchDetailsView({
         onCancel={() => setBatchToDelete(null)}
       />
 
-      {/* PIECE PRINT PREVIEW MODAL */}
-      {printPieceModal.isOpen && printPieceModal.piece && createPortal(
-        <div className="fixed inset-0 flex items-center justify-center z-[600] px-4 bg-black/60 animate-fade-in">
-          <div className="w-[90%] max-w-[420px] rounded-xl overflow-hidden flex flex-col shadow-2xl bg-[var(--bg-secondary)] border border-[var(--border-light)]">
-            <div className="flex justify-between items-center px-5 py-3 border-b border-[var(--border-light)]">
-              <h2 className="text-sm font-bold text-[var(--text-primary)]">
-                Print Piece Label
-              </h2>
-              <button 
-                onClick={() => setPrintPieceModal({ isOpen: false, piece: null, qty: 1 })}
-                className="text-[var(--text-tertiary)] hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-5 flex flex-col gap-4">
-              <div className="flex flex-col items-center justify-center p-3 bg-white border border-gray-300 rounded-lg mx-auto w-[240px] shadow-sm text-black">
-                <p className="text-[9px] font-bold mb-1 w-full text-center truncate">
-                  {item.name} ({printPieceModal.piece.current_length} {item.unit === 'SQFT' ? 'ft' : (item.unit || 'PCS')})
-                </p>
-                <Barcode 
-                  value={printPieceModal.piece.instance_barcode}
-                  width={1.25}
-                  height={26}
-                  fontSize={10}
-                  margin={0}
-                  displayValue={true}
-                  lineColor="#000000"
-                  background="#ffffff"
-                />
-                <p className="text-[11px] font-bold mt-1">
-                  ₹{Number(activeBatch?.selling_price || item.price || 0).toFixed(2)}
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1 uppercase tracking-wider">
-                  Copies to Print
-                </label>
-                <input 
-                  type="number" 
-                  min="1" 
-                  max="50"
-                  value={printPieceModal.qty}
-                  onChange={e => setPrintPieceModal(prev => ({ ...prev, qty: Math.max(1, Number(e.target.value)) }))}
-                  className="w-full h-10 px-3 rounded-md bg-[var(--bg-input)] border border-[var(--border-medium)] text-sm font-bold focus:outline-none focus:border-[var(--color-accent)]"
-                />
-              </div>
-            </div>
-
-            <div className="px-5 py-3.5 border-t border-[var(--border-light)] bg-[var(--bg-tertiary)] flex justify-end gap-2.5">
-              <button
-                onClick={() => setPrintPieceModal({ isOpen: false, piece: null, qty: 1 })}
-                className="px-4 py-2 text-xs font-semibold rounded-md border border-[var(--border-medium)] text-[var(--text-secondary)] hover:bg-white/5"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={executePiecePrint}
-                disabled={isPrintingPiece}
-                className="px-5 py-2 text-xs font-bold rounded-md text-white bg-[var(--color-accent)] hover:brightness-110 flex items-center gap-1.5 disabled:opacity-50"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                {isPrintingPiece ? 'Printing...' : 'Print Label'}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Hidden container for printing single piece label */}
-      {isPrintingPiece && printPieceModal.piece && createPortal(
-        <div 
-          id="printable-piece-barcode" 
-          className="absolute -top-[9999px] left-0 opacity-0 pointer-events-none print:static print:opacity-100 print:pointer-events-auto"
-          style={{ backgroundColor: '#ffffff', margin: 0, padding: 0 }}
-        >
-          <style dangerouslySetInnerHTML={{ __html: `
-            @media print {
-              @page { size: 50mm 25mm; margin: 0 !important; }
-              body { margin: 0 !important; padding: 0 !important; }
-              #printable-piece-barcode { display: block !important; margin: 0 !important; padding: 0 !important; }
-            }
-          `}} />
-          {Array.from({ length: Number(printPieceModal.qty) || 1 }).map((_, index) => (
-            <div 
-              key={index} 
-              className="thermal-barcode" 
-              style={{ backgroundColor: '#ffffff', width: '50mm', height: '25mm', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', pageBreakAfter: 'always' }}
-            >
-              <p style={{ color: '#000000', fontSize: '9px', fontWeight: 'bold', lineHeight: 1, margin: 0, marginBottom: '2px', textAlign: 'center', width: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {item.name} ({printPieceModal.piece.current_length} {item.unit === 'SQFT' ? 'ft' : (item.unit || 'PCS')})
-              </p>
-              <Barcode 
-                value={printPieceModal.piece.instance_barcode} 
-                width={1.25} 
-                height={24} 
-                fontSize={10} 
-                margin={0} 
-                displayValue={true} 
-                lineColor="#000000" 
-                background="#ffffff" 
-              />
-              <p style={{ color: '#000000', fontSize: '10px', fontWeight: 'bold', lineHeight: 1, margin: 0, marginTop: '2px' }}>
-                ₹{Number(activeBatch?.selling_price || item.price || 0).toFixed(2)}
-              </p>
-            </div>
-          ))}
-        </div>,
-        document.body
-      )}
     </div>
   );
 }

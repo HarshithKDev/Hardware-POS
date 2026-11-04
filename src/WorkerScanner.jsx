@@ -214,41 +214,16 @@ export default function WorkerScanner({ cashierName }) {
       let maxStock = 0;
       instanceBatchId = null;
       if (item.is_cuttable) {
-        if (!isInstance) {
-          playScanErrorSound();
-          showAlert(`Please scan the specific piece sticker for ${item.name}, not the generic barcode.`, "Error");
-          return;
+        if (scannedBatchNumber !== null && item.batches) {
+          batch = item.batches.find(b => b.batch_number === scannedBatchNumber) || null;
+        } else if (item.batches && item.batches.length > 0) {
+          batch = item.batches.find(b => Number(b.stock_store || 0) > 0) || item.batches[0];
         }
-        try {
-          const shopId = item.shop_id || localStorage.getItem('shop_id');
-          let instQuery = supabase.from('stock_instances').select('current_length, batch_id').eq('instance_barcode', barcode);
-          if (shopId) {
-            instQuery = instQuery.eq('shop_id', shopId);
-          }
-          const { data, error } = await instQuery.maybeSingle();
-          if (error || !data) {
-            // If the piece doesn't exist, it might be a newly printed label being scanned to RECEIVE into stock.
-            maxStock = Number(item.default_length) || 1;
-            instLength = maxStock;
-            if (scannedBatchNumber !== null && item.batches) {
-               const b = item.batches.find(bx => bx.batch_number === scannedBatchNumber);
-               if (b) {
-                 instanceBatchId = b.batch_id;
-                 batch = b;
-               }
-            }
-          } else {
-            maxStock = Number(data.current_length);
-            instLength = maxStock;
-            instanceBatchId = data.batch_id;
-            if (item.batches && instanceBatchId) {
-              batch = item.batches.find(bx => bx.batch_id === instanceBatchId) || null;
-            }
-          }
-        } catch (err) {
-          console.error(err);
-          maxStock = Number(item.default_length) || 1;
-          instLength = maxStock;
+        if (batch) {
+          maxStock = Number(batch.stock_store || 0);
+          instanceBatchId = batch.batch_id;
+        } else {
+          maxStock = Number(item.stock_store || 0);
         }
       } else {
         if (scannedBatchNumber !== null && item.batches) {
@@ -278,43 +253,54 @@ export default function WorkerScanner({ cashierName }) {
         return;
       }
 
+      const isSqft = item.unit === 'SQFT';
+      const dLen = Number(item.default_length) || (isSqft ? 100 : 12);
+      const dWid = isSqft ? (Number(item.default_width) || 3) : 1;
+      const fullDim = isSqft ? (dLen * dWid) : dLen;
+      const addQty = item.is_cuttable ? fullDim : 1;
+
       setCart(prev => {
-        const instanceBarcode = isInstance ? barcode : null;
-        
         const existingIdx = prev.findIndex(i => 
-          i.barcode === searchBarcode && i.instance_barcode === instanceBarcode
+          i.barcode === searchBarcode && (i.batch_id === instanceBatchId || !instanceBatchId)
         );
 
         if (existingIdx >= 0) {
           const currentQty = Number(prev[existingIdx].quantity) || 0;
-          if (currentQty + 1 > maxStock) {
+          if (currentQty + addQty > maxStock) {
             playScanErrorSound();
             showAlert(`You only have ${maxStock} in stock for ${item.name}!`, "Stock Limit");
             return prev;
           }
           playScanSuccessSound();
           const newCart = [...prev];
-          newCart[existingIdx] = { ...newCart[existingIdx], quantity: currentQty + 1 };
+          const newQty = currentQty + addQty;
+          newCart[existingIdx] = { 
+            ...newCart[existingIdx], 
+            quantity: newQty,
+            actual_quantity: newQty,
+            billableQuantity: newQty,
+            cut_pieces: item.is_cuttable ? Math.round(newQty / fullDim) : newCart[existingIdx].cut_pieces
+          };
           return newCart;
         } else {
           playScanSuccessSound();
           return [{ 
             ...item, 
             id: generateId(), 
-            quantity: item.unit === 'SQFT' ? (isInstance ? parseFloat((instLength * (Number(item.default_width) || 1)).toFixed(2)) : 0) : 1,
-            billableQuantity: item.unit === 'SQFT' ? (isInstance ? parseFloat((instLength * (Number(item.default_width) || 1)).toFixed(2)) : 0) : 1,
+            quantity: addQty,
+            actual_quantity: addQty,
+            billableQuantity: addQty,
             maxStock: maxStock,
-            instance_barcode: isInstance ? barcode : null,
-            scanned_barcode: searchBarcode + (scannedBatchNumber ? '-' + String(scannedBatchNumber).padStart(2, '0') : '') + (isInstance ? '-' + instanceBarcodeSuffix : ''),
+            instance_barcode: null,
+            cut_pieces: item.is_cuttable ? 1 : null,
+            cut_length: item.is_cuttable ? dLen : null,
+            is_full_piece: item.is_cuttable ? true : false,
+            scanned_barcode: searchBarcode + (scannedBatchNumber ? '-' + String(scannedBatchNumber).padStart(2, '0') : ''),
             batch_id: instanceBatchId,
             purchase_cost: batch ? batch.purchase_cost : (item.cost_price || 0),
             selling_price: batch ? batch.selling_price : (item.price || 0),
             msp_price: calculateMSP(batch, item),
-            name: isInstance ? `${item.name} (Piece #${instanceBarcodeSuffix})` : item.name,
-            length: isInstance ? instLength : '', 
-            width: isInstance ? (item.default_width || '') : '', 
-            rolls: '1',
-            pieceLength: instLength
+            name: item.name
           }, ...prev];
         }
       });

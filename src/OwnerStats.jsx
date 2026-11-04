@@ -940,7 +940,7 @@ export default function OwnerStats({ isActive }) {
     const invPromises = [];
     for (let i = 0; i < pageCount; i++) {
        let pageQuery = supabase.from('product_master')
-         .select('barcode, name, price, cost_price, is_cuttable, stock_warehouse, stock_store, min_quantity_warehouse, min_quantity_store, inventory_batches(stock_warehouse, stock_store, purchase_cost, is_active)')
+         .select('barcode, name, unit, price, cost_price, is_cuttable, stock_warehouse, stock_store, min_quantity_warehouse, min_quantity_store, inventory_batches(stock_warehouse, stock_store, purchase_cost, is_active)')
          .eq('is_active', true);
        if (shopId) {
          pageQuery = pageQuery.eq('shop_id', shopId);
@@ -1361,11 +1361,11 @@ export default function OwnerStats({ isActive }) {
                         <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border-medium)] text-center text-xs">
                           <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
                             <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Min Alert</span>
-                            <span className="font-bold text-[var(--text-tertiary)] tabular-nums">{item.min_quantity_store ?? 10}</span>
+                            <span className="font-bold text-[var(--text-tertiary)] tabular-nums">{item.min_quantity_store ?? 10} {item.unit || 'PCS'}</span>
                           </div>
                           <div className="bg-red-500/10 border border-red-500/20 p-1.5 rounded">
                             <span className="text-[10px] text-red-400 uppercase block font-semibold">Current Stock</span>
-                            <span className="font-bold text-red-400 tabular-nums">{item.stock_store}</span>
+                            <span className="font-bold text-red-400 tabular-nums">{item.stock_store} {item.unit || 'PCS'}</span>
                           </div>
                         </div>
                       </div>
@@ -1387,11 +1387,11 @@ export default function OwnerStats({ isActive }) {
                         <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border-medium)] text-center text-xs">
                           <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
                             <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Min Alert</span>
-                            <span className="font-bold text-[var(--text-tertiary)] tabular-nums">{item.min_quantity_warehouse ?? 50}</span>
+                            <span className="font-bold text-[var(--text-tertiary)] tabular-nums">{item.min_quantity_warehouse ?? 50} {item.unit || 'PCS'}</span>
                           </div>
                           <div className="bg-red-500/10 border border-red-500/20 p-1.5 rounded">
                             <span className="text-[10px] text-red-400 uppercase block font-semibold">Current Whse</span>
-                            <span className="font-bold text-red-400 tabular-nums">{item.stock_warehouse}</span>
+                            <span className="font-bold text-red-400 tabular-nums">{item.stock_warehouse} {item.unit || 'PCS'}</span>
                           </div>
                         </div>
                       </div>
@@ -1455,8 +1455,8 @@ export default function OwnerStats({ isActive }) {
                         <tr key={item.barcode} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                           <td className="p-3 text-sm font-semibold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-medium)' }}>{item.barcode}</td>
                           <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.name}</td>
-                          <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--text-tertiary)', borderRight: '1px solid var(--border-medium)' }}>{item.min_quantity_store ?? 10}</td>
-                          <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-error)' }}>{item.stock_store}</td>
+                          <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--text-tertiary)', borderRight: '1px solid var(--border-medium)' }}>{item.min_quantity_store ?? 10} {item.unit || 'PCS'}</td>
+                          <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-error)' }}>{item.stock_store} {item.unit || 'PCS'}</td>
                         </tr>
                       ))}
                       {activeModal === 'low-warehouse' && lowWarehouseItems.length === 0 && (
@@ -1470,8 +1470,8 @@ export default function OwnerStats({ isActive }) {
                         <tr key={item.barcode} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                           <td className="p-3 text-sm font-semibold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-medium)' }}>{item.barcode}</td>
                           <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.name}</td>
-                          <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--text-tertiary)', borderRight: '1px solid var(--border-medium)' }}>{item.min_quantity_warehouse ?? 50}</td>
-                          <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-error)' }}>{item.stock_warehouse}</td>
+                          <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--text-tertiary)', borderRight: '1px solid var(--border-medium)' }}>{item.min_quantity_warehouse ?? 50} {item.unit || 'PCS'}</td>
+                          <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-error)' }}>{item.stock_warehouse} {item.unit || 'PCS'}</td>
                         </tr>
                       ))}
                       {activeModal === 'dead-stock' && deadStockItems.length === 0 && (

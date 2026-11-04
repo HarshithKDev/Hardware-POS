@@ -608,21 +608,30 @@ export default function OwnerCatalog() {
           {form.item_type === 'cuttable' && (
             <>
               <div className="lg:col-span-2">
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-def-length">Default Length (per piece)</label>
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-def-length">
+                  {form.unit === 'SQFT' ? 'Default Roll Length (ft)' : 'Default Length (per piece)'}
+                </label>
                 <div className="relative">
-                  <input id="item-def-length" type="number" step="any" min="0" value={form.default_length} onChange={(e) => setForm({ ...form, default_length: e.target.value })} placeholder="e.g. 20" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-                  <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{UNIT_TYPES.find(u => u.value === form.unit)?.label || form.unit}</span>
+                  <input id="item-def-length" type="number" step="any" min="0" required value={form.default_length} onChange={(e) => setForm({ ...form, default_length: e.target.value })} placeholder={form.unit === 'SQFT' ? 'e.g. 100' : 'e.g. 12'} className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                  <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{form.unit === 'SQFT' ? 'ft' : (UNIT_TYPES.find(u => u.value === form.unit)?.label || form.unit)}</span>
                 </div>
               </div>
               {form.unit === 'SQFT' && (
                 <div className="lg:col-span-2">
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-def-width">Default Width</label>
+                  <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-def-width">Default Roll Width (ft)</label>
                   <div className="relative">
                     <input id="item-def-width" type="number" step="any" min="0" required value={form.default_width} onChange={(e) => setForm({ ...form, default_width: e.target.value })} placeholder="e.g. 3" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                     <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>ft</span>
                   </div>
                 </div>
               )}
+              <div className="lg:col-span-4 p-3 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-medium)] text-xs text-[var(--text-secondary)]">
+                {form.unit === 'SQFT' ? (
+                  <span>Mesh is billed in <strong>sqft</strong>. When receiving rolls, entering Qty <strong>10</strong> will automatically add <strong>{10 * (Number(form.default_length) || 100) * (Number(form.default_width) || 3)} sqft</strong> to inventory ({form.default_width || 3}ft width × {form.default_length || 100}ft length per roll).</span>
+                ) : (
+                  <span>Pipes/bars are billed in <strong>{form.unit || 'FT'}</strong>. When receiving stock, entering Qty <strong>10</strong> will automatically add <strong>{10 * (Number(form.default_length) || 12)} {form.unit || 'FT'}</strong> to inventory ({form.default_length || 12} {form.unit || 'FT'} per piece).</span>
+                )}
+              </div>
             </>
           )}
 
@@ -633,16 +642,16 @@ export default function OwnerCatalog() {
               <div className="flex-1">
                 <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-min-qty-whse">Min Qty (Warehouse)</label>
                 <div className="relative">
-                  <input id="item-min-qty-whse" type="number" required step="1" min="0" value={form.min_quantity_warehouse} onChange={(e) => setForm({ ...form, min_quantity_warehouse: e.target.value })} placeholder="e.g. 10" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-                  <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{form.item_type === 'cuttable' ? 'PCS' : (form.unit === 'KG' ? 'KG' : (UNIT_TYPES.find(u => u.value === form.unit)?.label || form.unit))}</span>
+                  <input id="item-min-qty-whse" type="number" required step="any" min="0" value={form.min_quantity_warehouse} onChange={(e) => setForm({ ...form, min_quantity_warehouse: e.target.value })} placeholder={form.item_type === 'cuttable' ? (form.unit === 'SQFT' ? 'e.g. 500' : 'e.g. 50') : 'e.g. 10'} className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                  <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{form.unit === 'METER' ? 'M' : (form.unit || 'PCS')}</span>
                 </div>
               </div>
             )}
             <div className="flex-1">
               <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-min-qty-store">{isWarehouseDisabled ? 'Min Stock Alert' : 'Min Qty (Store)'}</label>
               <div className="relative">
-                <input id="item-min-qty-store" type="number" required step="1" min="0" value={form.min_quantity_store} onChange={(e) => setForm({ ...form, min_quantity_store: e.target.value })} placeholder="e.g. 5" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-                <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{form.item_type === 'cuttable' ? 'PCS' : (form.unit === 'KG' ? 'KG' : (UNIT_TYPES.find(u => u.value === form.unit)?.label || form.unit))}</span>
+                <input id="item-min-qty-store" type="number" required step="any" min="0" value={form.min_quantity_store} onChange={(e) => setForm({ ...form, min_quantity_store: e.target.value })} placeholder={form.item_type === 'cuttable' ? (form.unit === 'SQFT' ? 'e.g. 100' : 'e.g. 24') : 'e.g. 5'} className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{form.unit === 'METER' ? 'M' : (form.unit || 'PCS')}</span>
               </div>
             </div>
           </div>
