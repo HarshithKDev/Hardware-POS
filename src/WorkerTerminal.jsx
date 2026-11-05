@@ -870,7 +870,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           );
 
           if (activeTab === 'checkout' && val !== '') {
-            const maxStock = i.batch_id && i.batches ? Number(i.batches.find(b => b.batch_id === i.batch_id)?.stock_store || 0) : Number(i.stock_store || 0);
+            const rawStock = i.batch_id && i.batches ? Number(i.batches.find(b => b.batch_id === i.batch_id)?.stock_store || 0) : Number(i.stock_store || 0);
+            const otherCartQty = prev.filter(c => c.id !== id && c.barcode === i.barcode && (!i.batch_id || c.batch_id === i.batch_id))
+              .reduce((sum, c) => sum + (Number(c.actual_quantity !== undefined ? c.actual_quantity : c.quantity) || 0), 0);
+            const maxStock = Math.max(0, Math.round((rawStock - otherCartQty) * 100) / 100);
             if (newQty > maxStock) {
               limitMsg = isLooseKg 
                 ? `You only have ${maxStock} kg in this batch in the store.`
@@ -2358,6 +2361,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       <ReceiveCuttableModal
         isOpen={receiveCuttableModal.isOpen}
         modalData={receiveCuttableModal.modalData}
+        cart={cart}
         onSubmit={handleReceiveCuttableSubmit}
         onClose={() => setReceiveCuttableModal({ isOpen: false, modalData: null })}
       />
@@ -2365,6 +2369,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       <CuttableCheckoutModal
         isOpen={cuttableCheckoutModal.isOpen}
         modalData={cuttableCheckoutModal.modalData}
+        cart={cart}
         onSubmit={handleCuttableCheckoutSubmit}
         onClose={() => setCuttableCheckoutModal({ isOpen: false, modalData: null })}
       />

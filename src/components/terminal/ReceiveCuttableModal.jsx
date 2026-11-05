@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 export default function ReceiveCuttableModal({
   isOpen,
   modalData, // { item, batch, action: 'receive' | 'transfer' }
+  cart = [],
   onSubmit,
   onClose
 }) {
@@ -39,8 +40,16 @@ export default function ReceiveCuttableModal({
   };
 
   const isTransfer = action === 'transfer';
-  const maxAvailablePieces = isTransfer && batch 
-    ? Math.floor((Number(batch.stock_warehouse) || 0) / (isSqft ? (defaultWid * defaultLen) : defaultLen))
+  const totalWhStock = Number(batch?.stock_warehouse ?? (item?.stock_warehouse || 0));
+  const alreadyInTransferCart = isTransfer
+    ? (cart || [])
+        .filter(c => c.barcode === item.barcode && (!batch?.batch_id || c.batch_id === batch.batch_id))
+        .reduce((sum, c) => sum + (Number(c.actual_quantity !== undefined ? c.actual_quantity : c.quantity) || 0), 0)
+    : 0;
+  const availableWhStock = Math.max(0, totalWhStock - alreadyInTransferCart);
+  const pieceDimension = isSqft ? (defaultWid * defaultLen) : defaultLen;
+  const maxAvailablePieces = isTransfer
+    ? Math.floor(availableWhStock / pieceDimension)
     : null;
 
   return (

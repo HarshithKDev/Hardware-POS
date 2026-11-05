@@ -4,6 +4,7 @@ import { AlertCircle } from 'lucide-react';
 export default function CuttableCheckoutModal({
   isOpen,
   modalData, // { item, batch, cartItemId, initialCutPieces, initialCutLength }
+  cart = [],
   onSubmit,
   onClose
 }) {
@@ -37,10 +38,27 @@ export default function CuttableCheckoutModal({
   const unitLabel = isSqft ? 'sqft' : (item.unit || 'ft');
   const unitPrice = Number(batch?.selling_price ?? (item.price || 0));
 
-  // Store stock available
-  const availableStock = batch 
+  // Store stock available (excluding current cart reservations for this batch)
+  const totalStoreStock = batch 
     ? Number(batch.stock_store || 0)
     : (item.batches?.reduce((sum, b) => sum + Number(b.stock_store || 0), 0) || Number(item.stock_store || 0));
+
+  const alreadyInCart = (cart || [])
+    .filter(c => {
+      if (modalData?.cartItemId && c.id === modalData.cartItemId) return false;
+      if (batch?.batch_id) {
+        return c.barcode === item.barcode && c.batch_id === batch.batch_id;
+      }
+      return c.barcode === item.barcode;
+    })
+    .reduce((sum, c) => {
+      const q = c.actual_quantity !== undefined && c.actual_quantity !== ''
+        ? Number(c.actual_quantity)
+        : (c.quantity !== undefined && c.quantity !== '' ? Number(c.quantity) : 0);
+      return sum + q;
+    }, 0);
+
+  const availableStock = Math.max(0, Math.round((totalStoreStock - alreadyInCart) * 100) / 100);
 
   const parsedQty = parseFloat(qty) || 0;
   const parsedLength = parseFloat(length) || 0;
@@ -100,10 +118,15 @@ export default function CuttableCheckoutModal({
         {/* Stock & Unit Info Header */}
         <div className="px-6 py-2.5 bg-[var(--bg-tertiary)] border-b border-[var(--border-medium)] flex items-center justify-between text-xs">
           <div>
-            <span className="text-[var(--text-secondary)]">Store Stock: </span>
+            <span className="text-[var(--text-secondary)]">Available Stock: </span>
             <span className={`font-bold ${availableStock > 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
               {availableStock} {unitLabel}
             </span>
+            {alreadyInCart > 0 && (
+              <span className="text-[var(--text-tertiary)] ml-1 font-medium">
+                ({alreadyInCart} {unitLabel} in cart)
+              </span>
+            )}
           </div>
           <div className="text-right">
             <span className="text-[var(--text-secondary)]">MRP: </span>
@@ -183,7 +206,9 @@ export default function CuttableCheckoutModal({
           {isOutOfStock && (
             <div className="p-2.5 rounded-lg bg-[var(--bg-tertiary)] border border-red-500/40 text-xs text-red-400 font-medium flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-              <span>Insufficient stock! Only {availableStock} {unitLabel} available in Store.</span>
+              <span>
+                Insufficient stock! Only {availableStock} {unitLabel} available{alreadyInCart > 0 ? ` (${alreadyInCart} ${unitLabel} already in cart)` : ''}.
+              </span>
             </div>
           )}
 
