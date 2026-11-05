@@ -33,3 +33,4 @@ BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.inventory_batches;
   END IF;
 END $$;
+
