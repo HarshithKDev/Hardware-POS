@@ -186,11 +186,17 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     const handleOffline = () => setIsOnline(false);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+
+    // Background delta sync on terminal load to guarantee local DB is up to date with Supabase
+    if (navigator.onLine) {
+      syncInventoryToLocal(userRole);
+    }
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
+  }, [userRole]);
 
   useEffect(() => {
     if (activeTab === 'checkout') {
