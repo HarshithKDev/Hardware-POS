@@ -64,12 +64,19 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    // Reconcile and purge any remote-deleted items on mount
-    import('./services/sync').then(({ reconcileDeletedItems }) => {
+    // Reconcile and pull remote items on mount to ensure immediate consistency
+    import('./services/sync').then(({ syncInventoryToLocal, reconcileDeletedItems }) => {
+      if (navigator.onLine) {
+        const forceFull = !sessionStorage.getItem('owner_inv_synced');
+        syncInventoryToLocal('owner', { forceFull }).then(() => {
+          sessionStorage.setItem('owner_inv_synced', 'true');
+          queryClient.invalidateQueries({ queryKey: ['inventory'] });
+        });
+      }
       reconcileDeletedItems('owner').then(() => {
         queryClient.invalidateQueries({ queryKey: ['inventory'] });
       });
-    }).catch(err => console.warn('Reconcile on mount error:', err));
+    }).catch(err => console.warn('Sync on mount error:', err));
 
     const handleSyncComplete = () => {
       queryClient.invalidateQueries({ queryKey: ['inventory'] });

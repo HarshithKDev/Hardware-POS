@@ -26,7 +26,7 @@ const CLOCK_SKEW_BUFFER_MS = 30000; // 30-second safety margin for clock drift /
 export const syncInventoryToLocal = async (userRole = 'worker', options = {}) => {
   const { forceFull = false } = options;
   const currentShopId = localStorage.getItem('shop_id');
-  const tableName = userRole === 'owner' ? 'product_master' : 'product_master_public';
+  const tableName = 'product_master_public';
   const syncKey = `inventory_sync_${currentShopId || 'global'}_${userRole}`;
 
   try {
@@ -113,7 +113,22 @@ async function performDeltaSync({ tableName, userRole, currentShopId, lastSync }
   // Filter by updated_at greater than the buffered previous sync timestamp
   prodQuery = prodQuery.gt('updated_at', effectiveTimestamp);
 
-  const { data: changedProducts, error: prodError } = await prodQuery;
+  let { data: changedProducts, error: prodError } = await prodQuery;
+
+  // Graceful fallback to public view if raw table is restricted by RLS
+  if ((!changedProducts || changedProducts.length === 0 || prodError) && tableName === 'product_master') {
+    let fallbackQuery = supabase.from('product_master_public').select('*');
+    if (currentShopId) {
+      fallbackQuery = fallbackQuery.eq('shop_id', currentShopId);
+    }
+    fallbackQuery = fallbackQuery.gt('updated_at', effectiveTimestamp);
+    const fallbackRes = await fallbackQuery;
+    if (fallbackRes.data && fallbackRes.data.length > 0) {
+      changedProducts = fallbackRes.data;
+      prodError = null;
+    }
+  }
+
   if (prodError) throw prodError;
 
   if (!changedProducts || changedProducts.length === 0) {
@@ -148,7 +163,7 @@ async function performDeltaSync({ tableName, userRole, currentShopId, lastSync }
   // Fetch batches only for active modified products
   if (activeProducts.length > 0) {
     const barcodes = activeProducts.map(p => p.barcode);
-    const batchTable = userRole === 'owner' ? 'inventory_batches' : 'inventory_batches_public';
+    const batchTable = 'inventory_batches_public';
     const allBatches = [];
 
     for (let i = 0; i < barcodes.length; i += BATCH_CHUNK_SIZE) {
@@ -157,7 +172,7 @@ async function performDeltaSync({ tableName, userRole, currentShopId, lastSync }
       if (currentShopId) {
         batchQuery = batchQuery.eq('shop_id', currentShopId);
       }
-      const { data: batches, error: batchError } = await batchQuery;
+      let { data: batches, error: batchError } = await batchQuery;
       if (batchError) throw batchError;
       if (batches) allBatches.push(...batches);
     }
@@ -198,18 +213,32 @@ async function performFullSync({ tableName, userRole, currentShopId }) {
     if (currentShopId) {
       prodQuery = prodQuery.eq('shop_id', currentShopId);
     }
-    const { data: products, error: prodError } = await prodQuery.range(offset, offset + PAGE_SIZE - 1);
+    let { data: products, error: prodError } = await prodQuery.range(offset, offset + PAGE_SIZE - 1);
+    
+    // Fallback to public view if raw table is restricted by RLS
+    if ((!products || products.length === 0 || prodError) && tableName === 'product_master' && offset === 0) {
+      tableName = 'product_master_public';
+      let pubQuery = supabase.from('product_master_public').select('*');
+      if (currentShopId) {
+        pubQuery = pubQuery.eq('shop_id', currentShopId);
+      }
+      const pubRes = await pubQuery.range(offset, offset + PAGE_SIZE - 1);
+      if (pubRes.data && pubRes.data.length > 0) {
+        products = pubRes.data;
+        prodError = null;
+      }
+    }
     if (prodError) throw prodError;
 
     if (products && products.length > 0) {
       const barcodes = products.map(p => p.barcode);
-      const batchTable = userRole === 'owner' ? 'inventory_batches' : 'inventory_batches_public';
+      const batchTable = 'inventory_batches_public';
       
       let batchQuery = supabase.from(batchTable).select('*').in('barcode', barcodes).eq('is_active', true);
       if (currentShopId) {
         batchQuery = batchQuery.eq('shop_id', currentShopId);
       }
-      const { data: batches, error: batchError } = await batchQuery;
+      let { data: batches, error: batchError } = await batchQuery;
       if (batchError) throw batchError;
 
       const batchesByBarcode = {};
@@ -239,7 +268,9 @@ async function performFullSync({ tableName, userRole, currentShopId }) {
   }
 
   // Cleanup items that were deleted or deactivated remotely (ONLY in Full Sync!)
-  await deleteOrphanedInventory(syncedBarcodes);
+  if (syncedBarcodes.size > 0) {
+    await deleteOrphanedInventory(syncedBarcodes);
+  }
   console.log(`[Full Sync] Completed successfully. Synced ${syncedBarcodes.size} items.`);
   return true;
 }
@@ -247,7 +278,7 @@ async function performFullSync({ tableName, userRole, currentShopId }) {
 export const flushOfflineQueue = async (userRole = 'worker') => {
   try {
     const currentShopId = localStorage.getItem('shop_id');
-    const tableName = userRole === 'owner' ? 'product_master' : 'product_master_public';
+    const tableName = 'product_master_public';
     let pingQuery = supabase.from(tableName).select('barcode');
     if (currentShopId) {
       pingQuery = pingQuery.eq('shop_id', currentShopId);
@@ -356,12 +387,12 @@ let realtimeSyncChannel = null;
 export const reconcileDeletedItems = async (userRole = 'owner') => {
   try {
     const currentShopId = localStorage.getItem('shop_id');
-    const tableName = userRole === 'owner' ? 'product_master' : 'product_master_public';
+    const tableName = 'product_master_public';
     let bcQuery = supabase.from(tableName).select('barcode');
     if (currentShopId) bcQuery = bcQuery.eq('shop_id', currentShopId);
     if (userRole !== 'owner') bcQuery = bcQuery.eq('is_active', true);
     const { data: remoteRows, error: bcErr } = await bcQuery;
-    if (!bcErr && remoteRows) {
+    if (!bcErr && remoteRows && remoteRows.length > 0) {
       const remoteBarcodeSet = new Set(remoteRows.map(r => String(r.barcode)));
       await deleteOrphanedInventory(remoteBarcodeSet);
       return true;
