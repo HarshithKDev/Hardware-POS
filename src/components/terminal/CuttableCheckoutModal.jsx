@@ -159,10 +159,10 @@ export default function CuttableCheckoutModal({
             <div className={isSqft ? 'w-1/3' : 'w-1/2'}>
               <div className="flex justify-between items-center mb-2">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-                  Length ({unitLabel})
+                  Length ({isSqft ? 'ft' : unitLabel})
                 </label>
                 <span className="text-[10px] text-[var(--text-tertiary)] font-medium">
-                  Max: {defaultLen} {unitLabel}
+                  Max: {defaultLen} {isSqft ? 'ft' : unitLabel}
                 </span>
               </div>
               <input
@@ -228,7 +228,7 @@ export default function CuttableCheckoutModal({
             <div className="p-2.5 rounded-lg bg-[var(--bg-tertiary)] border border-red-500/40 text-xs text-red-400 font-medium flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
               <span>
-                Length per piece ({parsedLength} {unitLabel}) cannot exceed max piece length ({defaultLen} {unitLabel}).
+                Length per piece ({parsedLength} {isSqft ? 'ft' : unitLabel}) cannot exceed max piece length ({defaultLen} {isSqft ? 'ft' : unitLabel}).
               </span>
             </div>
           )}
