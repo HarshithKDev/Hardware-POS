@@ -72,10 +72,11 @@ export default function CuttableCheckoutModal({
 
   const totalBill = Math.round(totalQty * unitPrice * 100) / 100;
   const isOutOfStock = totalQty > availableStock;
+  const isLengthExceeded = parsedLength > defaultLen;
 
   const handleSubmit = (e) => {
     if (e) e.preventDefault();
-    if (totalQty <= 0 || isOutOfStock) return;
+    if (totalQty <= 0 || isOutOfStock || isLengthExceeded) return;
     onSubmit({
       item,
       batch,
@@ -156,16 +157,26 @@ export default function CuttableCheckoutModal({
 
             {/* Cut Length */}
             <div className={isSqft ? 'w-1/3' : 'w-1/2'}>
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-[var(--text-secondary)]">
-                Length ({unitLabel})
-              </label>
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                  Length ({unitLabel})
+                </label>
+                <span className="text-[10px] text-[var(--text-tertiary)] font-medium">
+                  Max: {defaultLen} {unitLabel}
+                </span>
+              </div>
               <input
                 type="number"
                 step="any"
                 min="0.1"
+                max={defaultLen}
                 value={length}
                 onChange={e => setLength(e.target.value)}
-                className="w-full h-12 px-3 text-lg font-bold text-center rounded-lg border border-[var(--border-medium)] bg-[var(--bg-input)] text-[var(--text-input)] focus:border-[var(--color-accent)] focus:outline-none"
+                className={`w-full h-12 px-3 text-lg font-bold text-center rounded-lg border bg-[var(--bg-input)] text-[var(--text-input)] focus:outline-none ${
+                  isLengthExceeded 
+                    ? 'border-red-500 focus:border-red-500 text-red-400' 
+                    : 'border-[var(--border-medium)] focus:border-[var(--color-accent)]'
+                }`}
                 placeholder={String(defaultLen)}
               />
             </div>
@@ -212,6 +223,16 @@ export default function CuttableCheckoutModal({
             </div>
           )}
 
+          {/* Length Exceeded Warning */}
+          {isLengthExceeded && (
+            <div className="p-2.5 rounded-lg bg-[var(--bg-tertiary)] border border-red-500/40 text-xs text-red-400 font-medium flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+              <span>
+                Length per piece ({parsedLength} {unitLabel}) cannot exceed max piece length ({defaultLen} {unitLabel}).
+              </span>
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="flex justify-end gap-3 pt-2">
             <button
@@ -223,7 +244,7 @@ export default function CuttableCheckoutModal({
             </button>
             <button
               type="submit"
-              disabled={totalQty <= 0 || isOutOfStock}
+              disabled={totalQty <= 0 || isOutOfStock || isLengthExceeded}
               className="h-10 px-8 text-sm font-bold rounded-lg text-white bg-[var(--color-accent)] hover:brightness-110 disabled:opacity-50 transition-all cursor-pointer shadow-md"
             >
               {modalData?.cartItemId ? 'Update' : 'Add to Bill'}
