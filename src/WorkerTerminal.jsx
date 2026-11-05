@@ -765,7 +765,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
   const handleCuttableCheckoutSubmit = (data) => {
     playScanSuccessSound();
-    const { item, batch, cartItemId, mode, billableQty, deductQty, cutPieces, cutLength, scrapAction, scrapLeftover } = data;
+    const { item, batch, cartItemId, billableQty, deductQty, cutPieces, cutLength } = data;
     const sellPrice = Number(batch?.selling_price ?? (item.price || 0));
 
     if (cartItemId) {
@@ -779,9 +779,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             billableQuantity: billableQty,
             cut_pieces: cutPieces,
             cut_length: cutLength,
-            is_full_piece: mode === 'full',
-            scrap_action: scrapAction,
-            scrap_leftover: scrapLeftover,
+            is_full_piece: cutLength === Number(c.default_length),
+            scrap_action: null,
+            scrap_leftover: 0,
             customTotalInput: (customP * billableQty).toFixed(2)
           };
         }
@@ -803,9 +803,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         billableQuantity: billableQty,
         cut_pieces: cutPieces,
         cut_length: cutLength,
-        is_full_piece: mode === 'full',
-        scrap_action: scrapAction,
-        scrap_leftover: scrapLeftover,
+        is_full_piece: cutLength === Number(item.default_length),
+        scrap_action: null,
+        scrap_leftover: 0,
         unit: item.unit,
         default_length: item.default_length,
         default_width: item.default_width,
@@ -846,11 +846,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         item,
         batch,
         cartItemId: cartItem.id,
-        initialMode: cartItem.is_full_piece ? 'full' : 'cut',
-        initialFullPieces: cartItem.is_full_piece ? (cartItem.cut_pieces || 1) : 1,
         initialCutPieces: cartItem.cut_pieces || 1,
-        initialCutLength: cartItem.cut_length || item.default_length,
-        initialScrapAction: cartItem.scrap_action || 'add'
+        initialCutLength: cartItem.cut_length || item.default_length
       }
     });
   }, []);

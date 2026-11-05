@@ -1,25 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import { Info, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { AlertCircle } from 'lucide-react';
 
 export default function CuttableCheckoutModal({
   isOpen,
-  modalData, // { item, batch, cartItemId, initialMode, initialFullPieces, initialCutPieces, initialCutLength, initialScrapAction }
+  modalData, // { item, batch, cartItemId, initialCutPieces, initialCutLength }
   onSubmit,
   onClose
 }) {
-  const [mode, setMode] = useState('full'); // 'full' | 'cut'
-  const [fullPieces, setFullPieces] = useState('1');
-  const [cutPieces, setCutPieces] = useState('1');
-  const [cutLength, setCutLength] = useState('');
-  const [scrapAction, setScrapAction] = useState('add'); // 'add' | 'discard' | 'keep'
+  const [qty, setQty] = useState('1');
+  const [length, setLength] = useState('');
+  const qtyInputRef = useRef(null);
 
   useEffect(() => {
-    if (isOpen) {
-      setMode(modalData?.initialMode || (modalData?.initialCutPieces && !modalData?.is_full_piece ? 'cut' : 'full'));
-      setFullPieces(String(modalData?.initialFullPieces || '1'));
-      setCutPieces(String(modalData?.initialCutPieces || '1'));
-      setCutLength(modalData?.initialCutLength !== undefined && modalData?.initialCutLength !== null ? String(modalData.initialCutLength) : '');
-      setScrapAction(modalData?.initialScrapAction || 'add');
+    if (isOpen && modalData?.item) {
+      const defLen = modalData.item.default_length ? String(modalData.item.default_length) : '12';
+      setQty(String(modalData?.initialCutPieces || '1'));
+      setLength(modalData?.initialCutLength !== undefined && modalData?.initialCutLength !== null 
+        ? String(modalData.initialCutLength) 
+        : defLen
+      );
+      setTimeout(() => {
+        if (qtyInputRef.current) {
+          qtyInputRef.current.focus();
+          qtyInputRef.current.select();
+        }
+      }, 50);
     }
   }, [isOpen, modalData]);
 
@@ -37,90 +42,44 @@ export default function CuttableCheckoutModal({
     ? Number(batch.stock_store || 0)
     : (item.batches?.reduce((sum, b) => sum + Number(b.stock_store || 0), 0) || Number(item.stock_store || 0));
 
-  // Calculations
-  let billableQty = 0;
-  let deductQty = 0;
-  let scrapLeftover = 0;
-  let isSmallScrap = false;
+  const parsedQty = parseFloat(qty) || 0;
+  const parsedLength = parseFloat(length) || 0;
 
-  const parsedCutLength = parseFloat(cutLength) || 0;
-  const isCutExceeding = mode === 'cut' && parsedCutLength > defaultLen;
+  // Total quantity calculation:
+  // For pipes: qty * length
+  // For mesh: qty * length * fixed width
+  const totalQty = isSqft
+    ? Math.round(parsedQty * parsedLength * defaultWid * 100) / 100
+    : Math.round(parsedQty * parsedLength * 100) / 100;
 
-  if (mode === 'full') {
-    const pcs = Math.max(1, parseInt(fullPieces, 10) || 1);
-    const totalDim = isSqft ? pcs * defaultWid * defaultLen : pcs * defaultLen;
-    billableQty = totalDim;
-    deductQty = totalDim;
-  } else if (!isCutExceeding) {
-    const pcs = Math.max(1, parseInt(cutPieces, 10) || 1);
-    const len = Math.max(0, parsedCutLength);
-
-    if (isSqft) {
-      // Mesh: pieces * cut length * fixed width
-      billableQty = Math.round(pcs * len * defaultWid * 100) / 100;
-      deductQty = billableQty;
-    } else {
-      // Pipes: pieces * cut length
-      const baseCutQty = Math.round(pcs * len * 100) / 100;
-      
-      // Check scrap rule for single/retail cuts:
-      // If customer cuts a length smaller than standard length, check remaining offcut
-      if (len > 0 && len < defaultLen) {
-        scrapLeftover = Math.round((defaultLen - (len % defaultLen)) * 100) / 100;
-        if (scrapLeftover > 0 && scrapLeftover < 3) {
-          isSmallScrap = true;
-        }
-      }
-
-      if (isSmallScrap) {
-        if (scrapAction === 'add') {
-          // Customer agrees to take remaining scrap piece -> billed for full length
-          billableQty = Math.round(pcs * defaultLen * 100) / 100;
-          deductQty = billableQty;
-        } else if (scrapAction === 'discard') {
-          // Customer declined, discard scrap -> billed only for cut, deduct full piece from stock
-          billableQty = baseCutQty;
-          deductQty = Math.round(pcs * defaultLen * 100) / 100;
-        } else {
-          // Keep scrap in stock -> billed for cut, deduct cut
-          billableQty = baseCutQty;
-          deductQty = baseCutQty;
-        }
-      } else {
-        billableQty = baseCutQty;
-        deductQty = baseCutQty;
-      }
-    }
-  }
-
-  const billTotal = Math.round(billableQty * unitPrice * 100) / 100;
-  const isOutOfStock = deductQty > availableStock;
+  const totalBill = Math.round(totalQty * unitPrice * 100) / 100;
+  const isOutOfStock = totalQty > availableStock;
 
   const handleSubmit = (e) => {
     if (e) e.preventDefault();
-    if (billableQty <= 0 || isCutExceeding) return;
+    if (totalQty <= 0 || isOutOfStock) return;
     onSubmit({
       item,
       batch,
       cartItemId: modalData?.cartItemId || null,
-      mode,
-      billableQty,
-      deductQty,
-      cutPieces: mode === 'full' ? parseInt(fullPieces, 10) || 1 : parseInt(cutPieces, 10) || 1,
-      cutLength: mode === 'full' ? defaultLen : parseFloat(cutLength) || defaultLen,
-      scrapAction: isSmallScrap ? scrapAction : null,
-      scrapLeftover: isSmallScrap ? scrapLeftover : 0
+      billableQty: totalQty,
+      deductQty: totalQty,
+      cutPieces: parsedQty,
+      cutLength: parsedLength,
+      is_full_piece: parsedLength === defaultLen,
+      scrapAction: null,
+      scrapLeftover: 0
     });
   };
 
   return (
     <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 animate-fade-in">
-      <div className="w-full max-w-lg flex flex-col rounded-xl overflow-hidden shadow-2xl border border-[var(--border-light)] bg-[var(--bg-secondary)] max-h-[92vh]">
+      <div className="w-full max-w-md flex flex-col rounded-xl overflow-hidden shadow-2xl border border-[var(--border-light)] bg-[var(--bg-secondary)]">
         {/* Header */}
         <div className="flex justify-between items-center px-6 py-4 border-b border-[var(--border-light)]">
           <div>
             <h3 className="font-bold text-base text-[var(--text-primary)]">
-              {modalData?.cartItemId ? 'Edit Cut' : 'Checkout Cuttable Item'}
+              {modalData?.cartItemId ? 'Edit Item' : 'Checkout Cuttable Item'}
             </h3>
             <p className="text-xs text-[var(--color-accent)] font-semibold mt-0.5">
               {item.name} {batch?.batch_number ? `(Batch #${String(batch.batch_number).padStart(2, '0')})` : ''}
@@ -152,292 +111,79 @@ export default function CuttableCheckoutModal({
           </div>
         </div>
 
-        {/* Mode Selector Tabs */}
-        <div className="px-6 pt-4 flex gap-2">
-          <button
-            type="button"
-            onClick={() => setMode('full')}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-bold border transition-all cursor-pointer flex items-center justify-center gap-2 ${
-              mode === 'full'
-                ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)] shadow-md'
-                : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border-[var(--border-medium)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            <span>{isSqft ? 'Full Roll' : `Full ${defaultLen} FT`}</span>
-            <span className="text-xs opacity-80">({isSqft ? `${defaultWid * defaultLen} sqft` : `${defaultLen} ${unitLabel}`})</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('cut')}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-bold border transition-all cursor-pointer flex items-center justify-center gap-2 ${
-              mode === 'cut'
-                ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)] shadow-md'
-                : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border-[var(--border-medium)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            <span>Cut Custom Length</span>
-          </button>
-        </div>
-
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4 overflow-y-auto">
-          {mode === 'full' ? (
-            /* Mode 1: Full Piece */
-            <div>
+        {/* Simple Form: QTY and Length */}
+        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
+          <div className="flex gap-3">
+            {/* Quantity */}
+            <div className={isSqft ? 'w-1/3' : 'w-1/2'}>
               <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-[var(--text-secondary)]">
-                {isSqft ? 'Number of Full Rolls' : `Quantity (${defaultLen} FT each)`}
+                Quantity (Qty)
               </label>
-              <div className="relative">
-                <input
-                  type="number"
-                  autoFocus
-                  min="1"
-                  step="1"
-                  value={fullPieces}
-                  onChange={e => setFullPieces(e.target.value)}
-                  className="w-full h-14 px-4 text-2xl font-bold rounded-lg border-2 border-[var(--color-accent)] bg-[var(--bg-input)] text-[var(--text-input)] focus:outline-none"
-                  placeholder="1"
-                />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold uppercase text-[var(--text-tertiary)]">
-                  {isSqft ? 'ROLLS' : 'QTY'}
-                </span>
-              </div>
-              <div className="flex gap-2 mt-2">
-                {[1, 2, 3, 5, 10].map(n => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setFullPieces(String(n))}
-                    className="flex-1 py-1.5 text-xs font-semibold rounded bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-medium)] transition-colors cursor-pointer"
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
+              <input
+                ref={qtyInputRef}
+                type="number"
+                min="1"
+                step="1"
+                value={qty}
+                onChange={e => setQty(e.target.value)}
+                className="w-full h-12 px-3 text-lg font-bold text-center rounded-lg border border-[var(--border-medium)] bg-[var(--bg-input)] text-[var(--text-input)] focus:border-[var(--color-accent)] focus:outline-none"
+                placeholder="1"
+              />
             </div>
-          ) : (
-            /* Mode 2: Custom Cut */
-            <div className="flex flex-col gap-4">
-              <div className="flex gap-3">
-                {/* Number of cut pieces */}
-                <div className="w-1/3">
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-[var(--text-secondary)]">
-                    No. of Cuts
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={cutPieces}
-                    onChange={e => setCutPieces(e.target.value)}
-                    className="w-full h-12 px-3 text-lg font-bold text-center rounded-lg border border-[var(--border-medium)] bg-[var(--bg-input)] text-[var(--text-input)] focus:border-[var(--color-accent)] focus:outline-none"
-                    placeholder="1"
-                  />
-                </div>
 
-                {/* Cut length per piece */}
-                <div className="flex-1">
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-                      Cut Length ({item.unit === 'METER' ? 'M' : 'FT'})
-                    </label>
-                    <span className="text-[11px] text-[var(--text-tertiary)] font-medium">
-                      Max: <strong className="text-[var(--text-secondary)]">{defaultLen} {unitLabel}</strong>
-                    </span>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      autoFocus
-                      step="any"
-                      min="0.1"
-                      max={defaultLen}
-                      value={cutLength}
-                      onChange={e => setCutLength(e.target.value)}
-                      className={`w-full h-12 pl-4 pr-12 text-lg font-bold rounded-lg border-2 ${
-                        isCutExceeding ? 'border-red-500 focus:border-red-500' : 'border-[var(--color-accent)] focus:border-[var(--color-accent)]'
-                      } bg-[var(--bg-input)] text-[var(--text-input)] focus:outline-none`}
-                      placeholder={`Max ${defaultLen}`}
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold uppercase text-[var(--text-tertiary)]">
-                      {item.unit === 'METER' ? 'M' : 'FT'}
-                    </span>
-                  </div>
-                  {!isSqft && [2, 3, 4, 6, 8, 10].some(n => n < defaultLen) && (
-                    <div className="flex gap-1.5 mt-2">
-                      {[2, 3, 4, 6, 8, 10].filter(n => n < defaultLen).map(n => (
-                        <button
-                          key={n}
-                          type="button"
-                          onClick={() => setCutLength(String(n))}
-                          className={`flex-1 py-1 text-xs font-semibold rounded border transition-colors cursor-pointer ${
-                            parseFloat(cutLength) === n
-                              ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)]'
-                              : 'bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-[var(--border-medium)]'
-                          }`}
-                        >
-                          {n}ft
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Mesh Fixed Width display */}
-                {isSqft && (
-                  <div className="w-1/4">
-                    <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-[var(--text-secondary)]">
-                      Roll Width
-                    </label>
-                    <div className="h-12 flex items-center justify-center font-bold text-sm bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-lg text-[var(--text-primary)]">
-                      {defaultWid} ft
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Validation Warning when cut length > default length */}
-              {isCutExceeding && (
-                <div className="p-3 rounded-lg bg-[var(--bg-tertiary)] border border-red-500/40 text-xs text-red-400 font-medium flex items-start gap-2.5 animate-scale-in">
-                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                  <span className="leading-relaxed">
-                    Cut length (<strong className="text-red-300">{parsedCutLength} {unitLabel}</strong>) cannot exceed standard piece length (<strong className="text-red-300">{defaultLen} {unitLabel}</strong>).
-                  </span>
-                </div>
-              )}
-
-              {/* Scrap Rule Banner when remaining piece < 3ft */}
-              {isSmallScrap && (
-                <div className="p-3.5 rounded-lg border border-[var(--border-medium)] bg-[var(--bg-tertiary)] flex flex-col gap-3 animate-scale-in">
-                  <div className="flex items-start gap-2.5">
-                    <Info className="w-4 h-4 text-[var(--color-accent)] shrink-0 mt-0.5" />
-                    <div className="flex-1 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-[var(--text-primary)]">
-                          Remaining piece is {scrapLeftover.toFixed(1)} ft (less than 3 ft)
-                        </span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-[var(--border-light)] font-medium">
-                          Offcut Rule
-                        </span>
-                      </div>
-                      <p className="text-[var(--text-secondary)] text-[11px] mt-0.5">
-                        Please request customer to purchase the remaining offcut piece.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label
-                      className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all ${
-                        scrapAction === 'add'
-                          ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)] text-[var(--text-primary)] font-medium'
-                          : 'bg-[var(--bg-primary)] border-[var(--border-light)] text-[var(--text-secondary)] hover:border-[var(--border-medium)] hover:text-[var(--text-primary)]'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <input 
-                          type="radio" 
-                          name="scrapAction" 
-                          value="add" 
-                          checked={scrapAction === 'add'} 
-                          onChange={() => setScrapAction('add')}
-                          className="accent-[var(--color-accent)] cursor-pointer shrink-0" 
-                        />
-                        <span className="text-xs truncate">
-                          Customer agreed to take scrap (+{scrapLeftover.toFixed(1)} ft)
-                        </span>
-                      </div>
-                      <span className={`text-[11px] font-semibold shrink-0 ml-2 ${
-                        scrapAction === 'add' ? 'text-[var(--color-accent)]' : 'text-[var(--text-tertiary)]'
-                      }`}>
-                        Bill full {defaultLen} ft
-                      </span>
-                    </label>
-
-                    <label
-                      className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all ${
-                        scrapAction === 'discard'
-                          ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)] text-[var(--text-primary)] font-medium'
-                          : 'bg-[var(--bg-primary)] border-[var(--border-light)] text-[var(--text-secondary)] hover:border-[var(--border-medium)] hover:text-[var(--text-primary)]'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <input 
-                          type="radio" 
-                          name="scrapAction" 
-                          value="discard" 
-                          checked={scrapAction === 'discard'} 
-                          onChange={() => setScrapAction('discard')}
-                          className="accent-[var(--color-accent)] cursor-pointer shrink-0" 
-                        />
-                        <span className="text-xs truncate">
-                          Customer declined
-                        </span>
-                      </div>
-                      <span className={`text-[11px] font-semibold shrink-0 ml-2 ${
-                        scrapAction === 'discard' ? 'text-[var(--color-accent)]' : 'text-[var(--text-tertiary)]'
-                      }`}>
-                        Bill {parsedCutLength} ft &middot; Discard {scrapLeftover.toFixed(1)} ft
-                      </span>
-                    </label>
-
-                    <label
-                      className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all ${
-                        scrapAction === 'keep'
-                          ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)] text-[var(--text-primary)] font-medium'
-                          : 'bg-[var(--bg-primary)] border-[var(--border-light)] text-[var(--text-secondary)] hover:border-[var(--border-medium)] hover:text-[var(--text-primary)]'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <input 
-                          type="radio" 
-                          name="scrapAction" 
-                          value="keep" 
-                          checked={scrapAction === 'keep'} 
-                          onChange={() => setScrapAction('keep')}
-                          className="accent-[var(--color-accent)] cursor-pointer shrink-0" 
-                        />
-                        <span className="text-xs truncate">
-                          Keep offcut in shop stock
-                        </span>
-                      </div>
-                      <span className={`text-[11px] font-semibold shrink-0 ml-2 ${
-                        scrapAction === 'keep' ? 'text-[var(--color-accent)]' : 'text-[var(--text-tertiary)]'
-                      }`}>
-                        Bill {parsedCutLength} ft &middot; Deduct {parsedCutLength} ft
-                      </span>
-                    </label>
-                  </div>
-                </div>
-              )}
+            {/* Cut Length */}
+            <div className={isSqft ? 'w-1/3' : 'w-1/2'}>
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-[var(--text-secondary)]">
+                Length ({unitLabel})
+              </label>
+              <input
+                type="number"
+                step="any"
+                min="0.1"
+                value={length}
+                onChange={e => setLength(e.target.value)}
+                className="w-full h-12 px-3 text-lg font-bold text-center rounded-lg border border-[var(--border-medium)] bg-[var(--bg-input)] text-[var(--text-input)] focus:border-[var(--color-accent)] focus:outline-none"
+                placeholder={String(defaultLen)}
+              />
             </div>
-          )}
+
+            {/* Mesh Fixed Width display */}
+            {isSqft && (
+              <div className="w-1/3">
+                <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-[var(--text-secondary)]">
+                  Width
+                </label>
+                <div className="h-12 flex items-center justify-center font-bold text-sm bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-lg text-[var(--text-primary)]">
+                  {defaultWid} ft
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Bill Calculation Summary Card */}
           <div className="p-4 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-medium)] flex items-center justify-between">
             <div>
-              <span className="text-xs text-[var(--text-tertiary)] uppercase font-semibold block">Total Quantity Billed</span>
+              <span className="text-xs text-[var(--text-tertiary)] uppercase font-semibold block">Total Quantity</span>
               <span className="text-xl font-black text-[var(--color-accent)]">
-                {billableQty} <span className="text-sm font-bold uppercase">{unitLabel}</span>
+                {totalQty} <span className="text-sm font-bold uppercase">{unitLabel}</span>
               </span>
-              {deductQty !== billableQty && (
-                <span className="block text-[11px] text-[var(--color-warning)] mt-0.5">
-                  ({deductQty} {unitLabel} deducted including discarded scrap)
-                </span>
-              )}
+              <span className="block text-[11px] text-[var(--text-secondary)] mt-0.5">
+                {parsedQty} &times; {parsedLength} {unitLabel} {isSqft ? `&times; ${defaultWid} ft` : ''}
+              </span>
             </div>
             <div className="text-right">
               <span className="text-xs text-[var(--text-tertiary)] uppercase font-semibold block">Total Bill</span>
               <span className="text-2xl font-black text-[var(--color-success)]">
-                ₹{billTotal.toFixed(2)}
+                ₹{totalBill.toFixed(2)}
               </span>
             </div>
           </div>
 
           {/* Out of Stock Warning */}
           {isOutOfStock && (
-            <div className="p-2.5 rounded bg-red-500/10 border border-red-500/30 text-xs text-red-400 font-semibold text-center">
-              Insufficient stock! Requested {deductQty} {unitLabel}, but only {availableStock} {unitLabel} available in Store.
+            <div className="p-2.5 rounded-lg bg-[var(--bg-tertiary)] border border-red-500/40 text-xs text-red-400 font-medium flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+              <span>Insufficient stock! Only {availableStock} {unitLabel} available in Store.</span>
             </div>
           )}
 
@@ -452,10 +198,10 @@ export default function CuttableCheckoutModal({
             </button>
             <button
               type="submit"
-              disabled={billableQty <= 0 || isOutOfStock || isCutExceeding}
+              disabled={totalQty <= 0 || isOutOfStock}
               className="h-10 px-8 text-sm font-bold rounded-lg text-white bg-[var(--color-accent)] hover:brightness-110 disabled:opacity-50 transition-all cursor-pointer shadow-md"
             >
-              {modalData?.cartItemId ? 'Update Cut' : 'Add to Bill'}
+              {modalData?.cartItemId ? 'Update' : 'Add to Bill'}
             </button>
           </div>
         </form>
@@ -463,4 +209,3 @@ export default function CuttableCheckoutModal({
     </div>
   );
 }
-
