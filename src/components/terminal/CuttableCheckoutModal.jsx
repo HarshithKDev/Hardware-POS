@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 export default function CuttableCheckoutModal({
   isOpen,
-  modalData, // { item, batch }
+  modalData, // { item, batch, cartItemId, initialMode, initialFullPieces, initialCutPieces, initialCutLength, initialScrapAction }
   onSubmit,
   onClose
 }) {
@@ -14,13 +14,13 @@ export default function CuttableCheckoutModal({
 
   useEffect(() => {
     if (isOpen) {
-      setMode('full');
-      setFullPieces('1');
-      setCutPieces('1');
-      setCutLength('');
-      setScrapAction('add');
+      setMode(modalData?.initialMode || (modalData?.initialCutPieces && !modalData?.is_full_piece ? 'cut' : 'full'));
+      setFullPieces(String(modalData?.initialFullPieces || '1'));
+      setCutPieces(String(modalData?.initialCutPieces || '1'));
+      setCutLength(modalData?.initialCutLength !== undefined && modalData?.initialCutLength !== null ? String(modalData.initialCutLength) : '');
+      setScrapAction(modalData?.initialScrapAction || 'add');
     }
-  }, [isOpen]);
+  }, [isOpen, modalData]);
 
   if (!isOpen || !modalData?.item) return null;
 
@@ -98,6 +98,7 @@ export default function CuttableCheckoutModal({
     onSubmit({
       item,
       batch,
+      cartItemId: modalData?.cartItemId || null,
       mode,
       billableQty,
       deductQty,
@@ -114,7 +115,9 @@ export default function CuttableCheckoutModal({
         {/* Header */}
         <div className="flex justify-between items-center px-6 py-4 border-b border-[var(--border-light)]">
           <div>
-            <h3 className="font-bold text-base text-[var(--text-primary)]">Checkout Cuttable Item</h3>
+            <h3 className="font-bold text-base text-[var(--text-primary)]">
+              {modalData?.cartItemId ? 'Edit Cut' : 'Checkout Cuttable Item'}
+            </h3>
             <p className="text-xs text-[var(--color-accent)] font-semibold mt-0.5">
               {item.name} {batch?.batch_number ? `(Batch #${String(batch.batch_number).padStart(2, '0')})` : ''}
             </p>
@@ -140,7 +143,7 @@ export default function CuttableCheckoutModal({
             </span>
           </div>
           <div className="text-right">
-            <span className="text-[var(--text-secondary)]">Price: </span>
+            <span className="text-[var(--text-secondary)]">MRP: </span>
             <span className="text-[var(--text-primary)] font-bold">₹{unitPrice.toFixed(2)} / {unitLabel}</span>
           </div>
         </div>
@@ -364,7 +367,7 @@ export default function CuttableCheckoutModal({
               disabled={billableQty <= 0 || isOutOfStock}
               className="h-10 px-8 text-sm font-bold rounded-lg text-white bg-[var(--color-accent)] hover:brightness-110 disabled:opacity-50 transition-all cursor-pointer shadow-md"
             >
-              Add to Bill (₹{billTotal.toFixed(2)})
+              {modalData?.cartItemId ? 'Update Cut' : 'Add to Bill'}
             </button>
           </div>
         </form>

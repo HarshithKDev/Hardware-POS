@@ -765,8 +765,32 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
   const handleCuttableCheckoutSubmit = (data) => {
     playScanSuccessSound();
-    const { item, batch, mode, billableQty, deductQty, cutPieces, cutLength, scrapAction, scrapLeftover } = data;
+    const { item, batch, cartItemId, mode, billableQty, deductQty, cutPieces, cutLength, scrapAction, scrapLeftover } = data;
     const sellPrice = Number(batch?.selling_price ?? (item.price || 0));
+
+    if (cartItemId) {
+      setCart(prev => prev.map(c => {
+        if (c.id === cartItemId) {
+          const customP = c.customPriceInput !== undefined && c.customPriceInput !== '' ? Number(c.customPriceInput) : sellPrice;
+          return {
+            ...c,
+            quantity: billableQty,
+            actual_quantity: deductQty,
+            billableQuantity: billableQty,
+            cut_pieces: cutPieces,
+            cut_length: cutLength,
+            is_full_piece: mode === 'full',
+            scrap_action: scrapAction,
+            scrap_leftover: scrapLeftover,
+            customTotalInput: (customP * billableQty).toFixed(2)
+          };
+        }
+        return c;
+      }));
+      setCuttableCheckoutModal({ isOpen: false, modalData: null });
+      return;
+    }
+
     setCart(prev => {
       return [...prev, {
         ...item,
@@ -798,6 +822,38 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     });
     setCuttableCheckoutModal({ isOpen: false, modalData: null });
   };
+
+  const handleEditCuttableItem = useCallback(async (cartItem) => {
+    let inventoryItem = null;
+    try {
+      inventoryItem = await getInventoryItemByBarcode(cartItem.barcode);
+    } catch (e) {
+      console.warn("Could not fetch inventory item for edit:", e);
+    }
+    const item = inventoryItem || cartItem;
+    const batch = item?.batches?.find(b => b.batch_id === cartItem.batch_id) || {
+      batch_id: cartItem.batch_id,
+      batch_number: cartItem.batch_number,
+      selling_price: cartItem.selling_price || cartItem.price,
+      purchase_cost: cartItem.purchase_cost,
+      msp: cartItem.msp,
+      stock_store: cartItem.stock_store
+    };
+
+    setCuttableCheckoutModal({
+      isOpen: true,
+      modalData: {
+        item,
+        batch,
+        cartItemId: cartItem.id,
+        initialMode: cartItem.is_full_piece ? 'full' : 'cut',
+        initialFullPieces: cartItem.is_full_piece ? (cartItem.cut_pieces || 1) : 1,
+        initialCutPieces: cartItem.cut_pieces || 1,
+        initialCutLength: cartItem.cut_length || item.default_length,
+        initialScrapAction: cartItem.scrap_action || 'add'
+      }
+    });
+  }, []);
 
   const updateQuantity = useCallback((id, val, explicitGrams) => {
     setCart(prev => {
@@ -2668,6 +2724,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             activeTab={activeTab}
             onUpdateQuantity={updateQuantity}
             onUpdateDimensions={updateDimensions}
+            onEditCuttableItem={handleEditCuttableItem}
             onCustomPriceChange={handleCustomPriceChange}
             onCustomTotalChange={handleCustomTotalChange}
             onCustomPriceBlur={applyCustomPriceBlur}
@@ -2696,6 +2753,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             activeTab={activeTab}
             onUpdateQuantity={updateQuantity}
             onUpdateDimensions={updateDimensions}
+            onEditCuttableItem={handleEditCuttableItem}
             onCustomPriceChange={handleCustomPriceChange}
             onCustomTotalChange={handleCustomTotalChange}
             onCustomPriceBlur={applyCustomPriceBlur}

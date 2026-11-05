@@ -155,7 +155,8 @@ export default function BatchDetailsView({
   const [batchEditForm, setBatchEditForm] = useState({ 
     wholesaler: '',
     cost: '', 
-    msp: ''
+    msp: '',
+    mrp: ''
   });
 
   // Product description inline edit state
@@ -189,10 +190,11 @@ export default function BatchDetailsView({
       setBatchEditForm({
         wholesaler: activeBatch.supplier || '',
         cost: activeBatch.purchase_cost ?? item?.cost_price ?? 0,
-        msp: activeBatch.msp ?? item?.msp ?? item?.cost_price ?? 0
+        msp: activeBatch.msp ?? item?.msp ?? item?.cost_price ?? 0,
+        mrp: activeBatch.selling_price ?? item?.price ?? 0
       });
     }
-  }, [activeBatch?.batch_id, activeBatch?.supplier, activeBatch?.purchase_cost, activeBatch?.msp]);
+  }, [activeBatch?.batch_id, activeBatch?.supplier, activeBatch?.purchase_cost, activeBatch?.msp, activeBatch?.selling_price, item?.price]);
 
   // Self-healing: if warehouse is disabled but any batch has stranded warehouse stock, merge into store stock
   useEffect(() => {
@@ -1092,20 +1094,25 @@ export default function BatchDetailsView({
                                 showAlert("Please enter a valid positive Minimum Selling Price (MSP).", "Validation Error");
                                 return;
                               }
-                              const batchMrp = Number(activeBatch.selling_price ?? item?.price ?? 0);
+                              const numMrp = Number(batchEditForm.mrp);
+                              if (isNaN(numMrp) || numMrp <= 0 || batchEditForm.mrp === '') {
+                                showAlert("Please enter a valid positive Selling Price (MRP).", "Validation Error");
+                                return;
+                              }
                               if (numMsp < numCost) {
                                 showAlert(`MSP (₹${numMsp.toFixed(2)}) cannot be lower than the purchase cost (₹${numCost.toFixed(2)}).`, "Validation Error");
                                 return;
                               }
-                              if (batchMrp > 0 && numMsp > batchMrp) {
-                                showAlert(`MSP (₹${numMsp.toFixed(2)}) cannot be higher than the Selling Price / MRP (₹${batchMrp.toFixed(2)}).`, "Validation Error");
+                              if (numMrp < numMsp) {
+                                showAlert(`Selling Price / MRP (₹${numMrp.toFixed(2)}) cannot be lower than MSP (₹${numMsp.toFixed(2)}).`, "Validation Error");
                                 return;
                               }
                               updateBatchMutation.mutate({
                                 batch_id: activeBatch.batch_id,
                                 wholesaler: batchEditForm.wholesaler,
                                 cost: batchEditForm.cost,
-                                msp: batchEditForm.msp
+                                msp: batchEditForm.msp,
+                                mrp: batchEditForm.mrp
                               });
                             }}
                             disabled={updateBatchMutation.isPending}
@@ -1120,7 +1127,8 @@ export default function BatchDetailsView({
                               setBatchEditForm({
                                 wholesaler: activeBatch.supplier || '',
                                 cost: activeBatch.purchase_cost ?? item?.cost_price ?? 0,
-                                msp: activeBatch.msp ?? item?.msp ?? item?.cost_price ?? 0
+                                msp: activeBatch.msp ?? item?.msp ?? item?.cost_price ?? 0,
+                                mrp: activeBatch.selling_price ?? item?.price ?? 0
                               });
                             }}
                             className="h-8 px-3 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
@@ -1135,7 +1143,7 @@ export default function BatchDetailsView({
                             <button
                               onClick={() => setIsEditingBatch(true)}
                               className="h-8 px-3 rounded-lg border border-[var(--border-medium)] hover:border-[var(--color-accent)] text-[var(--text-primary)] hover:bg-white/5 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
-                              title="Edit Batch Cost, MSP and Wholesaler"
+                              title="Edit Batch Cost, MSP, MRP and Wholesaler"
                             >
                               <Edit3 className="w-3.5 h-3.5 text-[var(--color-accent)]" />
                               Edit Batch
@@ -1218,9 +1226,21 @@ export default function BatchDetailsView({
                   <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1">
                     MRP
                   </span>
-                  <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
-                    ₹{Number(activeBatch.selling_price ?? item.price ?? 0).toFixed(2)}
-                  </span>
+                  {isEditingBatch ? (
+                    <input
+                      type="number"
+                      step="any"
+                      min="0"
+                      value={batchEditForm.mrp}
+                      onChange={e => setBatchEditForm(prev => ({ ...prev, mrp: e.target.value }))}
+                      className="w-full h-7 px-2 text-sm font-bold rounded bg-[var(--bg-input)] border border-[var(--color-accent)] text-[var(--text-primary)] focus:outline-none"
+                      placeholder="0.00"
+                    />
+                  ) : (
+                    <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                      ₹{Number(activeBatch.selling_price ?? item.price ?? 0).toFixed(2)}
+                    </span>
+                  )}
                 </div>
 
                 {/* Warehouse Stock */}

@@ -21,6 +21,7 @@ const CartTable = React.memo(function CartTable({
   onSelectCartIndex = null,
   onUpdateQuantity, 
   onUpdateDimensions, 
+  onEditCuttableItem,
   onCustomPriceChange, 
   onCustomTotalChange, 
   onCustomPriceBlur, 
@@ -33,11 +34,6 @@ const CartTable = React.memo(function CartTable({
 }) {
   const { cart, activeCartTab, cancelHeldCart, switchCartTab } = useCart();
   const { userRole } = useApp();
-  const [expandedGroups, setExpandedGroups] = React.useState({});
-
-  const toggleGroup = (groupKey) => {
-    setExpandedGroups(prev => ({ ...prev, [groupKey]: !prev[groupKey] }));
-  };
   if (cart.length === 0) {
     if (activeCartTab && activeCartTab.startsWith('held_')) {
       return (
@@ -109,216 +105,8 @@ const CartTable = React.memo(function CartTable({
         </tr>
       </thead>
       <tbody style={{ borderBottom: '1px solid var(--border-medium)' }}>
-        {(() => {
-          const groupedCart = [];
-          const groupMap = new Map();
-
-          cart.forEach(item => {
-            if (activeTab === 'checkout' && item.is_cuttable) {
-              const groupKey = `${item.barcode}_${item.batch_id || 'default'}`;
-              if (!groupMap.has(groupKey)) {
-                const group = {
-                  isGroup: true,
-                  id: `group-${groupKey}`,
-                  groupKey: groupKey,
-                  barcode: item.barcode,
-                  batch_id: item.batch_id,
-                  name: item.batch_number ? `${item.name} - Batch ${String(item.batch_number).padStart(2, '0')}` : item.name,
-                  unit: item.unit,
-                  price: item.price,
-                  msp: item.msp,
-                  msp_price: item.msp_price,
-                  customPriceInput: item.customPriceInput !== undefined ? item.customPriceInput : item.price,
-                  discountPct: item.discountPct || 0,
-                  totalQty: 0,
-                  totalPrice: 0,
-                  children: []
-                };
-                groupedCart.push(group);
-                groupMap.set(groupKey, group);
-              }
-              const group = groupMap.get(groupKey);
-              group.children.push(item);
-              const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
-              const billableQty = item.billableQuantity !== undefined && item.billableQuantity !== '' ? Number(item.billableQuantity) : safeQty;
-              group.totalQty += safeQty;
-              group.totalBillableQty = (group.totalBillableQty || 0) + billableQty;
-              const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
-              group.totalPrice += sellPrice * billableQty;
-              group.customPriceInput = item.customPriceInput !== undefined ? item.customPriceInput : item.price;
-              group.customTotalInput = item.customTotalInput;
-              group.discountPct = item.discountPct;
-            } else {
-              groupedCart.push(item);
-            }
-          });
-
-          return groupedCart.map(item => {
-            if (item.isGroup) {
-              const isExpanded = expandedGroups[item.groupKey];
-              const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
-              const groupMsp = Number(item.msp_price) || Number(item.msp) || Number(item.cost_price) || 0;
-              const isGroupBelowMsp = activeTab === 'checkout' && groupMsp > 0 && sellPrice < groupMsp;
-              return (
-                <React.Fragment key={item.id}>
-                  {/* Parent Row */}
-                  <tr className="animate-fade-in cursor-pointer bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)]" onClick={() => toggleGroup(item.groupKey)} style={{ borderBottom: isExpanded ? 'none' : '1px solid var(--border-light)' }}>
-                    <td className="py-4 px-3 text-center" >
-                      <div className="flex items-center justify-center gap-2">
-                        <span className={`text-[var(--text-secondary)] transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                          </svg>
-                        </span>
-                        <p className="text-sm  font-bold" style={{ color: 'var(--color-accent)' }}>{item.barcode}</p>
-                      </div>
-                    </td>
-                    <td className="py-4 px-3 text-center" >
-                      <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name} <span className="text-xs bg-[var(--color-accent-bg)] px-2 py-0.5 rounded-full" style={{ color: 'var(--color-accent)' }}>{item.children.length} Pieces</span></p>
-                      {activeTab === 'checkout' && (
-                        <div className="flex justify-center gap-2 mt-1.5">
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider rounded-sm" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
-                            MRP: ₹{Number(item.price || 0).toFixed(2)}
-                          </span>
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider rounded-sm group/msp cursor-help" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
-                            MSP: {userRole === 'owner' ? `₹${Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}</span></span>}
-                          </span>
-                        </div>
-                      )}
-                    </td>
-                    <td className="p-2 text-center" >
-                      <div className="inline-flex items-baseline justify-center gap-1">
-                        <span className="font-bold text-[15px]" style={{ color: 'var(--text-primary)' }}>{Number(item.totalQty).toFixed(2)}</span>
-                        <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{item.unit}</span>
-                      </div>
-                    </td>
-                    <td className="p-2" onClick={e => e.stopPropagation()}>
-                      <div className="flex flex-col items-center justify-center">
-                        <div className="relative inline-flex items-center w-full max-w-[120px] mx-auto">
-                          <span className="absolute left-3 text-[11px] font-bold" style={{ color: 'var(--text-tertiary)' }}>₹</span>
-                          <input 
-                            type="number" 
-                            step="0.01" 
-                            min={groupMsp > 0 ? groupMsp : 0}
-                            onWheel={handleWheelBlur} 
-                            value={item.customPriceInput !== undefined ? (typeof item.customPriceInput === 'number' ? item.customPriceInput.toFixed(2) : item.customPriceInput) : Number(item.price || 0).toFixed(2)} 
-                            onChange={(e) => onCustomPriceChangeGroup(item.groupKey, e.target.value)} 
-                            onBlur={() => onCustomPriceBlurGroup(item.groupKey)} 
-                            onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                            placeholder="0.00" 
-                            className={`w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 ${isGroupBelowMsp ? 'focus:ring-[var(--color-error)]' : 'focus:ring-[var(--color-accent)]'}`} 
-                            style={{ 
-                              border: isGroupBelowMsp ? '1px solid var(--color-error)' : '1px solid var(--border-medium)', 
-                              color: isGroupBelowMsp ? 'var(--color-error)' : 'var(--text-primary)' 
-                            }} 
-                            aria-label={`${item.name} MRP`} 
-                          />
-                        </div>
-                        {isGroupBelowMsp && (
-                          <div className="h-4 flex items-center justify-center mt-1">
-                            <span className="text-[10px] font-bold leading-none" style={{ color: 'var(--color-error)' }}>
-                              Min: ₹{groupMsp.toFixed(2)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="p-2"  onClick={e => e.stopPropagation()}>
-                      <div className="flex flex-col items-center justify-center">
-                        <div className="relative inline-flex items-center w-full max-w-[120px] mx-auto">
-                          <span className="absolute left-3 text-[11px] font-bold" style={{ color: 'var(--text-tertiary)' }}>₹</span>
-                          <input 
-                            type="number" 
-                            step="0.01" 
-                            onWheel={handleWheelBlur} 
-                            value={item.customTotalInput !== undefined ? item.customTotalInput : item.totalPrice.toFixed(2)} 
-                            onChange={(e) => onCustomTotalChangeGroup(item.groupKey, e.target.value, item.totalBillableQty)} 
-                            onBlur={() => onCustomPriceBlurGroup(item.groupKey)} 
-                            onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-                            placeholder="0.00" 
-                            className={`w-full h-8 pl-6 pr-2 text-sm font-bold text-center focus:outline-none rounded-md bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors focus:ring-1 ${isGroupBelowMsp ? 'focus:ring-[var(--color-error)]' : 'focus:ring-[var(--color-accent)]'}`} 
-                            style={{ 
-                              border: isGroupBelowMsp ? '1px solid var(--color-error)' : '1px solid var(--border-medium)', 
-                              color: 'var(--text-primary)' 
-                            }} 
-                            aria-label={`${item.name} total`} 
-                          />
-                        </div>
-                      </div>
-                    </td>
-                    <td className="p-2 text-center align-middle" onClick={e => e.stopPropagation()}>
-                      <button type="button" onClick={() => item.children.forEach(c => onRemoveItem(c.id))} className="w-8 h-8 mx-auto rounded flex items-center justify-center transition-colors focus:outline-none" style={{ color: 'var(--text-secondary)' }} onMouseEnter={e => { e.currentTarget.style.color = 'var(--color-error)'; }} onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-secondary)'; }} aria-label={`Remove all ${item.name}`}>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                      </button>
-                    </td>
-                  </tr>
-                  {/* Child Rows */}
-                  {isExpanded && item.children.map((child, idx) => {
-                    const safeQty = child.quantity === '' ? 0 : Number(child.quantity);
-                    const billableQty = child.billableQuantity !== undefined && child.billableQuantity !== '' ? Number(child.billableQuantity) : safeQty;
-                    const isLast = idx === item.children.length - 1;
-                    const isChildSelected = cart[selectedCartIndex]?.id === child.id;
-                    return (
-                      <tr 
-                        key={child.id} 
-                        onClick={() => {
-                          const cIdx = cart.findIndex(c => c.id === child.id);
-                          if (cIdx >= 0 && onSelectCartIndex) onSelectCartIndex(cIdx);
-                        }}
-                        className={`animate-fade-in cursor-pointer transition-colors ${isChildSelected ? 'bg-[var(--bg-hover)]' : 'bg-[var(--bg-primary)]'}`} 
-                        style={{ 
-                          borderBottom: isLast ? '1px solid var(--border-medium)' : '1px dashed var(--border-medium)',
-                          boxShadow: isChildSelected ? 'inset 4px 0 0 var(--color-accent)' : undefined
-                        }}
-                      >
-                        <td className="py-4 px-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                          <div className="flex items-center justify-center gap-2">
-                            <span className="text-xs font-bold" style={{ color: 'var(--text-tertiary)' }}>
-                              {child.is_full_piece ? 'Full Piece' : (child.cut_pieces ? `${child.cut_pieces} cuts` : 'Cut Piece')}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="py-4 px-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                          <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>
-                            {child.is_full_piece ? `${child.cut_pieces || 1} Full Piece(s)` : `${child.cut_pieces || 1} × ${child.cut_length} ft`}
-                          </span>
-                          {child.scrap_action === 'discard' && (
-                            <span className="text-[9px] text-amber-400 block mt-0.5">({child.scrap_leftover}ft scrap discarded)</span>
-                          )}
-                        </td>
-                        <td className="p-2 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                          {child.unit === 'SQFT' ? (
-                              <div className="flex items-center justify-center gap-2">
-                                <span className="font-bold text-sm bg-[var(--bg-tertiary)] px-3 py-1 rounded-sm border border-[var(--border-medium)]" style={{ color: 'var(--text-primary)' }}>{child.pieceLength || child.length} ft</span>
-                                <span className="text-[10px] font-bold" style={{ color: 'var(--text-tertiary)' }}>×</span>
-                                <span className="font-bold text-sm bg-[var(--bg-tertiary)] px-3 py-1 rounded-sm border border-[var(--border-medium)]" style={{ color: 'var(--text-primary)' }}>{child.width} ft</span>
-                                <span className="text-[10px] font-bold ml-2 text-[var(--color-accent)]">{safeQty} sqft</span>
-                              </div>
-                          ) : (
-                              <div className="inline-flex items-baseline justify-center gap-1">
-                                <span className="font-bold text-[15px]" style={{ color: 'var(--text-primary)' }}>{safeQty}</span>
-                                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{child.unit}</span>
-                              </div>
-                          )}
-                        </td>
-                        <td className="p-2" style={{ borderRight: '1px solid var(--border-medium)' }}></td>
-                        <td className="p-2 text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                          ₹{(sellPrice * billableQty).toFixed(2)}
-                          {safeQty !== billableQty && (
-                             <div className="text-[10px] text-[var(--text-tertiary)] font-normal">Billed for {billableQty} sqft</div>
-                          )}
-                        </td>
-                        <td className="p-2 text-center">
-                          <button type="button" onClick={() => onRemoveItem(child.id)} className="w-6 h-6 mx-auto rounded flex items-center justify-center transition-colors focus:outline-none" style={{ color: 'var(--text-secondary)' }} onMouseEnter={e => e.currentTarget.style.color = 'var(--color-error)'} onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'} aria-label={`Remove piece`}>✕</button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </React.Fragment>
-              );
-            }
-            
-            const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
+        {cart.map(item => {
+          const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
             const billableQty = item.billableQuantity !== undefined && item.billableQuantity !== '' ? Number(item.billableQuantity) : safeQty;
             const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
             const itemMsp = Number(item.msp_price) || Number(item.msp) || Number(item.cost_price) || 0;
@@ -409,10 +197,25 @@ const CartTable = React.memo(function CartTable({
                       </div>
                       <div className="h-4 flex flex-col items-center justify-center mt-1">
                         {activeTab === 'checkout' ? (
-                          <span className="text-[10px] text-[var(--text-tertiary)] font-normal leading-none">
-                            {item.is_full_piece ? `${item.cut_pieces || 1} × ${item.cut_length || item.default_length} ${item.unit || 'FT'}` : (item.cut_pieces ? `${item.cut_pieces} cuts × ${item.cut_length} ${item.unit || 'FT'}` : `${safeQty} ${item.unit}`)}
-                            {item.scrap_action === 'discard' && <span className="text-amber-400 font-bold ml-1">(+{item.scrap_leftover}ft scrap discarded)</span>}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditCuttableItem && onEditCuttableItem(item);
+                              }}
+                              className="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--color-accent)] hover:underline hover:text-[var(--text-primary)] transition-colors cursor-pointer px-1.5 py-0.5 rounded bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] border border-[var(--border-medium)]"
+                              title="Click to edit cut pieces or length"
+                            >
+                              <span>
+                                {item.is_full_piece ? `${item.cut_pieces || 1} × ${item.cut_length || item.default_length} ${item.unit || 'FT'}` : (item.cut_pieces ? `${item.cut_pieces} cuts × ${item.cut_length} ${item.unit || 'FT'}` : `${safeQty} ${item.unit}`)}
+                              </span>
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-2.5 h-2.5 opacity-70">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                              </svg>
+                            </button>
+                            {item.scrap_action === 'discard' && <span className="text-amber-400 font-bold ml-1 text-[9px]">(+{item.scrap_leftover}ft scrap discarded)</span>}
+                          </div>
                         ) : (
                           <span className="text-[10px] text-[var(--color-accent)] font-semibold leading-none">
                             ({item.actual_quantity !== undefined ? item.actual_quantity : Math.round(safeQty * Number(item.default_length || 12) * (item.unit === 'SQFT' ? Number(item.default_width || 3) : 1) * 100) / 100} {item.unit})
@@ -616,8 +419,7 @@ const CartTable = React.memo(function CartTable({
                 </td>
               </tr>
             );
-          });
-        })()}
+          })}
           </tbody>
         </table>
   );

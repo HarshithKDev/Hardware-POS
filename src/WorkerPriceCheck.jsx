@@ -285,7 +285,7 @@ export default function WorkerPriceCheck() {
                 <div className="p-5 md:p-6 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-light)] flex items-center justify-between">
                   <div>
                     <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1">
-                      Selling Price
+                      Selling Price (MRP)
                     </span>
                     <div className="flex items-baseline gap-2">
                       <span className="text-4xl md:text-5xl font-black text-[var(--color-success)] tracking-tight">
@@ -304,7 +304,7 @@ export default function WorkerPriceCheck() {
                     title="Tap to reveal minimum price"
                   >
                     <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center justify-end gap-1">
-                      Min Price
+                      MSP
                       <Eye className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
                     </span>
                     <span className="text-base font-bold text-[var(--text-primary)] font-mono mt-0.5 block">
