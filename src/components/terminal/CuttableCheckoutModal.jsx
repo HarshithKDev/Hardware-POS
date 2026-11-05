@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Info, AlertCircle } from 'lucide-react';
 
 export default function CuttableCheckoutModal({
   isOpen,
@@ -297,65 +298,113 @@ export default function CuttableCheckoutModal({
 
               {/* Validation Warning when cut length > default length */}
               {isCutExceeding && (
-                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-400 font-semibold flex items-start gap-2 animate-scale-in">
-                  <span className="text-base leading-none">⚠️</span>
-                  <span>
-                    Cut length (<strong>{parsedCutLength} {unitLabel}</strong>) cannot exceed the standard piece length (<strong>{defaultLen} {unitLabel}</strong>). A single piece cannot be cut larger than {defaultLen} {unitLabel}. For full pieces, switch to the &ldquo;Full {defaultLen} FT&rdquo; tab.
+                <div className="p-3 rounded-lg bg-[var(--bg-tertiary)] border border-red-500/40 text-xs text-red-400 font-medium flex items-start gap-2.5 animate-scale-in">
+                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                  <span className="leading-relaxed">
+                    Cut length (<strong className="text-red-300">{parsedCutLength} {unitLabel}</strong>) cannot exceed standard piece length (<strong className="text-red-300">{defaultLen} {unitLabel}</strong>).
                   </span>
                 </div>
               )}
 
               {/* Scrap Rule Banner when remaining piece < 3ft */}
               {isSmallScrap && (
-                <div className="p-3.5 rounded-lg border border-amber-500/40 bg-amber-500/10 flex flex-col gap-2.5 animate-scale-in">
-                  <div className="flex items-start gap-2">
-                    <span className="text-amber-400 text-sm">⚠️</span>
-                    <div className="text-xs text-[var(--text-primary)]">
-                      <strong>Remaining piece is {scrapLeftover.toFixed(1)} ft (less than 3 ft).</strong>
-                      <p className="text-[var(--text-secondary)] mt-0.5">Please request customer to purchase the remaining offcut piece.</p>
+                <div className="p-3.5 rounded-lg border border-[var(--border-medium)] bg-[var(--bg-tertiary)] flex flex-col gap-3 animate-scale-in">
+                  <div className="flex items-start gap-2.5">
+                    <Info className="w-4 h-4 text-[var(--color-accent)] shrink-0 mt-0.5" />
+                    <div className="flex-1 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-[var(--text-primary)]">
+                          Remaining piece is {scrapLeftover.toFixed(1)} ft (less than 3 ft)
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-primary)] text-[var(--text-secondary)] border border-[var(--border-light)] font-medium">
+                          Offcut Rule
+                        </span>
+                      </div>
+                      <p className="text-[var(--text-secondary)] text-[11px] mt-0.5">
+                        Please request customer to purchase the remaining offcut piece.
+                      </p>
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-1.5 pt-1">
-                    <label className={`flex items-center gap-2.5 p-2 rounded border cursor-pointer transition-colors ${scrapAction === 'add' ? 'bg-[var(--color-accent)]/20 border-[var(--color-accent)] text-[var(--text-primary)] font-bold' : 'border-[var(--border-medium)] text-[var(--text-secondary)]'}`}>
-                      <input 
-                        type="radio" 
-                        name="scrapAction" 
-                        value="add" 
-                        checked={scrapAction === 'add'} 
-                        onChange={() => setScrapAction('add')}
-                        className="accent-[var(--color-accent)] cursor-pointer" 
-                      />
-                      <span className="text-xs">
-                        Customer agreed to take scrap (+{scrapLeftover.toFixed(1)} ft) &rarr; Bill full {defaultLen} ft
+                  <div className="flex flex-col gap-1.5">
+                    <label
+                      className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all ${
+                        scrapAction === 'add'
+                          ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)] text-[var(--text-primary)] font-medium'
+                          : 'bg-[var(--bg-primary)] border-[var(--border-light)] text-[var(--text-secondary)] hover:border-[var(--border-medium)] hover:text-[var(--text-primary)]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <input 
+                          type="radio" 
+                          name="scrapAction" 
+                          value="add" 
+                          checked={scrapAction === 'add'} 
+                          onChange={() => setScrapAction('add')}
+                          className="accent-[var(--color-accent)] cursor-pointer shrink-0" 
+                        />
+                        <span className="text-xs truncate">
+                          Customer agreed to take scrap (+{scrapLeftover.toFixed(1)} ft)
+                        </span>
+                      </div>
+                      <span className={`text-[11px] font-semibold shrink-0 ml-2 ${
+                        scrapAction === 'add' ? 'text-[var(--color-accent)]' : 'text-[var(--text-tertiary)]'
+                      }`}>
+                        Bill full {defaultLen} ft
                       </span>
                     </label>
 
-                    <label className={`flex items-center gap-2.5 p-2 rounded border cursor-pointer transition-colors ${scrapAction === 'discard' ? 'bg-red-500/20 border-red-500 text-[var(--text-primary)] font-bold' : 'border-[var(--border-medium)] text-[var(--text-secondary)]'}`}>
-                      <input 
-                        type="radio" 
-                        name="scrapAction" 
-                        value="discard" 
-                        checked={scrapAction === 'discard'} 
-                        onChange={() => setScrapAction('discard')}
-                        className="accent-red-500 cursor-pointer" 
-                      />
-                      <span className="text-xs">
-                        Customer declined &rarr; Bill {cutLength} ft, discard {scrapLeftover.toFixed(1)} ft scrap from inventory
+                    <label
+                      className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all ${
+                        scrapAction === 'discard'
+                          ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)] text-[var(--text-primary)] font-medium'
+                          : 'bg-[var(--bg-primary)] border-[var(--border-light)] text-[var(--text-secondary)] hover:border-[var(--border-medium)] hover:text-[var(--text-primary)]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <input 
+                          type="radio" 
+                          name="scrapAction" 
+                          value="discard" 
+                          checked={scrapAction === 'discard'} 
+                          onChange={() => setScrapAction('discard')}
+                          className="accent-[var(--color-accent)] cursor-pointer shrink-0" 
+                        />
+                        <span className="text-xs truncate">
+                          Customer declined
+                        </span>
+                      </div>
+                      <span className={`text-[11px] font-semibold shrink-0 ml-2 ${
+                        scrapAction === 'discard' ? 'text-[var(--color-accent)]' : 'text-[var(--text-tertiary)]'
+                      }`}>
+                        Bill {parsedCutLength} ft &middot; Discard {scrapLeftover.toFixed(1)} ft
                       </span>
                     </label>
 
-                    <label className={`flex items-center gap-2.5 p-2 rounded border cursor-pointer transition-colors ${scrapAction === 'keep' ? 'bg-[var(--bg-tertiary)] border-[var(--border-medium)] text-[var(--text-primary)] font-bold' : 'border-[var(--border-medium)] text-[var(--text-secondary)]'}`}>
-                      <input 
-                        type="radio" 
-                        name="scrapAction" 
-                        value="keep" 
-                        checked={scrapAction === 'keep'} 
-                        onChange={() => setScrapAction('keep')}
-                        className="accent-[var(--text-secondary)] cursor-pointer" 
-                      />
-                      <span className="text-xs">
-                        Keep {scrapLeftover.toFixed(1)} ft scrap in stock &rarr; Bill {cutLength} ft, deduct {cutLength} ft
+                    <label
+                      className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all ${
+                        scrapAction === 'keep'
+                          ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)] text-[var(--text-primary)] font-medium'
+                          : 'bg-[var(--bg-primary)] border-[var(--border-light)] text-[var(--text-secondary)] hover:border-[var(--border-medium)] hover:text-[var(--text-primary)]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <input 
+                          type="radio" 
+                          name="scrapAction" 
+                          value="keep" 
+                          checked={scrapAction === 'keep'} 
+                          onChange={() => setScrapAction('keep')}
+                          className="accent-[var(--color-accent)] cursor-pointer shrink-0" 
+                        />
+                        <span className="text-xs truncate">
+                          Keep offcut in shop stock
+                        </span>
+                      </div>
+                      <span className={`text-[11px] font-semibold shrink-0 ml-2 ${
+                        scrapAction === 'keep' ? 'text-[var(--color-accent)]' : 'text-[var(--text-tertiary)]'
+                      }`}>
+                        Bill {parsedCutLength} ft &middot; Deduct {parsedCutLength} ft
                       </span>
                     </label>
                   </div>
