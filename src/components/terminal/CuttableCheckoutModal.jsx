@@ -42,14 +42,17 @@ export default function CuttableCheckoutModal({
   let scrapLeftover = 0;
   let isSmallScrap = false;
 
+  const parsedCutLength = parseFloat(cutLength) || 0;
+  const isCutExceeding = mode === 'cut' && parsedCutLength > defaultLen;
+
   if (mode === 'full') {
     const pcs = Math.max(1, parseInt(fullPieces, 10) || 1);
     const totalDim = isSqft ? pcs * defaultWid * defaultLen : pcs * defaultLen;
     billableQty = totalDim;
     deductQty = totalDim;
-  } else {
+  } else if (!isCutExceeding) {
     const pcs = Math.max(1, parseInt(cutPieces, 10) || 1);
-    const len = Math.max(0, parseFloat(cutLength) || 0);
+    const len = Math.max(0, parsedCutLength);
 
     if (isSqft) {
       // Mesh: pieces * cut length * fixed width
@@ -94,7 +97,7 @@ export default function CuttableCheckoutModal({
 
   const handleSubmit = (e) => {
     if (e) e.preventDefault();
-    if (billableQty <= 0) return;
+    if (billableQty <= 0 || isCutExceeding) return;
     onSubmit({
       item,
       batch,
@@ -233,24 +236,50 @@ export default function CuttableCheckoutModal({
 
                 {/* Cut length per piece */}
                 <div className="flex-1">
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-[var(--text-secondary)]">
-                    Cut Length ({item.unit === 'METER' ? 'M' : 'FT'})
-                  </label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                      Cut Length ({item.unit === 'METER' ? 'M' : 'FT'})
+                    </label>
+                    <span className="text-[11px] text-[var(--text-tertiary)] font-medium">
+                      Max: <strong className="text-[var(--text-secondary)]">{defaultLen} {unitLabel}</strong>
+                    </span>
+                  </div>
                   <div className="relative">
                     <input
                       type="number"
                       autoFocus
                       step="any"
                       min="0.1"
+                      max={defaultLen}
                       value={cutLength}
                       onChange={e => setCutLength(e.target.value)}
-                      className="w-full h-12 pl-4 pr-12 text-lg font-bold rounded-lg border-2 border-[var(--color-accent)] bg-[var(--bg-input)] text-[var(--text-input)] focus:outline-none"
-                      placeholder="e.g. 4"
+                      className={`w-full h-12 pl-4 pr-12 text-lg font-bold rounded-lg border-2 ${
+                        isCutExceeding ? 'border-red-500 focus:border-red-500' : 'border-[var(--color-accent)] focus:border-[var(--color-accent)]'
+                      } bg-[var(--bg-input)] text-[var(--text-input)] focus:outline-none`}
+                      placeholder={`Max ${defaultLen}`}
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold uppercase text-[var(--text-tertiary)]">
                       {item.unit === 'METER' ? 'M' : 'FT'}
                     </span>
                   </div>
+                  {!isSqft && [2, 3, 4, 6, 8, 10].some(n => n < defaultLen) && (
+                    <div className="flex gap-1.5 mt-2">
+                      {[2, 3, 4, 6, 8, 10].filter(n => n < defaultLen).map(n => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setCutLength(String(n))}
+                          className={`flex-1 py-1 text-xs font-semibold rounded border transition-colors cursor-pointer ${
+                            parseFloat(cutLength) === n
+                              ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)]'
+                              : 'bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-[var(--border-medium)]'
+                          }`}
+                        >
+                          {n}ft
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Mesh Fixed Width display */}
@@ -265,6 +294,16 @@ export default function CuttableCheckoutModal({
                   </div>
                 )}
               </div>
+
+              {/* Validation Warning when cut length > default length */}
+              {isCutExceeding && (
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-400 font-semibold flex items-start gap-2 animate-scale-in">
+                  <span className="text-base leading-none">⚠️</span>
+                  <span>
+                    Cut length (<strong>{parsedCutLength} {unitLabel}</strong>) cannot exceed the standard piece length (<strong>{defaultLen} {unitLabel}</strong>). A single piece cannot be cut larger than {defaultLen} {unitLabel}. For full pieces, switch to the &ldquo;Full {defaultLen} FT&rdquo; tab.
+                  </span>
+                </div>
+              )}
 
               {/* Scrap Rule Banner when remaining piece < 3ft */}
               {isSmallScrap && (
@@ -364,7 +403,7 @@ export default function CuttableCheckoutModal({
             </button>
             <button
               type="submit"
-              disabled={billableQty <= 0 || isOutOfStock}
+              disabled={billableQty <= 0 || isOutOfStock || isCutExceeding}
               className="h-10 px-8 text-sm font-bold rounded-lg text-white bg-[var(--color-accent)] hover:brightness-110 disabled:opacity-50 transition-all cursor-pointer shadow-md"
             >
               {modalData?.cartItemId ? 'Update Cut' : 'Add to Bill'}
