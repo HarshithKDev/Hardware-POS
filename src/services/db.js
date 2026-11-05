@@ -70,6 +70,37 @@ export const getInventoryItemByBarcode = async (barcode) => {
     const db = await initDB();
     item = await db.get('product_master', [shopId, barcode]);
   }
+
+  // Fallback to remote database if missing from local IndexedDB
+  if (!item && typeof navigator !== 'undefined' && navigator.onLine && supabase) {
+    try {
+      let q = supabase
+        .from('product_master_public')
+        .select('*')
+        .eq('barcode', String(barcode));
+      if (shopId) q = q.eq('shop_id', shopId);
+      const { data: remoteProd } = await q.maybeSingle();
+
+      if (remoteProd) {
+        let bQ = supabase
+          .from('inventory_batches_public')
+          .select('*')
+          .eq('barcode', String(barcode))
+          .eq('is_active', true);
+        if (shopId) bQ = bQ.eq('shop_id', shopId);
+        const { data: remoteBatches } = await bQ;
+
+        item = {
+          ...remoteProd,
+          batches: remoteBatches || []
+        };
+        await saveInventoryBatch([item]);
+      }
+    } catch (e) {
+      console.warn("Fallback remote product lookup failed:", e);
+    }
+  }
+
   if (item && item.batches) {
     item.batches = item.batches.filter(b => b.is_active !== false);
   }

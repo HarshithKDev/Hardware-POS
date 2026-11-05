@@ -271,6 +271,28 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         });
         
         let finalSuggestions = parentData || [];
+
+        // Online fallback if local IndexedDB doesn't have the newly created item yet
+        if (finalSuggestions.length === 0 && navigator.onLine) {
+          try {
+            const shopId = localStorage.getItem('shop_id');
+            let q = supabase
+              .from('product_master_public')
+              .select('*')
+              .ilike('name', `%${baseSearch}%`)
+              .eq('is_active', true)
+              .limit(10);
+            if (shopId) q = q.eq('shop_id', shopId);
+            const { data: remoteMatches } = await q;
+            if (remoteMatches && remoteMatches.length > 0) {
+              finalSuggestions = remoteMatches;
+              // Trigger a background sync to pull down the new item and its batches into IndexedDB
+              syncInventoryToLocal(userRole);
+            }
+          } catch (remoteErr) {
+            console.warn("Online suggestion fallback error:", remoteErr);
+          }
+        }
         
         setSuggestions(finalSuggestions);
         setShowSuggestions(true);
