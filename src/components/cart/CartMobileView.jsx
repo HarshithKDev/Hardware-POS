@@ -143,6 +143,7 @@ const CartMobileView = React.memo(function CartMobileView({
                     onMouseDown={(e) => e.preventDefault()} 
                     onClick={() => onUpdateQuantity(item.id, Math.max(activeTab === 'checkout' ? 0.1 : 1, safeQty - 1))} 
                     className="w-10 h-10 flex items-center justify-center text-lg font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors border-r border-[var(--border-medium)] select-none"
+                    style={{ borderRadius: 0 }}
                     aria-label="Decrease quantity"
                   >
                     -
@@ -153,7 +154,8 @@ const CartMobileView = React.memo(function CartMobileView({
                     min={activeTab === 'checkout' ? "0" : "1"}
                     value={item.quantity}
                     onChange={(e) => onUpdateQuantity(item.id, e.target.value)}
-                    className="w-14 h-10 text-center font-bold text-sm bg-transparent text-[var(--text-primary)] focus:outline-none p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="w-14 h-10 text-center font-bold text-sm bg-transparent text-[var(--text-primary)] rounded-none !border-none !shadow-none !outline-none focus:!outline-none focus:!border-none focus:!shadow-none focus:bg-[var(--bg-secondary)] transition-colors p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    style={{ borderRadius: 0, border: 'none', boxShadow: 'none', outline: 'none' }}
                     aria-label={`${item.name} quantity`}
                   />
                   <button 
@@ -161,6 +163,7 @@ const CartMobileView = React.memo(function CartMobileView({
                     onMouseDown={(e) => e.preventDefault()} 
                     onClick={() => onUpdateQuantity(item.id, safeQty + 1)} 
                     className="w-10 h-10 flex items-center justify-center text-lg font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors border-l border-[var(--border-medium)] select-none"
+                    style={{ borderRadius: 0 }}
                     aria-label="Increase quantity"
                   >
                     +
@@ -287,10 +290,10 @@ const CartMobileView = React.memo(function CartMobileView({
 
                   return (
                     <div className="flex flex-col items-center">
-                      <div className="inline-flex items-center rounded-md border border-[var(--border-medium)] bg-[var(--bg-tertiary)] overflow-hidden shadow-sm">
-                        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-8 h-8 flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-r border-[var(--border-medium)] select-none" aria-label={`Decrease ${item.name} quantity`}>-</button>
-                        <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-14 h-8 text-sm font-bold text-center bg-transparent text-[var(--text-primary)] focus:outline-none p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" aria-label={`${item.name} quantity`} />
-                        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-8 h-8 flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-l border-[var(--border-medium)] select-none" aria-label={`Increase ${item.name} quantity`}>+</button>
+                      <div className="inline-flex items-center rounded-lg border border-[var(--border-medium)] bg-[var(--bg-tertiary)] overflow-hidden shadow-sm">
+                        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-8 h-8 flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-r border-[var(--border-medium)] select-none" style={{ borderRadius: 0 }} aria-label={`Decrease ${item.name} quantity`}>-</button>
+                        <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-14 h-8 text-sm font-bold text-center bg-transparent text-[var(--text-primary)] rounded-none !border-none !shadow-none !outline-none focus:!outline-none focus:!border-none focus:!shadow-none focus:bg-[var(--bg-secondary)] transition-colors p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" style={{ borderRadius: 0, border: 'none', boxShadow: 'none', outline: 'none' }} aria-label={`${item.name} quantity`} />
+                        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-8 h-8 flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-l border-[var(--border-medium)] select-none" style={{ borderRadius: 0 }} aria-label={`Increase ${item.name} quantity`}>+</button>
                       </div>
                       <span className="text-[10px] text-[var(--text-tertiary)] font-medium mt-0.5">
                         {safeQty} {formatUnitBadge(item.unit === 'SQFT' && activeTab !== 'checkout' ? 'ROLLS' : item.unit)}

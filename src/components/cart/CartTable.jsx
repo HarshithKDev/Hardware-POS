@@ -159,12 +159,13 @@ const CartTable = React.memo(function CartTable({
                 <td className="p-2 text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>
                   {item.is_cuttable ? (
                     <div className="flex flex-col items-center justify-center">
-                      <div className="inline-flex items-center rounded-md border border-[var(--border-medium)] bg-[var(--bg-tertiary)] overflow-hidden shadow-sm">
+                      <div className="inline-flex items-center rounded-lg border border-[var(--border-medium)] bg-[var(--bg-tertiary)] overflow-hidden shadow-sm">
                         <button 
                           type="button" 
                           onMouseDown={(e) => e.preventDefault()} 
                           onClick={() => onUpdateQuantity(item.id, Math.max(activeTab === 'checkout' ? 0.1 : 1, safeQty - 1))} 
                           className="w-8 h-8 flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-r border-[var(--border-medium)] select-none"
+                          style={{ borderRadius: 0 }}
                           aria-label="Decrease quantity"
                         >
                           -
@@ -176,7 +177,8 @@ const CartTable = React.memo(function CartTable({
                           onWheel={handleWheelBlur} 
                           value={item.quantity} 
                           onChange={(e) => onUpdateQuantity(item.id, e.target.value)} 
-                          className="w-14 h-8 text-sm font-bold text-center bg-transparent text-[var(--text-primary)] focus:outline-none focus:bg-[var(--bg-secondary)] transition-colors p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                          className="w-14 h-8 text-sm font-bold text-center bg-transparent text-[var(--text-primary)] rounded-none !border-none !shadow-none !outline-none focus:!outline-none focus:!border-none focus:!shadow-none focus:bg-[var(--bg-secondary)] transition-colors p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                          style={{ borderRadius: 0, border: 'none', boxShadow: 'none', outline: 'none' }}
                           aria-label={`${item.name} quantity`} 
                         />
                         <button 
@@ -184,6 +186,7 @@ const CartTable = React.memo(function CartTable({
                           onMouseDown={(e) => e.preventDefault()} 
                           onClick={() => onUpdateQuantity(item.id, safeQty + 1)} 
                           className="w-8 h-8 flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-l border-[var(--border-medium)] select-none"
+                          style={{ borderRadius: 0 }}
                           aria-label="Increase quantity"
                         >
                           +
@@ -234,7 +237,7 @@ const CartTable = React.memo(function CartTable({
                             const currentGrams = item.grams !== undefined && item.grams !== '' ? item.grams : (item.quantity !== '' ? Math.round(Number(item.quantity) * 1000) : '');
                             return (
                               <div className="flex flex-col items-center justify-center">
-                                <div className="inline-flex items-center rounded-md border border-[var(--border-medium)] bg-[var(--bg-tertiary)] overflow-hidden shadow-sm">
+                                <div className="inline-flex items-center rounded-lg border border-[var(--border-medium)] bg-[var(--bg-tertiary)] overflow-hidden shadow-sm">
                                   <button
                                     type="button"
                                     onMouseDown={(e) => e.preventDefault()}
@@ -243,6 +246,7 @@ const CartTable = React.memo(function CartTable({
                                       onUpdateQuantity(item.id, nextGrams === 0 ? 0 : nextGrams / 1000, nextGrams);
                                     }}
                                     className="h-8 px-2 flex items-center justify-center text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-r border-[var(--border-medium)] select-none"
+                                    style={{ borderRadius: 0 }}
                                     aria-label={`Decrease ${item.name} quantity by 50g`}
                                     title="-50g"
                                   >
@@ -263,7 +267,8 @@ const CartTable = React.memo(function CartTable({
                                         onUpdateQuantity(item.id, g / 1000, g);
                                       }
                                     }}
-                                    className="w-14 h-8 text-sm font-bold text-center bg-transparent text-[var(--text-primary)] focus:outline-none focus:bg-[var(--bg-secondary)] transition-colors p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    className="w-14 h-8 text-sm font-bold text-center bg-transparent text-[var(--text-primary)] rounded-none !border-none !shadow-none !outline-none focus:!outline-none focus:!border-none focus:!shadow-none focus:bg-[var(--bg-secondary)] transition-colors p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    style={{ borderRadius: 0, border: 'none', boxShadow: 'none', outline: 'none' }}
                                     aria-label={`${item.name} quantity in grams`}
                                   />
                                   <button
@@ -274,6 +279,7 @@ const CartTable = React.memo(function CartTable({
                                       onUpdateQuantity(item.id, nextGrams / 1000, nextGrams);
                                     }}
                                     className="h-8 px-2 flex items-center justify-center text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-l border-[var(--border-medium)] select-none"
+                                    style={{ borderRadius: 0 }}
                                     aria-label={`Increase ${item.name} quantity by 50g`}
                                     title="+50g"
                                   >
@@ -294,10 +300,10 @@ const CartTable = React.memo(function CartTable({
                           </div>
                         ) : (
                           <div className="flex flex-col items-center justify-center">
-                            <div className="inline-flex items-center rounded-md border border-[var(--border-medium)] bg-[var(--bg-tertiary)] overflow-hidden shadow-sm">
-                              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-8 h-8 flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-r border-[var(--border-medium)] select-none" aria-label={`Decrease ${item.name} quantity`}>-</button>
-                              <input type="number" step="any" min="0" onWheel={handleWheelBlur} value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-14 h-8 text-sm font-bold text-center bg-transparent text-[var(--text-primary)] focus:outline-none focus:bg-[var(--bg-secondary)] transition-colors p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" aria-label={`${item.name} quantity`} />
-                              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-8 h-8 flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-l border-[var(--border-medium)] select-none" aria-label={`Increase ${item.name} quantity`}>+</button>
+                            <div className="inline-flex items-center rounded-lg border border-[var(--border-medium)] bg-[var(--bg-tertiary)] overflow-hidden shadow-sm">
+                              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-8 h-8 flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-r border-[var(--border-medium)] select-none" style={{ borderRadius: 0 }} aria-label={`Decrease ${item.name} quantity`}>-</button>
+                              <input type="number" step="any" min="0" onWheel={handleWheelBlur} value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-14 h-8 text-sm font-bold text-center bg-transparent text-[var(--text-primary)] rounded-none !border-none !shadow-none !outline-none focus:!outline-none focus:!border-none focus:!shadow-none focus:bg-[var(--bg-secondary)] transition-colors p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" style={{ borderRadius: 0, border: 'none', boxShadow: 'none', outline: 'none' }} aria-label={`${item.name} quantity`} />
+                              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-8 h-8 flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-l border-[var(--border-medium)] select-none" style={{ borderRadius: 0 }} aria-label={`Increase ${item.name} quantity`}>+</button>
                             </div>
                             <div className="mt-1">
                               <span className="text-[11px] text-[var(--text-tertiary)] font-medium">
