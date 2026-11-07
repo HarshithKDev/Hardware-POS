@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 export default function ReceiveCuttableModal({
   isOpen,
@@ -8,12 +8,32 @@ export default function ReceiveCuttableModal({
   onClose
 }) {
   const [piecesInput, setPiecesInput] = useState('1');
+  const inputRef = useRef(null);
 
   useEffect(() => {
     if (isOpen) {
       setPiecesInput('1');
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.select();
+        }
+      }, 50);
     }
   }, [isOpen]);
+
+  // Handle ESC key to dismiss
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen || !modalData?.item) return null;
 
@@ -28,17 +48,6 @@ export default function ReceiveCuttableModal({
     ? Math.round(pieces * defaultWid * defaultLen * 100) / 100 
     : Math.round(pieces * defaultLen * 100) / 100;
 
-  const handleSubmit = (e) => {
-    if (e) e.preventDefault();
-    if (pieces <= 0) return;
-    onSubmit({
-      pieces,
-      totalDimension,
-      item,
-      batch
-    });
-  };
-
   const isTransfer = action === 'transfer';
   const totalWhStock = Number(batch?.stock_warehouse ?? (item?.stock_warehouse || 0));
   const alreadyInTransferCart = isTransfer
@@ -52,83 +61,86 @@ export default function ReceiveCuttableModal({
     ? Math.floor(availableWhStock / pieceDimension)
     : null;
 
+  const isExceeded = maxAvailablePieces !== null && pieces > maxAvailablePieces;
+
+  const handleSubmit = (e) => {
+    if (e) e.preventDefault();
+    if (pieces <= 0 || isExceeded) return;
+    onSubmit({
+      pieces,
+      totalDimension,
+      item,
+      batch
+    });
+  };
+
   return (
     <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 animate-fade-in">
       <div className="w-full max-w-md flex flex-col rounded-xl overflow-hidden shadow-2xl border border-[var(--border-light)] bg-[var(--bg-secondary)]">
         {/* Header */}
-        <div className="flex justify-between items-center px-5 py-4 border-b border-[var(--border-light)]">
-          <div>
-            <h3 className="font-bold text-base text-[var(--text-primary)]">
-              {isTransfer ? 'Move Cuttable to Store' : 'Receive Cuttable Stock'}
+        <div className="flex justify-between items-start px-6 pt-5 pb-3">
+          <div className="pr-4">
+            <h3 className="font-bold text-base text-[var(--text-primary)] leading-snug">
+              {isTransfer ? 'Move Stock to Store' : 'Receive Stock'}
             </h3>
-            <p className="text-xs text-[var(--color-accent)] font-semibold mt-0.5">
-              {item.name} {batch?.batch_number ? `(Batch #${String(batch.batch_number).padStart(2, '0')})` : ''}
+            <p className="text-xs text-[var(--text-tertiary)] mt-1 flex flex-wrap items-center gap-1.5 font-medium">
+              <span className="text-[var(--text-secondary)] font-semibold">{item.name}</span>
+              {batch?.batch_number && <span>· Batch #{String(batch.batch_number).padStart(2, '0')}</span>}
+              <span>· {isSqft ? `${defaultWid} ft (H) × ${defaultLen} ft (L) (${defaultWid * defaultLen} sqft/roll)` : `${defaultLen} ${unitLabel}/pc`}</span>
+              {isTransfer && maxAvailablePieces !== null && (
+                <span className="text-[var(--color-warning)] font-semibold">
+                  · {maxAvailablePieces} {isSqft ? 'rolls' : 'pcs'} in whse
+                </span>
+              )}
             </p>
           </div>
           <button 
             type="button" 
             onClick={onClose} 
-            className="p-1.5 rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+            className="p-1 rounded-md hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer shrink-0"
             aria-label="Close"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        {/* Body */}
-        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
-          {/* Dimensions Info Card */}
-          <div className="p-3.5 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-medium)] flex items-center justify-between text-xs">
-            <div>
-              <span className="text-[var(--text-secondary)] block">Standard Unit Size:</span>
-              <span className="text-[var(--text-primary)] font-bold text-sm">
-                {isSqft 
-                  ? `${defaultWid} ft (H) × ${defaultLen} ft (L) = ${defaultWid * defaultLen} sqft/roll` 
-                  : `${defaultLen} ${unitLabel} per piece`}
-              </span>
-            </div>
-            {isTransfer && maxAvailablePieces !== null && (
-              <div className="text-right">
-                <span className="text-[var(--text-secondary)] block">Whse Available:</span>
-                <span className="text-[var(--color-warning)] font-bold text-sm">
-                  {maxAvailablePieces} {isSqft ? 'ROLLS' : 'PCS'} ({batch.stock_warehouse} {unitLabel})
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Pieces Input */}
+        {/* Minimal Form */}
+        <form onSubmit={handleSubmit} className="px-6 pb-5 pt-2 flex flex-col gap-4">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-[var(--text-secondary)]">
-              {isSqft ? 'Number of Rolls' : 'Number of Pieces (Pipes / Bars)'}
+            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-secondary)]">
+              {isSqft ? 'Number of Rolls' : 'Number of Pieces'}
             </label>
             <div className="relative">
               <input
+                ref={inputRef}
                 type="number"
-                autoFocus
                 min="1"
                 step="1"
                 max={maxAvailablePieces !== null ? maxAvailablePieces : undefined}
                 value={piecesInput}
                 onChange={e => setPiecesInput(e.target.value)}
-                className="w-full h-14 px-4 text-2xl font-bold rounded-lg border-2 border-[var(--color-accent)] bg-[var(--bg-input)] text-[var(--text-input)] focus:outline-none"
+                className={`w-full h-11 pl-3 pr-16 text-base font-bold rounded-lg border bg-[var(--bg-input)] text-[var(--text-input)] focus:outline-none transition-colors ${
+                  isExceeded
+                    ? 'border-red-500 focus:border-red-500 text-red-400'
+                    : 'border-[var(--border-medium)] focus:border-[var(--color-accent)]'
+                }`}
                 placeholder="1"
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold uppercase text-[var(--text-tertiary)]">
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[var(--text-tertiary)] uppercase">
                 {isSqft ? 'ROLLS' : 'PCS'}
               </span>
             </div>
 
             {/* Quick buttons */}
-            <div className="flex gap-2 mt-2.5">
+            <div className="flex gap-1.5 mt-2">
               {[1, 5, 10, 20, 50].map(n => (
                 <button
                   key={n}
                   type="button"
                   onClick={() => setPiecesInput(String(n))}
-                  className="flex-1 py-1.5 text-xs font-semibold rounded bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-medium)] transition-colors cursor-pointer"
+                  className="flex-1 py-1 text-xs font-medium rounded bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-medium)] transition-colors cursor-pointer"
                 >
                   +{n}
                 </button>
@@ -136,42 +148,45 @@ export default function ReceiveCuttableModal({
             </div>
           </div>
 
-          {/* Calculated Output Summary */}
-          <div className="p-4 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-medium)] flex items-center justify-between">
-            <div>
-              <span className="text-xs text-[var(--text-tertiary)] uppercase font-semibold block">Total Stock To {isTransfer ? 'Transfer' : 'Add'}</span>
-              <span className="text-xl font-black text-[var(--color-accent)]">
-                {totalDimension} <span className="text-sm font-bold uppercase">{unitLabel}</span>
-              </span>
-            </div>
-            <div className="text-right">
-              <span className="text-xs text-[var(--text-tertiary)] block">Calculated Formula</span>
-              <span className="text-xs text-[var(--text-secondary)] font-mono">
-                {pieces} {isSqft ? 'Rolls' : 'PCS'} × {isSqft ? `${defaultWid * defaultLen} sqft` : `${defaultLen} ${unitLabel}`}
-              </span>
-            </div>
-          </div>
+          {isExceeded && (
+            <p className="text-xs text-red-400 font-medium -mt-1">
+              Only {maxAvailablePieces} {isSqft ? 'rolls' : 'pieces'} available in warehouse ({availableWhStock} {unitLabel}).
+            </p>
+          )}
 
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-10 px-5 text-sm font-semibold rounded-lg border border-[var(--border-medium)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={pieces <= 0 || (maxAvailablePieces !== null && pieces > maxAvailablePieces)}
-              className="h-10 px-6 text-sm font-bold rounded-lg text-white bg-[var(--color-accent)] hover:brightness-110 disabled:opacity-50 transition-all cursor-pointer shadow-md"
-            >
-              {isTransfer ? `Transfer ${totalDimension} ${unitLabel}` : `Add ${totalDimension} ${unitLabel}`}
-            </button>
+          {/* Integrated Minimal Footer */}
+          <div className="flex items-center justify-between pt-3 border-t border-[var(--border-light)] mt-1">
+            <div>
+              <div className="text-xl font-bold text-[var(--text-primary)]">
+                {totalDimension} <span className="text-xs font-semibold text-[var(--text-tertiary)] uppercase">{unitLabel}</span>
+              </div>
+              <div className="text-xs text-[var(--text-tertiary)] font-medium">
+                {pieces} {isSqft ? (pieces === 1 ? 'roll' : 'rolls') : (pieces === 1 ? 'pc' : 'pcs')}
+                <span className="ml-1">
+                  ({pieces} × {isSqft ? `${defaultWid * defaultLen} sqft` : `${defaultLen} ${unitLabel}`})
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="h-9 px-4 text-xs font-semibold rounded-lg border border-[var(--border-medium)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={pieces <= 0 || isExceeded}
+                className="h-9 px-5 text-xs font-bold rounded-lg text-white bg-[var(--color-accent)] hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-sm"
+              >
+                {isTransfer ? 'Transfer Stock' : 'Add Stock'}
+              </button>
+            </div>
           </div>
         </form>
       </div>
     </div>
   );
 }
-

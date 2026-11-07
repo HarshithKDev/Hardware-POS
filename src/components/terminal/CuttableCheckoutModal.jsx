@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AlertCircle } from 'lucide-react';
 
 export default function CuttableCheckoutModal({
   isOpen,
@@ -10,7 +9,7 @@ export default function CuttableCheckoutModal({
 }) {
   const [qty, setQty] = useState('1');
   const [length, setLength] = useState('');
-  const qtyInputRef = useRef(null);
+  const lengthInputRef = useRef(null);
 
   useEffect(() => {
     if (isOpen && modalData?.item) {
@@ -21,13 +20,26 @@ export default function CuttableCheckoutModal({
         : defLen
       );
       setTimeout(() => {
-        if (qtyInputRef.current) {
-          qtyInputRef.current.focus();
-          qtyInputRef.current.select();
+        if (lengthInputRef.current) {
+          lengthInputRef.current.focus();
+          lengthInputRef.current.select();
         }
       }, 50);
     }
   }, [isOpen, modalData]);
+
+  // Handle ESC key to dismiss
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen || !modalData?.item) return null;
 
@@ -65,7 +77,7 @@ export default function CuttableCheckoutModal({
 
   // Total quantity calculation:
   // For pipes: qty * length
-  // For mesh: qty * length * fixed width
+  // For mesh: qty * length * fixed width (height)
   const totalQty = isSqft
     ? Math.round(parsedQty * parsedLength * defaultWid * 100) / 100
     : Math.round(parsedQty * parsedLength * 100) / 100;
@@ -91,164 +103,139 @@ export default function CuttableCheckoutModal({
     });
   };
 
+  const batchStr = batch?.batch_number ? `Batch #${String(batch.batch_number).padStart(2, '0')}` : null;
+  const specStr = isSqft ? `${defaultWid} ft Height Roll` : `${defaultLen} ${unitLabel} Standard`;
+
   return (
     <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4 animate-fade-in">
       <div className="w-full max-w-md flex flex-col rounded-xl overflow-hidden shadow-2xl border border-[var(--border-light)] bg-[var(--bg-secondary)]">
         {/* Header */}
-        <div className="flex justify-between items-center px-6 py-4 border-b border-[var(--border-light)]">
-          <div>
-            <h3 className="font-bold text-base text-[var(--text-primary)]">
-              {modalData?.cartItemId ? 'Edit Item' : 'Checkout Cuttable Item'}
+        <div className="flex justify-between items-start px-6 pt-5 pb-3">
+          <div className="pr-4">
+            <h3 className="font-bold text-base text-[var(--text-primary)] leading-snug">
+              {item.name}
             </h3>
-            <p className="text-xs text-[var(--color-accent)] font-semibold mt-0.5">
-              {item.name} {batch?.batch_number ? `(Batch #${String(batch.batch_number).padStart(2, '0')})` : ''}
+            <p className="text-xs text-[var(--text-tertiary)] mt-1 flex flex-wrap items-center gap-1.5 font-medium">
+              <span>{specStr}</span>
+              {batchStr && <span>· {batchStr}</span>}
+              <span>· ₹{unitPrice.toFixed(2)}/{unitLabel}</span>
+              <span className={`font-semibold ${availableStock > 0 ? 'text-[var(--text-secondary)]' : 'text-red-400'}`}>
+                · {availableStock > 0 ? `${availableStock} ${unitLabel} in stock` : 'Out of stock'}
+              </span>
             </p>
           </div>
           <button 
             type="button" 
             onClick={onClose} 
-            className="p-1.5 rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+            className="p-1 rounded-md hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer shrink-0"
             aria-label="Close"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        {/* Stock & Unit Info Header */}
-        <div className="px-6 py-2.5 bg-[var(--bg-tertiary)] border-b border-[var(--border-medium)] flex items-center justify-between text-xs">
-          <div>
-            <span className="text-[var(--text-secondary)]">Available Stock: </span>
-            <span className={`font-bold ${availableStock > 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}>
-              {availableStock} {unitLabel}
-            </span>
-            {alreadyInCart > 0 && (
-              <span className="text-[var(--text-tertiary)] ml-1 font-medium">
-                ({alreadyInCart} {unitLabel} in cart)
+        {/* Minimal Form */}
+        <form onSubmit={handleSubmit} className="px-6 pb-5 pt-2 flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-3">
+            {/* Cut Length */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-secondary)]">
+                Length to Cut
+              </label>
+              <div className="relative">
+                <input
+                  ref={lengthInputRef}
+                  type="number"
+                  step="any"
+                  min="0.1"
+                  max={defaultLen}
+                  value={length}
+                  onChange={e => setLength(e.target.value)}
+                  className={`w-full h-11 pl-3 pr-8 text-base font-bold rounded-lg border bg-[var(--bg-input)] text-[var(--text-input)] focus:outline-none transition-colors ${
+                    isLengthExceeded 
+                      ? 'border-red-500 focus:border-red-500 text-red-400' 
+                      : 'border-[var(--border-medium)] focus:border-[var(--color-accent)]'
+                  }`}
+                  placeholder={String(defaultLen)}
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[var(--text-tertiary)] uppercase">
+                  {isSqft ? 'ft' : unitLabel}
+                </span>
+              </div>
+              <span className="block text-[11px] text-[var(--text-tertiary)] mt-1">
+                Max {defaultLen} {isSqft ? 'ft' : unitLabel}
               </span>
-            )}
-          </div>
-          <div className="text-right">
-            <span className="text-[var(--text-secondary)]">MRP: </span>
-            <span className="text-[var(--text-primary)] font-bold">₹{unitPrice.toFixed(2)} / {unitLabel}</span>
-          </div>
-        </div>
+            </div>
 
-        {/* Simple Form: QTY and Length */}
-        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
-          <div className="flex gap-3">
-            {/* Quantity */}
-            <div className={isSqft ? 'w-1/3' : 'w-1/2'}>
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-[var(--text-secondary)]">
-                Quantity (Qty)
+            {/* Pieces */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-secondary)]">
+                Pieces
               </label>
               <input
-                ref={qtyInputRef}
                 type="number"
                 min="1"
                 step="1"
                 value={qty}
                 onChange={e => setQty(e.target.value)}
-                className="w-full h-12 px-3 text-lg font-bold text-center rounded-lg border border-[var(--border-medium)] bg-[var(--bg-input)] text-[var(--text-input)] focus:border-[var(--color-accent)] focus:outline-none"
+                className="w-full h-11 px-3 text-base font-bold rounded-lg border border-[var(--border-medium)] bg-[var(--bg-input)] text-[var(--text-input)] focus:border-[var(--color-accent)] focus:outline-none transition-colors"
                 placeholder="1"
               />
-            </div>
-
-            {/* Cut Length */}
-            <div className={isSqft ? 'w-1/3' : 'w-1/2'}>
-              <div className="flex justify-between items-center mb-2">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-                  Length ({isSqft ? 'ft' : unitLabel})
-                </label>
-                <span className="text-[10px] text-[var(--text-tertiary)] font-medium">
-                  Max: {defaultLen} {isSqft ? 'ft' : unitLabel}
-                </span>
-              </div>
-              <input
-                type="number"
-                step="any"
-                min="0.1"
-                max={defaultLen}
-                value={length}
-                onChange={e => setLength(e.target.value)}
-                className={`w-full h-12 px-3 text-lg font-bold text-center rounded-lg border bg-[var(--bg-input)] text-[var(--text-input)] focus:outline-none ${
-                  isLengthExceeded 
-                    ? 'border-red-500 focus:border-red-500 text-red-400' 
-                    : 'border-[var(--border-medium)] focus:border-[var(--color-accent)]'
-                }`}
-                placeholder={String(defaultLen)}
-              />
-            </div>
-
-            {/* Mesh Fixed Height display */}
-            {isSqft && (
-              <div className="w-1/3">
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-[var(--text-secondary)]">
-                  Height
-                </label>
-                <div className="h-12 flex items-center justify-center font-bold text-sm bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-lg text-[var(--text-primary)]">
-                  {defaultWid} ft
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Bill Calculation Summary Card */}
-          <div className="p-4 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-medium)] flex items-center justify-between">
-            <div>
-              <span className="text-xs text-[var(--text-tertiary)] uppercase font-semibold block">Total Quantity</span>
-              <span className="text-xl font-black text-[var(--color-accent)]">
-                {totalQty} <span className="text-sm font-bold uppercase">{unitLabel}</span>
-              </span>
-              <span className="block text-[11px] text-[var(--text-secondary)] mt-0.5">
-                {parsedQty} &times; {parsedLength} {isSqft ? 'ft' : unitLabel} {isSqft ? `&times; ${defaultWid} ft H` : ''}
-              </span>
-            </div>
-            <div className="text-right">
-              <span className="text-xs text-[var(--text-tertiary)] uppercase font-semibold block">Total Bill</span>
-              <span className="text-2xl font-black text-[var(--color-success)]">
-                ₹{totalBill.toFixed(2)}
+              <span className="block text-[11px] text-[var(--text-tertiary)] mt-1">
+                Number of cuts
               </span>
             </div>
           </div>
 
-          {/* Out of Stock Warning */}
-          {isOutOfStock && (
-            <div className="p-2.5 rounded-lg bg-[var(--bg-tertiary)] border border-red-500/40 text-xs text-red-400 font-medium flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-              <span>
-                Insufficient stock! Only {availableStock} {unitLabel} available{alreadyInCart > 0 ? ` (${alreadyInCart} ${unitLabel} already in cart)` : ''}.
-              </span>
-            </div>
-          )}
-
-          {/* Length Exceeded Warning */}
+          {/* Validation Messages (only shown when invalid) */}
           {isLengthExceeded && (
-            <div className="p-2.5 rounded-lg bg-[var(--bg-tertiary)] border border-red-500/40 text-xs text-red-400 font-medium flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-              <span>
-                Length per piece ({parsedLength} {isSqft ? 'ft' : unitLabel}) cannot exceed max piece length ({defaultLen} {isSqft ? 'ft' : unitLabel}).
-              </span>
-            </div>
+            <p className="text-xs text-red-400 font-medium -mt-1">
+              Length ({parsedLength} {isSqft ? 'ft' : unitLabel}) cannot exceed max {defaultLen} {isSqft ? 'ft' : unitLabel}.
+            </p>
           )}
 
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-10 px-5 text-sm font-semibold rounded-lg border border-[var(--border-medium)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={totalQty <= 0 || isOutOfStock || isLengthExceeded}
-              className="h-10 px-8 text-sm font-bold rounded-lg text-white bg-[var(--color-accent)] hover:brightness-110 disabled:opacity-50 transition-all cursor-pointer shadow-md"
-            >
-              {modalData?.cartItemId ? 'Update' : 'Add to Bill'}
-            </button>
+          {isOutOfStock && !isLengthExceeded && (
+            <p className="text-xs text-red-400 font-medium -mt-1">
+              Insufficient stock! Only {availableStock} {unitLabel} available{alreadyInCart > 0 ? ` (${alreadyInCart} in cart)` : ''}.
+            </p>
+          )}
+
+          {/* Integrated Minimal Footer */}
+          <div className="flex items-center justify-between pt-3 border-t border-[var(--border-light)] mt-1">
+            <div>
+              <div className="text-xl font-bold text-[var(--text-primary)]">
+                ₹{totalBill.toFixed(2)}
+              </div>
+              <div className="text-xs text-[var(--text-tertiary)] font-medium">
+                <span className="text-[var(--text-secondary)] font-semibold">{totalQty} {unitLabel}</span>
+                {parsedQty > 0 && parsedLength > 0 && (
+                  <span className="ml-1">
+                    ({isSqft 
+                      ? `${parsedQty} × ${parsedLength} ft × ${defaultWid} ft H` 
+                      : `${parsedQty} × ${parsedLength} ${unitLabel}`})
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="h-9 px-4 text-xs font-semibold rounded-lg border border-[var(--border-medium)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={totalQty <= 0 || isOutOfStock || isLengthExceeded}
+                className="h-9 px-5 text-xs font-bold rounded-lg text-white bg-[var(--color-accent)] hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-sm"
+              >
+                {modalData?.cartItemId ? 'Update' : 'Add to Bill'}
+              </button>
+            </div>
           </div>
         </form>
       </div>
