@@ -134,8 +134,7 @@ const CartTable = React.memo(function CartTable({
                 }}
                 className={`animate-fade-in cursor-pointer transition-colors ${isRowSelected ? 'bg-[var(--bg-hover)]' : ''}`} 
                 style={{ 
-                  borderBottom: '1px solid var(--border-medium)',
-                  boxShadow: isRowSelected ? 'inset 4px 0 0 var(--color-accent)' : undefined
+                  borderBottom: '1px solid var(--border-medium)'
                 }}
               >
                 <td className="py-4 px-3 text-center align-middle text-sm font-bold" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--color-accent)' }}>
