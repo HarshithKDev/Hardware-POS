@@ -6,7 +6,14 @@ import { useApp } from './AppContext';
 import { generateId } from './utils';
 import { BARCODE_START_VALUE, BARCODE_RETRY_ATTEMPTS, UNIT_TYPES, STALE_TIME_5MIN } from './constants';
 import { Spinner, CreatableDropdown } from './SharedUI';
-import { saveInventoryBatch, initDB } from './services/db';
+import { 
+  saveInventoryBatch, 
+  initDB,
+  getLocalCategories,
+  setLocalCategories,
+  getLocalSubcategories,
+  setLocalSubcategories
+} from './services/db';
 import PageTitleReset from './components/PageTitleReset';
 
 export default function OwnerCatalog() {
@@ -31,7 +38,7 @@ export default function OwnerCatalog() {
 
   const shopId = shopSettings?.id || localStorage.getItem('shop_id');
 
-  // Fetch Categories
+  // Fetch Categories (Local-First with 0ms initial render)
   const { data: categories = [] } = useQuery({
     queryKey: ['categories', shopId],
     queryFn: async () => {
@@ -39,12 +46,15 @@ export default function OwnerCatalog() {
       if (shopId) query = query.eq('shop_id', shopId);
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      const res = data || [];
+      if (res.length > 0) setLocalCategories(shopId, res);
+      return res;
     },
+    initialData: () => getLocalCategories(shopId),
     staleTime: STALE_TIME_5MIN,
   });
 
-  // Fetch Subcategories
+  // Fetch Subcategories (Local-First with 0ms initial render)
   const { data: subcategories = [] } = useQuery({
     queryKey: ['subcategories', shopId],
     queryFn: async () => {
@@ -52,47 +62,21 @@ export default function OwnerCatalog() {
       if (shopId) query = query.eq('shop_id', shopId);
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      const res = data || [];
+      if (res.length > 0) setLocalSubcategories(shopId, res);
+      return res;
     },
+    initialData: () => getLocalSubcategories(shopId),
     staleTime: STALE_TIME_5MIN,
   });
 
+  // Next barcode calculation (Local-First from IndexedDB for 0ms display)
   const { data: nextBarcode = '' } = useQuery({
     queryKey: ['nextBarcode', shopId],
     queryFn: async () => {
       let barcodes = [];
 
-      // 1. Try querying product_master_public (the read-accessible view)
-      try {
-        let query = supabase.from('product_master_public').select('barcode');
-        if (shopId) {
-          query = query.eq('shop_id', shopId);
-        }
-        const { data, error } = await query;
-        if (!error && data && data.length > 0) {
-          barcodes = data.map(d => d.barcode);
-        }
-      } catch (err) {
-        console.warn('Could not fetch from product_master_public, trying product_master:', err);
-      }
-
-      // 2. Fallback to product_master if product_master_public had no rows or errored
-      if (barcodes.length === 0) {
-        try {
-          let query = supabase.from('product_master').select('barcode');
-          if (shopId) {
-            query = query.eq('shop_id', shopId);
-          }
-          const { data, error } = await query;
-          if (!error && data && data.length > 0) {
-            barcodes = data.map(d => d.barcode);
-          }
-        } catch (err) {
-          console.warn('Could not fetch from product_master:', err);
-        }
-      }
-
-      // 3. Fallback or merge with local IndexedDB barcodes for offline resilience
+      // 1. FAST LOCAL-FIRST: Read all barcodes from local IndexedDB (0ms)
       if (typeof indexedDB !== 'undefined') {
         try {
           const db = await initDB();
@@ -106,6 +90,18 @@ export default function OwnerCatalog() {
         }
       }
 
+      // 2. Only query remote if local DB is completely empty (e.g. initial setup)
+      if (barcodes.length === 0 && navigator.onLine) {
+        try {
+          let query = supabase.from('product_master_public').select('barcode');
+          if (shopId) query = query.eq('shop_id', shopId);
+          const { data } = await query;
+          if (data && data.length > 0) {
+            barcodes = data.map(d => d.barcode);
+          }
+        } catch (err) {}
+      }
+
       const next = barcodes.reduce((max, b) => {
         const num = parseInt(b, 10);
         return !isNaN(num) ? Math.max(max, num) : max;
@@ -113,7 +109,7 @@ export default function OwnerCatalog() {
 
       return (next + 1).toString();
     },
-    staleTime: 0,
+    staleTime: 5000,
     refetchOnMount: 'always'
   });
 

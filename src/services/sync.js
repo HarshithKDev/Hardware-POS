@@ -448,27 +448,51 @@ export const stopRealtimeSync = () => {
   }
 };
 
+let lastFocusSyncTime = 0;
+const handleVisibilityOrFocusSync = () => {
+  if (typeof document === 'undefined' || typeof navigator === 'undefined') return;
+  const now = Date.now();
+  // Throttle to at most once every 15 seconds to prevent spamming
+  if (now - lastFocusSyncTime < 15000) return;
+  if (document.visibilityState === 'visible' && navigator.onLine) {
+    lastFocusSyncTime = now;
+    console.log('[BackgroundSync] Tab visible/focused, running delta sync...');
+    syncInventoryToLocal(currentRole).catch(e => console.warn('[BackgroundSync] Visibility sync warning:', e?.message));
+    flushOfflineQueue(currentRole).catch(e => console.warn('[BackgroundSync] Offline queue flush warning:', e?.message));
+  }
+};
+
 const handleOnlineSync = () => {
-  console.log('Network is back online. Flushing queue and running delta sync...');
-  flushOfflineQueue(currentRole);
+  console.log('[BackgroundSync] Network is back online. Flushing queue and running delta sync...');
+  flushOfflineQueue(currentRole).catch(e => console.warn('[BackgroundSync] Online queue flush warning:', e?.message));
+  syncInventoryToLocal(currentRole).catch(e => console.warn('[BackgroundSync] Online delta sync warning:', e?.message));
 };
 
 export const startBackgroundSync = (userRole = 'worker') => {
   currentRole = userRole;
   // Initial sync (will be delta if already cached, full if initial launch)
-  syncInventoryToLocal(userRole).then(() => flushOfflineQueue(userRole));
+  syncInventoryToLocal(userRole)
+    .then(() => flushOfflineQueue(userRole))
+    .catch(e => console.warn('[BackgroundSync] Initial sync warning:', e?.message));
 
   startRealtimeSync(userRole);
 
-  window.addEventListener('online', handleOnlineSync);
+  if (typeof window !== 'undefined') {
+    window.addEventListener('online', handleOnlineSync);
+    window.addEventListener('focus', handleVisibilityOrFocusSync);
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityOrFocusSync);
+    }
+  }
 
-  // Setup periodic polling every 5 minutes to fetch any remote updates
+  // Setup periodic polling every 60 seconds to ensure local DB stays 100% in sync with Supabase
   if (!syncInterval) {
     syncInterval = setInterval(() => {
-      if (navigator.onLine) {
-        flushOfflineQueue(currentRole);
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        syncInventoryToLocal(currentRole).catch(e => console.warn('[BackgroundSync] Periodic sync warning:', e?.message));
+        flushOfflineQueue(currentRole).catch(e => console.warn('[BackgroundSync] Periodic queue flush warning:', e?.message));
       }
-    }, 5 * 60 * 1000);
+    }, 60 * 1000);
   }
 };
 
@@ -478,5 +502,11 @@ export const stopBackgroundSync = () => {
     syncInterval = null;
   }
   stopRealtimeSync();
-  window.removeEventListener('online', handleOnlineSync);
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('online', handleOnlineSync);
+    window.removeEventListener('focus', handleVisibilityOrFocusSync);
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocusSync);
+    }
+  }
 };

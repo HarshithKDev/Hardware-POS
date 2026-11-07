@@ -57,45 +57,69 @@ export default function BatchDetailsView({
 
   const shopId = localStorage.getItem('shop_id');
 
-  // Fetch or bind the active product item
+  // Fetch or bind the active product item (LOCAL-FIRST for 0ms instant loading)
   const { data: item = initialItem, isLoading: isLoadingItem } = useQuery({
     queryKey: ['inventory_item', shopId, barcode],
     queryFn: async () => {
       if (!barcode) return null;
+
+      // 1. FAST PATH: Read directly from local IndexedDB (0ms)
       try {
-        let itemQuery = supabase
-          .from('product_master')
-          .select('*, batches:inventory_batches(*)')
-          .eq('barcode', barcode);
-        if (shopId) {
-          itemQuery = itemQuery.eq('shop_id', shopId);
-        }
-        const { data, error } = await itemQuery.single();
-        if (!error && data) {
-          if (data.batches) {
-            data.batches = data.batches
+        const local = await getInventoryItemByBarcode(barcode);
+        if (local) {
+          const res = { ...local };
+          if (res.batches) {
+            res.batches = res.batches
               .filter(b => b.is_active !== false)
               .sort((a, b) => (a.batch_number || 1) - (b.batch_number || 1));
           }
-          return data;
+          return res;
         }
       } catch (err) {
-        console.warn('Failed to fetch product item from supabase', err);
+        console.warn('Failed to read item from local IDB:', err);
       }
-      const local = await getInventoryItemByBarcode(barcode);
-      let res = local || initialItem;
-      if (res && res.batches) {
-        res = {
-          ...res,
-          batches: res.batches
-            .filter(b => b.is_active !== false)
-            .sort((a, b) => (a.batch_number || 1) - (b.batch_number || 1))
-        };
+
+      // 2. FALLBACK: Only fetch from Supabase if not found locally
+      if (navigator.onLine) {
+        try {
+          let itemQuery = supabase
+            .from('product_master')
+            .select('*, batches:inventory_batches(*)')
+            .eq('barcode', barcode);
+          if (shopId) {
+            itemQuery = itemQuery.eq('shop_id', shopId);
+          }
+          const { data, error } = await itemQuery.single();
+          if (!error && data) {
+            if (data.batches) {
+              data.batches = data.batches
+                .filter(b => b.is_active !== false)
+                .sort((a, b) => (a.batch_number || 1) - (b.batch_number || 1));
+            }
+            // Save to local IndexedDB so subsequent views are 0ms
+            await saveInventoryBatch([data]);
+            return data;
+          }
+        } catch (err) {
+          console.warn('Fallback Supabase query failed:', err);
+        }
       }
-      return res;
+
+      return initialItem || null;
     },
-    initialData: initialItem,
-    staleTime: 10 * 1000
+    initialData: () => {
+      if (initialItem && initialItem.batches?.length > 0) return initialItem;
+      // Instant cache hit from parent inventory table
+      try {
+        const cached = queryClient.getQueryData(['inventory', shopId]);
+        if (cached?.items) {
+          const found = cached.items.find(i => String(i.barcode) === String(barcode));
+          if (found) return found;
+        }
+      } catch (e) {}
+      return initialItem;
+    },
+    staleTime: 60 * 1000
   });
 
   // Active batch selection state (tab) - filter out any inactive/deleted batches

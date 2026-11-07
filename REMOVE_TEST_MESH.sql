@@ -5,9 +5,10 @@
 -- This completely purges every trace of 'Test Mesh' (#1308) across:
 -- 1. Unified Audit Logs (Stock In, Create, Sale, etc.)
 -- 2. Bill Items & orphaned Bills
--- 3. Inventory Batches
--- 4. Product Master
--- 5. Held / Pending Carts
+-- 3. Stock Instances (safe check - prevents "column barcode does not exist" error)
+-- 4. Inventory Batches
+-- 5. Product Master
+-- 6. Held / Pending Carts
 -- ==============================================================================
 
 BEGIN;
@@ -50,16 +51,28 @@ WHERE b.id = sub.bill_id
 
 DROP TABLE IF EXISTS temp_test_bills;
 
--- 5. Delete Inventory Batches
+-- 5. Safe cleanup of stock_instances if table exists (prevents column error)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'stock_instances') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'stock_instances' AND column_name = 'barcode') THEN
+      EXECUTE 'DELETE FROM public.stock_instances WHERE barcode = ''1308''';
+    ELSIF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'stock_instances' AND column_name = 'batch_id') THEN
+      EXECUTE 'DELETE FROM public.stock_instances WHERE batch_id IN (SELECT id FROM public.inventory_batches WHERE barcode = ''1308'')';
+    END IF;
+  END IF;
+END $$;
+
+-- 6. Delete Inventory Batches
 DELETE FROM public.inventory_batches 
 WHERE barcode = '1308';
 
--- 6. Delete the Product Master record
+-- 7. Delete the Product Master record
 DELETE FROM public.product_master 
 WHERE barcode = '1308'
    OR name ILIKE '%Test Mesh%';
 
--- 7. Remove from Held / Pending Carts if present
+-- 8. Remove from Held / Pending Carts if present
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'pending_carts') THEN
@@ -78,4 +91,3 @@ UNION ALL
 SELECT 'audit_logs', count(*) FROM public.audit_logs WHERE barcode = '1308' OR item_name ILIKE '%Test Mesh%'
 UNION ALL
 SELECT 'bill_items', count(*) FROM public.bill_items WHERE barcode = '1308' OR name ILIKE '%Test Mesh%';
-

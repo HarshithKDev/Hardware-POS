@@ -52,32 +52,72 @@ export const saveInventoryBatch = async (items) => {
     cachedInventory = items ? [...items] : [];
     return;
   }
+  const currentShopId = localStorage.getItem('shop_id');
   const db = await initDB();
   const tx = db.transaction('product_master', 'readwrite');
   items.forEach(item => {
-    tx.store.put(item);
+    // Ensure shop_id is present to match keyPath ['shop_id', 'barcode']
+    const normalized = {
+      ...item,
+      shop_id: item.shop_id || currentShopId || 'default',
+      barcode: String(item.barcode)
+    };
+    tx.store.put(normalized);
   });
   await tx.done;
   cachedInventory = null;
 };
 
 export const getInventoryItemByBarcode = async (barcode) => {
+  if (!barcode) return null;
   const shopId = localStorage.getItem('shop_id');
-  let item;
+  const strBarcode = String(barcode).trim();
+  const numBarcode = Number(strBarcode);
+  let item = null;
+
   if (typeof indexedDB === 'undefined') {
-    item = (cachedInventory || []).find(i => i.shop_id === shopId && String(i.barcode) === String(barcode));
+    item = (cachedInventory || []).find(i => (!shopId || !i.shop_id || i.shop_id === shopId) && (String(i.barcode) === strBarcode || (!isNaN(numBarcode) && Number(i.barcode) === numBarcode)));
   } else {
-    const db = await initDB();
-    item = await db.get('product_master', [shopId, barcode]);
+    try {
+      const db = await initDB();
+      // 1. Direct composite key lookup
+      if (shopId) {
+        item = await db.get('product_master', [shopId, strBarcode]);
+        if (!item && !isNaN(numBarcode)) {
+          item = await db.get('product_master', [shopId, numBarcode]);
+        }
+      }
+      if (!item) {
+        item = await db.get('product_master', ['default', strBarcode]);
+      }
+
+      // 2. Fast scan if keyPath format differs
+      if (!item) {
+        const tx = db.transaction('product_master', 'readonly');
+        let cursor = await tx.store.openCursor();
+        while (cursor) {
+          const val = cursor.value;
+          const matchShop = !shopId || !val.shop_id || val.shop_id === shopId || val.shop_id === 'default';
+          const matchBarcode = String(val.barcode) === strBarcode || (!isNaN(numBarcode) && Number(val.barcode) === numBarcode);
+          if (matchShop && matchBarcode) {
+            item = val;
+            break;
+          }
+          cursor = await cursor.continue();
+        }
+      }
+    } catch (e) {
+      console.warn("Local IDB lookup error:", e);
+    }
   }
 
-  // Fallback to remote database if missing from local IndexedDB
+  // Fallback to remote database ONLY if missing from local IndexedDB
   if (!item && typeof navigator !== 'undefined' && navigator.onLine && supabase) {
     try {
       let q = supabase
         .from('product_master_public')
         .select('*')
-        .eq('barcode', String(barcode));
+        .eq('barcode', strBarcode);
       if (shopId) q = q.eq('shop_id', shopId);
       const { data: remoteProd } = await q.maybeSingle();
 
@@ -85,7 +125,7 @@ export const getInventoryItemByBarcode = async (barcode) => {
         let bQ = supabase
           .from('inventory_batches_public')
           .select('*')
-          .eq('barcode', String(barcode))
+          .eq('barcode', strBarcode)
           .eq('is_active', true);
         if (shopId) bQ = bQ.eq('shop_id', shopId);
         const { data: remoteBatches } = await bQ;
@@ -105,6 +145,37 @@ export const getInventoryItemByBarcode = async (barcode) => {
     item.batches = item.batches.filter(b => b.is_active !== false);
   }
   return item;
+};
+
+// Cached Categories & Subcategories helpers for instant 0ms loads
+export const getLocalCategories = (shopId) => {
+  try {
+    const raw = localStorage.getItem(`cached_categories_${shopId || 'default'}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+export const setLocalCategories = (shopId, categories) => {
+  try {
+    localStorage.setItem(`cached_categories_${shopId || 'default'}`, JSON.stringify(categories || []));
+  } catch (e) {}
+};
+
+export const getLocalSubcategories = (shopId) => {
+  try {
+    const raw = localStorage.getItem(`cached_subcategories_${shopId || 'default'}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+export const setLocalSubcategories = (shopId, subcategories) => {
+  try {
+    localStorage.setItem(`cached_subcategories_${shopId || 'default'}`, JSON.stringify(subcategories || []));
+  } catch (e) {}
 };
 
 /**

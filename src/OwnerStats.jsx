@@ -5,7 +5,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { Spinner, PageLoader } from './SharedUI';
 import OwnerFailedSyncsModal from './OwnerFailedSyncsModal';
-import { getFailedTransactions } from './services/db';
+import { getFailedTransactions, getInventoryByQuery } from './services/db';
 import {
   STORE_LOW_STOCK_THRESHOLD,
   WAREHOUSE_LOW_STOCK_THRESHOLD,
@@ -926,31 +926,45 @@ export default function OwnerStats({ isActive }) {
     }
     const dsBillsPromise = dsBillsQuery;
 
-    let totalCountQuery = supabase
-      .from('product_master')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_active', true);
-    if (shopId) {
-      totalCountQuery = totalCountQuery.eq('shop_id', shopId);
-    }
-    const { count: totalCount } = await totalCountQuery;
-
-    const pageSize = 1000;
-    const pageCount = Math.ceil((totalCount || 0) / pageSize);
-    const invPromises = [];
-    for (let i = 0; i < pageCount; i++) {
-       let pageQuery = supabase.from('product_master')
-         .select('barcode, name, unit, price, cost_price, is_cuttable, stock_warehouse, stock_store, min_quantity_warehouse, min_quantity_store, inventory_batches(stock_warehouse, stock_store, purchase_cost, is_active)')
-         .eq('is_active', true);
-       if (shopId) {
-         pageQuery = pageQuery.eq('shop_id', shopId);
-       }
-       invPromises.push(
-         pageQuery.range(i * pageSize, (i + 1) * pageSize - 1)
-       );
+    // Local-first: Fetch inventory from IndexedDB for 0 ms lag computation
+    let allStats = [];
+    try {
+      const localResult = await getInventoryByQuery({ limit: 1000000, status: 'active' });
+      allStats = localResult?.items || [];
+    } catch (localErr) {
+      console.warn('[Stats] Local inventory query note:', localErr?.message);
     }
 
-    const [{ data: dsBillsData }, ...invPages] = await Promise.all([dsBillsPromise, ...invPromises]);
+    // Fallback to remote Supabase only if local database is empty or not yet synced
+    if (!allStats || allStats.length === 0) {
+      let totalCountQuery = supabase
+        .from('product_master')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true);
+      if (shopId) {
+        totalCountQuery = totalCountQuery.eq('shop_id', shopId);
+      }
+      const { count: totalCount } = await totalCountQuery;
+
+      const pageSize = 1000;
+      const pageCount = Math.ceil((totalCount || 0) / pageSize);
+      const invPromises = [];
+      for (let i = 0; i < pageCount; i++) {
+         let pageQuery = supabase.from('product_master')
+           .select('barcode, name, unit, price, cost_price, is_cuttable, stock_warehouse, stock_store, min_quantity_warehouse, min_quantity_store, inventory_batches(stock_warehouse, stock_store, purchase_cost, is_active)')
+           .eq('is_active', true);
+         if (shopId) {
+           pageQuery = pageQuery.eq('shop_id', shopId);
+         }
+         invPromises.push(
+           pageQuery.range(i * pageSize, (i + 1) * pageSize - 1)
+         );
+      }
+      const invPages = await Promise.all(invPromises);
+      allStats = invPages.flatMap(r => r.data || []);
+    }
+
+    const { data: dsBillsData } = await dsBillsPromise;
 
     let deadStockSoldNames = new Set();
     if (dsBillsData && dsBillsData.length > 0) {
@@ -979,16 +993,16 @@ export default function OwnerStats({ isActive }) {
       });
     }
 
-    const allStats = invPages.flatMap(r => r.data || []);
     let lowStoreItems = [], lowWarehouseItems = [], deadStockItems = [];
     let totalInventoryValue = 0, warehouseCapital = 0, storeCapital = 0, deadStockValue = 0;
 
     allStats.forEach(item => {
       if (item.is_deleted) return;
       let wQty = 0, sQty = 0, wCap = 0, sCap = 0;
-      if (item.inventory_batches && item.inventory_batches.length > 0) {
-        item.inventory_batches.forEach(b => {
-          if (b.is_active) {
+      const batches = item.inventory_batches || item.batches;
+      if (batches && batches.length > 0) {
+        batches.forEach(b => {
+          if (b.is_active !== false) {
             const bWQty = Number(b.stock_warehouse || 0);
             const bSQty = Number(b.stock_store || 0);
             const bCost = Number(b.purchase_cost || item.cost_price || item.price * 0.7);

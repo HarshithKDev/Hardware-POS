@@ -7,7 +7,7 @@ import { useApp } from './AppContext';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import { escapeIlike, debounce, useSessionState } from './utils';
 import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD, INV_PER_PAGE, STALE_TIME_5MIN } from './constants';
-import { getInventoryByQuery } from './services/db';
+import { getInventoryByQuery, getLocalCategories, setLocalCategories } from './services/db';
 import PageTitleReset from './components/PageTitleReset';
 
 export default function WorkerDashboardView({ isBillable = true }) {
@@ -162,25 +162,35 @@ export default function WorkerDashboardView({ isBillable = true }) {
     }
   }, [inventorySearch, debouncedSearch, setDebouncedSearch]);
 
+  // Local-first low stock alerts calculation (0ms instant)
   const { data: lowStockCounts } = useQuery({
     queryKey: ['lowStockCounts', shopId, isWarehouseDisabled],
     queryFn: async () => {
-      let storeQuery = supabase.from('product_master_public').select('*', { count: 'exact', head: true }).eq('is_active', true).lt('stock_store', STORE_LOW_STOCK_THRESHOLD);
-      if (shopId) {
-        storeQuery = storeQuery.eq('shop_id', shopId);
-      }
-      const { count: storeCount } = await storeQuery;
-      
-      let whseCount = 0;
-      if (!isWarehouseDisabled) {
-        let whseQuery = supabase.from('product_master_public').select('*', { count: 'exact', head: true }).eq('is_active', true).lt('stock_warehouse', WAREHOUSE_LOW_STOCK_THRESHOLD);
-        if (shopId) {
-          whseQuery = whseQuery.eq('shop_id', shopId);
+      try {
+        const { data: localItems } = await getInventoryByQuery({ limit: 1000000, status: 'active' });
+        if (localItems && localItems.length > 0) {
+          const storeCount = localItems.filter(i => Number(i.stock_store || 0) < STORE_LOW_STOCK_THRESHOLD).length;
+          const whseCount = isWarehouseDisabled ? 0 : localItems.filter(i => Number(i.stock_warehouse || 0) < WAREHOUSE_LOW_STOCK_THRESHOLD).length;
+          return { store: storeCount, warehouse: whseCount };
         }
-        const { count } = await whseQuery;
-        whseCount = count || 0;
+      } catch (e) {}
+
+      // Fallback if local DB not yet populated
+      if (navigator.onLine) {
+        let storeQuery = supabase.from('product_master_public').select('*', { count: 'exact', head: true }).eq('is_active', true).lt('stock_store', STORE_LOW_STOCK_THRESHOLD);
+        if (shopId) storeQuery = storeQuery.eq('shop_id', shopId);
+        const { count: storeCount } = await storeQuery;
+        
+        let whseCount = 0;
+        if (!isWarehouseDisabled) {
+          let whseQuery = supabase.from('product_master_public').select('*', { count: 'exact', head: true }).eq('is_active', true).lt('stock_warehouse', WAREHOUSE_LOW_STOCK_THRESHOLD);
+          if (shopId) whseQuery = whseQuery.eq('shop_id', shopId);
+          const { count } = await whseQuery;
+          whseCount = count || 0;
+        }
+        return { store: storeCount || 0, warehouse: whseCount || 0 };
       }
-      return { store: storeCount || 0, warehouse: whseCount || 0 };
+      return { store: 0, warehouse: 0 };
     },
     staleTime: STALE_TIME_5MIN,
   });
@@ -191,50 +201,60 @@ export default function WorkerDashboardView({ isBillable = true }) {
       if (!lowStockModal.type) return [];
       const threshold = lowStockModal.type === 'store' ? STORE_LOW_STOCK_THRESHOLD : WAREHOUSE_LOW_STOCK_THRESHOLD;
       const col = lowStockModal.type === 'store' ? 'stock_store' : 'stock_warehouse';
-      let query = supabase.from('product_master_public').select('*').eq('is_active', true).lt(col, threshold).order(col, { ascending: true });
-      if (shopId) {
-        query = query.eq('shop_id', shopId);
+
+      // 1. Local-first: filter directly from IndexedDB
+      try {
+        const { data: localItems } = await getInventoryByQuery({ limit: 1000000, status: 'active' });
+        if (localItems && localItems.length > 0) {
+          return localItems
+            .filter(i => Number(i[col] || 0) < threshold)
+            .sort((a, b) => Number(a[col] || 0) - Number(b[col] || 0));
+        }
+      } catch (e) {}
+
+      if (navigator.onLine) {
+        let query = supabase.from('product_master_public').select('*').eq('is_active', true).lt(col, threshold).order(col, { ascending: true });
+        if (shopId) query = query.eq('shop_id', shopId);
+        const { data, error } = await query;
+        if (error) throw error;
+        return data || [];
       }
-      const { data, error } = await query;
-      if (error) throw error;
-      return data || [];
+      return [];
     },
     enabled: lowStockModal.isOpen && !!lowStockModal.type,
     staleTime: STALE_TIME_5MIN,
   });
 
-  // Fetch distinct categories from categories table and products for the current shop
+  // Fetch distinct categories: Local-First from cached products, 0ms load
   const { data: categories = [] } = useQuery({
     queryKey: ['workerCategories', shopId],
     queryFn: async () => {
       const catSet = new Set();
       try {
-        let catQuery = supabase.from('categories').select('name').order('name', { ascending: true });
-        if (shopId) {
-          catQuery = catQuery.eq('shop_id', shopId);
-        }
-        const { data } = await catQuery;
-        if (data) {
-          data.forEach(c => { if (c.name) catSet.add(c.name); });
+        const { data: localItems } = await getInventoryByQuery({ limit: 1000000, status: 'active' });
+        if (localItems && localItems.length > 0) {
+          localItems.forEach(p => { if (p.category) catSet.add(p.category); });
         }
       } catch {}
 
-      try {
-        let prodCatQuery = supabase.from('product_master_public').select('category').eq('is_active', true);
-        if (shopId) {
-          prodCatQuery = prodCatQuery.eq('shop_id', shopId);
-        }
-        const { data } = await prodCatQuery;
-        if (data) {
-          data.forEach(p => { if (p.category) catSet.add(p.category); });
-        }
-      } catch {}
+      if (catSet.size === 0 && navigator.onLine) {
+        try {
+          let catQuery = supabase.from('categories').select('name').order('name', { ascending: true });
+          if (shopId) catQuery = catQuery.eq('shop_id', shopId);
+          const { data } = await catQuery;
+          if (data) data.forEach(c => { if (c.name) catSet.add(c.name); });
+        } catch {}
+      }
 
-      return Array.from(catSet).sort((a, b) => a.localeCompare(b));
+      const res = Array.from(catSet).sort((a, b) => a.localeCompare(b));
+      if (res.length > 0) setLocalCategories(shopId, res);
+      return res;
     },
+    initialData: () => getLocalCategories(shopId),
     staleTime: STALE_TIME_5MIN,
   });
 
+  // PURE LOCAL-FIRST INFINITE QUERY: Instant 0ms results as worker types or navigates
   const { 
     data: inventoryData, 
     isLoading,
@@ -245,43 +265,46 @@ export default function WorkerDashboardView({ isBillable = true }) {
     queryKey: ['workerInventory', shopId, debouncedSearch, selectedCategory],
     queryFn: async ({ pageParam = 0 }) => {
       const from = pageParam * INV_PER_PAGE;
-      let query = supabase.from('product_master_public').select('*', { count: 'exact' }).eq('is_active', true);
-      
-      if (shopId) {
-        query = query.eq('shop_id', shopId);
-      }
 
-      // Sanitized search (fixes #1)
-      if (debouncedSearch.trim() !== '') {
-        const safe = escapeIlike(debouncedSearch.trim());
-        query = query.or(`name.ilike.%${safe}%,barcode.ilike.%${safe}%`);
-      }
-
-      // Filter by category
-      if (selectedCategory && selectedCategory !== 'ALL') {
-        query = query.eq('category', selectedCategory);
-      }
-      
-      query = query.order('barcode', { ascending: true });
-
+      // 1. FAST LOCAL-FIRST: Always query local IndexedDB (0ms)
       try {
+        const localRes = await getInventoryByQuery({
+          limit: INV_PER_PAGE,
+          offset: from,
+          search: debouncedSearch.trim(),
+          category: selectedCategory !== 'ALL' ? selectedCategory : undefined,
+          sortOption: 'barcode-asc',
+          status: 'active'
+        });
+        if (localRes && (localRes.data?.length > 0 || from > 0 || (localRes.totalCount === 0 && debouncedSearch.trim()))) {
+          const hasMore = from + INV_PER_PAGE < (localRes.totalCount || 0);
+          return { items: localRes.data || [], nextPage: hasMore ? pageParam + 1 : undefined };
+        }
+      } catch (e) {
+        console.warn("Local IDB query error:", e);
+      }
+
+      // 2. Fallback to Supabase if local DB was completely empty (e.g. cold start)
+      if (navigator.onLine) {
+        let query = supabase.from('product_master_public').select('*', { count: 'exact' }).eq('is_active', true);
+        if (shopId) query = query.eq('shop_id', shopId);
+
+        if (debouncedSearch.trim() !== '') {
+          const safe = escapeIlike(debouncedSearch.trim());
+          query = query.or(`name.ilike.%${safe}%,barcode.ilike.%${safe}%`);
+        }
+        if (selectedCategory && selectedCategory !== 'ALL') {
+          query = query.eq('category', selectedCategory);
+        }
+        query = query.order('barcode', { ascending: true });
+
         const { data, count, error } = await query.range(from, from + INV_PER_PAGE - 1);
         if (error) throw error;
         const hasMore = from + INV_PER_PAGE < (count || 0);
         return { items: data || [], nextPage: hasMore ? pageParam + 1 : undefined };
-      } catch (err) {
-        if (!navigator.onLine || err.message === 'Failed to fetch' || err.code === '503') {
-          const localRes = await getInventoryByQuery({
-            limit: INV_PER_PAGE,
-            offset: from,
-            search: debouncedSearch.trim(),
-            category: selectedCategory !== 'ALL' ? selectedCategory : undefined,
-          });
-          const hasMore = from + INV_PER_PAGE < (localRes.totalCount || 0);
-          return { items: localRes.data || [], nextPage: hasMore ? pageParam + 1 : undefined };
-        }
-        throw err;
       }
+
+      return { items: [], nextPage: undefined };
     },
     getNextPageParam: (lastPage) => lastPage.nextPage,
     staleTime: STALE_TIME_5MIN,

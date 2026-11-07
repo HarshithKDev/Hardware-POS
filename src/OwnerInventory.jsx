@@ -4,7 +4,15 @@ import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import PrintBatchModal from './PrintBatchModal';
 import CreateBatchModal from './CreateBatchModal';
 import { supabase } from './supabaseClient';
-import { getInventoryByQuery, saveInventoryBatch, getInventoryItemByBarcode } from './services/db';
+import { 
+  getInventoryByQuery, 
+  saveInventoryBatch, 
+  getInventoryItemByBarcode,
+  getLocalCategories,
+  setLocalCategories,
+  getLocalSubcategories,
+  setLocalSubcategories
+} from './services/db';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { ConfirmDialog } from './Dialog';
 import { useApp } from './AppContext';
@@ -102,7 +110,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
     debouncedSetSearch(e.target.value);
   }, [debouncedSetSearch, setInventorySearch]);
 
-  const { data: categories } = useQuery({
+  const { data: categories = [] } = useQuery({
     queryKey: ['categories', shopId],
     queryFn: async () => {
       let query = supabase.from('categories').select('name').order('name', { ascending: true });
@@ -111,12 +119,15 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
       }
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      const res = data || [];
+      if (res.length > 0) setLocalCategories(shopId, res);
+      return res;
     },
+    initialData: () => getLocalCategories(shopId),
     staleTime: STALE_TIME_5MIN,
   });
 
-  const { data: subcategories } = useQuery({
+  const { data: subcategories = [] } = useQuery({
     queryKey: ['subcategories', shopId],
     queryFn: async () => {
       let query = supabase.from('subcategories').select('name, category_name').order('name', { ascending: true });
@@ -125,8 +136,11 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
       }
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      const res = data || [];
+      if (res.length > 0) setLocalSubcategories(shopId, res);
+      return res;
     },
+    initialData: () => getLocalSubcategories(shopId),
     staleTime: STALE_TIME_5MIN,
   });
 

@@ -43,15 +43,27 @@ WHERE b.id = sub.bill_id
 
 DROP TABLE IF EXISTS temp_test_bills;
 
--- 5. Delete Inventory Batches
+-- 5. Safe cleanup of stock_instances if table exists (prevents column error)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'stock_instances') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'stock_instances' AND column_name = 'barcode') THEN
+      EXECUTE 'DELETE FROM public.stock_instances WHERE barcode IN (''1301'', ''1302'')';
+    ELSIF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'stock_instances' AND column_name = 'batch_id') THEN
+      EXECUTE 'DELETE FROM public.stock_instances WHERE batch_id IN (SELECT id FROM public.inventory_batches WHERE barcode IN (''1301'', ''1302''))';
+    END IF;
+  END IF;
+END $$;
+
+-- 6. Delete Inventory Batches
 DELETE FROM public.inventory_batches 
 WHERE barcode IN ('1301', '1302');
 
--- 6. Delete the Product Master records
+-- 7. Delete the Product Master records
 DELETE FROM public.product_master 
 WHERE barcode IN ('1301', '1302');
 
--- 7. Remove from Held / Pending Carts if present
+-- 8. Remove from Held / Pending Carts if present
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'pending_carts') THEN
