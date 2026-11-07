@@ -384,7 +384,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             selectedBatch = item.batches[0];
           } else if (item.batches.length > 1) {
             if (currentTab === 'checkout') {
-              const activeWithStock = item.batches.filter(b => Number(b.stock_store || 0) > 0);
+              const activeWithStock = item.batches.filter(b => {
+                const s = isWarehouseDisabled 
+                  ? (Number(b.stock_store || 0) + Number(b.stock_warehouse || 0)) 
+                  : Number(b.stock_store || 0);
+                return s > 0;
+              });
               if (activeWithStock.length === 1) {
                 selectedBatch = activeWithStock[0];
               } else {
@@ -509,7 +514,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
            if (currentTab === 'checkout' || currentTab === 'transfer') {
              const stockField = currentTab === 'transfer' ? 'stock_warehouse' : 'stock_store';
              const locationName = currentTab === 'transfer' ? 'warehouse' : 'store';
-             if (Number(autoSelectedBatch[stockField]) <= 0) {
+             const bStock = (currentTab === 'checkout' && isWarehouseDisabled)
+               ? (Number(autoSelectedBatch.stock_store || 0) + Number(autoSelectedBatch.stock_warehouse || 0))
+               : Number(autoSelectedBatch[stockField] || 0);
+             if (bStock <= 0) {
                playScanErrorSound();
                return showAlertRef.current(`Batch #${String(scannedBatchNumber).padStart(2,'0')} of ${item.name} is out of stock in the ${locationName}.`, "Out of Stock");
              }
@@ -533,7 +541,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         if (currentTab === 'checkout' || currentTab === 'transfer') {
           const stockField = currentTab === 'transfer' ? 'stock_warehouse' : 'stock_store';
           const locationName = currentTab === 'transfer' ? 'warehouse' : 'store';
-          const totalStock = availableBatches.length === 1 ? Number(autoSelectedBatch[stockField]) : (item.batches ? item.batches.reduce((sum, b) => sum + Number(b[stockField]), 0) : Number(item[stockField] || 0));
+          const totalStock = availableBatches.length === 1 
+            ? ((currentTab === 'checkout' && isWarehouseDisabled)
+                ? (Number(autoSelectedBatch.stock_store || 0) + Number(autoSelectedBatch.stock_warehouse || 0))
+                : Number(autoSelectedBatch[stockField] || 0))
+            : (item.batches 
+                ? item.batches.reduce((sum, b) => sum + ((currentTab === 'checkout' && isWarehouseDisabled) ? (Number(b.stock_store || 0) + Number(b.stock_warehouse || 0)) : Number(b[stockField] || 0)), 0)
+                : ((currentTab === 'checkout' && isWarehouseDisabled) ? (Number(item.stock_store || 0) + Number(item.stock_warehouse || 0)) : Number(item[stockField] || 0)));
           
           const currentCartItem = cartRef.current.find(c => c.barcode === item.barcode && (!autoSelectedBatch || c.batch_id === autoSelectedBatch.batch_id));
           const currentQty = currentCartItem ? (Number(currentCartItem.quantity) || 0) : 0;
@@ -625,7 +639,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       const currentCartItem = cart.find(c => c.barcode === item.barcode);
       const currentQty = currentCartItem ? (Number(currentCartItem.quantity) || 0) : 0;
       const proposedQty = currentQty + addQty;
-      const maxStock = Number(item.stock_store || 0);
+      const maxStock = isWarehouseDisabled 
+        ? (Number(item.stock_store || 0) + Number(item.stock_warehouse || 0)) 
+        : Number(item.stock_store || 0);
       if (proposedQty > maxStock) {
         playScanErrorSound();
         if (isLooseKg) {
@@ -665,7 +681,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       const stockField = activeTab === 'transfer' ? 'stock_warehouse' : 'stock_store';
       let targetBatch = null;
       if (item.batches && item.batches.length > 0) {
-        targetBatch = item.batches.find(b => Number(b[stockField]) > 0) || item.batches[0];
+        targetBatch = item.batches.find(b => {
+          const s = (activeTab === 'checkout' && isWarehouseDisabled)
+            ? (Number(b.stock_store || 0) + Number(b.stock_warehouse || 0))
+            : Number(b[stockField] || 0);
+          return s > 0;
+        }) || item.batches[0];
       }
       
       return [...prev, {
@@ -898,7 +919,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           );
 
           if (activeTab === 'checkout' && val !== '') {
-            const rawStock = i.batch_id && i.batches ? Number(i.batches.find(b => b.batch_id === i.batch_id)?.stock_store || 0) : Number(i.stock_store || 0);
+            const rawStock = i.batch_id && i.batches 
+              ? (isWarehouseDisabled 
+                  ? (Number(i.batches.find(b => b.batch_id === i.batch_id)?.stock_store || 0) + Number(i.batches.find(b => b.batch_id === i.batch_id)?.stock_warehouse || 0))
+                  : Number(i.batches.find(b => b.batch_id === i.batch_id)?.stock_store || 0))
+              : (isWarehouseDisabled 
+                  ? (Number(i.stock_store || 0) + Number(i.stock_warehouse || 0))
+                  : Number(i.stock_store || 0));
             const otherCartQty = prev.filter(c => c.id !== id && c.barcode === i.barcode && (!i.batch_id || c.batch_id === i.batch_id))
               .reduce((sum, c) => sum + (Number(c.actual_quantity !== undefined ? c.actual_quantity : c.quantity) || 0), 0);
             const maxStock = Math.max(0, Math.round((rawStock - otherCartQty) * 100) / 100);
@@ -986,7 +1013,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                 newQty = parseFloat((l * w * r).toFixed(2));
               }
             } else {
-              const maxStock = Number(i.stock_store || 0);
+              const maxStock = isWarehouseDisabled 
+                ? (Number(i.stock_store || 0) + Number(i.stock_warehouse || 0)) 
+                : Number(i.stock_store || 0);
               if (newQty > maxStock) { limitMsg = `You only have ${maxStock} of ${i.name} in the store.`; newQty = maxStock; }
             }
           }
@@ -1442,12 +1471,18 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             // Sum stock per barcode across all active batches
             const stockByBarcode = {};
             liveBatches.forEach(b => {
-              stockByBarcode[b.barcode] = (stockByBarcode[b.barcode] || 0) + Number(b[stockField] || 0);
+              const bStock = (activeTab === 'checkout' && isWarehouseDisabled)
+                ? (Number(b.stock_store || 0) + Number(b.stock_warehouse || 0))
+                : Number(b[stockField] || 0);
+              stockByBarcode[b.barcode] = (stockByBarcode[b.barcode] || 0) + bStock;
             });
 
             for (const cartItem of stockItems) {
               const available = stockByBarcode[cartItem.barcode] ?? 0;
-              if (available < cartItem.quantity) {
+              const requiredQty = cartItem.is_cuttable
+                ? (cartItem.actual_quantity !== undefined ? Number(cartItem.actual_quantity) : Number(cartItem.quantity))
+                : Number(cartItem.quantity);
+              if (available < requiredQty) {
                 const loc = activeTab === 'transfer' ? 'warehouse' : 'shop';
                 throw new Error(`Not enough stock for ${cartItem.name}! Only ${available} available in the ${loc}.`);
               }
@@ -1588,7 +1623,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       const payload = {
         shop_id: shopSettings?.id || localStorage.getItem('shop_id'),
         p_action: activeTab === 'receive' ? 'RECEIVE' : activeTab === 'transfer' ? 'TRANSFER' : 'SALE',
-        p_location: activeTab === 'receive' ? 'Warehouse-Inbound' : activeTab === 'transfer' ? 'Warehouse-Transfer' : 'Store',
+        p_location: activeTab === 'receive' ? (isWarehouseDisabled ? 'Store' : 'Warehouse-Inbound') : activeTab === 'transfer' ? 'Warehouse-Transfer' : 'Store',
         p_cashier_name: cashierName || 'System',
         p_payment_method: paymentMethod,
         p_cash_amount: cashAmount,
@@ -1718,17 +1753,25 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       for (const item of finalCart) {
         const localItem = await getInventoryItemByBarcode(item.barcode);
         if (localItem) {
+          const effectiveStockQty = item.is_cuttable
+            ? (item.actual_quantity !== undefined ? Number(item.actual_quantity) : (
+                item.unit === 'SQFT'
+                  ? Math.round(Number(item.quantity) * (Number(item.default_length) || 100) * (Number(item.default_width) || 3) * 100) / 100
+                  : Math.round(Number(item.quantity) * (Number(item.default_length) || 12) * 100) / 100
+              ))
+            : Number(item.quantity);
+
           if (activeTab === 'receive') {
             if (isWarehouseDisabled) {
-              localItem.stock_store = (Number(localItem.stock_store) || 0) + Number(item.quantity);
+              localItem.stock_store = (Number(localItem.stock_store) || 0) + effectiveStockQty;
             } else {
-              localItem.stock_warehouse = (Number(localItem.stock_warehouse) || 0) + Number(item.quantity);
+              localItem.stock_warehouse = (Number(localItem.stock_warehouse) || 0) + effectiveStockQty;
             }
           } else if (activeTab === 'transfer') {
-            localItem.stock_warehouse = Math.max(0, (Number(localItem.stock_warehouse) || 0) - Number(item.quantity));
-            localItem.stock_store = (Number(localItem.stock_store) || 0) + Number(item.quantity);
+            localItem.stock_warehouse = Math.max(0, (Number(localItem.stock_warehouse) || 0) - effectiveStockQty);
+            localItem.stock_store = (Number(localItem.stock_store) || 0) + effectiveStockQty;
           } else if (activeTab === 'checkout') {
-            localItem.stock_store = Math.max(0, (Number(localItem.stock_store) || 0) - Number(item.quantity));
+            localItem.stock_store = Math.max(0, (Number(localItem.stock_store) || 0) - effectiveStockQty);
           }
 
           // Also update specific batch inside localItem.batches for instant tab feedback
@@ -1737,15 +1780,15 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             if (bIdx !== -1) {
               if (activeTab === 'receive') {
                 if (isWarehouseDisabled) {
-                  localItem.batches[bIdx].stock_store = (Number(localItem.batches[bIdx].stock_store) || 0) + Number(item.quantity);
+                  localItem.batches[bIdx].stock_store = (Number(localItem.batches[bIdx].stock_store) || 0) + effectiveStockQty;
                 } else {
-                  localItem.batches[bIdx].stock_warehouse = (Number(localItem.batches[bIdx].stock_warehouse) || 0) + Number(item.quantity);
+                  localItem.batches[bIdx].stock_warehouse = (Number(localItem.batches[bIdx].stock_warehouse) || 0) + effectiveStockQty;
                 }
               } else if (activeTab === 'transfer') {
-                localItem.batches[bIdx].stock_warehouse = Math.max(0, (Number(localItem.batches[bIdx].stock_warehouse) || 0) - Number(item.quantity));
-                localItem.batches[bIdx].stock_store = (Number(localItem.batches[bIdx].stock_store) || 0) + Number(item.quantity);
+                localItem.batches[bIdx].stock_warehouse = Math.max(0, (Number(localItem.batches[bIdx].stock_warehouse) || 0) - effectiveStockQty);
+                localItem.batches[bIdx].stock_store = (Number(localItem.batches[bIdx].stock_store) || 0) + effectiveStockQty;
               } else if (activeTab === 'checkout') {
-                localItem.batches[bIdx].stock_store = Math.max(0, (Number(localItem.batches[bIdx].stock_store) || 0) - Number(item.quantity));
+                localItem.batches[bIdx].stock_store = Math.max(0, (Number(localItem.batches[bIdx].stock_store) || 0) - effectiveStockQty);
               }
             }
           }
@@ -1759,6 +1802,14 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         try {
           const shopId = shopSettings?.id || localStorage.getItem('shop_id');
           for (const item of finalCart) {
+            const effectiveStockQty = item.is_cuttable
+              ? (item.actual_quantity !== undefined ? Number(item.actual_quantity) : (
+                  item.unit === 'SQFT'
+                    ? Math.round(Number(item.quantity) * (Number(item.default_length) || 100) * (Number(item.default_width) || 3) * 100) / 100
+                    : Math.round(Number(item.quantity) * (Number(item.default_length) || 12) * 100) / 100
+                ))
+              : Number(item.quantity);
+
             let bQuery = supabase
               .from('inventory_batches')
               .select('batch_id, stock_warehouse, stock_store')
@@ -1778,7 +1829,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             const { data: bData } = await bQuery.maybeSingle();
 
             if (bData && Number(bData.stock_warehouse) > 0) {
-              const transferQty = Math.min(Number(bData.stock_warehouse), Number(item.quantity));
+              const transferQty = Math.min(Number(bData.stock_warehouse), effectiveStockQty);
               let updateBatch = supabase
                 .from('inventory_batches')
                 .update({
@@ -2400,6 +2451,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         cart={cart}
         onSubmit={handleCuttableCheckoutSubmit}
         onClose={() => setCuttableCheckoutModal({ isOpen: false, modalData: null })}
+        isWarehouseDisabled={isWarehouseDisabled}
       />
 
       <ScrewsModal

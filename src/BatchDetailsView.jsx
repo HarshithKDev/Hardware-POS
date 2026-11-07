@@ -234,8 +234,31 @@ export default function BatchDetailsView({
                 if (currentShopId) updateP = updateP.eq('shop_id', currentShopId);
                 await updateP;
               }
+
+              // Also update local IDB cache immediately so offline & instant views sync
+              try {
+                const localItem = await getInventoryItemByBarcode(item.barcode);
+                if (localItem) {
+                  if (localItem.batches) {
+                    localItem.batches.forEach(b => {
+                      if (Number(b.stock_warehouse) > 0) {
+                        b.stock_store = Number(b.stock_store || 0) + Number(b.stock_warehouse || 0);
+                        b.stock_warehouse = 0;
+                      }
+                    });
+                  }
+                  localItem.stock_store = Number(localItem.stock_store || 0) + Number(localItem.stock_warehouse || 0);
+                  localItem.stock_warehouse = 0;
+                  await saveInventoryBatch([localItem]);
+                }
+              } catch (idbErr) {
+                console.warn("Could not sync self-healing to IDB:", idbErr);
+              }
+
               queryClient.invalidateQueries({ queryKey: ['inventory_item', currentShopId, item.barcode] });
+              queryClient.invalidateQueries({ queryKey: ['inventory_item'] });
               queryClient.invalidateQueries({ queryKey: ['inventory'] });
+              queryClient.invalidateQueries({ queryKey: ['product_master'] });
             }
           } catch (err) {
             console.warn("Could not auto-heal stranded warehouse stock:", err);
@@ -966,7 +989,9 @@ export default function BatchDetailsView({
               seenBatchNums.add(batchNum);
               const batchCode = `${item.barcode}-${String(batchNum).padStart(2, '0')}`;
 
-              const totalBatchStock = Number(batch.stock_store || 0) + (isWarehouseDisabled ? 0 : Number(batch.stock_warehouse || 0));
+              const totalBatchStock = isWarehouseDisabled
+                ? (Number(batch.stock_store || 0) + Number(batch.stock_warehouse || 0))
+                : (Number(batch.stock_store || 0) + Number(batch.stock_warehouse || 0));
               const tabCountLabel = `${totalBatchStock} ${displayUnit}`;
 
               return (

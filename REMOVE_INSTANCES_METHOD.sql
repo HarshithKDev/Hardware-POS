@@ -51,20 +51,34 @@ BEGIN
         IF p_action = 'SALE' THEN
             -- Deduct dimensional or standard stock directly from the specific batch
             IF v_target_batch IS NOT NULL THEN
+                -- If stock_store is less than needed, merge any stranded warehouse stock on this batch
+                UPDATE public.inventory_batches
+                SET stock_store = stock_store + stock_warehouse,
+                    stock_warehouse = 0
+                WHERE batch_id = v_target_batch AND stock_store < v_actual_qty AND stock_warehouse > 0;
+
                 UPDATE public.inventory_batches
                 SET stock_store = GREATEST(0, stock_store - v_actual_qty)
                 WHERE batch_id = v_target_batch
                 RETURNING purchase_cost INTO v_batch_cost;
             ELSE
                 -- Fallback to active batch if batch_id was not explicitly passed
-                UPDATE public.inventory_batches
-                SET stock_store = GREATEST(0, stock_store - v_actual_qty)
-                WHERE batch_id = (
-                    SELECT batch_id FROM public.inventory_batches 
-                    WHERE barcode = v_item->>'barcode' AND is_active = true 
-                    ORDER BY created_at DESC LIMIT 1
-                )
-                RETURNING purchase_cost INTO v_batch_cost;
+                SELECT batch_id INTO v_target_batch
+                FROM public.inventory_batches 
+                WHERE barcode = v_item->>'barcode' AND is_active = true 
+                ORDER BY created_at DESC LIMIT 1;
+
+                IF v_target_batch IS NOT NULL THEN
+                    UPDATE public.inventory_batches
+                    SET stock_store = stock_store + stock_warehouse,
+                        stock_warehouse = 0
+                    WHERE batch_id = v_target_batch AND stock_store < v_actual_qty AND stock_warehouse > 0;
+
+                    UPDATE public.inventory_batches
+                    SET stock_store = GREATEST(0, stock_store - v_actual_qty)
+                    WHERE batch_id = v_target_batch
+                    RETURNING purchase_cost INTO v_batch_cost;
+                END IF;
             END IF;
 
             -- Calculate Profit
@@ -97,10 +111,16 @@ BEGIN
             PERFORM 1 FROM public.product_master WHERE barcode = v_item->>'barcode' FOR UPDATE;
 
             IF v_target_batch IS NOT NULL THEN
-                -- Add stock directly to the chosen batch
-                UPDATE public.inventory_batches
-                SET stock_warehouse = stock_warehouse + v_actual_qty
-                WHERE batch_id = v_target_batch;
+                -- If receiving directly into Store (single-tier mode), add to stock_store
+                IF p_location = 'Store' THEN
+                    UPDATE public.inventory_batches
+                    SET stock_store = stock_store + v_actual_qty
+                    WHERE batch_id = v_target_batch;
+                ELSE
+                    UPDATE public.inventory_batches
+                    SET stock_warehouse = stock_warehouse + v_actual_qty
+                    WHERE batch_id = v_target_batch;
+                END IF;
             ELSE
                 -- Fallback to latest active batch
                 SELECT batch_id INTO v_target_batch
@@ -110,9 +130,15 @@ BEGIN
                 ORDER BY created_at DESC LIMIT 1;
                 
                 IF v_target_batch IS NOT NULL THEN
-                    UPDATE public.inventory_batches
-                    SET stock_warehouse = stock_warehouse + v_actual_qty
-                    WHERE batch_id = v_target_batch;
+                    IF p_location = 'Store' THEN
+                        UPDATE public.inventory_batches
+                        SET stock_store = stock_store + v_actual_qty
+                        WHERE batch_id = v_target_batch;
+                    ELSE
+                        UPDATE public.inventory_batches
+                        SET stock_warehouse = stock_warehouse + v_actual_qty
+                        WHERE batch_id = v_target_batch;
+                    END IF;
                 END IF;
             END IF;
 

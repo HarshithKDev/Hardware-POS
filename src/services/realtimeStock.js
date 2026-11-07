@@ -123,7 +123,9 @@ export function subscribeToStockUpdates({
         for (const item of items) {
           const localItem = await getInventoryItemByBarcode(item.barcode);
           if (localItem) {
-            const qty = Number(item.quantity || 0);
+            const qty = item.is_cuttable
+              ? (item.actual_quantity !== undefined ? Number(item.actual_quantity) : Number(item.quantity || 0))
+              : Number(item.quantity || 0);
             if (type === 'checkout') {
               localItem.stock_store = Math.max(0, (Number(localItem.stock_store) || 0) - qty);
             } else if (type === 'receive') {
@@ -131,6 +133,19 @@ export function subscribeToStockUpdates({
             } else if (type === 'transfer') {
               localItem.stock_warehouse = Math.max(0, (Number(localItem.stock_warehouse) || 0) - qty);
               localItem.stock_store = (Number(localItem.stock_store) || 0) + qty;
+            }
+            if (localItem.batches && Array.isArray(localItem.batches)) {
+              const bIdx = localItem.batches.findIndex(b => (item.batch_id && b.batch_id === item.batch_id) || (item.batch_number !== undefined && b.batch_number === item.batch_number));
+              if (bIdx !== -1) {
+                if (type === 'checkout') {
+                  localItem.batches[bIdx].stock_store = Math.max(0, (Number(localItem.batches[bIdx].stock_store) || 0) - qty);
+                } else if (type === 'receive') {
+                  localItem.batches[bIdx].stock_warehouse = (Number(localItem.batches[bIdx].stock_warehouse) || 0) + qty;
+                } else if (type === 'transfer') {
+                  localItem.batches[bIdx].stock_warehouse = Math.max(0, (Number(localItem.batches[bIdx].stock_warehouse) || 0) - qty);
+                  localItem.batches[bIdx].stock_store = (Number(localItem.batches[bIdx].stock_store) || 0) + qty;
+                }
+              }
             }
             await saveInventoryBatch([localItem]);
 

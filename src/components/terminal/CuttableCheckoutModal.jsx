@@ -1,12 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useApp } from '../../AppContext';
 
 export default function CuttableCheckoutModal({
   isOpen,
   modalData, // { item, batch, cartItemId, initialCutPieces, initialCutLength }
   cart = [],
   onSubmit,
-  onClose
+  onClose,
+  isWarehouseDisabled: propIsWarehouseDisabled
 }) {
+  let contextDisabled = false;
+  try {
+    const ctx = useApp();
+    contextDisabled = ctx?.isWarehouseDisabled || false;
+  } catch (e) {}
+
+  const isWarehouseDisabled = propIsWarehouseDisabled !== undefined 
+    ? propIsWarehouseDisabled 
+    : contextDisabled;
+
   const [qty, setQty] = useState('1');
   const [length, setLength] = useState('');
   const lengthInputRef = useRef(null);
@@ -51,9 +63,12 @@ export default function CuttableCheckoutModal({
   const unitPrice = Number(batch?.selling_price ?? (item.price || 0));
 
   // Store stock available (excluding current cart reservations for this batch)
+  // When warehouse is disabled, all inventory (store + warehouse columns) is active in-store stock
   const totalStoreStock = batch 
-    ? Number(batch.stock_store || 0)
-    : (item.batches?.reduce((sum, b) => sum + Number(b.stock_store || 0), 0) || Number(item.stock_store || 0));
+    ? (isWarehouseDisabled ? (Number(batch.stock_store || 0) + Number(batch.stock_warehouse || 0)) : Number(batch.stock_store || 0))
+    : (isWarehouseDisabled
+        ? (item.batches?.reduce((sum, b) => sum + Number(b.stock_store || 0) + Number(b.stock_warehouse || 0), 0) ?? (Number(item.stock_store || 0) + Number(item.stock_warehouse || 0)))
+        : (item.batches?.reduce((sum, b) => sum + Number(b.stock_store || 0), 0) ?? Number(item.stock_store || 0)));
 
   const alreadyInCart = (cart || [])
     .filter(c => {

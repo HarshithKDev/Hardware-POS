@@ -59,7 +59,9 @@ export default function SelectBatchModal({
                   <div className="flex items-center justify-end gap-3">
                     <p className="text-xs font-mono" style={{ color: 'var(--color-accent)' }}>#{item.barcode}-{String(batch.batch_number).padStart(2,'0')}</p>
                     <div className="text-sm font-bold" style={{ color: 'var(--color-accent)' }}>
-                      {activeTab === 'receive' ? (isWarehouseDisabled ? batch.stock_store : batch.stock_warehouse) : batch[stockField]} {item.unit}
+                      {isWarehouseDisabled 
+                        ? (Number(batch.stock_store || 0) + Number(batch.stock_warehouse || 0)) 
+                        : (activeTab === 'receive' ? (batch.stock_warehouse || 0) : (batch[stockField] || 0))} {item.unit}
                     </div>
                   </div>
                   <div className="text-xs uppercase tracking-wider mt-1" style={{ color: 'var(--text-tertiary)' }}>
