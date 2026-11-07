@@ -181,11 +181,11 @@ export default function CuttableCheckoutModal({
               />
             </div>
 
-            {/* Mesh Fixed Width display */}
+            {/* Mesh Fixed Height display */}
             {isSqft && (
               <div className="w-1/3">
                 <label className="block text-xs font-semibold uppercase tracking-wider mb-2 text-[var(--text-secondary)]">
-                  Width
+                  Height
                 </label>
                 <div className="h-12 flex items-center justify-center font-bold text-sm bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-lg text-[var(--text-primary)]">
                   {defaultWid} ft
@@ -202,7 +202,7 @@ export default function CuttableCheckoutModal({
                 {totalQty} <span className="text-sm font-bold uppercase">{unitLabel}</span>
               </span>
               <span className="block text-[11px] text-[var(--text-secondary)] mt-0.5">
-                {parsedQty} &times; {parsedLength} {unitLabel} {isSqft ? `&times; ${defaultWid} ft` : ''}
+                {parsedQty} &times; {parsedLength} {isSqft ? 'ft' : unitLabel} {isSqft ? `&times; ${defaultWid} ft H` : ''}
               </span>
             </div>
             <div className="text-right">

@@ -85,7 +85,7 @@ export default function ReceiveCuttableModal({
               <span className="text-[var(--text-secondary)] block">Standard Unit Size:</span>
               <span className="text-[var(--text-primary)] font-bold text-sm">
                 {isSqft 
-                  ? `${defaultWid} ft (W) × ${defaultLen} ft (L) = ${defaultWid * defaultLen} sqft/roll` 
+                  ? `${defaultWid} ft (H) × ${defaultLen} ft (L) = ${defaultWid * defaultLen} sqft/roll` 
                   : `${defaultLen} ${unitLabel} per piece`}
               </span>
             </div>

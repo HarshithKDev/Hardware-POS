@@ -210,7 +210,7 @@ const CartTable = React.memo(function CartTable({
                               <span>
                                 {item.cut_pieces 
                                   ? (item.unit === 'SQFT' 
-                                      ? `${item.cut_pieces} × ${item.cut_length || item.default_length} FT (${item.default_width || 3} FT W)` 
+                                      ? `${item.cut_pieces} × ${item.cut_length || item.default_length} FT (${item.default_width || 3} FT H)` 
                                       : `${item.cut_pieces} × ${item.cut_length || item.default_length} ${item.unit || 'FT'}`)
                                   : `${safeQty} ${item.unit}`}
                               </span>

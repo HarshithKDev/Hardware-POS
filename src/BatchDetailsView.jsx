@@ -1285,7 +1285,7 @@ export default function BatchDetailsView({
                     </h4>
                     <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                       {item.unit === 'SQFT' ? (
-                        <>Roll Dimensions: <strong className="text-[var(--text-primary)]">{item.default_width || 0} ft (W) × {item.default_length || 0} ft (L)</strong> = {((Number(item.default_width) || 0) * (Number(item.default_length) || 0)).toFixed(0)} SQFT per roll</>
+                        <>Roll Dimensions: <strong className="text-[var(--text-primary)]">{item.default_width || 0} ft (H) × {item.default_length || 0} ft (L)</strong> = {((Number(item.default_width) || 0) * (Number(item.default_length) || 0)).toFixed(0)} SQFT per roll</>
                       ) : (
                         <>Standard Length: <strong className="text-[var(--text-primary)]">{item.default_length || 0} {item.unit || 'ft'}</strong></>
                       )}

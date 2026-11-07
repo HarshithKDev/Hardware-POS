@@ -374,7 +374,7 @@ export default function OwnerCatalog() {
           is_loose_item: isLoose,
           is_cuttable: isCuttable,
           default_length: isCuttable ? (Number(row.default_length || row.Default_Length || row['Default Length']) || null) : null,
-          default_width: (isCuttable && unit.toUpperCase() === 'SQFT') ? (Number(row.default_width || row.Default_Width || row['Default Width']) || null) : null,
+          default_width: (isCuttable && unit.toUpperCase() === 'SQFT') ? (Number(row.default_width || row.Default_Width || row['Default Width'] || row.default_height || row.Default_Height || row['Default Height']) || null) : null,
           min_quantity_warehouse: Number(row.min_quantity_warehouse || row.Min_Quantity_Warehouse || row['Min Quantity (Warehouse)'] || row.min_quantity || 0),
           min_quantity_store: Number(row.min_quantity_store || row.Min_Quantity_Store || row['Min Quantity (Store)'] || row.min_quantity || 0),
           is_active: true
@@ -618,7 +618,7 @@ export default function OwnerCatalog() {
               </div>
               {form.unit === 'SQFT' && (
                 <div className="lg:col-span-2">
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-def-width">Default Roll Width (ft)</label>
+                  <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-def-width">Default Roll Height (ft)</label>
                   <div className="relative">
                     <input id="item-def-width" type="number" step="any" min="0" required value={form.default_width} onChange={(e) => setForm({ ...form, default_width: e.target.value })} placeholder="e.g. 3" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                     <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>ft</span>
@@ -627,7 +627,7 @@ export default function OwnerCatalog() {
               )}
               <div className="lg:col-span-4 p-3 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-medium)] text-xs text-[var(--text-secondary)]">
                 {form.unit === 'SQFT' ? (
-                  <span>Mesh is billed in <strong>sqft</strong>. When receiving rolls, entering Qty <strong>10</strong> will automatically add <strong>{10 * (Number(form.default_length) || 100) * (Number(form.default_width) || 3)} sqft</strong> to inventory ({form.default_width || 3}ft width × {form.default_length || 100}ft length per roll).</span>
+                  <span>Mesh is billed in <strong>sqft</strong>. When receiving rolls, entering Qty <strong>10</strong> will automatically add <strong>{10 * (Number(form.default_length) || 100) * (Number(form.default_width) || 3)} sqft</strong> to inventory ({form.default_width || 3}ft height × {form.default_length || 100}ft length per roll).</span>
                 ) : (
                   <span>Pipes/bars are billed in <strong>{form.unit || 'FT'}</strong>. When receiving stock, entering Qty <strong>10</strong> will automatically add <strong>{10 * (Number(form.default_length) || 12)} {form.unit || 'FT'}</strong> to inventory ({form.default_length || 12} {form.unit || 'FT'} per piece).</span>
                 )}
