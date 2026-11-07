@@ -308,4 +308,81 @@ describe('useSessionState Hook', () => {
     });
     expect(screen.getByTestId('inventory-table')).toBeInTheDocument();
   });
+
+  it('persists and resets staff dashboard sub-category filter across session', () => {
+    const shopId = 'test_shop_101';
+    function WorkerDashFilters() {
+      const [search, setSearch] = useSessionState(`pos_worker_dash_search_${shopId}`, '');
+      const [category, setCategory] = useSessionState(`pos_worker_dash_cat_${shopId}`, 'ALL');
+      const [subcategory, setSubcategory] = useSessionState(`pos_worker_dash_subcat_${shopId}`, 'ALL');
+
+      const handleReset = () => {
+        setSearch('');
+        setCategory('ALL');
+        setSubcategory('ALL');
+        try {
+          window.sessionStorage.removeItem(`pos_worker_dash_search_${shopId}`);
+          window.sessionStorage.removeItem(`pos_worker_dash_cat_${shopId}`);
+          window.sessionStorage.removeItem(`pos_worker_dash_subcat_${shopId}`);
+        } catch (e) {}
+      };
+
+      return (
+        <div>
+          <button data-testid="reset-btn" onClick={handleReset}>Reset</button>
+          <input data-testid="search" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <select data-testid="category" value={category} onChange={(e) => {
+            setCategory(e.target.value);
+            setSubcategory('ALL');
+          }}>
+            <option value="ALL">All Categories</option>
+            <option value="Mirrors">Mirrors</option>
+          </select>
+          <select data-testid="subcategory" value={subcategory} onChange={(e) => setSubcategory(e.target.value)}>
+            <option value="ALL">All Sub-Categories</option>
+            <option value="Framed">Framed</option>
+            <option value="Oval">Oval</option>
+          </select>
+        </div>
+      );
+    }
+
+    const { unmount } = render(<WorkerDashFilters />);
+    
+    // Select category and subcategory
+    act(() => {
+      fireEvent.change(screen.getByTestId('category'), { target: { value: 'Mirrors' } });
+      fireEvent.change(screen.getByTestId('subcategory'), { target: { value: 'Oval' } });
+    });
+
+    expect(screen.getByTestId('category').value).toBe('Mirrors');
+    expect(screen.getByTestId('subcategory').value).toBe('Oval');
+    expect(JSON.parse(window.sessionStorage.getItem(`pos_worker_dash_subcat_${shopId}`))).toBe('Oval');
+
+    // Unmount and remount (navigation)
+    unmount();
+    render(<WorkerDashFilters />);
+
+    expect(screen.getByTestId('category').value).toBe('Mirrors');
+    expect(screen.getByTestId('subcategory').value).toBe('Oval');
+
+    // Changing category resets subcategory
+    act(() => {
+      fireEvent.change(screen.getByTestId('category'), { target: { value: 'ALL' } });
+    });
+    expect(screen.getByTestId('subcategory').value).toBe('ALL');
+
+    // Setting subcategory and resetting
+    act(() => {
+      fireEvent.change(screen.getByTestId('subcategory'), { target: { value: 'Framed' } });
+    });
+    expect(screen.getByTestId('subcategory').value).toBe('Framed');
+
+    act(() => {
+      fireEvent.click(screen.getByTestId('reset-btn'));
+    });
+    expect(screen.getByTestId('category').value).toBe('ALL');
+    expect(screen.getByTestId('subcategory').value).toBe('ALL');
+    expect(JSON.parse(window.sessionStorage.getItem(`pos_worker_dash_subcat_${shopId}`))).toBe('ALL');
+  });
 });

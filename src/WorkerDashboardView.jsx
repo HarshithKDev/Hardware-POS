@@ -7,7 +7,13 @@ import { useApp } from './AppContext';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import { escapeIlike, debounce, useSessionState } from './utils';
 import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD, INV_PER_PAGE, STALE_TIME_5MIN } from './constants';
-import { getInventoryByQuery, getLocalCategories, setLocalCategories } from './services/db';
+import { 
+  getInventoryByQuery, 
+  getLocalCategories, 
+  setLocalCategories,
+  getLocalSubcategories,
+  setLocalSubcategories 
+} from './services/db';
 import PageTitleReset from './components/PageTitleReset';
 
 export default function WorkerDashboardView({ isBillable = true }) {
@@ -17,17 +23,25 @@ export default function WorkerDashboardView({ isBillable = true }) {
   const [inventorySearch, setInventorySearch] = useSessionState(`pos_worker_dash_search_${shopId}`, '');
   const [debouncedSearch, setDebouncedSearch] = useSessionState(`pos_worker_dash_debounced_${shopId}`, () => inventorySearch || '');
   const [selectedCategory, setSelectedCategory] = useSessionState(`pos_worker_dash_cat_${shopId}`, 'ALL');
+  const [selectedSubcategory, setSelectedSubcategory] = useSessionState(`pos_worker_dash_subcat_${shopId}`, 'ALL');
   const [lowStockModal, setLowStockModal] = useState({ isOpen: false, type: null });
 
   const handleResetWorkerDashboard = () => {
     setInventorySearch('');
     setDebouncedSearch('');
     setSelectedCategory('ALL');
+    setSelectedSubcategory('ALL');
     try {
       window.sessionStorage.removeItem(`pos_worker_dash_search_${shopId}`);
       window.sessionStorage.removeItem(`pos_worker_dash_debounced_${shopId}`);
       window.sessionStorage.removeItem(`pos_worker_dash_cat_${shopId}`);
+      window.sessionStorage.removeItem(`pos_worker_dash_subcat_${shopId}`);
     } catch (e) {}
+  };
+
+  const handleCategoryChange = (cat) => {
+    setSelectedCategory(cat);
+    setSelectedSubcategory('ALL');
   };
 
   const actionCards = useMemo(() => {
@@ -73,6 +87,17 @@ export default function WorkerDashboardView({ isBillable = true }) {
           bg: '#ef4444',
           icon: (
             <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+          )
+        },
+        {
+          key: 'print-barcode',
+          path: '/terminal/print-barcode',
+          title: 'Print\nBarcodes',
+          bg: '#06b6d4',
+          icon: (
+            <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
           )
         },
         {
@@ -254,6 +279,71 @@ export default function WorkerDashboardView({ isBillable = true }) {
     staleTime: STALE_TIME_5MIN,
   });
 
+  // Fetch distinct subcategories: Local-First from cached products + Supabase
+  const { data: subcategories = [] } = useQuery({
+    queryKey: ['workerSubcategories', shopId],
+    queryFn: async () => {
+      const subcatMap = new Map();
+      try {
+        const { data: localItems } = await getInventoryByQuery({ limit: 1000000, status: 'active' });
+        if (localItems && localItems.length > 0) {
+          localItems.forEach(p => {
+            if (p.sub_category && p.sub_category.trim()) {
+              const name = p.sub_category.trim();
+              const key = name.toLowerCase();
+              if (!subcatMap.has(key)) {
+                subcatMap.set(key, { name, category_name: p.category || '' });
+              }
+            }
+          });
+        }
+      } catch {}
+
+      if (navigator.onLine) {
+        try {
+          let query = supabase.from('subcategories').select('name, category_name').order('name', { ascending: true });
+          if (shopId) query = query.eq('shop_id', shopId);
+          const { data } = await query;
+          if (data && data.length > 0) {
+            data.forEach(s => {
+              if (s.name && s.name.trim()) {
+                const name = s.name.trim();
+                const key = name.toLowerCase();
+                if (!subcatMap.has(key)) {
+                  subcatMap.set(key, { name, category_name: s.category_name || '' });
+                } else if (!subcatMap.get(key).category_name && s.category_name) {
+                  subcatMap.set(key, { name, category_name: s.category_name });
+                }
+              }
+            });
+          }
+        } catch {}
+      }
+
+      const res = Array.from(subcatMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+      if (res.length > 0) setLocalSubcategories(shopId, res);
+      return res;
+    },
+    initialData: () => getLocalSubcategories(shopId),
+    staleTime: STALE_TIME_5MIN,
+  });
+
+  const availableSubcategories = useMemo(() => {
+    if (!subcategories || !Array.isArray(subcategories)) return [];
+    if (selectedCategory && selectedCategory !== 'ALL') {
+      const catLower = selectedCategory.trim().toLowerCase();
+      return subcategories.filter(s => (s.category_name || '').trim().toLowerCase() === catLower);
+    }
+    const seen = new Set();
+    return subcategories.filter(s => {
+      if (!s.name) return false;
+      const key = s.name.trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [subcategories, selectedCategory]);
+
   // PURE LOCAL-FIRST INFINITE QUERY: Instant 0ms results as worker types or navigates
   const { 
     data: inventoryData, 
@@ -262,7 +352,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
     hasNextPage,
     isFetchingNextPage
   } = useInfiniteQuery({
-    queryKey: ['workerInventory', shopId, debouncedSearch, selectedCategory],
+    queryKey: ['workerInventory', shopId, debouncedSearch, selectedCategory, selectedSubcategory],
     queryFn: async ({ pageParam = 0 }) => {
       const from = pageParam * INV_PER_PAGE;
 
@@ -273,10 +363,11 @@ export default function WorkerDashboardView({ isBillable = true }) {
           offset: from,
           search: debouncedSearch.trim(),
           category: selectedCategory !== 'ALL' ? selectedCategory : undefined,
+          subcategory: selectedSubcategory !== 'ALL' ? selectedSubcategory : undefined,
           sortOption: 'barcode-asc',
           status: 'active'
         });
-        if (localRes && (localRes.data?.length > 0 || from > 0 || (localRes.totalCount === 0 && debouncedSearch.trim()))) {
+        if (localRes && (localRes.data?.length > 0 || from > 0 || (localRes.totalCount === 0 && (debouncedSearch.trim() || selectedCategory !== 'ALL' || selectedSubcategory !== 'ALL')))) {
           const hasMore = from + INV_PER_PAGE < (localRes.totalCount || 0);
           return { items: localRes.data || [], nextPage: hasMore ? pageParam + 1 : undefined };
         }
@@ -295,6 +386,9 @@ export default function WorkerDashboardView({ isBillable = true }) {
         }
         if (selectedCategory && selectedCategory !== 'ALL') {
           query = query.eq('category', selectedCategory);
+        }
+        if (selectedSubcategory && selectedSubcategory !== 'ALL') {
+          query = query.eq('sub_category', selectedSubcategory);
         }
         query = query.order('barcode', { ascending: true });
 
@@ -328,13 +422,13 @@ export default function WorkerDashboardView({ isBillable = true }) {
         tag="h2"
         onReset={handleResetWorkerDashboard}
         className="mb-3 md:mb-4 hidden md:flex"
-        tooltip="Click title to reset inventory search and category filter to default"
+        tooltip="Click title to reset inventory search, category, and sub-category filters to default"
       />
       
       {/* Big Action Buttons */}
       <div className={`grid gap-2.5 md:gap-4 mb-3 md:mb-4 ${
         isBillable 
-          ? (isWarehouseDisabled ? 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5')
+          ? (isWarehouseDisabled ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6')
           : (isWarehouseDisabled ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-4')
       }`}>
         {actionCards.map((card) => (
@@ -344,9 +438,6 @@ export default function WorkerDashboardView({ isBillable = true }) {
             className="p-3 md:p-4 lg:p-5 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md relative group cursor-pointer"
             style={{ backgroundColor: card.bg, color: 'white' }}
           >
-            <kbd className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-black/25 text-white/90 border border-white/20 shadow-xs">
-              {card.shortcut}
-            </kbd>
             {card.icon}
             <span className="font-bold text-xs md:text-sm lg:text-base leading-tight whitespace-pre-line">
               {card.title}
@@ -370,7 +461,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-2 md:gap-4 mb-2.5 md:mb-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-3 mb-2.5 md:mb-3">
         <div className="w-full relative flex items-center">
           <input 
             id="dashboard-inventory-search"
@@ -389,7 +480,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
         <div className="w-full">
           <select
             value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
+            onChange={(e) => handleCategoryChange(e.target.value)}
             className="w-full h-10 pl-2.5 sm:pl-3 pr-7 sm:pr-8 text-[11px] sm:text-xs md:text-sm border shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 rounded-lg cursor-pointer font-medium leading-normal truncate"
             style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)', colorScheme: 'dark' }}
           >
@@ -397,6 +488,25 @@ export default function WorkerDashboardView({ isBillable = true }) {
             {categories.map((catName) => (
               <option key={catName} value={catName} style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
                 {catName}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="w-full">
+          <select
+            value={selectedSubcategory}
+            onChange={(e) => setSelectedSubcategory(e.target.value)}
+            disabled={availableSubcategories.length === 0}
+            className="w-full h-10 pl-2.5 sm:pl-3 pr-7 sm:pr-8 text-[11px] sm:text-xs md:text-sm border shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 rounded-lg cursor-pointer font-medium leading-normal truncate disabled:opacity-50"
+            style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)', colorScheme: 'dark' }}
+          >
+            <option value="ALL" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+              {availableSubcategories.length === 0 && selectedCategory !== 'ALL' ? 'No Sub-Categories' : 'All Sub-Categories'}
+            </option>
+            {availableSubcategories.map((sub) => (
+              <option key={sub.name} value={sub.name} style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+                {sub.name}
               </option>
             ))}
           </select>

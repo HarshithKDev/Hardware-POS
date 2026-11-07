@@ -9,6 +9,7 @@ import WorkerScanner from './WorkerScanner';
 import WorkerPriceCheck from './WorkerPriceCheck';
 import OwnerLedger from './OwnerLedger';
 import OwnerExpenses from './OwnerExpenses';
+import WorkerPrintBarcode from './WorkerPrintBarcode';
 import { CartProvider } from './contexts/CartContext';
 import { PageLoader } from './SharedUI';
 
@@ -69,6 +70,7 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
   if (isBillable) {
     tabs.push({ key: 'checkout', label: 'Terminal' });
     tabs.push({ key: 'sales', label: 'Sales & Returns' });
+    tabs.push({ key: 'print-barcode', label: 'Print Barcodes' });
     tabs.push({ key: 'expenses', label: 'Expenses' });
   } else {
     tabs.push({ key: 'receive', label: 'Inbound' });
@@ -85,11 +87,11 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
         {!hideNav && activeTab !== 'dashboard' && (
           <div className="pt-3 px-4 md:pt-2 md:px-0 mb-2">
             <button
+              type="button"
               onClick={() => handleTabSwitch('dashboard')}
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs md:text-sm font-bold uppercase tracking-wider rounded-xl text-[var(--color-accent)] bg-[var(--color-accent-bg)] border border-[var(--color-accent)]/20 hover:opacity-80 active:scale-95 transition-all shadow-sm cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs md:text-sm font-bold uppercase tracking-wider rounded-xl text-[var(--color-accent)] bg-[var(--color-accent-bg)] border border-[var(--color-accent)]/20 hover:opacity-80 active:scale-95 transition-all shadow-sm cursor-pointer"
             >
               <span>← Back to Dashboard</span>
-              <kbd className="hidden sm:inline px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-[var(--bg-secondary)] border border-[var(--border-medium)] text-[var(--text-secondary)]">Alt+D</kbd>
             </button>
           </div>
         )}
@@ -123,10 +125,28 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
               <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Expenses are only accessible by billable accounts.</p>
             </div>
           )
-        ) : (activeTab === 'sales' || activeTab === 'returns') && isBillable ? (
-          <div className="h-full p-4 overflow-y-auto">
-            <OwnerLedger isActive={true} />
-          </div>
+        ) : (activeTab === 'sales' || activeTab === 'returns') ? (
+          isBillable ? (
+            <div className="h-full p-2 md:p-4 overflow-y-auto">
+              <OwnerLedger isActive={true} />
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full flex-1">
+              <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
+              <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Sales & Returns are only accessible by billable accounts.</p>
+            </div>
+          )
+        ) : activeTab === 'print-barcode' ? (
+          isBillable ? (
+            <div className="h-full p-2 md:p-4 overflow-hidden flex flex-col flex-1 min-h-0">
+              <WorkerPrintBarcode />
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full flex-1">
+              <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
+              <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Print Barcode is only accessible by billable accounts.</p>
+            </div>
+          )
         ) : activeTab === 'checkout' && !isBillable ? (
           <div className="flex flex-col items-center justify-center h-full flex-1">
             <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>

@@ -64,7 +64,8 @@ const enrichBillItems = async (rawItems) => {
 };
 
 export default function OwnerLedger({ isActive }) {
-  const { showAlert } = useApp();
+  const { showAlert, userRole } = useApp();
+  const isOwner = userRole === 'owner';
   const queryClient = useQueryClient();
   const shopId = localStorage.getItem('shop_id');
 
@@ -308,7 +309,7 @@ export default function OwnerLedger({ isActive }) {
          'Status': b.status || 'completed',
          'Payment Method': b.payment_method || '',
          'Total Amount': b.total_amount || 0,
-         'Total Profit': b.total_profit || 0
+         ...(isOwner ? { 'Total Profit': b.total_profit || 0 } : {})
       }));
       
       const XLSX = await import('xlsx');
@@ -507,6 +508,7 @@ export default function OwnerLedger({ isActive }) {
           onBack={() => setSelectedBill(null)}
           onProcessReturn={(bill) => handleOpenReturnModal(bill)}
           cachedItems={billItemsCache[selectedBill.id]}
+          showProfit={isOwner}
         />
         {returnModalState && (
           <ReturnItemsModal 

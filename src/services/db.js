@@ -378,15 +378,24 @@ const applySort = (items, sortOption, currentShopId) => {
   else items.sort((a, b) => compareBarcodes(a.barcode, b.barcode));
 };
 
-export const getInventoryByQuery = async ({ limit, offset, search, category, subcategory, sortOption, viewType, status = 'active' }) => {
+export const getInventoryByQuery = async ({
+  limit = 50,
+  offset = 0,
+  search,
+  category,
+  subcategory,
+  sortOption,
+  viewType,
+  status = 'active'
+}) => {
   let allItems;
-  if (cachedInventory) {
+  if (cachedInventory && cachedInventory.length > 0) {
     allItems = [...cachedInventory];
   } else if (typeof indexedDB !== 'undefined') {
     const db = await initDB();
     const tx = db.transaction('product_master', 'readonly');
     cachedInventory = await tx.store.getAll();
-    allItems = [...cachedInventory];
+    allItems = [...(cachedInventory || [])];
   } else {
     allItems = [];
   }
@@ -408,6 +417,33 @@ export const getInventoryByQuery = async ({ limit, offset, search, category, sub
       i.batches = i.batches.filter(b => b.is_active !== false);
     }
   });
+
+  // Cold start fallback if local IndexedDB is empty and app is online
+  if (allItems.length === 0 && typeof navigator !== 'undefined' && navigator.onLine && supabase) {
+    try {
+      let q = supabase.from('product_master_public').select('*');
+      if (currentShopId) q = q.eq('shop_id', currentShopId);
+      if (status === 'deactivated') q = q.eq('is_active', false);
+      else q = q.eq('is_active', true);
+      const { data: remoteData } = await q.limit(limit || 100);
+      if (remoteData && remoteData.length > 0) {
+        const bcs = remoteData.map(r => r.barcode);
+        let bQ = supabase.from('inventory_batches_public').select('*').in('barcode', bcs).eq('is_active', true);
+        if (currentShopId) bQ = bQ.eq('shop_id', currentShopId);
+        const { data: bData } = await bQ;
+        const bMap = {};
+        (bData || []).forEach(b => {
+          if (!bMap[b.barcode]) bMap[b.barcode] = [];
+          bMap[b.barcode].push(b);
+        });
+        const enriched = remoteData.map(r => ({ ...r, batches: bMap[r.barcode] || [] }));
+        await saveInventoryBatch(enriched);
+        allItems = enriched;
+      }
+    } catch (e) {
+      console.warn('[DB] Cold start fallback error:', e?.message);
+    }
+  }
 
   if (category) {
     const catLower = category.trim().toLowerCase();
@@ -487,8 +523,13 @@ export const getInventoryByQuery = async ({ limit, offset, search, category, sub
     applySort(allItems, sortOption, currentShopId);
   }
 
+  const start = Number(offset) || 0;
+  const end = limit !== undefined && limit !== null ? start + Number(limit) : allItems.length;
+  const pageSlice = allItems.slice(start, end);
+
   return {
-    data: allItems.slice(offset, offset + limit),
+    data: pageSlice,
+    items: pageSlice,
     totalCount: allItems.length
   };
 };

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import { formatDateTime } from './utils';
 import { PageLoader } from './SharedUI';
+import { useApp } from './AppContext';
 import {
   ArrowLeft,
   Phone,
@@ -13,8 +14,11 @@ export default function BillDetailsView({
   bill,
   onBack,
   onProcessReturn,
-  cachedItems
+  cachedItems,
+  showProfit: showProfitProp
 }) {
+  const { userRole } = useApp();
+  const showProfit = showProfitProp !== undefined ? showProfitProp : (userRole === 'owner');
   const [currentBill, setCurrentBill] = useState(bill);
 
   useEffect(() => {
@@ -155,7 +159,7 @@ export default function BillDetailsView({
       </div>
 
       {/* ROW 3: CLEAN KPI SUMMARY CARDS */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 shrink-0">
+      <div className={`grid ${showProfit ? 'grid-cols-3' : 'grid-cols-2'} gap-2 sm:gap-3 mb-4 shrink-0`}>
         <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] p-2.5 sm:p-4 shadow-sm flex flex-col justify-between">
           <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
             Total Items
@@ -183,16 +187,18 @@ export default function BillDetailsView({
           </div>
         </div>
 
-        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] p-2.5 sm:p-4 shadow-sm flex flex-col justify-between">
-          <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-            Gross Profit
-          </span>
-          <div className="mt-1">
-            <span className={`text-base sm:text-xl font-bold tabular-nums ${isVoided ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--color-success)]'}`}>
-              ₹{isVoided ? '0.00' : totalProfit.toFixed(2)}
+        {showProfit && (
+          <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] p-2.5 sm:p-4 shadow-sm flex flex-col justify-between">
+            <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+              Gross Profit
             </span>
+            <div className="mt-1">
+              <span className={`text-base sm:text-xl font-bold tabular-nums ${isVoided ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--color-success)]'}`}>
+                ₹{isVoided ? '0.00' : totalProfit.toFixed(2)}
+              </span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* ROW 4: ITEMS LIST */}
@@ -275,14 +281,16 @@ export default function BillDetailsView({
                         )}
                       </div>
 
-                      <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
-                        <span className="text-[10px] uppercase block" style={{ color: isVoided ? 'var(--text-tertiary)' : 'var(--color-success)' }}>
-                          Profit
-                        </span>
-                        <span className="font-bold tabular-nums" style={{ color: isVoided ? 'var(--text-tertiary)' : 'var(--color-success)' }}>
-                          {isVoided ? '₹0.00' : `₹${profit.toFixed(2)}`}
-                        </span>
-                      </div>
+                      {showProfit && (
+                        <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
+                          <span className="text-[10px] uppercase block" style={{ color: isVoided ? 'var(--text-tertiary)' : 'var(--color-success)' }}>
+                            Profit
+                          </span>
+                          <span className="font-bold tabular-nums" style={{ color: isVoided ? 'var(--text-tertiary)' : 'var(--color-success)' }}>
+                            {isVoided ? '₹0.00' : `₹${profit.toFixed(2)}`}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {discountPct > 0 && (
@@ -302,13 +310,15 @@ export default function BillDetailsView({
                 <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                   <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                     <th className="py-3 px-2 text-center w-12" style={{ borderRight: '1px solid var(--border-medium)' }}>#</th>
-                    <th className="py-3 px-3 text-center md:w-[30%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Item Details</th>
+                    <th className={`py-3 px-3 text-center ${showProfit ? 'md:w-[28%]' : 'md:w-[35%]'}`} style={{ borderRight: '1px solid var(--border-medium)' }}>Item Details</th>
                     <th className="py-3 px-3 text-center md:w-[12%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Quantity</th>
                     <th className="py-3 px-3 text-center md:w-[11%]" style={{ borderRight: '1px solid var(--border-medium)' }}>MRP</th>
                     <th className="py-3 px-3 text-center md:w-[11%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Sold At</th>
                     <th className="py-3 px-3 text-center md:w-[10%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Discount</th>
-                    <th className="py-3 px-3 text-center md:w-[13%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Total</th>
-                    <th className="py-3 px-3 text-center md:w-[13%]" style={{ color: 'var(--color-success)' }}>Profit</th>
+                    <th className={`py-3 px-3 text-center ${showProfit ? 'md:w-[13%]' : 'md:w-[16%]'}`} style={showProfit ? { borderRight: '1px solid var(--border-medium)' } : {}}>Total</th>
+                    {showProfit && (
+                      <th className="py-3 px-3 text-center md:w-[13%]" style={{ color: 'var(--color-success)' }}>Profit</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border-medium)]">
@@ -369,13 +379,15 @@ export default function BillDetailsView({
                           )}
                         </td>
 
-                        <td className="py-3 px-3 text-center font-bold text-sm text-[var(--text-primary)] tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                        <td className="py-3 px-3 text-center font-bold text-sm text-[var(--text-primary)] tabular-nums" style={showProfit ? { borderRight: '1px solid var(--border-medium)' } : {}}>
                           ₹{lineTotal.toFixed(2)}
                         </td>
 
-                        <td className="py-3 px-3 text-center font-bold text-sm tabular-nums" style={{ color: isVoided ? 'var(--text-secondary)' : 'var(--color-success)' }}>
-                          {isVoided ? '₹0.00' : `₹${profit.toFixed(2)}`}
-                        </td>
+                        {showProfit && (
+                          <td className="py-3 px-3 text-center font-bold text-sm tabular-nums" style={{ color: isVoided ? 'var(--text-secondary)' : 'var(--color-success)' }}>
+                            {isVoided ? '₹0.00' : `₹${profit.toFixed(2)}`}
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
