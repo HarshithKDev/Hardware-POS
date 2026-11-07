@@ -77,3 +77,4 @@ describe('Cuttable Checkout Stock Calculations', () => {
     expect(screen.getByText(/Insufficient stock! Only 10 sqft available/i)).toBeInTheDocument();
   });
 });
+

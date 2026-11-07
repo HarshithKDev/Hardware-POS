@@ -197,3 +197,4 @@ $$ LANGUAGE plpgsql;
 SELECT barcode, batch_number, stock_store, stock_warehouse 
 FROM public.inventory_batches 
 WHERE barcode = '1308';
+

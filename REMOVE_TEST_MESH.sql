@@ -78,3 +78,4 @@ UNION ALL
 SELECT 'audit_logs', count(*) FROM public.audit_logs WHERE barcode = '1308' OR item_name ILIKE '%Test Mesh%'
 UNION ALL
 SELECT 'bill_items', count(*) FROM public.bill_items WHERE barcode = '1308' OR name ILIKE '%Test Mesh%';
+
