@@ -405,6 +405,27 @@ export default function WorkerDashboardView({ isBillable = true }) {
   });
 
   const paginatedInventory = inventoryData?.pages.flatMap(page => page.items) || [];
+
+  const expandedRows = useMemo(() => {
+    return paginatedInventory.flatMap(item => {
+      const activeBatches = (item.batches || []).filter(b => b.is_active !== false);
+      if (activeBatches.length === 0) {
+        return [{ item, batch: null, batchIndex: 0, totalBatches: 1 }];
+      }
+      const sorted = [...activeBatches].sort((a, b) => {
+        const an = Number(a.batch_number ?? 0);
+        const bn = Number(b.batch_number ?? 0);
+        return an - bn;
+      });
+      return sorted.map((batch, idx) => ({
+        item,
+        batch,
+        batchIndex: idx,
+        totalBatches: sorted.length,
+      }));
+    });
+  }, [paginatedInventory]);
+
   const storeAlerts = lowStockCounts?.store || 0;
   const whseAlerts = lowStockCounts?.warehouse || 0;
 
@@ -536,7 +557,8 @@ export default function WorkerDashboardView({ isBillable = true }) {
           >
             <tr className="text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>
               <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>BC</th>
-              <th className={`p-2 md:p-3 ${isWarehouseDisabled ? 'w-[55%]' : 'w-[40%]'} md:w-auto align-middle`} style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Name</th>
+              <th className={`p-2 md:p-3 ${isWarehouseDisabled ? 'w-[45%]' : 'w-[35%]'} md:w-auto align-middle`} style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Name</th>
+              <th className="p-2 md:p-3 w-[12%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Batch</th>
               <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>MRP</th>
               {!isWarehouseDisabled && (
                 <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>WHS</th>
@@ -546,23 +568,35 @@ export default function WorkerDashboardView({ isBillable = true }) {
           </thead>
           <tbody style={{ borderBottom: '1px solid var(--border-medium)' }}>
             {isLoading ? (
-               <tr><td colSpan={isWarehouseDisabled ? 4 : 5} className="h-full text-center py-6 align-middle"><PageLoader text="Loading items..." /></td></tr>
+               <tr><td colSpan={isWarehouseDisabled ? 5 : 6} className="h-full text-center py-6 align-middle"><PageLoader text="Loading items..." /></td></tr>
             ) : paginatedInventory.length === 0 ? (
-              <tr className="border-none"><td colSpan={isWarehouseDisabled ? 4 : 5} className="h-full p-0 border-none"><EmptyState message="No items found." /></td></tr>
-            ) : paginatedInventory.map(item => (
-              <tr key={item.id} className="transition-colors hover:bg-[var(--bg-hover)] text-center" style={{ borderBottom: '1px solid var(--border-medium)' }}>
-                <td className="p-1.5 md:p-3 font-semibold tracking-wider truncate align-middle" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>{item.barcode}</td>
-                <td className="p-1.5 md:p-3 font-medium leading-tight break-words align-middle" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>{item.name}</td>
-                <td className="p-1.5 md:p-3 align-middle" style={{ borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>₹{Number(item.price).toFixed(2)}</td>
-                {!isWarehouseDisabled && (
-                  <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: item.stock_warehouse < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>{item.stock_warehouse}</td>
-                )}
-                <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: item.stock_store < STORE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)', borderBottom: '1px solid var(--border-medium)' }}>{item.stock_store}</td>
-              </tr>
-            ))}
+              <tr className="border-none"><td colSpan={isWarehouseDisabled ? 5 : 6} className="h-full p-0 border-none"><EmptyState message="No items found." /></td></tr>
+            ) : expandedRows.map(({ item, batch, batchIndex, totalBatches }) => {
+              const batchNum = batch ? String(batch.batch_number || batchIndex + 1).padStart(2, '0') : null;
+              const mrp = batch ? Number(batch.selling_price ?? item.price ?? 0) : Number(item.price ?? 0);
+              const stockStore = batch ? Number(batch.stock_store ?? 0) : Number(item.stock_store ?? 0);
+              const stockWarehouse = batch ? Number(batch.stock_warehouse ?? 0) : Number(item.stock_warehouse ?? 0);
+              const rowKey = `${item.id}-${batchNum ?? 'single'}`;
+              return (
+                <tr key={rowKey} className="transition-colors hover:bg-[var(--bg-hover)] text-center" style={{ borderBottom: '1px solid var(--border-medium)' }}>
+                  <td className="p-1.5 md:p-3 font-semibold tracking-wider truncate align-middle" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>{item.barcode}</td>
+                  <td className="p-1.5 md:p-3 font-medium leading-tight break-words align-middle text-center" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>
+                    {item.name}
+                  </td>
+                  <td className="p-1.5 md:p-3 align-middle font-semibold" style={{ color: batchNum ? 'var(--color-accent)' : 'var(--text-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)', letterSpacing: '0.04em', fontSize: '0.75rem' }}>
+                    {batchNum ? `#${batchNum}` : '—'}
+                  </td>
+                  <td className="p-1.5 md:p-3 align-middle" style={{ borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>₹{mrp.toFixed(2)}</td>
+                  {!isWarehouseDisabled && (
+                    <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: stockWarehouse < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>{stockWarehouse}</td>
+                  )}
+                  <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: stockStore < STORE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)', borderBottom: '1px solid var(--border-medium)' }}>{stockStore}</td>
+                </tr>
+              );
+            })}
             {isFetchingNextPage && (
               <tr>
-                <td colSpan={isWarehouseDisabled ? 4 : 5} className="py-3 text-center text-xs font-semibold align-middle" style={{ color: 'var(--text-tertiary)' }}>
+                <td colSpan={isWarehouseDisabled ? 5 : 6} className="py-3 text-center text-xs font-semibold align-middle" style={{ color: 'var(--text-tertiary)' }}>
                   Loading more...
                 </td>
               </tr>
