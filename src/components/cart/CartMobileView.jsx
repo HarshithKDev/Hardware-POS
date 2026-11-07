@@ -145,16 +145,16 @@ const CartMobileView = React.memo(function CartMobileView({
                 >
                   -
                 </button>
-                <div className="relative inline-flex items-center">
+                <div className="inline-flex items-center h-10 bg-[var(--bg-input)] border border-[var(--border-medium)] rounded-md px-2 focus-within:border-[var(--color-accent)] shadow-sm">
                   <input
                     type="number"
                     step={activeTab === 'checkout' ? "any" : "1"}
                     min={activeTab === 'checkout' ? "0" : "1"}
                     value={item.quantity}
                     onChange={(e) => onUpdateQuantity(item.id, e.target.value)}
-                    className="w-20 h-10 text-center font-bold text-sm bg-[var(--bg-input)] border border-[var(--border-medium)] rounded-md text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)]"
+                    className="w-12 h-full text-center font-bold text-sm bg-transparent text-[var(--text-primary)] focus:outline-none p-0"
                   />
-                  <span className="absolute right-2 text-[10px] font-bold uppercase pointer-events-none text-[var(--text-tertiary)]">
+                  <span className="text-[10px] font-bold uppercase pointer-events-none text-[var(--text-tertiary)] ml-1 shrink-0 select-none">
                     {activeTab === 'checkout' ? item.unit : (item.unit === 'SQFT' ? 'ROLLS' : 'PCS')}
                   </span>
                 </div>
@@ -234,7 +234,7 @@ const CartMobileView = React.memo(function CartMobileView({
                           >
                             -
                           </button>
-                          <div className="relative inline-flex items-center">
+                          <div className="inline-flex items-center h-8 bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md px-2 focus-within:border-[var(--color-accent)] focus-within:ring-1 focus-within:ring-[var(--color-accent)] transition-all shadow-sm" style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.1) inset' }}>
                             <input
                               type="number"
                               step="1"
@@ -249,11 +249,10 @@ const CartMobileView = React.memo(function CartMobileView({
                                   onUpdateQuantity(item.id, g / 1000, g);
                                 }
                               }}
-                              className="w-20 h-8 pl-3 pr-7 text-sm font-bold text-center bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-all shadow-sm"
+                              className="w-12 h-full text-sm font-bold text-center bg-transparent text-[var(--text-primary)] focus:outline-none p-0"
                               aria-label={`${item.name} quantity in grams`}
-                              style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.1) inset' }}
                             />
-                            <span className="absolute right-2 text-[10px] font-bold pointer-events-none text-[var(--text-tertiary)]">
+                            <span className="text-[10px] font-bold pointer-events-none text-[var(--text-tertiary)] ml-1 shrink-0 uppercase select-none">
                               g
                             </span>
                           </div>
@@ -289,9 +288,9 @@ const CartMobileView = React.memo(function CartMobileView({
                   return (
                     <>
                       <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-8 h-8 flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border border-[var(--border-medium)] rounded-md bg-[var(--bg-tertiary)] shadow-sm cursor-pointer" aria-label={`Decrease ${item.name} quantity`}>-</button>
-                      <div className="relative inline-flex items-center">
-                        <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-20 h-8 pl-3 pr-7 text-sm font-bold text-center bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-all shadow-sm" aria-label={`${item.name} quantity`} style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.1) inset' }} />
-                        <span className="absolute right-2 text-[10px] font-bold pointer-events-none text-[var(--text-tertiary)]">
+                      <div className="inline-flex items-center h-8 bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md px-2 focus-within:border-[var(--color-accent)] focus-within:ring-1 focus-within:ring-[var(--color-accent)] transition-all shadow-sm" style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.1) inset' }}>
+                        <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-12 h-full text-sm font-bold text-center bg-transparent text-[var(--text-primary)] focus:outline-none p-0" aria-label={`${item.name} quantity`} />
+                        <span className="text-[10px] font-bold pointer-events-none text-[var(--text-tertiary)] ml-1 shrink-0 uppercase select-none">
                           {formatUnitBadge(item.unit === 'SQFT' && activeTab !== 'checkout' ? 'ROLLS' : item.unit)}
                         </span>
                       </div>

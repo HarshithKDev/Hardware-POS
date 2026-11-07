@@ -170,7 +170,7 @@ const CartTable = React.memo(function CartTable({
                         >
                           -
                         </button>
-                        <div className="relative inline-flex items-center">
+                        <div className="inline-flex items-center h-8 bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md px-2 focus-within:border-[var(--color-accent)] focus-within:ring-1 focus-within:ring-[var(--color-accent)] transition-all shadow-sm">
                           <input 
                             type="number" 
                             step={activeTab === 'checkout' ? "any" : "1"} 
@@ -178,10 +178,10 @@ const CartTable = React.memo(function CartTable({
                             onWheel={handleWheelBlur} 
                             value={item.quantity} 
                             onChange={(e) => onUpdateQuantity(item.id, e.target.value)} 
-                            className="w-20 h-8 pl-3 pr-7 text-sm font-bold text-center bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-all shadow-sm" 
+                            className="w-12 h-full text-sm font-bold text-center bg-transparent text-[var(--text-primary)] focus:outline-none p-0" 
                             aria-label={`${item.name} quantity`} 
                           />
-                          <span className="absolute right-2 text-[10px] font-bold pointer-events-none text-[var(--text-tertiary)]">
+                          <span className="text-[10px] font-bold pointer-events-none text-[var(--text-tertiary)] ml-1 shrink-0 uppercase select-none">
                             {activeTab === 'checkout' ? item.unit : (item.unit === 'SQFT' ? 'ROLLS' : 'PCS')}
                           </span>
                         </div>
@@ -230,11 +230,11 @@ const CartTable = React.memo(function CartTable({
                     <div className="flex flex-col items-center justify-center">
                       <div className="h-8 flex items-center justify-center gap-1.5">
                         {item.instance_barcode ? (
-                          <div className="relative inline-flex items-center">
-                            <div className="w-20 h-8 pr-7 flex items-center justify-center text-sm font-bold bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md text-[var(--text-primary)] shadow-sm">
+                          <div className="inline-flex items-center h-8 bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md px-2 shadow-sm">
+                            <div className="w-12 h-full flex items-center justify-center text-sm font-bold text-[var(--text-primary)]">
                               {safeQty}
                             </div>
-                            <span className="absolute right-2 text-[10px] font-bold pointer-events-none text-[var(--text-tertiary)]">
+                            <span className="text-[10px] font-bold pointer-events-none text-[var(--text-tertiary)] ml-1 shrink-0 uppercase select-none">
                               {formatUnitBadge((item.unit === 'SQFT' || item.is_cuttable) && activeTab !== 'checkout' ? 'PCS' : item.unit)}
                             </span>
                           </div>
@@ -256,7 +256,7 @@ const CartTable = React.memo(function CartTable({
                                 >
                                   -
                                 </button>
-                                <div className="relative inline-flex items-center">
+                                <div className="inline-flex items-center h-8 bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md px-2 focus-within:border-[var(--color-accent)] focus-within:ring-1 focus-within:ring-[var(--color-accent)] transition-all shadow-sm" style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.1) inset' }}>
                                   <input
                                     type="number"
                                     step="1"
@@ -272,11 +272,10 @@ const CartTable = React.memo(function CartTable({
                                         onUpdateQuantity(item.id, g / 1000, g);
                                       }
                                     }}
-                                    className="w-20 h-8 pl-3 pr-7 text-sm font-bold text-center bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-all shadow-sm"
+                                    className="w-12 h-full text-sm font-bold text-center bg-transparent text-[var(--text-primary)] focus:outline-none p-0"
                                     aria-label={`${item.name} quantity in grams`}
-                                    style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.1) inset' }}
                                   />
-                                  <span className="absolute right-2 text-[10px] font-bold pointer-events-none text-[var(--text-tertiary)]">
+                                  <span className="text-[10px] font-bold pointer-events-none text-[var(--text-tertiary)] ml-1 shrink-0 uppercase select-none">
                                     g
                                   </span>
                                 </div>
@@ -303,9 +302,9 @@ const CartTable = React.memo(function CartTable({
                         ) : (
                           <>
                             <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-8 h-8 flex items-center justify-center font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors border border-[var(--border-medium)] rounded-md bg-[var(--bg-tertiary)] shadow-sm cursor-pointer" aria-label={`Decrease ${item.name} quantity`}>-</button>
-                            <div className="relative inline-flex items-center">
-                              <input type="number" step="any" min="0" onWheel={handleWheelBlur} value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-20 h-8 pl-3 pr-7 text-sm font-bold text-center bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)] transition-all shadow-sm" aria-label={`${item.name} quantity`} style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.1) inset' }} />
-                              <span className="absolute right-2 text-[10px] font-bold pointer-events-none text-[var(--text-tertiary)]">
+                            <div className="inline-flex items-center h-8 bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md px-2 focus-within:border-[var(--color-accent)] focus-within:ring-1 focus-within:ring-[var(--color-accent)] transition-all shadow-sm" style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.1) inset' }}>
+                              <input type="number" step="any" min="0" onWheel={handleWheelBlur} value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-12 h-full text-sm font-bold text-center bg-transparent text-[var(--text-primary)] focus:outline-none p-0" aria-label={`${item.name} quantity`} />
+                              <span className="text-[10px] font-bold pointer-events-none text-[var(--text-tertiary)] ml-1 shrink-0 uppercase select-none">
                                 {formatUnitBadge((item.unit === 'SQFT' || item.is_cuttable) && activeTab !== 'checkout' ? 'PCS' : item.unit)}
                               </span>
                             </div>
