@@ -1317,6 +1317,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       isOpen: true,
       cashGiven: '',
       negotiatedTotal: initialTotal > 0 ? String(Number(initialTotal.toFixed(2))) : '',
+      customerName: '',
+      customerPhone: '',
       includeScrews: false,
       screwsPrice: '',
       error: '',
@@ -1997,6 +1999,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         isOpen: false, 
         cashGiven: '', 
         negotiatedTotal: '', 
+        customerName: '',
+        customerPhone: '',
         error: '' 
       }));
 
@@ -2093,7 +2097,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       if (checkoutModal.isOpen) {
         if (e.key === 'Escape') {
           e.preventDefault();
-          setCheckoutModal(prev => ({ ...prev, isOpen: false }));
+          setCheckoutModal(prev => ({ ...prev, isOpen: false, customerName: '', customerPhone: '' }));
           return;
         }
         if (e.key === 'Enter') {
@@ -2410,7 +2414,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       {/* Decomposed Terminal Modals */}
       <CheckoutModal
         isOpen={checkoutModal.isOpen}
-        onClose={() => setCheckoutModal(prev => ({ ...prev, isOpen: false }))}
+        onClose={() => setCheckoutModal(prev => ({ ...prev, isOpen: false, customerName: '', customerPhone: '' }))}
         checkoutModal={checkoutModal}
         setCheckoutModal={setCheckoutModal}
         activeTotal={activeTotal}
