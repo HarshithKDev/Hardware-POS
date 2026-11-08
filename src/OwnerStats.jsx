@@ -781,7 +781,50 @@ export default function OwnerStats({ isActive }) {
 
     const billsData = allBills || [];
 
-    // Calculate trend bars
+    // Fetch bill items for billsData to accurately compute revenue & profit without screws
+    // (Screws are tracked in sales history, but excluded from dashboard revenue and profit)
+    const allBillIdArray = Array.from(new Set(billsData.map(b => b.id)));
+    let rawItemsData = [];
+    if (allBillIdArray.length > 0) {
+      const chunkSize = 100;
+      const chunks = [];
+      for (let i = 0; i < allBillIdArray.length; i += chunkSize) {
+        chunks.push(allBillIdArray.slice(i, i + chunkSize));
+      }
+      const batchResults = await Promise.all(
+        chunks.map(batch => {
+          let q = supabase.from('bill_items')
+            .select('name, barcode, quantity, price_at_sale, cost_at_sale, unit, bill_id, profit, cost_allocated, billable_quantity, system_price')
+            .in('bill_id', batch);
+          if (shopId) {
+            q = q.eq('shop_id', shopId);
+          }
+          return q;
+        })
+      );
+      rawItemsData = batchResults.flatMap(r => r.data || []);
+    }
+
+    // Map each bill to its non-screw revenue
+    const billItemsByBillId = new Map();
+    rawItemsData.forEach(item => {
+      const list = billItemsByBillId.get(item.bill_id) || [];
+      list.push(item);
+      billItemsByBillId.set(item.bill_id, list);
+    });
+
+    const getBillNonScrewRevenue = (bill) => {
+      const items = billItemsByBillId.get(bill.id);
+      if (items && items.length > 0) {
+        // Sum only non-screw items
+        return items
+          .filter(it => it.barcode !== 'SCREWS' && it.name !== 'Screws' && !it.is_screw)
+          .reduce((sum, it) => sum + (Number(it.price_at_sale || 0) * Number(it.billable_quantity || it.quantity || 1)), 0);
+      }
+      return Number(bill.total_amount || 0);
+    };
+
+    // Calculate trend bars (excluding screws revenue)
     let maxRev = 0;
     const sDate = startDate ? new Date(`${startDate}T00:00:00`) : new Date();
     const eDate = endDate ? new Date(`${endDate}T00:00:00`) : new Date();
@@ -810,8 +853,9 @@ export default function OwnerStats({ isActive }) {
         key = new Date(bill.created_at).toLocaleDateString('en-CA');
       }
 
+      const nonScrewRev = getBillNonScrewRevenue(bill);
       if (key && trendData[key]) {
-        trendData[key].rev += Number(bill.total_amount || 0);
+        trendData[key].rev += nonScrewRev;
         if (trendData[key].rev > maxRev) maxRev = trendData[key].rev;
       }
     });
@@ -829,31 +873,23 @@ export default function OwnerStats({ isActive }) {
     let tfSalesDetails = [];
     let topProducts = [];
 
-    const tfBillIdArray = Array.from(tfBillIds);
-    if (tfBillIdArray.length > 0) {
-      const chunkSize = 100;
-      const chunks = [];
-      for (let i = 0; i < tfBillIdArray.length; i += chunkSize) {
-        chunks.push(tfBillIdArray.slice(i, i + chunkSize));
-      }
-      const batchResults = await Promise.all(
-        chunks.map(batch => {
-          let q = supabase.from('bill_items')
-            .select('name, quantity, price_at_sale, cost_at_sale, unit, bill_id, profit, cost_allocated, billable_quantity, system_price')
-            .in('bill_id', batch);
-          if (shopId) {
-            q = q.eq('shop_id', shopId);
-          }
-          return q;
-        })
-      );
-      const itemsData = batchResults.flatMap(r => r.data || []);
+    if (tfBills.length > 0) {
+      // Exclude screws from dashboard total revenue
+      const tfTotalRevCents = tfBills.reduce((sum, bill) => sum + Math.round(getBillNonScrewRevenue(bill) * 100), 0);
+      tfTrueRevenue = tfTotalRevCents / 100;
 
       let tProfitCents = 0, tCostCents = 0, tSystemRevCents = 0, tFinalRevCents = 0;
       const salesMap = {};
       const productStats = {};
 
-      itemsData.forEach(item => {
+      const tfItems = rawItemsData.filter(it => tfBillIds.has(it.bill_id));
+
+      tfItems.forEach(item => {
+        // Exclude screws from dashboard profit, revenue, discount, and leaderboard
+        if (item.barcode === 'SCREWS' || item.name === 'Screws' || item.is_screw) {
+          return;
+        }
+
         const rawName = item.name || item.item_name || 'Item';
         const cleanName = rawName.split(' (Cut from ')[0];
         const qty = Number(item.billable_quantity || item.quantity || 0);
@@ -885,9 +921,7 @@ export default function OwnerStats({ isActive }) {
         }
       });
 
-      const tfTotalRevCents = tfBills.reduce((sum, bill) => sum + Math.round(Number(bill.total_amount || 0) * 100), 0);
-      tfTrueRevenue = tfTotalRevCents / 100;
-      tfTotalDiscount = (tSystemRevCents - tFinalRevCents) / 100;
+      tfTotalDiscount = Math.max(0, (tSystemRevCents - tFinalRevCents) / 100);
       tfGrossProfit = tProfitCents / 100;
       tfTotalCost = tCostCents / 100;
       tfSalesDetails = Object.values(salesMap).sort((a, b) => b.lineProfit - a.lineProfit);

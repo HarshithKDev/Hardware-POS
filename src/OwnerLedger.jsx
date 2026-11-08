@@ -364,7 +364,33 @@ export default function OwnerLedger({ isActive }) {
         }
         const { data, error } = await biQuery;
         if (error) throw error;
-        items = await enrichBillItems(data || []);
+        let rawItems = data || [];
+        const hasScrew = rawItems.some(it => it.barcode === 'SCREWS' || it.is_screw);
+        const billTotal = Number(bill.total_amount || 0);
+        if (!hasScrew && billTotal > 0) {
+          const itemsSum = rawItems.reduce((acc, it) => acc + (Number(it.price_at_sale || 0) * Number(it.billable_quantity || it.quantity || 1)), 0);
+          const diff = Math.round((billTotal - itemsSum) * 100) / 100;
+          if (diff > 0) {
+            rawItems = [
+              ...rawItems,
+              {
+                id: 'screw-legacy-' + bill.id,
+                bill_id: bill.id,
+                barcode: 'SCREWS',
+                name: 'Screws',
+                quantity: 1,
+                billable_quantity: 1,
+                actual_quantity: 1,
+                price_at_sale: diff,
+                system_price: diff,
+                profit: diff,
+                unit: 'SET',
+                is_screw: true
+              }
+            ];
+          }
+        }
+        items = await enrichBillItems(rawItems);
         setBillItemsCache(prev => ({ ...prev, [bill.id]: items }));
       } catch (err) {
         showAlert(`Failed to load items: ${err.message}`, 'Error');
@@ -456,7 +482,7 @@ export default function OwnerLedger({ isActive }) {
           performed_by: performedBy
         }]);
 
-        if (!isAll) {
+        if (!isAll && !String(item.id).startsWith('screw-legacy-')) {
           const currentQty = Number(item.billable_quantity || item.quantity);
           if (qtyToRestore >= currentQty) {
             // Delete individual returned item from bill_items

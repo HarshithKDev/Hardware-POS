@@ -338,20 +338,22 @@ export const flushOfflineQueue = async (userRole = 'worker') => {
                   if (tx.screw_item) {
                     const scPrice = Number(tx.screw_item.customPriceInput || tx.screw_item.price || 0);
                     try {
-                      await supabase.from('bill_items').insert({
+                      const { error: biErr } = await supabase.from('bill_items').insert({
                         bill_id: data.bill_id,
-                        shop_id: shopId,
+                        shop_id: shopId || null,
                         barcode: 'SCREWS',
                         name: 'Screws',
-                        item_name: 'Screws',
                         quantity: 1,
                         billable_quantity: 1,
+                        actual_quantity: 1,
                         price_at_sale: scPrice,
-                        selling_price: scPrice,
-                        final_price: scPrice,
+                        system_price: scPrice,
                         profit: scPrice,
                         unit: 'SET'
                       });
+                      if (biErr) {
+                        console.warn("Could not insert screws into bill_items during offline queue flush:", biErr);
+                      }
                     } catch (biErr) {
                       console.warn("Could not insert screws into bill_items during offline queue flush:", biErr);
                     }

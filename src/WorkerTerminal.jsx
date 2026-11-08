@@ -1711,20 +1711,22 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               if (activeTab === 'checkout' && screwItem) {
                 const scPrice = Number(screwItem.customPriceInput || screwItem.price || 0);
                 try {
-                  await supabase.from('bill_items').insert({
+                  const { error: biErr } = await supabase.from('bill_items').insert({
                     bill_id: successData.bill_id,
-                    shop_id: shopId,
+                    shop_id: shopId || null,
                     barcode: 'SCREWS',
                     name: 'Screws',
-                    item_name: 'Screws',
                     quantity: 1,
                     billable_quantity: 1,
+                    actual_quantity: 1,
                     price_at_sale: scPrice,
-                    selling_price: scPrice,
-                    final_price: scPrice,
+                    system_price: scPrice,
                     profit: scPrice,
                     unit: 'SET'
                   });
+                  if (biErr) {
+                    console.warn("Could not insert screws into bill_items:", biErr);
+                  }
                 } catch (biErr) {
                   console.warn("Could not insert screws into bill_items:", biErr);
                 }
