@@ -120,6 +120,7 @@ export function subscribeToStockUpdates({
 
       // 3. Immediately update local IndexedDB stock so terminal has latest stock numbers
       try {
+        const itemsToSave = [];
         for (const item of items) {
           const localItem = await getInventoryItemByBarcode(item.barcode);
           if (localItem) {
@@ -147,7 +148,7 @@ export function subscribeToStockUpdates({
                 }
               }
             }
-            await saveInventoryBatch([localItem]);
+            itemsToSave.push(localItem);
 
             // 4. Check if current cashier has this item in cart and stock is now depleted
             if (type === 'checkout' && getCartItems && onCartConflict) {
@@ -163,6 +164,9 @@ export function subscribeToStockUpdates({
               }
             }
           }
+        }
+        if (itemsToSave.length > 0) {
+          await saveInventoryBatch(itemsToSave);
         }
       } catch (err) {
         console.warn("[RealtimeStock] Error applying peer stock update to IndexedDB:", err);

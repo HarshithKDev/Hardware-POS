@@ -53,9 +53,23 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        globIgnores: ['**/exceljs*'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
-        maximumFileSizeToCacheInBytes: 4000000, // 4MB to fix chunk size warnings
+        maximumFileSizeToCacheInBytes: 4000000,
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.includes('exceljs'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'excel-assets-cache',
+              expiration: {
+                maxEntries: 5,
+                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 Days
+              },
+            },
+          },
+        ],
       },
       devOptions: {
         enabled: true

@@ -1,10 +1,11 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, forwardRef } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from './supabaseClient';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from './AppContext';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
+import { TableVirtuoso } from 'react-virtuoso';
 import { escapeIlike, debounce, useSessionState } from './utils';
 import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD, INV_PER_PAGE, STALE_TIME_5MIN } from './constants';
 import { 
@@ -433,12 +434,75 @@ export default function WorkerDashboardView({ isBillable = true }) {
   const storeAlerts = lowStockCounts?.store || 0;
   const whseAlerts = lowStockCounts?.warehouse || 0;
 
-  const handleScroll = useCallback((e) => {
-    const bottom = e.target.scrollHeight - e.target.scrollTop - e.target.clientHeight < 100;
-    if (bottom && hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
-    }
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+  const tableComponents = useMemo(() => ({
+    Table: (props) => (
+      <table
+        {...props}
+        className={`w-full text-center table-fixed text-[11px] sm:text-xs md:text-sm min-w-full ${props.className || ''}`}
+        style={{
+          ...props.style,
+          color: 'var(--text-primary)',
+          borderCollapse: 'separate',
+          borderSpacing: 0,
+        }}
+      />
+    ),
+    TableHead: forwardRef((props, ref) => (
+      <thead
+        ref={ref}
+        {...props}
+        className="sticky top-0 z-20 shadow-sm"
+        style={{
+          ...props.style,
+          backgroundColor: 'var(--bg-tertiary)',
+          transform: 'translate3d(0, 0, 0)',
+          WebkitTransform: 'translate3d(0, 0, 0)',
+        }}
+      />
+    )),
+    TableRow: (props) => (
+      <tr
+        {...props}
+        className={`transition-colors hover:bg-[var(--bg-hover)] text-center ${props.className || ''}`}
+        style={{
+          ...props.style,
+          borderBottom: '1px solid var(--border-medium)',
+        }}
+      />
+    ),
+    TableBody: forwardRef((props, ref) => (
+      <tbody
+        ref={ref}
+        {...props}
+        style={{
+          ...props.style,
+          borderBottom: '1px solid var(--border-medium)',
+        }}
+      />
+    )),
+    TableFoot: () => isFetchingNextPage ? (
+      <tfoot>
+        <tr>
+          <td colSpan={isWarehouseDisabled ? 5 : 6} className="py-3 text-center text-xs font-semibold align-middle" style={{ color: 'var(--text-tertiary)' }}>
+            Loading more...
+          </td>
+        </tr>
+      </tfoot>
+    ) : null,
+  }), [isFetchingNextPage, isWarehouseDisabled]);
+
+  const fixedHeaderContent = useCallback(() => (
+    <tr className="text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>
+      <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Barcode</th>
+      <th className="p-2 md:p-3 w-[12%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Batch</th>
+      <th className={`p-2 md:p-3 ${isWarehouseDisabled ? 'w-[45%]' : 'w-[35%]'} md:w-auto align-middle`} style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Name</th>
+      <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>MRP</th>
+      {!isWarehouseDisabled && (
+        <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Warehouse</th>
+      )}
+      <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>{isWarehouseDisabled ? 'Stock' : 'Store'}</th>
+    </tr>
+  ), [isWarehouseDisabled]);
 
   return (
     <div className="flex flex-col h-full p-3 md:p-4 animate-fade-in flex-1 m-0 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm min-h-0 overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
@@ -539,50 +603,39 @@ export default function WorkerDashboardView({ isBillable = true }) {
       </div>
 
       <div 
-        onScroll={handleScroll}
-        className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 rounded-lg border border-[var(--border-light)] relative overscroll-none" 
-        style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}
+        className="flex-1 overflow-hidden min-h-0 rounded-lg border border-[var(--border-light)] relative" 
+        style={{ backgroundColor: 'var(--bg-secondary)' }}
       >
-        <table 
-          className="w-full text-center table-fixed text-[11px] sm:text-xs md:text-sm min-w-full" 
-          style={{ 
-            color: 'var(--text-primary)', 
-            borderCollapse: 'separate', 
-            borderSpacing: 0 
-          }}
-        >
-          <thead 
-            className="sticky top-0 z-20 shadow-sm" 
-            style={{ 
-              backgroundColor: 'var(--bg-tertiary)',
-              transform: 'translate3d(0, 0, 0)',
-              WebkitTransform: 'translate3d(0, 0, 0)'
+        {isLoading ? (
+          <div className="h-full flex items-center justify-center p-8">
+            <PageLoader text="Loading items..." />
+          </div>
+        ) : paginatedInventory.length === 0 ? (
+          <EmptyState message="No items found." />
+        ) : (
+          <TableVirtuoso
+            data={expandedRows}
+            computeItemKey={(index, row) => `${row.item.id}-${row.batch?.batch_number ?? row.batchIndex ?? 'single'}`}
+            useWindowScroll={false}
+            style={{ height: '100%', width: '100%' }}
+            className="overflow-x-hidden"
+            defaultItemHeight={44}
+            initialItemCount={expandedRows.length}
+            increaseViewportBy={{ top: 300, bottom: 300 }}
+            fixedHeaderContent={fixedHeaderContent}
+            components={tableComponents}
+            endReached={() => {
+              if (hasNextPage && !isFetchingNextPage) {
+                fetchNextPage();
+              }
             }}
-          >
-            <tr className="text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>
-              <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Barcode</th>
-              <th className="p-2 md:p-3 w-[12%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Batch</th>
-              <th className={`p-2 md:p-3 ${isWarehouseDisabled ? 'w-[45%]' : 'w-[35%]'} md:w-auto align-middle`} style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Name</th>
-              <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>MRP</th>
-              {!isWarehouseDisabled && (
-                <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Warehouse</th>
-              )}
-              <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>{isWarehouseDisabled ? 'Stock' : 'Store'}</th>
-            </tr>
-          </thead>
-          <tbody style={{ borderBottom: '1px solid var(--border-medium)' }}>
-            {isLoading ? (
-               <tr><td colSpan={isWarehouseDisabled ? 5 : 6} className="h-full text-center py-6 align-middle"><PageLoader text="Loading items..." /></td></tr>
-            ) : paginatedInventory.length === 0 ? (
-              <tr className="border-none"><td colSpan={isWarehouseDisabled ? 5 : 6} className="h-full p-0 border-none"><EmptyState message="No items found." /></td></tr>
-            ) : expandedRows.map(({ item, batch, batchIndex, totalBatches }) => {
+            itemContent={(index, { item, batch, batchIndex }) => {
               const batchNum = batch ? String(batch.batch_number || batchIndex + 1).padStart(2, '0') : null;
               const mrp = batch ? Number(batch.selling_price ?? item.price ?? 0) : Number(item.price ?? 0);
               const stockStore = batch ? Number(batch.stock_store ?? 0) : Number(item.stock_store ?? 0);
               const stockWarehouse = batch ? Number(batch.stock_warehouse ?? 0) : Number(item.stock_warehouse ?? 0);
-              const rowKey = `${item.id}-${batchNum ?? 'single'}`;
               return (
-                <tr key={rowKey} className="transition-colors hover:bg-[var(--bg-hover)] text-center" style={{ borderBottom: '1px solid var(--border-medium)' }}>
+                <>
                   <td className="p-1.5 md:p-3 font-semibold tracking-wider truncate align-middle" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>{item.barcode}</td>
                   <td className="p-1.5 md:p-3 align-middle font-semibold" style={{ color: batchNum ? 'var(--text-secondary)' : 'var(--text-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)', letterSpacing: '0.04em', fontSize: '0.75rem' }}>
                     {batchNum ? `#${batchNum}` : '—'}
@@ -595,18 +648,11 @@ export default function WorkerDashboardView({ isBillable = true }) {
                     <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: stockWarehouse < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>{stockWarehouse}</td>
                   )}
                   <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: stockStore < STORE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)', borderBottom: '1px solid var(--border-medium)' }}>{stockStore}</td>
-                </tr>
+                </>
               );
-            })}
-            {isFetchingNextPage && (
-              <tr>
-                <td colSpan={isWarehouseDisabled ? 5 : 6} className="py-3 text-center text-xs font-semibold align-middle" style={{ color: 'var(--text-tertiary)' }}>
-                  Loading more...
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            }}
+          />
+        )}
       </div>
 
       {lowStockModal.isOpen && createPortal(

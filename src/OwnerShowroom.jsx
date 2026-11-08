@@ -91,13 +91,13 @@ export default function OwnerShowroom() {
           ) : bills.length === 0 ? (
             <EmptyState message="No showroom dispatches recorded. Items dispatched to showroom will appear here." />
           ) : (
-            <table className="block md:table w-full text-left border-collapse">
+            <table className="block md:table w-full text-center border-collapse">
               <thead className="hidden md:table-header-group sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                 <tr className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                  <th className="py-3.5 px-5 text-left md:w-[28%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Date &amp; Time</th>
-                  <th className="py-3.5 px-5 text-left md:w-[32%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Customer / Recipient</th>
+                  <th className="py-3.5 px-5 text-center md:w-[28%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Date &amp; Time</th>
+                  <th className="py-3.5 px-5 text-center md:w-[32%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Customer / Recipient</th>
                   <th className="py-3.5 px-4 text-center md:w-[22%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Phone Number</th>
-                  <th className="py-3.5 px-6 text-right md:w-[18%]">Total Value</th>
+                  <th className="py-3.5 px-6 text-center md:w-[18%]">Total Value</th>
                 </tr>
               </thead>
               <tbody className="block md:table-row-group">
@@ -149,16 +149,16 @@ export default function OwnerShowroom() {
                       style={{ borderBottom: '1px solid var(--border-medium)' }}
                       onClick={() => setSelectedBill(bill)}
                     >
-                      <td className="py-4 px-5 text-sm text-left align-middle" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
+                      <td className="py-4 px-5 text-sm text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
                         <div className="font-semibold text-sm text-[var(--text-primary)]">{formatDateTime(bill.created_at).datePart}</div>
                         <div className="text-xs text-[var(--text-secondary)]">{formatDateTime(bill.created_at).timePart}</div>
                       </td>
-                      <td className="py-4 px-5 text-sm font-semibold text-left align-middle" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
+                      <td className="py-4 px-5 text-sm font-semibold text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
                         {bill.customer_name || '—'}
                       </td>
                       <td className="py-4 px-4 text-sm text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}>
                         {bill.customer_phone ? (
-                          <span className="inline-flex items-center gap-1.5 font-medium text-xs text-[var(--text-primary)]">
+                          <span className="inline-flex items-center justify-center gap-1.5 font-medium text-xs text-[var(--text-primary)]">
                             <Phone className="w-3.5 h-3.5 text-[var(--color-accent)] inline shrink-0" />
                             {bill.customer_phone}
                           </span>
@@ -166,8 +166,8 @@ export default function OwnerShowroom() {
                           <span className="text-[var(--text-tertiary)]">—</span>
                         )}
                       </td>
-                      <td className="py-4 px-6 text-sm font-bold text-right align-middle tabular-nums" style={{ color: 'var(--text-primary)' }}>
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="py-4 px-6 text-sm font-bold text-center align-middle tabular-nums" style={{ color: 'var(--text-primary)' }}>
+                        <div className="flex items-center justify-center gap-2">
                           <span>₹{Number(bill.total_amount).toFixed(2)}</span>
                           <ChevronRight className="w-4 h-4 text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>

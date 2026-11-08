@@ -265,6 +265,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       setShowSuggestions(false);
       return;
     }
+    let isCurrent = true;
     const fetchSuggestions = async () => {
       try {
         const searchStr = manualBarcode.trim();
@@ -274,6 +275,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           offset: 0,
           search: baseSearch,
         });
+
+        if (!isCurrent) return;
         
         let finalSuggestions = parentData || [];
 
@@ -289,7 +292,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               .limit(10);
             if (shopId) q = q.eq('shop_id', shopId);
             const { data: remoteMatches } = await q;
-            if (remoteMatches && remoteMatches.length > 0) {
+            if (remoteMatches && remoteMatches.length > 0 && isCurrent) {
               finalSuggestions = remoteMatches;
               // Trigger a background sync to pull down the new item and its batches into IndexedDB
               syncInventoryToLocal(userRole);
@@ -299,15 +302,20 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           }
         }
         
+        if (!isCurrent) return;
         setSuggestions(finalSuggestions);
         setShowSuggestions(true);
       } catch (error) {
+        if (!isCurrent) return;
         console.error("Suggestion fetch error:", error);
       }
     };
-    const timer = setTimeout(fetchSuggestions, 200);
-    return () => clearTimeout(timer);
-  }, [manualBarcode]);
+    const timer = setTimeout(fetchSuggestions, 150);
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
+  }, [manualBarcode, userRole]);
 
   const processScan = useCallback(async (scannedCode) => {
     try {
