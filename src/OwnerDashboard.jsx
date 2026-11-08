@@ -267,44 +267,38 @@ export default function OwnerDashboard() {
           </div>
         )}
 
-        {activeTab === 'sales' && (
-          <div className="block h-full animate-fade-in">
+        {(activeTab === 'sales' || activeTab === 'returns') && (
+          <div className="flex flex-col flex-1 min-h-0 h-full animate-fade-in">
             <OwnerLedger isActive={true} />
           </div>
         )}
 
         {activeTab === 'showroom' && (
-          <div className="block h-full animate-fade-in">
+          <div className="flex flex-col flex-1 min-h-0 h-full animate-fade-in">
             <OwnerShowroom />
           </div>
         )}
 
-        { activeTab === 'returns' && (
-          <div className="block h-full animate-fade-in">
-            <OwnerLedger isActive={true} />
-          </div>
-        )}
-
         {activeTab === 'staff' && (
-          <div className="block h-full animate-fade-in">
+          <div className="flex flex-col flex-1 min-h-0 h-full animate-fade-in">
             <OwnerStaff />
           </div>
         )}
 
         {activeTab === 'expenses' && (
-          <div className="block h-full animate-fade-in">
+          <div className="flex flex-col flex-1 min-h-0 h-full animate-fade-in">
             <OwnerExpenses isOwner={true} />
           </div>
         )}
 
         {activeTab === 'audit' && (
-          <div className="block h-full animate-fade-in">
+          <div className="flex flex-col flex-1 min-h-0 h-full animate-fade-in">
             <OwnerAuditLogs />
           </div>
         )}
 
         {activeTab === 'settings' && (
-          <div className="flex-1 min-h-0 h-full animate-fade-in">
+          <div className="flex flex-col flex-1 min-h-0 h-full animate-fade-in">
             <OwnerSettings />
           </div>
         )}
@@ -324,7 +318,7 @@ export default function OwnerDashboard() {
           { key: 'dashboard', label: 'Overview', icon: LayoutDashboard },
           { key: 'warehouse', label: isWarehouseDisabled ? 'Store' : 'Inventory', icon: isWarehouseDisabled ? Boxes : Warehouse },
           { key: 'checkout', label: 'Checkout', icon: ShoppingCart },
-          { key: 'sales', label: 'Sales', icon: History },
+          { key: 'sales', label: 'Sales & Ret.', icon: History },
           { key: 'more', label: 'More', icon: Menu, isMore: true },
         ].map(({ key, label, icon: Icon, isMore }) => {
           const isActive = !isMore && activeTab === key;

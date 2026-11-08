@@ -147,7 +147,7 @@ describe('Billable Accounts Enhancements', () => {
     renderWithProviders(<WorkerPrintBarcode />);
 
     expect(screen.getByText('Print Barcodes')).toBeDefined();
-    const searchInput = screen.getByPlaceholderText(/search directory by name/i);
+    const searchInput = screen.getByPlaceholderText(/search barcode or name/i);
     expect(searchInput).toBeDefined();
 
     // Initially, no items are shown until search is performed

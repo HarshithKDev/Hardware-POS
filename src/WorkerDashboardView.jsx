@@ -476,7 +476,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
         {!isWarehouseDisabled && (
           <button onClick={() => setLowStockModal({ isOpen: true, type: 'warehouse' })} className="p-3 md:p-4 rounded-lg border border-[var(--border-light)] text-left cursor-pointer flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
             <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full" style={{ backgroundColor: whseAlerts > 0 ? 'var(--color-error)' : 'var(--color-accent)' }} />
-            <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider mb-1 ml-3" style={{ color: 'var(--text-secondary)' }}>Low Whse Stock</p>
+            <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider mb-1 ml-3" style={{ color: 'var(--text-secondary)' }}>Low Warehouse Stock</p>
             <p className="text-xl md:text-2xl font-semibold ml-3" style={{ color: whseAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{whseAlerts} Items</p>
           </button>
         )}
@@ -493,7 +493,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
               setInventorySearch(e.target.value);
               debouncedSetSearch(e.target.value);
             }}
-            className="w-full h-10 px-2.5 sm:px-3 text-[11px] sm:text-xs md:text-sm border shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 rounded-lg leading-normal"
+            className="w-full h-10 px-2.5 sm:px-3 text-[11px] sm:text-xs md:text-sm border shadow-sm focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]/30 rounded-lg leading-normal"
             style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)', colorScheme: 'dark' }}
           />
         </div>
@@ -502,7 +502,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
           <select
             value={selectedCategory}
             onChange={(e) => handleCategoryChange(e.target.value)}
-            className="w-full h-10 pl-2.5 sm:pl-3 pr-7 sm:pr-8 text-[11px] sm:text-xs md:text-sm border shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 rounded-lg cursor-pointer font-medium leading-normal truncate"
+            className="w-full h-10 pl-2.5 sm:pl-3 pr-7 sm:pr-8 text-[11px] sm:text-xs md:text-sm border shadow-sm focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]/30 rounded-lg cursor-pointer font-medium leading-normal truncate"
             style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)', colorScheme: 'dark' }}
           >
             <option value="ALL" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>All Categories</option>
@@ -519,7 +519,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
             value={selectedSubcategory}
             onChange={(e) => setSelectedSubcategory(e.target.value)}
             disabled={availableSubcategories.length === 0}
-            className="w-full h-10 pl-2.5 sm:pl-3 pr-7 sm:pr-8 text-[11px] sm:text-xs md:text-sm border shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 rounded-lg cursor-pointer font-medium leading-normal truncate disabled:opacity-50"
+            className="w-full h-10 pl-2.5 sm:pl-3 pr-7 sm:pr-8 text-[11px] sm:text-xs md:text-sm border shadow-sm focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]/30 rounded-lg cursor-pointer font-medium leading-normal truncate disabled:opacity-50"
             style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)', colorScheme: 'dark' }}
           >
             <option value="ALL" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
@@ -540,7 +540,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
         style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}
       >
         <table 
-          className="w-full text-center table-fixed text-[10px] md:text-sm min-w-full" 
+          className="w-full text-center table-fixed text-[11px] sm:text-xs md:text-sm min-w-full" 
           style={{ 
             color: 'var(--text-primary)', 
             borderCollapse: 'separate', 
@@ -556,14 +556,14 @@ export default function WorkerDashboardView({ isBillable = true }) {
             }}
           >
             <tr className="text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>
-              <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>BC</th>
+              <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Barcode</th>
               <th className={`p-2 md:p-3 ${isWarehouseDisabled ? 'w-[45%]' : 'w-[35%]'} md:w-auto align-middle`} style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Name</th>
               <th className="p-2 md:p-3 w-[12%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Batch</th>
               <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>MRP</th>
               {!isWarehouseDisabled && (
-                <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>WHS</th>
+                <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Warehouse</th>
               )}
-              <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>{isWarehouseDisabled ? 'Stock' : 'STR'}</th>
+              <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>{isWarehouseDisabled ? 'Stock' : 'Store'}</th>
             </tr>
           </thead>
           <tbody style={{ borderBottom: '1px solid var(--border-medium)' }}>
@@ -583,10 +583,10 @@ export default function WorkerDashboardView({ isBillable = true }) {
                   <td className="p-1.5 md:p-3 font-medium leading-tight break-words align-middle text-center" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>
                     {item.name}
                   </td>
-                  <td className="p-1.5 md:p-3 align-middle font-semibold" style={{ color: batchNum ? 'var(--color-accent)' : 'var(--text-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)', letterSpacing: '0.04em', fontSize: '0.75rem' }}>
+                  <td className="p-1.5 md:p-3 align-middle font-semibold" style={{ color: batchNum ? 'var(--text-secondary)' : 'var(--text-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)', letterSpacing: '0.04em', fontSize: '0.75rem' }}>
                     {batchNum ? `#${batchNum}` : '—'}
                   </td>
-                  <td className="p-1.5 md:p-3 align-middle" style={{ borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>₹{mrp.toFixed(2)}</td>
+                  <td className="p-1.5 md:p-3 align-middle font-semibold" style={{ borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>₹{mrp.toFixed(2)}</td>
                   {!isWarehouseDisabled && (
                     <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: stockWarehouse < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>{stockWarehouse}</td>
                   )}

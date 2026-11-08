@@ -179,7 +179,7 @@ export default function WorkerPrintBarcode() {
                 type="text"
                 value={searchTerm}
                 onChange={handleSearchChange}
-                placeholder="Search directory by name, barcode..."
+                placeholder="Search barcode or name..."
                 className="w-full h-10 text-xs sm:text-sm rounded-lg focus:outline-none focus:border-[var(--color-accent)] transition-all font-medium shadow-xs"
                 style={{
                   backgroundColor: 'var(--bg-input)',

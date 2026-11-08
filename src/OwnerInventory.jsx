@@ -724,21 +724,21 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
           <div className="flex gap-2">
             {isGlobalEditMode ? (
               <>
-                <button onClick={saveBulkEdits} className="h-8 px-4 text-xs font-bold text-white rounded focus:outline-none transition-colors hover:opacity-90" style={{ backgroundColor: 'var(--color-success)' }}>
+                <button onClick={saveBulkEdits} className="h-8 px-4 text-xs font-bold text-white rounded-lg focus:outline-none transition-colors hover:opacity-90" style={{ backgroundColor: 'var(--color-success)' }}>
                   Save Changes
                 </button>
-                <button onClick={cancelBulkEdit} className="h-8 px-4 text-xs font-bold rounded focus:outline-none transition-colors hover:opacity-90" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}>
+                <button onClick={cancelBulkEdit} className="h-8 px-4 text-xs font-bold rounded-lg focus:outline-none transition-colors hover:opacity-90" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}>
                   Cancel
                 </button>
               </>
             ) : (
               <>
                 {viewType === 'warehouse' && (
-                  <button onClick={startBulkEdit} className="h-8 px-4 text-xs font-bold rounded focus:outline-none transition-colors hover:opacity-90" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--color-accent)', border: '1px solid var(--color-accent)' }}>
+                  <button onClick={startBulkEdit} className="h-8 px-4 text-xs font-bold rounded-lg focus:outline-none transition-colors hover:opacity-90" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--color-accent)', border: '1px solid var(--color-accent)' }}>
                     Edit Selected
                   </button>
                 )}
-                <button onClick={bulkDelete} className="h-8 px-4 text-xs font-bold rounded focus:outline-none transition-colors hover:opacity-90 text-white" style={{ backgroundColor: viewType === 'recycle' ? 'var(--color-success)' : 'var(--color-error)' }}>
+                <button onClick={bulkDelete} className="h-8 px-4 text-xs font-bold rounded-lg focus:outline-none transition-colors hover:opacity-90 text-white" style={{ backgroundColor: viewType === 'recycle' ? 'var(--color-success)' : 'var(--color-error)' }}>
                   {viewType === 'recycle' ? 'Restore Selected' : 'Delete Selected'}
                 </button>
                 <button
@@ -747,7 +747,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
                     setSelectedBarcodes([]);
                     setIsSelectionMode(false);
                   }}
-                  className="h-8 px-3 text-xs font-bold rounded focus:outline-none transition-colors hover:opacity-90 md:hidden cursor-pointer"
+                  className="h-8 px-3 text-xs font-bold rounded-lg focus:outline-none transition-colors hover:opacity-90 md:hidden cursor-pointer"
                   style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border-medium)' }}
                 >
                   Cancel
