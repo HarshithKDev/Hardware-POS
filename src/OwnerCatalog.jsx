@@ -555,7 +555,7 @@ export default function OwnerCatalog() {
             <CreatableDropdown
               value={form.category}
               onChange={(val) => setForm({ ...form, category: val, sub_category: '' })}
-              options={categories.map(c => c.name)}
+              options={(categories || []).map(c => typeof c === 'string' ? c : (c?.name || '')).filter(Boolean)}
               placeholder="Select or type to create..."
               onCreate={handleCreateCategory}
               required={true}
@@ -567,7 +567,14 @@ export default function OwnerCatalog() {
             <CreatableDropdown
               value={form.sub_category}
               onChange={(val) => setForm({ ...form, sub_category: val })}
-              options={subcategories.filter(sub => sub.category_name === form.category).map(s => s.name)}
+              options={(subcategories || [])
+                .filter(sub => {
+                  if (!form.category) return true;
+                  const catName = typeof sub === 'string' ? '' : (sub?.category_name || '');
+                  return catName.toLowerCase() === form.category.toLowerCase();
+                })
+                .map(s => typeof s === 'string' ? s : (s?.name || ''))
+                .filter(Boolean)}
               placeholder="Select or type to create..."
               onCreate={handleCreateSubcategory}
               disabled={!form.category}

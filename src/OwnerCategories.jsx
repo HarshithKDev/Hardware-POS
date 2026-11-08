@@ -212,7 +212,11 @@ export default function OwnerCategories() {
             <div>
               <select id="parent-cat" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none cursor-pointer rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
                 <option value="">-- Select Category --</option>
-                {categories.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                {categories.map(c => {
+                  const name = typeof c === 'string' ? c : (c?.name || '');
+                  if (!name) return null;
+                  return <option key={name} value={name}>{name}</option>;
+                })}
               </select>
             </div>
             <div className="flex gap-2">

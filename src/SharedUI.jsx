@@ -57,7 +57,7 @@ export const EyeSlashIcon = () => (
   </svg>
 );
 
-export function CreatableDropdown({ value, onChange, options, placeholder, onCreate, disabled, required }) {
+export function CreatableDropdown({ value, onChange, options = [], placeholder, onCreate, disabled, required }) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState(value || '');
   const [prevValue, setPrevValue] = useState(value);
@@ -78,8 +78,14 @@ export function CreatableDropdown({ value, onChange, options, placeholder, onCre
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [wrapperRef]);
 
-  const filteredOptions = options.filter(opt => opt.toLowerCase().includes(search.toLowerCase()));
-  const exactMatch = options.find(opt => opt.toLowerCase() === search.trim().toLowerCase());
+  // Robust options parsing: accept strings or objects with .name, filter out nil/empty
+  const safeOptions = (Array.isArray(options) ? options : [])
+    .map(opt => (typeof opt === 'string' ? opt : (opt?.name || '')))
+    .filter(Boolean);
+
+  const cleanSearch = (search || '').trim().toLowerCase();
+  const filteredOptions = safeOptions.filter(opt => opt.toLowerCase().includes(cleanSearch));
+  const exactMatch = safeOptions.find(opt => opt.toLowerCase() === cleanSearch);
 
   return (
     <div className="relative" ref={wrapperRef}>

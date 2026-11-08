@@ -779,9 +779,11 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
                   aria-label="Filter by category"
                 >
                   <option value="">All Categories</option>
-                  {categories?.map((c) => (
-                    <option key={c.name} value={c.name}>{c.name}</option>
-                  ))}
+                  {categories?.map((c) => {
+                    const name = typeof c === 'string' ? c : (c?.name || '');
+                    if (!name) return null;
+                    return <option key={name} value={name}>{name}</option>;
+                  })}
                 </select>
               </div>
 
@@ -797,9 +799,11 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
                   <option value="">
                     {availableSubcategories.length === 0 && filterCategory ? 'No Subcategories' : 'All Subcategories'}
                   </option>
-                  {availableSubcategories.map((s) => (
-                    <option key={s.name} value={s.name}>{s.name}</option>
-                  ))}
+                  {availableSubcategories.map((s) => {
+                    const name = typeof s === 'string' ? s : (s?.name || '');
+                    if (!name) return null;
+                    return <option key={name} value={name}>{name}</option>;
+                  })}
                 </select>
               </div>
             </div>

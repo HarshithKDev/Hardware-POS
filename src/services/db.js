@@ -151,7 +151,12 @@ export const getInventoryItemByBarcode = async (barcode) => {
 export const getLocalCategories = (shopId) => {
   try {
     const raw = localStorage.getItem(`cached_categories_${shopId || 'default'}`);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map(c => (typeof c === 'string' ? { name: c } : c))
+      .filter(c => c && typeof c.name === 'string' && c.name.trim());
   } catch (e) {
     return [];
   }
@@ -159,14 +164,22 @@ export const getLocalCategories = (shopId) => {
 
 export const setLocalCategories = (shopId, categories) => {
   try {
-    localStorage.setItem(`cached_categories_${shopId || 'default'}`, JSON.stringify(categories || []));
+    const normalized = (categories || [])
+      .map(c => (typeof c === 'string' ? { name: c } : c))
+      .filter(c => c && typeof c.name === 'string' && c.name.trim());
+    localStorage.setItem(`cached_categories_${shopId || 'default'}`, JSON.stringify(normalized));
   } catch (e) {}
 };
 
 export const getLocalSubcategories = (shopId) => {
   try {
     const raw = localStorage.getItem(`cached_subcategories_${shopId || 'default'}`);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map(s => (typeof s === 'string' ? { name: s, category_name: '' } : s))
+      .filter(s => s && typeof s.name === 'string' && s.name.trim());
   } catch (e) {
     return [];
   }
@@ -174,7 +187,10 @@ export const getLocalSubcategories = (shopId) => {
 
 export const setLocalSubcategories = (shopId, subcategories) => {
   try {
-    localStorage.setItem(`cached_subcategories_${shopId || 'default'}`, JSON.stringify(subcategories || []));
+    const normalized = (subcategories || [])
+      .map(s => (typeof s === 'string' ? { name: s, category_name: '' } : s))
+      .filter(s => s && typeof s.name === 'string' && s.name.trim());
+    localStorage.setItem(`cached_subcategories_${shopId || 'default'}`, JSON.stringify(normalized));
   } catch (e) {}
 };
 

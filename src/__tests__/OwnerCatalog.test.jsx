@@ -110,4 +110,19 @@ describe('OwnerCatalog Barcode Assignment', () => {
     // Must immediately render 1199 without getting stuck on '...'
     expect(screen.getByText('1199')).toBeInTheDocument();
   });
+
+  it('renders safely without toLowerCase error when cached categories are strings or objects', async () => {
+    localStorage.setItem('cached_categories_shop-test-123', JSON.stringify(['Mirrors', 'Frames']));
+    localStorage.setItem('cached_subcategories_shop-test-123', JSON.stringify([{ name: 'Small', category_name: 'Mirrors' }]));
+
+    mockFrom.mockImplementation(() => ({
+      select: () => ({ order: () => ({ eq: () => Promise.resolve({ data: [] }) }) })
+    }));
+
+    renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Register New Item/i)).toBeInTheDocument();
+    });
+  });
 });

@@ -251,7 +251,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
   });
 
   // Fetch distinct categories: Local-First from cached products, 0ms load
-  const { data: categories = [] } = useQuery({
+  const { data: rawCategories = [] } = useQuery({
     queryKey: ['workerCategories', shopId],
     queryFn: async () => {
       const catSet = new Set();
@@ -272,12 +272,16 @@ export default function WorkerDashboardView({ isBillable = true }) {
       }
 
       const res = Array.from(catSet).sort((a, b) => a.localeCompare(b));
-      if (res.length > 0) setLocalCategories(shopId, res);
+      if (res.length > 0) setLocalCategories(shopId, res.map(name => ({ name })));
       return res;
     },
     initialData: () => getLocalCategories(shopId),
     staleTime: STALE_TIME_5MIN,
   });
+
+  const categories = useMemo(() => {
+    return (rawCategories || []).map(c => typeof c === 'string' ? c : (c?.name || '')).filter(Boolean);
+  }, [rawCategories]);
 
   // Fetch distinct subcategories: Local-First from cached products + Supabase
   const { data: subcategories = [] } = useQuery({
@@ -330,15 +334,15 @@ export default function WorkerDashboardView({ isBillable = true }) {
 
   const availableSubcategories = useMemo(() => {
     if (!subcategories || !Array.isArray(subcategories)) return [];
+    const normalized = subcategories.map(s => typeof s === 'string' ? { name: s, category_name: '' } : s).filter(s => s && s.name);
     if (selectedCategory && selectedCategory !== 'ALL') {
       const catLower = selectedCategory.trim().toLowerCase();
-      return subcategories.filter(s => (s.category_name || '').trim().toLowerCase() === catLower);
+      return normalized.filter(s => (s.category_name || '').trim().toLowerCase() === catLower);
     }
     const seen = new Set();
-    return subcategories.filter(s => {
-      if (!s.name) return false;
-      const key = s.name.trim().toLowerCase();
-      if (seen.has(key)) return false;
+    return normalized.filter(s => {
+      const key = (s.name || '').trim().toLowerCase();
+      if (!key || seen.has(key)) return false;
       seen.add(key);
       return true;
     });
