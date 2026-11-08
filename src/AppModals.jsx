@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
 import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
 import { getThermalPrinterStatus, printDirectEscPos, isDirectEscPosSupported } from './services/escpos';
@@ -17,48 +16,56 @@ export function MobileScannerModal({ onClose, setScannedProduct, onScan }) {
 
   useEffect(() => {
     let isVerifying = false;
+    let isMounted = true;
 
-    scannerRef.current = new Html5QrcodeScanner(
-      'reader',
-      { fps: 10, qrbox: { width: 250, height: 250 }, rememberLastUsedCamera: true, aspectRatio: 1.0 },
-      /* verbose= */ false
-    );
+    import('html5-qrcode').then(({ Html5QrcodeScanner }) => {
+      if (!isMounted) return;
 
-    scannerRef.current.render(async (decodedText) => {
-      if (isVerifying) return;
-      isVerifying = true;
+      scannerRef.current = new Html5QrcodeScanner(
+        'reader',
+        { fps: 10, qrbox: { width: 250, height: 250 }, rememberLastUsedCamera: true, aspectRatio: 1.0 },
+        /* verbose= */ false
+      );
 
-      const { onClose: latestOnClose, setScannedProduct: latestSetScannedProduct, onScan: latestOnScan } = callbacksRef.current;
+      scannerRef.current.render(async (decodedText) => {
+        if (isVerifying) return;
+        isVerifying = true;
 
-      if (latestOnScan) {
-        latestOnScan(decodedText);
-        scannerRef.current?.clear().catch(() => { });
-        latestOnClose();
-        return;
-      }
+        const { onClose: latestOnClose, setScannedProduct: latestSetScannedProduct, onScan: latestOnScan } = callbacksRef.current;
 
-      const shopId = localStorage.getItem('shop_id');
-      let query = supabase
-        .from('product_master')
-        .select('*')
-        .eq('barcode', decodedText)
-        .eq('is_active', true);
-      if (shopId) {
-        query = query.eq('shop_id', shopId);
-      }
-      const { data } = await query.maybeSingle();
+        if (latestOnScan) {
+          latestOnScan(decodedText);
+          scannerRef.current?.clear().catch(() => { });
+          latestOnClose();
+          return;
+        }
 
-      if (data) {
-        if (latestSetScannedProduct) latestSetScannedProduct(data);
-        scannerRef.current?.clear().catch(() => { });
-        latestOnClose();
-      } else {
-        console.warn('Product not found:', decodedText);
-        isVerifying = false;
-      }
-    }, () => { });
+        const shopId = localStorage.getItem('shop_id');
+        let query = supabase
+          .from('product_master')
+          .select('*')
+          .eq('barcode', decodedText)
+          .eq('is_active', true);
+        if (shopId) {
+          query = query.eq('shop_id', shopId);
+        }
+        const { data } = await query.maybeSingle();
+
+        if (data) {
+          if (latestSetScannedProduct) latestSetScannedProduct(data);
+          scannerRef.current?.clear().catch(() => { });
+          latestOnClose();
+        } else {
+          console.warn('Product not found:', decodedText);
+          isVerifying = false;
+        }
+      }, () => { });
+    }).catch(err => {
+      console.error('Failed to load scanner module:', err);
+    });
 
     return () => {
+      isMounted = false;
       scannerRef.current?.clear().catch(() => { });
     };
   }, []);

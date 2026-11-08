@@ -10,8 +10,8 @@ import { WifiOff, ScanBarcode, Moon, Sun, LogOut } from 'lucide-react';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import WorkerBilling from './WorkerBilling';
-import OwnerDashboard from './OwnerDashboard';
+const WorkerBilling = lazy(() => import('./WorkerBilling'));
+const OwnerDashboard = lazy(() => import('./OwnerDashboard'));
 const EntryFlow = lazy(() => import('./EntryFlow'));
 
 function App() {

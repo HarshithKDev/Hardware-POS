@@ -1,17 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
 import WorkerDashboardView from './WorkerDashboardView';
-import WorkerTerminal from './WorkerTerminal';
-import WorkerScanner from './WorkerScanner';
-import WorkerPriceCheck from './WorkerPriceCheck';
-import OwnerLedger from './OwnerLedger';
-import OwnerExpenses from './OwnerExpenses';
-import WorkerPrintBarcode from './WorkerPrintBarcode';
 import { CartProvider } from './contexts/CartContext';
 import { PageLoader } from './SharedUI';
+
+const WorkerTerminal = lazy(() => import('./WorkerTerminal'));
+const WorkerScanner = lazy(() => import('./WorkerScanner'));
+const WorkerPriceCheck = lazy(() => import('./WorkerPriceCheck'));
+const OwnerLedger = lazy(() => import('./OwnerLedger'));
+const OwnerExpenses = lazy(() => import('./OwnerExpenses'));
+const WorkerPrintBarcode = lazy(() => import('./WorkerPrintBarcode'));
 
 export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = false }) {
   const { tab } = useParams();
@@ -96,71 +97,73 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
           </div>
         )}
 
-        {activeTab === 'dashboard' ? (
-          <WorkerDashboardView isBillable={isBillable} />
-        ) : activeTab === 'scanner' ? (
-          isBillable ? (
+        <Suspense fallback={<div className="w-full h-full flex-1 flex flex-col items-center justify-center min-h-[300px] p-8"><PageLoader text="Loading..." /></div>}>
+          {activeTab === 'dashboard' ? (
+            <WorkerDashboardView isBillable={isBillable} />
+          ) : activeTab === 'scanner' ? (
+            isBillable ? (
+              <div className="flex flex-col items-center justify-center h-full flex-1">
+                <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Scanner is only available for non-billable helper accounts.</p>
+              </div>
+            ) : (
+              <WorkerScanner cashierName={cashierName} />
+            )
+          ) : (activeTab === 'lookup' || activeTab === 'price-check') ? (
+            isBillable ? (
+              <div className="flex flex-col items-center justify-center h-full flex-1">
+                <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Item Lookup is only available for non-billable helper accounts.</p>
+              </div>
+            ) : (
+              <WorkerPriceCheck />
+            )
+          ) : activeTab === 'expenses' ? (
+            isBillable ? (
+              <OwnerExpenses isOwner={false} cashierName={cashierName} />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full flex-1">
+                <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Expenses are only accessible by billable accounts.</p>
+              </div>
+            )
+          ) : (activeTab === 'sales' || activeTab === 'returns') ? (
+            isBillable ? (
+              <div className="h-full p-2 md:p-4 overflow-y-auto">
+                <OwnerLedger isActive={true} />
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full flex-1">
+                <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Sales & Returns are only accessible by billable accounts.</p>
+              </div>
+            )
+          ) : activeTab === 'print-barcode' ? (
+            isBillable ? (
+              <div className="h-full p-2 md:p-4 overflow-hidden flex flex-col flex-1 min-h-0">
+                <WorkerPrintBarcode />
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full flex-1">
+                <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Print Barcode is only accessible by billable accounts.</p>
+              </div>
+            )
+          ) : activeTab === 'checkout' && !isBillable ? (
             <div className="flex flex-col items-center justify-center h-full flex-1">
               <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
-              <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Scanner is only available for non-billable helper accounts.</p>
+              <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Your account does not have checkout permissions.</p>
             </div>
           ) : (
-            <WorkerScanner cashierName={cashierName} />
-          )
-        ) : (activeTab === 'lookup' || activeTab === 'price-check') ? (
-          isBillable ? (
-            <div className="flex flex-col items-center justify-center h-full flex-1">
-              <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
-              <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Item Lookup is only available for non-billable helper accounts.</p>
-            </div>
-          ) : (
-            <WorkerPriceCheck />
-          )
-        ) : activeTab === 'expenses' ? (
-          isBillable ? (
-            <OwnerExpenses isOwner={false} cashierName={cashierName} />
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full flex-1">
-              <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
-              <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Expenses are only accessible by billable accounts.</p>
-            </div>
-          )
-        ) : (activeTab === 'sales' || activeTab === 'returns') ? (
-          isBillable ? (
-            <div className="h-full p-2 md:p-4 overflow-y-auto">
-              <OwnerLedger isActive={true} />
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full flex-1">
-              <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
-              <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Sales & Returns are only accessible by billable accounts.</p>
-            </div>
-          )
-        ) : activeTab === 'print-barcode' ? (
-          isBillable ? (
-            <div className="h-full p-2 md:p-4 overflow-hidden flex flex-col flex-1 min-h-0">
-              <WorkerPrintBarcode />
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full flex-1">
-              <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
-              <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Print Barcode is only accessible by billable accounts.</p>
-            </div>
-          )
-        ) : activeTab === 'checkout' && !isBillable ? (
-          <div className="flex flex-col items-center justify-center h-full flex-1">
-            <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
-            <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Your account does not have checkout permissions.</p>
-          </div>
-        ) : (
-          <CartProvider activeTab={activeTab}>
-            <WorkerTerminal
-              activeTab={activeTab}
-              shopSettings={shopSettings}
-              cashierName={cashierName}
-            />
-          </CartProvider>
-        )}
+            <CartProvider activeTab={activeTab}>
+              <WorkerTerminal
+                activeTab={activeTab}
+                shopSettings={shopSettings}
+                cashierName={cashierName}
+              />
+            </CartProvider>
+          )}
+        </Suspense>
       </div>
     </div>
   );

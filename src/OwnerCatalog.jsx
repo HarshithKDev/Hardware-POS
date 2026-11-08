@@ -335,14 +335,49 @@ export default function OwnerCatalog() {
 
     try {
       showAlert('Reading Excel file... Please wait.', 'Info');
-      const XLSX = await import('xlsx');
+      const { default: ExcelJS } = await import('exceljs');
       const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { type: 'array' });
-      const firstSheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(data);
+      const worksheet = workbook.worksheets[0];
 
-      if (!jsonData || jsonData.length === 0) {
+      if (!worksheet || worksheet.rowCount <= 1) {
+        throw new Error('The Excel file appears to be empty.');
+      }
+
+      const headerRow = worksheet.getRow(1);
+      const headers = [];
+      headerRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+        let val = cell.value;
+        if (val != null && typeof val === 'object') {
+          val = val.text || val.result || '';
+        }
+        headers[colNumber] = String(val || '').trim();
+      });
+
+      const jsonData = [];
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        const rowObj = {};
+        let hasData = false;
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          const header = headers[colNumber];
+          if (header) {
+            let val = cell.value;
+            if (val != null && typeof val === 'object') {
+              if (val.result !== undefined) val = val.result;
+              else if (val.text !== undefined) val = val.text;
+            }
+            rowObj[header] = val != null ? val : '';
+            if (val != null && val !== '') hasData = true;
+          }
+        });
+        if (hasData) {
+          jsonData.push(rowObj);
+        }
+      });
+
+      if (jsonData.length === 0) {
         throw new Error('The Excel file appears to be empty.');
       }
 

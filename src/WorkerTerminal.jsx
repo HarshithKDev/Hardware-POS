@@ -5,7 +5,6 @@ import { Spinner } from './SharedUI';
 import ReceiptTemplate from './ReceiptTemplate';
 import { PrintPreviewModal } from './AppModals';
 import { useCart } from './contexts/CartContext';
-import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { useQueryClient } from '@tanstack/react-query';
 import { getInventoryItemByBarcode, queueOfflineTransaction, getInventoryByQuery, saveInventoryBatch } from './services/db';
 import { syncInventoryToLocal } from './services/sync';

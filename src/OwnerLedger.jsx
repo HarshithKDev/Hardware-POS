@@ -312,17 +312,36 @@ export default function OwnerLedger({ isActive }) {
          ...(isOwner ? { 'Total Profit': b.total_profit || 0 } : {})
       }));
       
-      const XLSX = await import('xlsx');
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Sales_Ledger");
-      
-      worksheet['!cols'] = [
-        { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 18 }, { wch: 20 },
-        { wch: 15 }, { wch: 18 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
-      ];
+      const { default: ExcelJS } = await import('exceljs');
+      const { saveAs } = await import('file-saver');
 
-      XLSX.writeFile(workbook, `Sales_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Sales_Ledger');
+
+      const columns = [
+        { header: 'Bill ID', key: 'Bill ID', width: 15 },
+        { header: 'Date', key: 'Date', width: 15 },
+        { header: 'Time', key: 'Time', width: 10 },
+        { header: 'Customer Phone', key: 'Customer Phone', width: 18 },
+        { header: 'Customer Name', key: 'Customer Name', width: 20 },
+        { header: 'Cashier', key: 'Cashier', width: 15 },
+        { header: 'Activity Type', key: 'Activity Type', width: 18 },
+        { header: 'Status', key: 'Status', width: 15 },
+        { header: 'Payment Method', key: 'Payment Method', width: 15 },
+        { header: 'Total Amount', key: 'Total Amount', width: 15 },
+      ];
+      if (isOwner) {
+        columns.push({ header: 'Total Profit', key: 'Total Profit', width: 15 });
+      }
+      worksheet.columns = columns;
+      worksheet.getRow(1).font = { bold: true };
+
+      exportData.forEach(row => {
+        worksheet.addRow(row);
+      });
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Sales_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
     } catch (e) {
       showAlert(`Export failed: ${e.message}`, 'Error');
     }
