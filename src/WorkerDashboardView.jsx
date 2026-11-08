@@ -557,8 +557,8 @@ export default function WorkerDashboardView({ isBillable = true }) {
           >
             <tr className="text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>
               <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Barcode</th>
-              <th className={`p-2 md:p-3 ${isWarehouseDisabled ? 'w-[45%]' : 'w-[35%]'} md:w-auto align-middle`} style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Name</th>
               <th className="p-2 md:p-3 w-[12%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Batch</th>
+              <th className={`p-2 md:p-3 ${isWarehouseDisabled ? 'w-[45%]' : 'w-[35%]'} md:w-auto align-middle`} style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Name</th>
               <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>MRP</th>
               {!isWarehouseDisabled && (
                 <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Warehouse</th>
@@ -580,11 +580,11 @@ export default function WorkerDashboardView({ isBillable = true }) {
               return (
                 <tr key={rowKey} className="transition-colors hover:bg-[var(--bg-hover)] text-center" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                   <td className="p-1.5 md:p-3 font-semibold tracking-wider truncate align-middle" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>{item.barcode}</td>
-                  <td className="p-1.5 md:p-3 font-medium leading-tight break-words align-middle text-center" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>
-                    {item.name}
-                  </td>
                   <td className="p-1.5 md:p-3 align-middle font-semibold" style={{ color: batchNum ? 'var(--text-secondary)' : 'var(--text-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)', letterSpacing: '0.04em', fontSize: '0.75rem' }}>
                     {batchNum ? `#${batchNum}` : '—'}
+                  </td>
+                  <td className="p-1.5 md:p-3 font-medium leading-tight break-words align-middle text-center" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>
+                    {item.name}
                   </td>
                   <td className="p-1.5 md:p-3 align-middle font-semibold" style={{ borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>₹{mrp.toFixed(2)}</td>
                   {!isWarehouseDisabled && (
