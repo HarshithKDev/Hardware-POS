@@ -311,43 +311,56 @@ function App() {
 
   const fetchInitialData = useCallback(async () => {
     try {
-      const hasCached = !!localStorage.getItem('cached_shop_settings');
-      if (!hasCached) {
-        setIsInitialLoad(true);
+      // 1. Instantly rehydrate remembered shop settings from localStorage
+      let cachedShop = null;
+      try {
+        const raw = localStorage.getItem('cached_shop_settings');
+        if (raw) cachedShop = JSON.parse(raw);
+      } catch (e) {
+        console.warn('Failed to parse cached shop settings:', e);
       }
-      const savedShopId = localStorage.getItem('shop_id');
-      let currentShop = null;
 
-      if (!savedShopId) {
-        setIsSetupNeeded(true);
-      } else {
-        const { data: settingsData, error: settingsError } = await supabase
-          .from('shop_settings')
-          .select('*')
-          .eq('id', savedShopId)
-          .single();
+      const savedShopId = localStorage.getItem('shop_id') || cachedShop?.id;
 
-        if (settingsError && settingsError.code !== 'PGRST116') {
-          throw settingsError;
+      if (cachedShop) {
+        setShopSettings(cachedShop);
+        if (cachedShop.id && !localStorage.getItem('shop_id')) {
+          localStorage.setItem('shop_id', cachedShop.id);
         }
+      }
 
-        if (!settingsData) {
-          setIsSetupNeeded(true);
-          localStorage.removeItem('shop_id');
-          localStorage.removeItem('cached_shop_settings');
-        } else {
-          currentShop = settingsData;
-          setShopSettings(settingsData);
+      // If we have either a saved shop ID or cached shop settings, the shop is remembered!
+      const shopIsRegistered = Boolean(savedShopId || cachedShop);
+      setIsSetupNeeded(!shopIsRegistered);
+
+      // 2. Check active Supabase authentication session
+      const { data: { session } } = await supabase.auth.getSession();
+      let currentShop = cachedShop;
+
+      if (session) {
+        // If authenticated and we have a shopId, refresh shop settings from database in background
+        if (savedShopId) {
           try {
-            localStorage.setItem('cached_shop_settings', JSON.stringify(settingsData));
-          } catch (e) {
-            console.error('Failed to cache shop settings:', e);
+            const { data: settingsData } = await supabase
+              .from('shop_settings')
+              .select('*')
+              .eq('id', savedShopId)
+              .maybeSingle();
+
+            if (settingsData) {
+              currentShop = settingsData;
+              setShopSettings(settingsData);
+              try {
+                localStorage.setItem('cached_shop_settings', JSON.stringify(settingsData));
+                localStorage.setItem('shop_id', settingsData.id);
+              } catch (e) {}
+            }
+          } catch (settingsErr) {
+            console.warn('Could not refresh shop settings from server:', settingsErr);
           }
         }
-      }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
+        // Restore active user role if rememberMe or session exists
         const savedRole = sessionStorage.getItem('posUserRole') || localStorage.getItem('posUserRole');
         if (savedRole) {
           setUserRole(savedRole);
@@ -357,6 +370,7 @@ function App() {
           setCashierName(displayName);
         }
       } else {
+        // Ephemeral session expired or not authenticated
         sessionStorage.removeItem('posUserRole');
         localStorage.removeItem('posUserRole');
       }
@@ -365,7 +379,7 @@ function App() {
     } finally {
       setIsInitialLoad(false);
     }
-  }, []);
+  }, [setShopSettings, setUserRole, setCashierName]);
 
   useEffect(() => { fetchInitialData(); }, [fetchInitialData]);
 

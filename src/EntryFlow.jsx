@@ -19,7 +19,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
   const [setupPassword, setSetupPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSettingUp, setIsSettingUp] = useState(false);
-  const [isExistingLogin, setIsExistingLogin] = useState(false);
+  const [isExistingLogin, setIsExistingLogin] = useState(() => Boolean(localStorage.getItem('owner_email')));
   const [shopAddress, setShopAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [upiId, setUpiId] = useState('');
@@ -95,8 +95,13 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
       
       localStorage.setItem('owner_email', cleanEmail);
       localStorage.setItem('shop_id', shopData.id);
-      setStep(1);
+      try {
+        localStorage.setItem('cached_shop_settings', JSON.stringify(shopData));
+      } catch (e) {}
       onSetupComplete(shopData);
+      if (onLoginSuccess) {
+        onLoginSuccess('owner', true);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -183,8 +188,13 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
       if (data && data.length > 0) {
         localStorage.setItem('owner_email', cleanEmail);
         localStorage.setItem('shop_id', data[0].id);
-        setStep(1);
+        try {
+          localStorage.setItem('cached_shop_settings', JSON.stringify(data[0]));
+        } catch (e) {}
         onSetupComplete(data[0]);
+        if (onLoginSuccess) {
+          onLoginSuccess('owner', true);
+        }
       }
     } catch (err) {
       // Sometimes Postgres errors come as objects with a message or details property
@@ -472,6 +482,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
             <button
               onClick={() => {
                 localStorage.removeItem('shop_id');
+                localStorage.removeItem('cached_shop_settings');
                 window.location.reload();
               }}
               className="mt-6 text-xs text-center mx-auto hover:underline opacity-70 transition-opacity hover:opacity-100 w-full"
