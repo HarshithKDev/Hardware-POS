@@ -8,8 +8,10 @@ import {
   markTransactionFailed,
   deleteOrphanedInventory,
   getLocalInventoryCount,
-  deleteInventoryItemByBarcode
+  deleteInventoryItemByBarcode,
+  markTransactionSubmitting
 } from './db';
+import { finalizeBillMetadata, flushPendingBillPatches } from './billFinalize';
 
 const PAGE_SIZE = 500;
 const BATCH_CHUNK_SIZE = 200;
@@ -324,112 +326,158 @@ async function performFullSync({ tableName, userRole, currentShopId }) {
   return { usedCostTables };
 }
 
-export const flushOfflineQueue = async (userRole = 'worker') => {
-  try {
-    const currentShopId = localStorage.getItem('shop_id');
-    const tableName = 'product_master_public';
-    let pingQuery = supabase.from(tableName).select('barcode');
-    if (currentShopId) {
-      pingQuery = pingQuery.eq('shop_id', currentShopId);
+// Only one flush may run at a time. Without this, startup + 60s interval + focus +
+// "online" events could all flush the same queued sale concurrently → duplicate bills.
+let flushInFlight = null;
+const FLUSH_LOCK_NAME = 'hardware-pos-offline-queue-flush';
+
+const UNCERTAIN_SYNC_MESSAGE =
+  'Sync was interrupted while sending this sale, so it may already be recorded. ' +
+  'Check the Sales ledger for this sale before pressing Retry, otherwise it could be billed twice.';
+
+export const flushOfflineQueue = (userRole = 'worker') => {
+  if (flushInFlight) return flushInFlight;
+  flushInFlight = (async () => {
+    try {
+      // Cross-tab lock: if another tab/window of the POS is already flushing, skip this round.
+      let reachable = true;
+      if (typeof navigator !== 'undefined' && navigator.locks?.request) {
+        await navigator.locks.request(FLUSH_LOCK_NAME, { ifAvailable: true }, async (lock) => {
+          if (!lock) return; // another tab is flushing right now
+          reachable = await flushOfflineQueueUnlocked();
+        });
+      } else {
+        reachable = await flushOfflineQueueUnlocked();
+      }
+      if (!reachable) return; // Offline, skip inventory sync (same as before)
+      // Trigger consolidated delta sync after flushing queue
+      await syncInventoryToLocal(userRole);
+    } catch (err) {
+      console.error('Failed to flush offline queue:', err);
+    } finally {
+      flushInFlight = null;
     }
-    const { error: pingError } = await pingQuery.limit(1);
-    if (pingError) return; // Offline, abort flush
+  })();
+  return flushInFlight;
+};
 
-    let queue = await getOfflineQueue(currentShopId);
-    if (queue && queue.length > 0) {
-      queue = queue.filter(tx => tx.status !== 'failed');
-      if (queue.length > 0) {
-        console.log(`Attempting to flush ${queue.length} offline transactions...`);
-        window.dispatchEvent(new CustomEvent('queue_sync_start', { detail: { count: queue.length } }));
+async function flushOfflineQueueUnlocked() {
+  const currentShopId = localStorage.getItem('shop_id');
+  const tableName = 'product_master_public';
+  let pingQuery = supabase.from(tableName).select('barcode');
+  if (currentShopId) {
+    pingQuery = pingQuery.eq('shop_id', currentShopId);
+  }
+  const { error: pingError } = await pingQuery.limit(1);
+  if (pingError) return false; // Offline, abort flush
 
-        for (const tx of queue) {
-          try {
-            const rpcPayload = {
-              p_action: tx.p_action,
-              p_location: tx.p_location,
-              p_cashier_name: tx.p_cashier_name,
-              p_items: tx.p_items
+  // Retry any bill payment-details updates that failed earlier
+  try {
+    await flushPendingBillPatches();
+  } catch (e) {
+    console.warn('[Sync] Pending bill patch flush warning:', e?.message);
+  }
+
+  const queue = (await getOfflineQueue(currentShopId)) || [];
+
+  // A sale left in "submitting" means a previous flush was cut off mid-request
+  // (tab closed, crash, reload). We can't know if the server recorded it, so do NOT
+  // auto-resend; hand it to the owner via the Failed Syncs list instead.
+  for (const tx of queue.filter(t => t.status === 'submitting')) {
+    await markTransactionFailed(tx.id, UNCERTAIN_SYNC_MESSAGE);
+  }
+
+  const pending = queue.filter(tx => !tx.status || tx.status === 'pending');
+  if (pending.length === 0) return true;
+
+  console.log(`Attempting to flush ${pending.length} offline transactions...`);
+  window.dispatchEvent(new CustomEvent('queue_sync_start', { detail: { count: pending.length } }));
+
+  try {
+    for (const tx of pending) {
+      // Claim it; if its state changed since we read the queue, skip it.
+      const claimed = await markTransactionSubmitting(tx.id);
+      if (!claimed) continue;
+
+      try {
+        const rpcPayload = {
+          p_action: tx.p_action,
+          p_location: tx.p_location,
+          p_cashier_name: tx.p_cashier_name,
+          p_items: tx.p_items
+        };
+
+        // Use process_pos_transaction_unsafe matching WorkerTerminal checkout, with graceful fallback
+        let rpcResult = await supabase.rpc('process_pos_transaction_unsafe', rpcPayload);
+        if (rpcResult.error && rpcResult.error.message?.includes('process_pos_transaction_unsafe') && rpcResult.error.message?.includes('does not exist')) {
+          rpcResult = await supabase.rpc('process_pos_transaction', rpcPayload);
+        }
+
+        const { data, error } = rpcResult;
+
+        if (error) {
+          console.error(`Failed to sync transaction ${tx.id}:`, error);
+          const isNetwork = /fetch|network|timeout/i.test(error.message || '');
+          await markTransactionFailed(tx.id, isNetwork ? `${UNCERTAIN_SYNC_MESSAGE} (${error.message})` : error.message);
+          continue;
+        }
+
+        // The sale is recorded on the server: remove it from the queue FIRST so nothing can resend it.
+        await deleteOfflineTransaction(tx.id);
+        console.log(`Successfully synced offline transaction ${tx.id}`);
+
+        // Persist payment breakdown, customer data, and showroom status to the created bill
+        if (data?.bill_id) {
+          const shopId = tx.shop_id || currentShopId || localStorage.getItem('shop_id');
+          const updatePayload = {
+            payment_method: tx.p_payment_method,
+            cash_amount: tx.p_cash_amount,
+            upi_amount: tx.p_upi_amount
+          };
+          if (shopId) {
+            updatePayload.shop_id = shopId;
+          }
+          if (tx.p_customer_name || tx.p_customer_phone) {
+            updatePayload.customer_name = tx.p_customer_name;
+            updatePayload.customer_phone = tx.p_customer_phone;
+          }
+          if (tx.p_payment_method === 'SHOWROOM') {
+            updatePayload.status = 'showroom_pending';
+          }
+
+          let screwRow = null;
+          if (tx.screw_item) {
+            const scPrice = Number(tx.screw_item.customPriceInput || tx.screw_item.price || 0);
+            screwRow = {
+              bill_id: data.bill_id,
+              shop_id: shopId || null,
+              barcode: 'SCREWS',
+              name: 'Screws',
+              quantity: 1,
+              billable_quantity: 1,
+              actual_quantity: 1,
+              price_at_sale: scPrice,
+              system_price: scPrice,
+              profit: scPrice,
+              unit: 'SET'
             };
+          }
 
-            // Use process_pos_transaction_unsafe matching WorkerTerminal checkout, with graceful fallback
-            let rpcResult = await supabase.rpc('process_pos_transaction_unsafe', rpcPayload);
-            if (rpcResult.error && rpcResult.error.message?.includes('process_pos_transaction_unsafe') && rpcResult.error.message?.includes('does not exist')) {
-              rpcResult = await supabase.rpc('process_pos_transaction', rpcPayload);
-            }
-
-            const { data, error } = rpcResult;
-            
-            if (error) {
-              console.error(`Failed to sync transaction ${tx.id}:`, error);
-              await markTransactionFailed(tx.id, error.message);
-            } else {
-              // Persist payment breakdown, customer data, and showroom status to the created bill
-              if (data?.bill_id) {
-                try {
-                  const shopId = tx.shop_id || currentShopId || localStorage.getItem('shop_id');
-                  const updatePayload = {
-                    payment_method: tx.p_payment_method,
-                    cash_amount: tx.p_cash_amount,
-                    upi_amount: tx.p_upi_amount
-                  };
-                  if (shopId) {
-                    updatePayload.shop_id = shopId;
-                  }
-                  if (tx.p_customer_name || tx.p_customer_phone) {
-                    updatePayload.customer_name = tx.p_customer_name;
-                    updatePayload.customer_phone = tx.p_customer_phone;
-                  }
-                  if (tx.p_payment_method === 'SHOWROOM') {
-                    updatePayload.status = 'showroom_pending';
-                  }
-                  await supabase.from('bills').update(updatePayload).eq('id', data.bill_id);
-
-                  if (tx.screw_item) {
-                    const scPrice = Number(tx.screw_item.customPriceInput || tx.screw_item.price || 0);
-                    try {
-                      const { error: biErr } = await supabase.from('bill_items').insert({
-                        bill_id: data.bill_id,
-                        shop_id: shopId || null,
-                        barcode: 'SCREWS',
-                        name: 'Screws',
-                        quantity: 1,
-                        billable_quantity: 1,
-                        actual_quantity: 1,
-                        price_at_sale: scPrice,
-                        system_price: scPrice,
-                        profit: scPrice,
-                        unit: 'SET'
-                      });
-                      if (biErr) {
-                        console.warn("Could not insert screws into bill_items during offline queue flush:", biErr);
-                      }
-                    } catch (biErr) {
-                      console.warn("Could not insert screws into bill_items during offline queue flush:", biErr);
-                    }
-                  }
-                } catch (billUpdateErr) {
-                  console.warn("Could not save additional bill metadata during offline queue flush:", billUpdateErr);
-                }
-              }
-
-              await deleteOfflineTransaction(tx.id);
-              console.log(`Successfully synced offline transaction ${tx.id}`);
-            }
-          } catch (e) {
-            console.error('Exception while flushing transaction:', e);
-            await markTransactionFailed(tx.id, e.message || 'Unknown exception');
+          const res = await finalizeBillMetadata({ billId: data.bill_id, updatePayload, screwRow });
+          if (!res.ok) {
+            console.warn(`Payment details for synced bill ${data.bill_id} queued for retry:`, res.error);
           }
         }
-        window.dispatchEvent(new CustomEvent('queue_sync_end'));
+      } catch (e) {
+        console.error('Exception while flushing transaction:', e);
+        await markTransactionFailed(tx.id, `${UNCERTAIN_SYNC_MESSAGE} (${e.message || 'Unknown exception'})`);
       }
     }
-    
-    // Trigger consolidated delta sync after flushing queue
-    await syncInventoryToLocal(userRole);
-  } catch (err) {
-    console.error('Failed to flush offline queue:', err);
+  } finally {
+    window.dispatchEvent(new CustomEvent('queue_sync_end'));
   }
-};
+  return true;
+}
 
 let syncInterval = null;
 let currentRole = 'worker';

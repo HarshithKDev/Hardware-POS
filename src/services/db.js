@@ -586,6 +586,17 @@ export const deleteOfflineTransaction = async (id) => {
   await db.delete('offline_queue', id);
 };
 
+// Marks a queued sale as "being sent right now". If the app is closed/crashes while
+// in this state we can't know whether the server recorded it, so the next flush moves
+// it to "failed" for a human to check instead of re-sending it (prevents duplicate bills).
+export const markTransactionSubmitting = async (id) => {
+  const db = await initDB();
+  const tx = await db.get('offline_queue', id);
+  if (!tx || (tx.status && tx.status !== 'pending')) return false;
+  await db.put('offline_queue', { ...tx, status: 'submitting', submitted_at: new Date().toISOString() });
+  return true;
+};
+
 export const markTransactionFailed = async (id, errorMessage) => {
   const db = await initDB();
   const tx = await db.get('offline_queue', id);

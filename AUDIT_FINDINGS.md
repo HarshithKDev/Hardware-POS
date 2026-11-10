@@ -10,7 +10,19 @@ Severity: 🔴 Critical (money/stock/security loss) · 🟠 High · 🟡 Medium 
 
 ---
 
-## A. Money & billing correctness
+## Fix status (critical items)
+
+| # | Status | What was done |
+|---|--------|---------------|
+| A1 | ✅ Fixed (app) | Offline flush now runs once at a time (in-tab guard + cross-tab Web Lock). Each sale is claimed as `submitting` before sending and removed from the queue immediately after the server accepts it. A sale interrupted mid-send is **never auto-resent**; it goes to Failed Syncs with a "check ledger before Retry" note. Test reproduces the old bug (2 sales → 8 RPC calls) and proves the fix. |
+| A12 | ✅ Fixed | Synchronous ref guard on checkout prevents double-submit. |
+| A2 | ✅ Mitigated (app) | Payment/customer/screws details are retried 3×; if still failing they are parked and retried by background sync (screws line is duplicate-checked). Cashier is told the sale is saved and not to re-bill. Full fix = single RPC (needs DB). |
+| B1 | ✅ Fixed (app) | Return restore, warehouse-disabled routing and stranded-stock auto-heal now use compare-and-swap writes (`src/services/atomicStock.js`); auto-heal also stops using stale cached numbers. Owner "set stock to X" edits are intentionally absolute and unchanged. |
+| C1 | 🟡 Partly (app) | Stored role is verified against the signed-in account on start-up; mismatch → signed out. Owner screens are held until verified. **Server-side RLS still required.** |
+| C2 | 🟡 Partly (app) | Non-billable status is remembered, so checkout isn't shown to a known non-billable worker while loading/offline. **Server-side check in the sale RPC still required.** |
+| A3 | ⛔ Needs DB | Price/MSP must be enforced inside the sale RPC; can't be fixed from the browser. |
+
+ & billing correctness
 
 | # | Sev | Flaw | Where |
 |---|-----|------|-------|

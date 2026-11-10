@@ -6,6 +6,7 @@ import { AlertDialog, ConfirmDialog } from './Dialog';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from './AppContext';
 import { startBackgroundSync, stopBackgroundSync } from './services/sync';
+import { isRoleConsistentWithEmail, isNetworkishError } from './services/roleGuard';
 import { WifiOff, ScanBarcode, Moon, Sun, LogOut } from 'lucide-react';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -25,8 +26,11 @@ function App() {
   } = useApp();
 
   const [isInitialLoad, setIsInitialLoad] = useState(() => {
-    // If shop settings are cached, avoid initial loading spinner block for instant cold start
-    return !localStorage.getItem('cached_shop_settings');
+    // If shop settings are cached, avoid initial loading spinner block for instant cold start.
+    // Exception: a stored "owner" role is held until it is verified against the signed-in
+    // account, so owner screens are never shown to a tampered staff session.
+    const storedRole = sessionStorage.getItem('posUserRole') || localStorage.getItem('posUserRole');
+    return !localStorage.getItem('cached_shop_settings') || storedRole === 'owner';
   });
   const [isSetupNeeded, setIsSetupNeeded] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -339,15 +343,26 @@ function App() {
 
       if (session) {
         // If authenticated and we have a shopId, refresh shop settings from database in background
+        let settingsRow = null;
+        let settingsUnreachable = false;
         if (savedShopId) {
           try {
-            const { data: settingsData } = await supabase
+            let settingsQuery = supabase
               .from('shop_settings')
               .select('*')
-              .eq('id', savedShopId)
-              .maybeSingle();
+              .eq('id', savedShopId);
+            // Don't hang start-up on a dead connection: give up after 8s and use the cached copy
+            if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+              settingsQuery = settingsQuery.abortSignal(AbortSignal.timeout(8000));
+            }
+            const { data: settingsData, error: settingsError } = await settingsQuery.maybeSingle();
 
+            if (settingsError) {
+              settingsUnreachable = isNetworkishError(settingsError);
+              console.warn('Could not refresh shop settings from server:', settingsError);
+            }
             if (settingsData) {
+              settingsRow = settingsData;
               currentShop = settingsData;
               setShopSettings(settingsData);
               try {
@@ -356,6 +371,7 @@ function App() {
               } catch (e) {}
             }
           } catch (settingsErr) {
+            settingsUnreachable = isNetworkishError(settingsErr);
             console.warn('Could not refresh shop settings from server:', settingsErr);
           }
         }
@@ -363,11 +379,32 @@ function App() {
         // Restore active user role if rememberMe or session exists
         const savedRole = sessionStorage.getItem('posUserRole') || localStorage.getItem('posUserRole');
         if (savedRole) {
-          setUserRole(savedRole);
-          const displayName = savedRole === 'owner'
-            ? (currentShop?.owner_name || 'Administrator')
-            : savedRole;
-          setCashierName(displayName);
+          // The stored role is editable in the browser, so verify it against the account that
+          // actually logged in. For "owner" we trust the admin email from the server; only when
+          // the server is unreachable (offline) do we fall back to the cached copy.
+          const adminEmail = settingsRow?.admin_email
+            || (settingsUnreachable || !savedShopId ? cachedShop?.admin_email : null);
+          const roleIsGenuine = isRoleConsistentWithEmail(savedRole, session.user?.email, {
+            adminEmail,
+            shopId: savedShopId,
+          });
+
+          if (roleIsGenuine) {
+            setUserRole(savedRole);
+            const displayName = savedRole === 'owner'
+              ? (currentShop?.owner_name || 'Administrator')
+              : savedRole;
+            setCashierName(displayName);
+          } else {
+            console.warn('[Auth] Stored role does not match the signed-in account. Signing out.');
+            sessionStorage.removeItem('posUserRole');
+            localStorage.removeItem('posUserRole');
+            setUserRole(null);
+            setCashierName('');
+            queryClient.clear();
+            try { await supabase.auth.signOut({ scope: 'local' }); } catch (e) {}
+            setTimeout(() => showAlert('Your session could not be verified. Please log in again.', 'Session Expired'), 100);
+          }
         }
       } else {
         // Ephemeral session expired or not authenticated
@@ -379,7 +416,7 @@ function App() {
     } finally {
       setIsInitialLoad(false);
     }
-  }, [setShopSettings, setUserRole, setCashierName]);
+  }, [setShopSettings, setUserRole, setCashierName, queryClient, showAlert]);
 
   useEffect(() => { fetchInitialData(); }, [fetchInitialData]);
 

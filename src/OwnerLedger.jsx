@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, Fragment, useCallback } from 'react';
 import { supabase } from './supabaseClient';
+import { casUpdateRow } from './services/atomicStock';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
@@ -443,6 +444,7 @@ export default function OwnerLedger({ isActive }) {
       }
 
       // Restore stock for selected items directly to inventory_batches
+      const stockRestoreFailures = [];
       for (const item of itemsToReturn) {
         const qtyToRestore = item.returnQuantity;
         let targetBatchId = item.batch_id;
@@ -456,18 +458,20 @@ export default function OwnerLedger({ isActive }) {
         }
         
         if (targetBatchId) {
-          let bStockQuery = supabase.from('inventory_batches').select('stock_store').eq('batch_id', targetBatchId);
-          if (shopId) {
-            bStockQuery = bStockQuery.eq('shop_id', shopId);
-          }
-          const { data: batch } = await bStockQuery.maybeSingle();
-          if (batch) {
-            const newStock = Number(batch.stock_store || 0) + Number(qtyToRestore);
-            let updateBatch = supabase.from('inventory_batches').update({ stock_store: newStock }).eq('batch_id', targetBatchId);
-            if (shopId) {
-              updateBatch = updateBatch.eq('shop_id', shopId);
-            }
-            await updateBatch;
+          // Atomic increment (compare-and-swap) so a sale on a counter at the same moment isn't lost
+          try {
+            await casUpdateRow({
+              table: 'inventory_batches',
+              match: { batch_id: targetBatchId, shop_id: shopId },
+              columns: ['stock_store'],
+              compute: (cur) => ({
+                update: { stock_store: Number(cur.stock_store || 0) + Number(qtyToRestore) }
+              })
+            });
+          } catch (stockErr) {
+            // Keep processing the remaining items (same as before), but report it instead of failing silently
+            console.error(`Stock restore failed for ${item.name}:`, stockErr);
+            stockRestoreFailures.push(`${item.name} (${qtyToRestore} ${item.unit || ''})`.trim());
           }
         }
 
@@ -508,7 +512,11 @@ export default function OwnerLedger({ isActive }) {
         }
       }
       
-      showAlert(`Successfully returned ${isAll ? 'full bill' : 'selected items'}.`, "Success");
+      if (stockRestoreFailures.length > 0) {
+        showAlert(`Return recorded, but stock could not be added back for: ${stockRestoreFailures.join(', ')}. Please adjust these items' stock manually.`, "Partial Stock Restore");
+      } else {
+        showAlert(`Successfully returned ${isAll ? 'full bill' : 'selected items'}.`, "Success");
+      }
       queryClient.invalidateQueries({ queryKey: ['bills'] });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
