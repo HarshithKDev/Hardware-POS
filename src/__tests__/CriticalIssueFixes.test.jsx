@@ -58,6 +58,7 @@ import { casUpdateRow } from '../services/atomicStock';
 import { finalizeBillMetadata, flushPendingBillPatches, getPendingBillPatchCount } from '../services/billFinalize';
 import { flushOfflineQueue } from '../services/sync';
 import { isRoleConsistentWithEmail, isNetworkishError } from '../services/roleGuard';
+import { beginCriticalWork, isCriticalWorkInProgress } from '../services/busyGuard';
 
 const queuedSale = (id, extra = {}) => ({
   id, status: 'pending', shop_id: 'shop-abc',
@@ -267,5 +268,53 @@ describe('C1/C2: isRoleConsistentWithEmail', () => {
     expect(isNetworkishError({ message: 'TypeError: Failed to fetch' })).toBe(true);
     expect(isNetworkishError({ message: 'AbortError: signal timed out' })).toBe(true);
     expect(isNetworkishError({ message: 'permission denied for table shop_settings' })).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// High-severity follow-ups
+// ---------------------------------------------------------------------------
+describe('B4: offline receipts with warehouse disabled are routed to store after sync', () => {
+  it('moves the synced quantity from warehouse to store', async () => {
+    queue.set(9, queuedSale(9, {
+      p_action: 'RECEIVE', p_location: 'Store',
+      p_items: [{ barcode: '2002', batch_id: 'BT', actual_quantity: 4 }],
+    }));
+    const writes = [];
+    handler = (s) => {
+      if (s.table === 'inventory_batches' && s.op === 'select') return { data: { batch_id: 'BT', stock_warehouse: 4, stock_store: 1 }, error: null };
+      if (s.table === 'product_master' && s.op === 'select' && s.single) return { data: { stock_warehouse: 4, stock_store: 1 }, error: null };
+      if (s.op === 'update') { writes.push(s); return { error: null, count: 1 }; }
+      return { data: [], error: null, count: 1 };
+    };
+    await flushOfflineQueue('worker');
+    const batchWrite = writes.find((w) => w.table === 'inventory_batches');
+    expect(batchWrite.payload).toEqual({ stock_warehouse: 0, stock_store: 5 });
+    expect(writes.find((w) => w.table === 'product_master').payload).toEqual({ stock_warehouse: 0, stock_store: 5 });
+  });
+
+  it('does not route normal warehouse receipts', async () => {
+    queue.set(10, queuedSale(10, { p_action: 'RECEIVE', p_location: 'Warehouse-Inbound' }));
+    const writes = [];
+    handler = (s) => { if (s.op === 'update' && s.table !== 'bills') writes.push(s); return { data: [], error: null, count: 1 }; };
+    await flushOfflineQueue('worker');
+    expect(writes).toHaveLength(0);
+  });
+});
+
+describe('D2: app update waits for critical work', () => {
+  it('reports busy while a flush is running and idle afterwards', async () => {
+    queue.set(11, queuedSale(11));
+    let sawBusy = false;
+    rpcImpl = async () => { sawBusy = isCriticalWorkInProgress(); return { data: { bill_id: 'b' }, error: null }; };
+    await flushOfflineQueue('worker');
+    expect(sawBusy).toBe(true);
+    expect(isCriticalWorkInProgress()).toBe(false);
+  });
+
+  it('end function is idempotent', () => {
+    const end = beginCriticalWork();
+    end(); end();
+    expect(isCriticalWorkInProgress()).toBe(false);
   });
 });

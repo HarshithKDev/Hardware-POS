@@ -13,7 +13,7 @@ import {
   getLocalSubcategories,
   setLocalSubcategories
 } from './services/db';
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { ConfirmDialog } from './Dialog';
 import { useApp } from './AppContext';
 import { escapeIlike, debounce, useSessionState } from './utils';
@@ -183,89 +183,6 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
     },
     staleTime: STALE_TIME_5MIN,
     placeholderData: keepPreviousData,
-  });
-
-  const updateItemMutation = useMutation({
-    mutationFn: async ({ oldItem, newItem }) => {
-      const shopId = localStorage.getItem('shop_id');
-      let updateQuery = supabase.from('product_master').update({
-        name: newItem.name,
-        category: newItem.category,
-        sub_category: newItem.sub_category,
-        unit: newItem.unit,
-        is_loose_item: Boolean(newItem.is_loose_item),
-        default_length: newItem.unit === 'SQFT' ? (Number(newItem.default_length) || null) : null,
-        default_width: newItem.unit === 'SQFT' ? (Number(newItem.default_width) || null) : null
-      }).eq('barcode', newItem.barcode);
-      if (shopId) {
-        updateQuery = updateQuery.eq('shop_id', shopId);
-      }
-      const { error } = await updateQuery;
-      if (error) throw error;
-
-      // Calculate changes for audit log
-      const changes = [];
-      if (oldItem.name !== newItem.name) changes.push(`Name: ${oldItem.name} -> ${newItem.name}`);
-      if (oldItem.category !== newItem.category) changes.push(`Category: ${oldItem.category} -> ${newItem.category}`);
-      if (Number(oldItem.cost_price || 0) !== Number(newItem.cost_price || 0)) changes.push(`Cost: ${oldItem.cost_price} -> ${newItem.cost_price}`);
-      if (Number(oldItem.msp || 0) !== Number(newItem.msp || 0)) changes.push(`MSP: ${oldItem.msp} -> ${newItem.msp}`);
-      if (Number(oldItem.price || 0) !== Number(newItem.price || 0)) changes.push(`MRP: ${oldItem.price} -> ${newItem.price}`);
-      if (Number(oldItem.stock_warehouse || 0) !== Number(newItem.stock_warehouse || 0)) changes.push(`Whse Stock: ${oldItem.stock_warehouse} -> ${newItem.stock_warehouse}`);
-      if (Number(oldItem.stock_store || 0) !== Number(newItem.stock_store || 0)) changes.push(`Store Stock: ${oldItem.stock_store} -> ${newItem.stock_store}`);
-      
-      if (changes.length > 0) {
-        // If stock changed, we must use the secure RPC to prevent race conditions
-        const stockStoreChanged = Number(oldItem.stock_store || 0) !== Number(newItem.stock_store || 0);
-        const stockWhseChanged = Number(oldItem.stock_warehouse || 0) !== Number(newItem.stock_warehouse || 0);
-        
-        if (stockStoreChanged || stockWhseChanged) {
-          // Find the primary batch for this item to adjust
-          let batchQuery = supabase.from('inventory_batches').select('batch_id').eq('barcode', newItem.barcode);
-          if (shopId) {
-            batchQuery = batchQuery.eq('shop_id', shopId);
-          }
-          const { data: batches } = await batchQuery.order('created_at', { ascending: true }).limit(1);
-          if (batches && batches.length > 0) {
-            const { error: rpcError } = await supabase.rpc('adjust_batch_stock', {
-              p_batch_id: batches[0].batch_id,
-              p_new_store_stock: Number(newItem.stock_store || 0),
-              p_new_whse_stock: Number(newItem.stock_warehouse || 0),
-              p_user_id: (await supabase.auth.getUser()).data.user?.id
-            });
-            if (rpcError) throw new Error("Failed to adjust stock securely: " + rpcError.message);
-          }
-        }
-        
-        // Remove stock changes from the generic product_master update log since the RPC handles it
-        const metadataChanges = changes.filter(c => !c.includes('Stock'));
-        
-        if (metadataChanges.length > 0) {
-          const { error: logError } = await supabase.from('audit_logs').insert([{
-            shop_id: shopId,
-            action_type: 'UPDATE',
-            barcode: newItem.barcode,
-            item_name: newItem.name,
-            changes: metadataChanges.join(', '),
-            performed_by: localStorage.getItem('owner_name') || 'Owner'
-          }]);
-          if (logError) console.error("Failed to insert audit log", logError);
-        }
-      }
-
-      return newItem;
-    },
-    onSuccess: async (updatedItem) => {
-      try {
-        const localItem = await getInventoryItemByBarcode(updatedItem.barcode);
-        if (localItem) {
-          await saveInventoryBatch([{ ...localItem, ...updatedItem }]);
-        }
-      } catch (e) {
-        console.error("Local IDB update failed", e);
-      }
-      queryClient.invalidateQueries({ queryKey: ['inventory'] });
-    },
-    onError: (e) => showAlert(e.message, "Update Failed"),
   });
 
   const handleSortClick = (column) => {

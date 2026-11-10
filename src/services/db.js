@@ -662,3 +662,45 @@ export const deleteOrphanedInventory = async (syncedBarcodes) => {
   cachedInventory = null;
 };
 
+
+// Fields only the owner should see. When the owner logs out on a shared counter,
+// these are removed from the local catalog so the next (staff) user can't read them
+// from the browser's storage. The catalog itself is kept so offline billing still works.
+const OWNER_ONLY_FIELDS = ['cost_price', 'purchase_cost'];
+
+export const stripOwnerOnlyDataFromLocalInventory = async () => {
+  cachedInventory = null;
+  if (typeof indexedDB === 'undefined') return;
+  const db = await initDB();
+  const tx = db.transaction(['product_master', 'sync_status'], 'readwrite');
+  let cursor = await tx.objectStore('product_master').openCursor();
+  while (cursor) {
+    const item = { ...cursor.value };
+    let changed = false;
+    for (const f of OWNER_ONLY_FIELDS) {
+      if (f in item) { delete item[f]; changed = true; }
+    }
+    if (Array.isArray(item.batches)) {
+      item.batches = item.batches.map((b) => {
+        if (!b || typeof b !== 'object') return b;
+        const nb = { ...b };
+        for (const f of OWNER_ONLY_FIELDS) {
+          if (f in nb) { delete nb[f]; changed = true; }
+        }
+        return nb;
+      });
+    }
+    if (changed) await cursor.update(item);
+    cursor = await cursor.continue();
+  }
+  // Make the owner's next login do one full sync to bring cost data back
+  const statusStore = tx.objectStore('sync_status');
+  let sCursor = await statusStore.openCursor();
+  while (sCursor) {
+    if (String(sCursor.key).endsWith('_owner')) {
+      await sCursor.update({ ...sCursor.value, synced_with_cost: false });
+    }
+    sCursor = await sCursor.continue();
+  }
+  await tx.done;
+};

@@ -57,3 +57,74 @@ export async function casUpdateRow({ table, match, columns, compute, maxAttempts
 
   throw new Error('Stock was being changed by another terminal at the same time. Please try again.');
 }
+
+/**
+ * When the warehouse is disabled, received stock still lands in the warehouse first
+ * (server behaviour), so it is moved to the store right after. Used both for live
+ * receipts and for receipts that were queued offline and synced later.
+ *
+ * @param {object}   opts
+ * @param {Array<{ barcode: string, qty: number, batch_id?: string, batch_number?: number }>} opts.entries
+ * @param {string}   [opts.shopId]
+ */
+export async function routeReceivedStockToStore({ entries, shopId }) {
+  for (const entry of entries) {
+    const effectiveStockQty = Number(entry.qty) || 0;
+    if (!entry.barcode || !(effectiveStockQty > 0)) continue;
+
+    let bQuery = supabase
+      .from('inventory_batches')
+      .select('batch_id, stock_warehouse, stock_store')
+      .eq('barcode', entry.barcode);
+
+    if (entry.batch_id) {
+      bQuery = bQuery.eq('batch_id', entry.batch_id);
+    } else if (entry.batch_number !== undefined && entry.batch_number !== null) {
+      bQuery = bQuery.eq('batch_number', entry.batch_number);
+    } else {
+      bQuery = bQuery.order('created_at', { ascending: false }).limit(1);
+    }
+
+    if (shopId) {
+      bQuery = bQuery.eq('shop_id', shopId);
+    }
+    const { data: bData } = await bQuery.maybeSingle();
+
+    if (bData && Number(bData.stock_warehouse) > 0) {
+      // Atomic move (compare-and-swap) so a concurrent sale/transfer on another terminal isn't overwritten
+      const batchMove = await casUpdateRow({
+        table: 'inventory_batches',
+        match: { batch_id: bData.batch_id, shop_id: shopId },
+        columns: ['stock_warehouse', 'stock_store'],
+        compute: (cur) => {
+          const wh = Number(cur.stock_warehouse || 0);
+          const qty = Math.min(wh, effectiveStockQty);
+          if (!(qty > 0)) return null;
+          return {
+            update: {
+              stock_warehouse: Math.max(0, wh - qty),
+              stock_store: Number(cur.stock_store || 0) + qty
+            },
+            result: qty
+          };
+        }
+      });
+      const transferQty = batchMove.applied ? Number(batchMove.result || 0) : 0;
+
+      // Also update product_master to keep parent warehouse and store stock in sync
+      if (transferQty > 0) {
+        await casUpdateRow({
+          table: 'product_master',
+          match: { barcode: entry.barcode, shop_id: shopId },
+          columns: ['stock_warehouse', 'stock_store'],
+          compute: (cur) => ({
+            update: {
+              stock_warehouse: Math.max(0, Number(cur.stock_warehouse || 0) - transferQty),
+              stock_store: Number(cur.stock_store || 0) + transferQty
+            }
+          })
+        });
+      }
+    }
+  }
+}

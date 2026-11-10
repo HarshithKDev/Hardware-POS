@@ -9,7 +9,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getInventoryItemByBarcode, queueOfflineTransaction, getInventoryByQuery, saveInventoryBatch } from './services/db';
 import { syncInventoryToLocal } from './services/sync';
 import { finalizeBillMetadata } from './services/billFinalize';
-import { casUpdateRow } from './services/atomicStock';
+import { routeReceivedStockToStore } from './services/atomicStock';
+import { beginCriticalWork } from './services/busyGuard';
+import { isNetworkishError } from './services/roleGuard';
 import { useApp } from './AppContext';
 import { generateId, formatDateTime, calculateMSP } from './utils';
 import { SCAN_TIMEOUT_MS } from './constants';
@@ -1457,6 +1459,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     }
 
     checkoutInFlightRef.current = true;
+    const endCriticalWork = beginCriticalWork(); // holds back app auto-update reloads
     setIsCheckingOut(true);
     try {
       if ((activeTab === 'checkout' || activeTab === 'transfer') && navigator.onLine) {
@@ -1747,6 +1750,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             await queueOfflineTransaction(payload);
             successData = { bill_id: 'OFFL-' + generateId().substring(0, 5).toUpperCase() };
             setTimeout(() => showAlertRef.current("Transaction queued offline. It will sync automatically when internet returns.", "Offline Mode"), 100);
+          } else if (isNetworkishError(error)) {
+            // The request may or may not have reached the server, so the sale may already be
+            // recorded. Never auto-queue here (that could bill twice) — tell the cashier to check.
+            throw new Error("The connection dropped while saving this sale, so it may or may not have been recorded. Open 'Sales & Returns' and check for this sale before completing it again, otherwise the customer could be billed twice.");
           } else {
             let msg = error.message;
             if (msg.includes('chk_current_length_nonnegative')) {
@@ -1817,70 +1824,21 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       if (activeTab === 'receive' && isWarehouseDisabled && navigator.onLine) {
         try {
           const shopId = shopSettings?.id || localStorage.getItem('shop_id');
-          for (const item of finalCart) {
-            const effectiveStockQty = item.is_cuttable
-              ? (item.actual_quantity !== undefined ? Number(item.actual_quantity) : (
-                  item.unit === 'SQFT'
-                    ? Math.round(Number(item.quantity) * (Number(item.default_length) || 100) * (Number(item.default_width) || 3) * 100) / 100
-                    : Math.round(Number(item.quantity) * (Number(item.default_length) || 12) * 100) / 100
-                ))
-              : Number(item.quantity);
-
-            let bQuery = supabase
-              .from('inventory_batches')
-              .select('batch_id, stock_warehouse, stock_store')
-              .eq('barcode', item.barcode);
-
-            if (item.batch_id) {
-              bQuery = bQuery.eq('batch_id', item.batch_id);
-            } else if (item.batch_number !== undefined && item.batch_number !== null) {
-              bQuery = bQuery.eq('batch_number', item.batch_number);
-            } else {
-              bQuery = bQuery.order('created_at', { ascending: false }).limit(1);
-            }
-
-            if (shopId) {
-              bQuery = bQuery.eq('shop_id', shopId);
-            }
-            const { data: bData } = await bQuery.maybeSingle();
-
-            if (bData && Number(bData.stock_warehouse) > 0) {
-              // Atomic move (compare-and-swap) so a concurrent sale/transfer on another terminal isn't overwritten
-              const batchMove = await casUpdateRow({
-                table: 'inventory_batches',
-                match: { batch_id: bData.batch_id, shop_id: shopId },
-                columns: ['stock_warehouse', 'stock_store'],
-                compute: (cur) => {
-                  const wh = Number(cur.stock_warehouse || 0);
-                  const qty = Math.min(wh, effectiveStockQty);
-                  if (!(qty > 0)) return null;
-                  return {
-                    update: {
-                      stock_warehouse: Math.max(0, wh - qty),
-                      stock_store: Number(cur.stock_store || 0) + qty
-                    },
-                    result: qty
-                  };
-                }
-              });
-              const transferQty = batchMove.applied ? Number(batchMove.result || 0) : 0;
-
-              // Also update product_master to keep parent warehouse and store stock in sync
-              if (transferQty > 0) {
-                await casUpdateRow({
-                  table: 'product_master',
-                  match: { barcode: item.barcode, shop_id: shopId },
-                  columns: ['stock_warehouse', 'stock_store'],
-                  compute: (cur) => ({
-                    update: {
-                      stock_warehouse: Math.max(0, Number(cur.stock_warehouse || 0) - transferQty),
-                      stock_store: Number(cur.stock_store || 0) + transferQty
-                    }
-                  })
-                });
-              }
-            }
-          }
+          await routeReceivedStockToStore({
+            shopId,
+            entries: finalCart.map(item => ({
+              barcode: item.barcode,
+              batch_id: item.batch_id,
+              batch_number: item.batch_number,
+              qty: item.is_cuttable
+                ? (item.actual_quantity !== undefined ? Number(item.actual_quantity) : (
+                    item.unit === 'SQFT'
+                      ? Math.round(Number(item.quantity) * (Number(item.default_length) || 100) * (Number(item.default_width) || 3) * 100) / 100
+                      : Math.round(Number(item.quantity) * (Number(item.default_length) || 12) * 100) / 100
+                  ))
+                : Number(item.quantity)
+            }))
+          });
         } catch (e) {
           console.warn("Auto-route warehouse to store fallback:", e);
         }
@@ -2027,6 +1985,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       }
     } finally {
       checkoutInFlightRef.current = false;
+      endCriticalWork();
       setIsCheckingOut(false);
     }
   };

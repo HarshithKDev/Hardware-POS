@@ -12,6 +12,8 @@ import {
   markTransactionSubmitting
 } from './db';
 import { finalizeBillMetadata, flushPendingBillPatches } from './billFinalize';
+import { beginCriticalWork } from './busyGuard';
+import { routeReceivedStockToStore } from './atomicStock';
 
 const PAGE_SIZE = 500;
 const BATCH_CHUNK_SIZE = 200;
@@ -338,6 +340,7 @@ const UNCERTAIN_SYNC_MESSAGE =
 export const flushOfflineQueue = (userRole = 'worker') => {
   if (flushInFlight) return flushInFlight;
   flushInFlight = (async () => {
+    const endCriticalWork = beginCriticalWork(); // holds back app auto-update reloads
     try {
       // Cross-tab lock: if another tab/window of the POS is already flushing, skip this round.
       let reachable = true;
@@ -355,6 +358,7 @@ export const flushOfflineQueue = (userRole = 'worker') => {
     } catch (err) {
       console.error('Failed to flush offline queue:', err);
     } finally {
+      endCriticalWork();
       flushInFlight = null;
     }
   })();
@@ -425,6 +429,23 @@ async function flushOfflineQueueUnlocked() {
         // The sale is recorded on the server: remove it from the queue FIRST so nothing can resend it.
         await deleteOfflineTransaction(tx.id);
         console.log(`Successfully synced offline transaction ${tx.id}`);
+
+        // Receipts queued while the warehouse was disabled (location 'Store') must end up in
+        // store stock, exactly like a live receipt does.
+        if (tx.p_action === 'RECEIVE' && tx.p_location === 'Store') {
+          try {
+            await routeReceivedStockToStore({
+              shopId: tx.shop_id || currentShopId,
+              entries: (tx.p_items || []).map(i => ({
+                barcode: i.barcode,
+                batch_id: i.batch_id,
+                qty: Number(i.actual_quantity)
+              }))
+            });
+          } catch (routeErr) {
+            console.warn('Auto-route of synced receipt to store failed:', routeErr);
+          }
+        }
 
         // Persist payment breakdown, customer data, and showroom status to the created bill
         if (data?.bill_id) {

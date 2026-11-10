@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, Fragment, useCallback } from 'react';
 import { supabase } from './supabaseClient';
 import { casUpdateRow } from './services/atomicStock';
+import { beginCriticalWork } from './services/busyGuard';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
@@ -410,6 +411,7 @@ export default function OwnerLedger({ isActive }) {
   };
 
   const executeReturnItems = async (itemsToReturn, isAll, bill) => {
+    const endCriticalWork = beginCriticalWork(); // holds back app auto-update reloads
     try {
       if (itemsToReturn.length === 0) return;
 
@@ -435,7 +437,21 @@ export default function OwnerLedger({ isActive }) {
         const refundAmount = itemsToReturn.reduce((sum, item) => sum + (Number(item.price_at_sale) * item.returnQuantity), 0);
         updatedBillTotal = Math.max(0, Number(bill.total_amount) - refundAmount);
         const newStatus = updatedBillTotal <= 0.001 ? 'voided' : bill.status;
-        let billUpdateQuery = supabase.from('bills').update({ total_amount: updatedBillTotal, status: newStatus }).eq('id', bill.id);
+        const billUpdatePayload = { total_amount: updatedBillTotal, status: newStatus };
+        // Keep the payment split consistent with the reduced total (refund comes out of cash first)
+        const round2 = (n) => Math.round(n * 100) / 100;
+        if (bill.payment_method === 'CASH') {
+          billUpdatePayload.cash_amount = round2(updatedBillTotal);
+        } else if (bill.payment_method === 'UPI') {
+          billUpdatePayload.upi_amount = round2(updatedBillTotal);
+        } else if (bill.payment_method === 'SPLIT') {
+          const prevCash = Number(bill.cash_amount || 0);
+          const prevUpi = Number(bill.upi_amount || 0);
+          const cashRefund = Math.min(prevCash, refundAmount);
+          billUpdatePayload.cash_amount = round2(prevCash - cashRefund);
+          billUpdatePayload.upi_amount = round2(Math.max(0, prevUpi - (refundAmount - cashRefund)));
+        }
+        let billUpdateQuery = supabase.from('bills').update(billUpdatePayload).eq('id', bill.id);
         if (shopId) {
           billUpdateQuery = billUpdateQuery.eq('shop_id', shopId);
         }
@@ -550,6 +566,8 @@ export default function OwnerLedger({ isActive }) {
     } catch (e) {
       console.error(e);
       showAlert(e.message, "Return Failed");
+    } finally {
+      endCriticalWork();
     }
   };
 

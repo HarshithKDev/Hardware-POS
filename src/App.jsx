@@ -7,6 +7,8 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import { useApp } from './AppContext';
 import { startBackgroundSync, stopBackgroundSync } from './services/sync';
 import { isRoleConsistentWithEmail, isNetworkishError } from './services/roleGuard';
+import { escapeIlike } from './utils';
+import { stripOwnerOnlyDataFromLocalInventory } from './services/db';
 import { WifiOff, ScanBarcode, Moon, Sun, LogOut } from 'lucide-react';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -47,36 +49,40 @@ function App() {
 
   const savedShopId = localStorage.getItem('shop_id');
 
-  const { data: workerData, error: workerError } = useQuery({
-    queryKey: ['workerPermissions', savedShopId, cashierName],
+  // Periodically confirm the logged-in staff member still exists. Removing a worker in
+  // Owner > Staff now signs them out on their device within a few minutes.
+  // Only a successful "no such worker" answer counts — network errors are ignored so
+  // offline counters keep working.
+  const { data: workerExists } = useQuery({
+    queryKey: ['workerStillExists', savedShopId, cashierName],
     queryFn: async () => {
-      if (!cashierName || userRole === 'owner') return null;
-      let query = supabase.from('workers').select('password').eq('name', cashierName);
+      let query = supabase.from('workers').select('id').ilike('name', escapeIlike(cashierName));
       if (savedShopId) {
         query = query.eq('shop_id', savedShopId);
       }
-      const { data, error } = await query.maybeSingle();
+      const { data, error } = await query.limit(1);
       if (error) throw error;
-      return data;
+      return Array.isArray(data) && data.length > 0;
     },
-    enabled: !!cashierName && userRole !== 'owner',
-    retry: false, // Do not retry if the worker was deleted
+    enabled: !!cashierName && !!userRole && userRole !== 'owner',
+    retry: false,
+    refetchInterval: 5 * 60 * 1000,
+    refetchIntervalInBackground: false,
   });
 
   useEffect(() => {
-    // PGRST116 means 0 rows returned for a .single() query, meaning the worker was deleted
-    if (workerError && workerError.code === 'PGRST116') {
+    if (workerExists === false && userRole && userRole !== 'owner') {
       queryClient.clear();
       setUserRole(null);
       setCashierName('');
       sessionStorage.removeItem('posUserRole');
       localStorage.removeItem('posUserRole');
+      supabase.auth.signOut({ scope: 'local' }).catch(() => {});
       navigate('/');
-      setTimeout(() => showAlert("Your worker account was deleted or modified. You have been logged out.", "Session Expired"), 100);
+      setTimeout(() => showAlert("Your staff account was removed by the owner. You have been logged out.", "Session Expired"), 100);
     }
-  }, [workerError, navigate, setUserRole, setCashierName, showAlert]);
+  }, [workerExists, userRole, navigate, setUserRole, setCashierName, showAlert, queryClient]);
 
-  const isBillable = userRole === 'owner' || (workerData && !workerData.password?.includes('NON_BILLABLE'));
 
 
 
@@ -440,6 +446,15 @@ function App() {
   };
 
   const confirmLogout = async () => {
+    // Stop background sync first so it can't re-download cost data while we strip it
+    stopBackgroundSync();
+    if (userRole === 'owner') {
+      try {
+        await stripOwnerOnlyDataFromLocalInventory();
+      } catch (e) {
+        console.warn('Could not clear owner-only data from this device:', e);
+      }
+    }
     await supabase.auth.signOut();
     queryClient.clear();
     setUserRole(null);

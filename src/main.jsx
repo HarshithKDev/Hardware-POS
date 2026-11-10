@@ -7,6 +7,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { AppProvider } from './AppContext.jsx';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import { registerSW } from 'virtual:pwa-register';
+import { isCriticalWorkInProgress } from './services/busyGuard';
 
 // Force unregister all service workers in development mode to prevent infinite reload loops
 if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
@@ -19,11 +20,27 @@ if (window.location.hostname === 'localhost' || window.location.hostname === '12
     });
   }
 } else {
-  // Register the PWA service worker for production
-  const updateSW = registerSW({
-    onNeedRefresh() {
-      // We can add a toast here later to ask user to refresh
-      console.log('New content available, refresh to update.');
+  // Register the PWA service worker for production.
+  // registerType is 'autoUpdate': a new version activates by itself. By default the plugin
+  // then reloads the page immediately, which could interrupt a sale being sent. Instead we
+  // wait until no sale/sync/return is in progress (carts are kept in localStorage).
+  const reloadWhenIdle = () => {
+    if (isCriticalWorkInProgress()) {
+      setTimeout(reloadWhenIdle, 2000);
+      return;
+    }
+    window.location.reload();
+  };
+
+  registerSW({
+    onNeedReload: reloadWhenIdle,
+    onRegisteredSW(_swUrl, registration) {
+      // Counters stay open all day: check for a new deployment every hour
+      if (registration) {
+        setInterval(() => {
+          if (navigator.onLine) registration.update().catch(() => {});
+        }, 60 * 60 * 1000);
+      }
     },
     onOfflineReady() {
       console.log('App is ready to work offline.');
