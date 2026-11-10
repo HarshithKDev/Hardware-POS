@@ -68,6 +68,59 @@ export const saveInventoryBatch = async (items) => {
   cachedInventory = null;
 };
 
+const isOwnerSession = () => typeof window !== 'undefined' && (
+  sessionStorage.getItem('posUserRole') === 'owner' ||
+  localStorage.getItem('posUserRole') === 'owner'
+);
+
+/**
+ * Queries remote product + active batch tables, preferring full tables for owners
+ * (preserving cost_price & purchase_cost) and falling back to public views if needed.
+ */
+const fetchRemoteProductsAndBatches = async ({ shopId, configureProductQuery, limit = null, single = false }) => {
+  const owner = isOwnerSession();
+  const prodTable = owner ? 'product_master' : 'product_master_public';
+  let prodQ = configureProductQuery(supabase.from(prodTable).select('*'));
+  if (shopId) prodQ = prodQ.eq('shop_id', shopId);
+
+  let prodRes = single ? await prodQ.maybeSingle() : await (limit ? prodQ.limit(limit) : prodQ);
+  let products = single ? (prodRes?.data ? [prodRes.data] : []) : (prodRes?.data || []);
+
+  if (owner && (prodRes?.error || products.length === 0)) {
+    let pubQ = configureProductQuery(supabase.from('product_master_public').select('*'));
+    if (shopId) pubQ = pubQ.eq('shop_id', shopId);
+    const pubRes = single ? await pubQ.maybeSingle() : await (limit ? pubQ.limit(limit) : pubQ);
+    if (!pubRes?.error) {
+      products = single ? (pubRes?.data ? [pubRes.data] : []) : (pubRes?.data || []);
+    }
+  }
+
+  if (products.length === 0) return [];
+
+  const bcs = products.map(r => r.barcode);
+  const batchTable = owner ? 'inventory_batches' : 'inventory_batches_public';
+  let bQ = supabase.from(batchTable).select('*').in('barcode', bcs).eq('is_active', true);
+  if (shopId) bQ = bQ.eq('shop_id', shopId);
+  let { data: bData, error: bErr } = await bQ;
+
+  if (owner && (bErr || !bData || bData.length === 0)) {
+    let pubBQ = supabase.from('inventory_batches_public').select('*').in('barcode', bcs).eq('is_active', true);
+    if (shopId) pubBQ = pubBQ.eq('shop_id', shopId);
+    const pubBRes = await pubBQ;
+    if (!pubBRes?.error && pubBRes?.data?.length > 0) {
+      bData = pubBRes.data;
+    }
+  }
+
+  const bMap = {};
+  (bData || []).forEach(b => {
+    if (!bMap[b.barcode]) bMap[b.barcode] = [];
+    bMap[b.barcode].push(b);
+  });
+
+  return products.map(r => ({ ...r, batches: bMap[r.barcode] || [] }));
+};
+
 export const getInventoryItemByBarcode = async (barcode) => {
   if (!barcode) return null;
   const shopId = localStorage.getItem('shop_id');
@@ -114,26 +167,13 @@ export const getInventoryItemByBarcode = async (barcode) => {
   // Fallback to remote database ONLY if missing from local IndexedDB
   if (!item && typeof navigator !== 'undefined' && navigator.onLine && supabase) {
     try {
-      let q = supabase
-        .from('product_master_public')
-        .select('*')
-        .eq('barcode', strBarcode);
-      if (shopId) q = q.eq('shop_id', shopId);
-      const { data: remoteProd } = await q.maybeSingle();
-
-      if (remoteProd) {
-        let bQ = supabase
-          .from('inventory_batches_public')
-          .select('*')
-          .eq('barcode', strBarcode)
-          .eq('is_active', true);
-        if (shopId) bQ = bQ.eq('shop_id', shopId);
-        const { data: remoteBatches } = await bQ;
-
-        item = {
-          ...remoteProd,
-          batches: remoteBatches || []
-        };
+      const results = await fetchRemoteProductsAndBatches({
+        shopId,
+        single: true,
+        configureProductQuery: (q) => q.eq('barcode', strBarcode)
+      });
+      if (results.length > 0) {
+        item = results[0];
         await saveInventoryBatch([item]);
       }
     } catch (e) {
@@ -437,22 +477,12 @@ export const getInventoryByQuery = async ({
   // Cold start fallback if local IndexedDB is empty and app is online
   if (allItems.length === 0 && typeof navigator !== 'undefined' && navigator.onLine && supabase) {
     try {
-      let q = supabase.from('product_master_public').select('*');
-      if (currentShopId) q = q.eq('shop_id', currentShopId);
-      if (status === 'deactivated') q = q.eq('is_active', false);
-      else q = q.eq('is_active', true);
-      const { data: remoteData } = await q.limit(limit || 100);
-      if (remoteData && remoteData.length > 0) {
-        const bcs = remoteData.map(r => r.barcode);
-        let bQ = supabase.from('inventory_batches_public').select('*').in('barcode', bcs).eq('is_active', true);
-        if (currentShopId) bQ = bQ.eq('shop_id', currentShopId);
-        const { data: bData } = await bQ;
-        const bMap = {};
-        (bData || []).forEach(b => {
-          if (!bMap[b.barcode]) bMap[b.barcode] = [];
-          bMap[b.barcode].push(b);
-        });
-        const enriched = remoteData.map(r => ({ ...r, batches: bMap[r.barcode] || [] }));
+      const enriched = await fetchRemoteProductsAndBatches({
+        shopId: currentShopId,
+        limit: limit || 100,
+        configureProductQuery: (q) => q.eq('is_active', status !== 'deactivated')
+      });
+      if (enriched.length > 0) {
         await saveInventoryBatch(enriched);
         allItems = enriched;
       }
@@ -504,30 +534,14 @@ export const getInventoryByQuery = async ({
     // Remote fallback if local IndexedDB returned 0 matches but network is online
     if (allItems.length === 0 && typeof navigator !== 'undefined' && navigator.onLine && supabase) {
       try {
-        let remoteQuery = supabase
-          .from('product_master_public')
-          .select('*')
-          .or(`name.ilike.%${cleanSearch}%,barcode.ilike.%${cleanSearch}%`);
-        if (currentShopId) {
-          remoteQuery = remoteQuery.eq('shop_id', currentShopId);
-        }
-        if (status === 'deactivated') {
-          remoteQuery = remoteQuery.eq('is_active', false);
-        } else {
-          remoteQuery = remoteQuery.eq('is_active', true);
-        }
-        const { data: remoteData } = await remoteQuery.limit(limit || 50);
-        if (remoteData && remoteData.length > 0) {
-          const bcs = remoteData.map(r => r.barcode);
-          let bQ = supabase.from('inventory_batches_public').select('*').in('barcode', bcs).eq('is_active', true);
-          if (currentShopId) bQ = bQ.eq('shop_id', currentShopId);
-          const { data: bData } = await bQ;
-          const bMap = {};
-          (bData || []).forEach(b => {
-            if (!bMap[b.barcode]) bMap[b.barcode] = [];
-            bMap[b.barcode].push(b);
-          });
-          const enriched = remoteData.map(r => ({ ...r, batches: bMap[r.barcode] || [] }));
+        const enriched = await fetchRemoteProductsAndBatches({
+          shopId: currentShopId,
+          limit: limit || 50,
+          configureProductQuery: (q) =>
+            q.or(`name.ilike.%${cleanSearch}%,barcode.ilike.%${cleanSearch}%`)
+              .eq('is_active', status !== 'deactivated')
+        });
+        if (enriched.length > 0) {
           await saveInventoryBatch(enriched);
           allItems = enriched;
         }

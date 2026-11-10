@@ -26,12 +26,13 @@ const CLOCK_SKEW_BUFFER_MS = 30000; // 30-second safety margin for clock drift /
 export const syncInventoryToLocal = async (userRole = 'worker', options = {}) => {
   const { forceFull = false } = options;
   const currentShopId = localStorage.getItem('shop_id');
-  const tableName = 'product_master_public';
+  const isOwner = userRole === 'owner';
+  const tableName = isOwner ? 'product_master' : 'product_master_public';
   const syncKey = `inventory_sync_${currentShopId || 'global'}_${userRole}`;
 
   try {
-    // 1. Lightweight connectivity ping
-    let pingQuery = supabase.from(tableName).select('barcode');
+    // 1. Lightweight connectivity ping via public view so transient RLS issues don't abort before fallback
+    let pingQuery = supabase.from('product_master_public').select('barcode');
     if (currentShopId) {
       pingQuery = pingQuery.eq('shop_id', currentShopId);
     }
@@ -42,37 +43,46 @@ export const syncInventoryToLocal = async (userRole = 'worker', options = {}) =>
     const prevStatus = await getSyncStatus(syncKey);
     const localCount = await getLocalInventoryCount(currentShopId);
 
+    // Force one full sync if owner previously synced from public views (missing cost_price/purchase_cost)
+    const needsCostBackfill = isOwner && prevStatus?.synced_with_cost !== true;
+
     // Delta sync is activated when:
     // - Not forced to perform a full sync
+    // - Owner has already synced full cost fields (or worker role)
     // - A valid previous last_sync timestamp exists
     // - Local IndexedDB already contains products
-    const isDelta = !forceFull && Boolean(prevStatus?.last_sync) && localCount > 0;
+    const isDelta = !forceFull && !needsCostBackfill && Boolean(prevStatus?.last_sync) && localCount > 0;
 
     await setSyncStatus(syncKey, { 
       status: 'syncing', 
       last_sync: prevStatus?.last_sync || null,
-      mode: isDelta ? 'delta' : 'full'
+      mode: isDelta ? 'delta' : 'full',
+      synced_with_cost: Boolean(prevStatus?.synced_with_cost)
     });
 
+    let usedCostTables = false;
     if (isDelta) {
       try {
-        await performDeltaSync({
+        const res = await performDeltaSync({
           tableName,
           userRole,
           currentShopId,
           lastSync: prevStatus.last_sync
         });
+        usedCostTables = Boolean(res?.usedCostTables);
       } catch (deltaErr) {
         // Fallback to full sync if updated_at column doesn't exist yet (PostgreSQL error 42703)
         if (deltaErr.code === '42703' || deltaErr.message?.includes('updated_at')) {
           console.warn('[Sync] Database updated_at column not available yet. Falling back to full sync.');
-          await performFullSync({ tableName, userRole, currentShopId });
+          const res = await performFullSync({ tableName, userRole, currentShopId });
+          usedCostTables = Boolean(res?.usedCostTables);
         } else {
           throw deltaErr;
         }
       }
     } else {
-      await performFullSync({ tableName, userRole, currentShopId });
+      const res = await performFullSync({ tableName, userRole, currentShopId });
+      usedCostTables = Boolean(res?.usedCostTables);
     }
 
     const completedAt = new Date().toISOString();
@@ -80,6 +90,7 @@ export const syncInventoryToLocal = async (userRole = 'worker', options = {}) =>
       status: 'idle', 
       last_sync: completedAt,
       last_mode: isDelta ? 'delta' : 'full',
+      synced_with_cost: isOwner ? (usedCostTables || Boolean(prevStatus?.synced_with_cost)) : false,
       error: null 
     });
 
@@ -94,10 +105,48 @@ export const syncInventoryToLocal = async (userRole = 'worker', options = {}) =>
     await setSyncStatus(syncKey, { 
       status: 'error', 
       error: err.message, 
-      last_sync: prevStatus?.last_sync || null 
+      last_sync: prevStatus?.last_sync || null,
+      synced_with_cost: Boolean(prevStatus?.synced_with_cost)
     });
   }
 };
+
+/**
+ * Fetches active batches for barcodes, using full inventory_batches for owners
+ * (preserving purchase_cost) and falling back to inventory_batches_public if restricted.
+ */
+async function fetchBatchesForBarcodes({ barcodes, currentShopId, allowCost }) {
+  const allBatches = [];
+  let usedCostTable = allowCost;
+
+  for (let i = 0; i < barcodes.length; i += BATCH_CHUNK_SIZE) {
+    const slice = barcodes.slice(i, i + BATCH_CHUNK_SIZE);
+    const batchTable = usedCostTable ? 'inventory_batches' : 'inventory_batches_public';
+    let batchQuery = supabase.from(batchTable).select('*').in('barcode', slice).eq('is_active', true);
+    if (currentShopId) {
+      batchQuery = batchQuery.eq('shop_id', currentShopId);
+    }
+    let { data: batches, error: batchError } = await batchQuery;
+
+    if (batchTable === 'inventory_batches' && (batchError || !batches || batches.length === 0)) {
+      let pubBatchQuery = supabase.from('inventory_batches_public').select('*').in('barcode', slice).eq('is_active', true);
+      if (currentShopId) {
+        pubBatchQuery = pubBatchQuery.eq('shop_id', currentShopId);
+      }
+      const pubRes = await pubBatchQuery;
+      if (!pubRes.error && pubRes.data && pubRes.data.length > 0) {
+        batches = pubRes.data;
+        batchError = null;
+        usedCostTable = false;
+      }
+    }
+
+    if (batchError) throw batchError;
+    if (batches) allBatches.push(...batches);
+  }
+
+  return { batches: allBatches, usedCostTable };
+}
 
 /**
  * Downloads only products modified since `lastSync` and merges them into IndexedDB.
@@ -106,7 +155,8 @@ async function performDeltaSync({ tableName, userRole, currentShopId, lastSync }
   const lastSyncDate = new Date(lastSync);
   const effectiveTimestamp = new Date(Math.max(0, lastSyncDate.getTime() - CLOCK_SKEW_BUFFER_MS)).toISOString();
 
-  let prodQuery = supabase.from(tableName).select('*');
+  let effectiveTable = tableName;
+  let prodQuery = supabase.from(effectiveTable).select('*');
   if (currentShopId) {
     prodQuery = prodQuery.eq('shop_id', currentShopId);
   }
@@ -115,15 +165,16 @@ async function performDeltaSync({ tableName, userRole, currentShopId, lastSync }
 
   let { data: changedProducts, error: prodError } = await prodQuery;
 
-  // Graceful fallback to public view if raw table is restricted by RLS
-  if ((!changedProducts || changedProducts.length === 0 || prodError) && tableName === 'product_master') {
+  // Graceful fallback to public view ONLY if raw table fails or returns empty while public view has delta changes
+  if ((prodError || !changedProducts || changedProducts.length === 0) && effectiveTable === 'product_master') {
     let fallbackQuery = supabase.from('product_master_public').select('*');
     if (currentShopId) {
       fallbackQuery = fallbackQuery.eq('shop_id', currentShopId);
     }
     fallbackQuery = fallbackQuery.gt('updated_at', effectiveTimestamp);
     const fallbackRes = await fallbackQuery;
-    if (fallbackRes.data && fallbackRes.data.length > 0) {
+    if (!fallbackRes.error && fallbackRes.data && fallbackRes.data.length > 0) {
+      effectiveTable = 'product_master_public';
       changedProducts = fallbackRes.data;
       prodError = null;
     }
@@ -133,7 +184,7 @@ async function performDeltaSync({ tableName, userRole, currentShopId, lastSync }
 
   if (!changedProducts || changedProducts.length === 0) {
     console.log('[Delta Sync] Everything is up to date (0 products modified). 0 KB transferred.');
-    return true;
+    return { usedCostTables: effectiveTable === 'product_master' };
   }
 
   console.log(`[Delta Sync] Fetched ${changedProducts.length} updated product(s) since ${effectiveTimestamp}.`);
@@ -160,22 +211,17 @@ async function performDeltaSync({ tableName, userRole, currentShopId, lastSync }
     }
   }
 
+  let usedCostTables = effectiveTable === 'product_master';
+
   // Fetch batches only for active modified products
   if (activeProducts.length > 0) {
     const barcodes = activeProducts.map(p => p.barcode);
-    const batchTable = 'inventory_batches_public';
-    const allBatches = [];
-
-    for (let i = 0; i < barcodes.length; i += BATCH_CHUNK_SIZE) {
-      const slice = barcodes.slice(i, i + BATCH_CHUNK_SIZE);
-      let batchQuery = supabase.from(batchTable).select('*').in('barcode', slice).eq('is_active', true);
-      if (currentShopId) {
-        batchQuery = batchQuery.eq('shop_id', currentShopId);
-      }
-      let { data: batches, error: batchError } = await batchQuery;
-      if (batchError) throw batchError;
-      if (batches) allBatches.push(...batches);
-    }
+    const { batches: allBatches, usedCostTable } = await fetchBatchesForBarcodes({
+      barcodes,
+      currentShopId,
+      allowCost: effectiveTable === 'product_master'
+    });
+    usedCostTables = usedCostTables && usedCostTable;
 
     const batchesByBarcode = {};
     allBatches.forEach(b => {
@@ -193,7 +239,7 @@ async function performDeltaSync({ tableName, userRole, currentShopId, lastSync }
     await saveInventoryBatch(mergedProducts);
   }
 
-  return true;
+  return { usedCostTables };
 }
 
 /**
@@ -201,12 +247,14 @@ async function performDeltaSync({ tableName, userRole, currentShopId, lastSync }
  */
 async function performFullSync({ tableName, userRole, currentShopId }) {
   console.log('[Full Sync] Downloading full product catalog...');
+  let effectiveTable = tableName;
   let offset = 0;
   let hasMore = true;
   const syncedBarcodes = new Set();
+  let usedCostTables = effectiveTable === 'product_master';
 
   while (hasMore) {
-    let prodQuery = supabase.from(tableName).select('*');
+    let prodQuery = supabase.from(effectiveTable).select('*');
     if (userRole !== 'owner') {
       prodQuery = prodQuery.eq('is_active', true);
     }
@@ -216,14 +264,15 @@ async function performFullSync({ tableName, userRole, currentShopId }) {
     let { data: products, error: prodError } = await prodQuery.range(offset, offset + PAGE_SIZE - 1);
     
     // Fallback to public view if raw table is restricted by RLS
-    if ((!products || products.length === 0 || prodError) && tableName === 'product_master' && offset === 0) {
-      tableName = 'product_master_public';
+    if ((!products || products.length === 0 || prodError) && effectiveTable === 'product_master' && offset === 0) {
       let pubQuery = supabase.from('product_master_public').select('*');
       if (currentShopId) {
         pubQuery = pubQuery.eq('shop_id', currentShopId);
       }
       const pubRes = await pubQuery.range(offset, offset + PAGE_SIZE - 1);
-      if (pubRes.data && pubRes.data.length > 0) {
+      if (!pubRes.error && pubRes.data && pubRes.data.length > 0) {
+        effectiveTable = 'product_master_public';
+        usedCostTables = false;
         products = pubRes.data;
         prodError = null;
       }
@@ -232,14 +281,14 @@ async function performFullSync({ tableName, userRole, currentShopId }) {
 
     if (products && products.length > 0) {
       const barcodes = products.map(p => p.barcode);
-      const batchTable = 'inventory_batches_public';
-      
-      let batchQuery = supabase.from(batchTable).select('*').in('barcode', barcodes).eq('is_active', true);
-      if (currentShopId) {
-        batchQuery = batchQuery.eq('shop_id', currentShopId);
+      const { batches, usedCostTable } = await fetchBatchesForBarcodes({
+        barcodes,
+        currentShopId,
+        allowCost: effectiveTable === 'product_master'
+      });
+      if (!usedCostTable) {
+        usedCostTables = false;
       }
-      let { data: batches, error: batchError } = await batchQuery;
-      if (batchError) throw batchError;
 
       const batchesByBarcode = {};
       if (batches) {
@@ -272,7 +321,7 @@ async function performFullSync({ tableName, userRole, currentShopId }) {
     await deleteOrphanedInventory(syncedBarcodes);
   }
   console.log(`[Full Sync] Completed successfully. Synced ${syncedBarcodes.size} items.`);
-  return true;
+  return { usedCostTables };
 }
 
 export const flushOfflineQueue = async (userRole = 'worker') => {

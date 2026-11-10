@@ -164,4 +164,45 @@ describe('Delta / Incremental Sync System', () => {
     expect(db.deleteOrphanedInventory).toHaveBeenCalled();
     expect(db.saveInventoryBatch).toHaveBeenCalled();
   });
+
+  it('syncs owner catalog from full product_master & inventory_batches (preserving cost_price and purchase_cost) and backfills when synced_with_cost is false', async () => {
+    vi.mocked(db.getSyncStatus).mockResolvedValue({
+      key: 'inventory_sync_test-shop-123_owner',
+      status: 'idle',
+      last_sync: '2026-10-21T18:00:00.000Z',
+      // Missing synced_with_cost -> previously synced from _public view
+    });
+    vi.mocked(db.getLocalInventoryCount).mockResolvedValue(150);
+
+    const pingQuery = createChainableQuery([{ barcode: '1001' }]);
+    const ownerProdQuery = createChainableQuery([{ barcode: '1001', name: 'Balaji Frame', cost_price: 1200 }]);
+    const ownerBatchQuery = createChainableQuery([{ barcode: '1001', batch_id: 'b1', batch_number: 1, purchase_cost: 1200, msp: 2000, selling_price: 3000 }]);
+
+    vi.mocked(supabase.from).mockImplementation((table) => {
+      if (table === 'product_master_public') return pingQuery;
+      if (table === 'product_master') return ownerProdQuery;
+      if (table === 'inventory_batches') return ownerBatchQuery;
+      return createChainableQuery([]);
+    });
+
+    await syncInventoryToLocal('owner');
+
+    expect(supabase.from).toHaveBeenCalledWith('product_master');
+    expect(supabase.from).toHaveBeenCalledWith('inventory_batches');
+    expect(db.saveInventoryBatch).toHaveBeenCalledWith([
+      expect.objectContaining({
+        barcode: '1001',
+        cost_price: 1200,
+        batches: [
+          expect.objectContaining({
+            purchase_cost: 1200
+          })
+        ]
+      })
+    ]);
+    expect(db.setSyncStatus).toHaveBeenCalledWith(
+      expect.stringContaining('inventory_sync_test-shop-123_owner'),
+      expect.objectContaining({ last_mode: 'full', synced_with_cost: true })
+    );
+  });
 });

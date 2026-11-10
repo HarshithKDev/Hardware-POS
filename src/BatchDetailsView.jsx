@@ -63,23 +63,29 @@ export default function BatchDetailsView({
     queryFn: async () => {
       if (!barcode) return null;
 
+      let local = null;
       // 1. FAST PATH: Read directly from local IndexedDB (0ms)
       try {
-        const local = await getInventoryItemByBarcode(barcode);
+        local = await getInventoryItemByBarcode(barcode);
         if (local) {
-          const res = { ...local };
-          if (res.batches) {
-            res.batches = res.batches
-              .filter(b => b.is_active !== false)
-              .sort((a, b) => (a.batch_number || 1) - (b.batch_number || 1));
+          const activeBatches = (local.batches || [])
+            .filter(b => b.is_active !== false)
+            .sort((a, b) => (a.batch_number || 1) - (b.batch_number || 1));
+
+          const isMissingCost =
+            local.cost_price === undefined ||
+            local.cost_price === null ||
+            activeBatches.some(b => b.purchase_cost === undefined || b.purchase_cost === null);
+
+          if (!isMissingCost || !navigator.onLine) {
+            return { ...local, batches: activeBatches };
           }
-          return res;
         }
       } catch (err) {
         console.warn('Failed to read item from local IDB:', err);
       }
 
-      // 2. FALLBACK: Only fetch from Supabase if not found locally
+      // 2. Fetch full product & batch details (including cost_price & purchase_cost) from Supabase
       if (navigator.onLine) {
         try {
           let itemQuery = supabase
@@ -89,27 +95,54 @@ export default function BatchDetailsView({
           if (shopId) {
             itemQuery = itemQuery.eq('shop_id', shopId);
           }
-          const { data, error } = await itemQuery.single();
+          const { data, error } = await itemQuery.maybeSingle();
           if (!error && data) {
             if (data.batches) {
               data.batches = data.batches
                 .filter(b => b.is_active !== false)
                 .sort((a, b) => (a.batch_number || 1) - (b.batch_number || 1));
             }
-            // Save to local IndexedDB so subsequent views are 0ms
+            // Save to local IndexedDB so subsequent views are 0ms with cost data intact
             await saveInventoryBatch([data]);
             return data;
+          }
+
+          // Fallback to separate queries if nested relationship query fails
+          let pQ = supabase.from('product_master').select('*').eq('barcode', barcode);
+          if (shopId) pQ = pQ.eq('shop_id', shopId);
+          const { data: pData } = await pQ.maybeSingle();
+          if (pData) {
+            let bQ = supabase.from('inventory_batches').select('*').eq('barcode', barcode).eq('is_active', true);
+            if (shopId) bQ = bQ.eq('shop_id', shopId);
+            const { data: bData } = await bQ;
+            const combined = {
+              ...pData,
+              batches: (bData || [])
+                .filter(b => b.is_active !== false)
+                .sort((a, b) => (a.batch_number || 1) - (b.batch_number || 1))
+            };
+            await saveInventoryBatch([combined]);
+            return combined;
           }
         } catch (err) {
           console.warn('Fallback Supabase query failed:', err);
         }
       }
 
+      if (local) {
+        return {
+          ...local,
+          batches: (local.batches || [])
+            .filter(b => b.is_active !== false)
+            .sort((a, b) => (a.batch_number || 1) - (b.batch_number || 1))
+        };
+      }
+
       return initialItem || null;
     },
-    initialData: () => {
+    placeholderData: () => {
       if (initialItem && initialItem.batches?.length > 0) return initialItem;
-      // Instant cache hit from parent inventory table
+      // Instant placeholder hit from parent inventory table
       try {
         const cached = queryClient.getQueryData(['inventory', shopId]);
         if (cached?.items) {
@@ -218,7 +251,7 @@ export default function BatchDetailsView({
         mrp: activeBatch.selling_price ?? item?.price ?? 0
       });
     }
-  }, [activeBatch?.batch_id, activeBatch?.supplier, activeBatch?.purchase_cost, activeBatch?.msp, activeBatch?.selling_price, item?.price]);
+  }, [activeBatch?.batch_id, activeBatch?.supplier, activeBatch?.purchase_cost, activeBatch?.msp, activeBatch?.selling_price, item?.cost_price, item?.msp, item?.price]);
 
   // Self-healing: if warehouse is disabled but any batch has stranded warehouse stock, merge into store stock
   useEffect(() => {
