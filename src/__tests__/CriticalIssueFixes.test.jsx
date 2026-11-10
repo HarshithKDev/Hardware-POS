@@ -347,3 +347,41 @@ describe('C8: audit logs record the real user', () => {
     expect(getPerformedBy()).toBe('Harsh');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Scrap (per batch, totals only)
+// ---------------------------------------------------------------------------
+import { scrapBatchStock } from '../services/atomicStock';
+
+describe('Scrap stock from a batch', () => {
+  it('removes the quantity from store stock and the product total', async () => {
+    const writes = [];
+    handler = (s) => {
+      if (s.op === 'select' && s.table === 'inventory_batches') return { data: { stock_store: 50, stock_warehouse: 20 }, error: null };
+      if (s.op === 'select' && s.table === 'product_master') return { data: { stock_store: 50, stock_warehouse: 20 }, error: null };
+      writes.push(s);
+      return { error: null, count: 1 };
+    };
+    const res = await scrapBatchStock({ batchId: 'B', barcode: '2001', shopId: 'S', qty: 10, location: 'store' });
+    expect(res).toEqual({ fromStore: 10, fromWarehouse: 0 });
+    expect(writes.find(w => w.table === 'inventory_batches').payload).toEqual({ stock_store: 40, stock_warehouse: 20 });
+    expect(writes.find(w => w.table === 'product_master').payload).toMatchObject({ stock_store: 40, stock_warehouse: 20 });
+  });
+
+  it('refuses to scrap more than is available', async () => {
+    handler = (s) => (s.op === 'select' ? { data: { stock_store: 5, stock_warehouse: 0 }, error: null } : { error: null, count: 1 });
+    await expect(scrapBatchStock({ batchId: 'B', barcode: '2001', qty: 8, location: 'store' })).rejects.toThrow(/Only 5 available/);
+  });
+
+  it('with the warehouse disabled, takes the remainder from warehouse stock', async () => {
+    const writes = [];
+    handler = (s) => {
+      if (s.op === 'select') return { data: { stock_store: 3, stock_warehouse: 10 }, error: null };
+      writes.push(s);
+      return { error: null, count: 1 };
+    };
+    const res = await scrapBatchStock({ batchId: 'B', barcode: '2001', qty: 5, location: 'store', allowOtherLocation: true });
+    expect(res).toEqual({ fromStore: 3, fromWarehouse: 2 });
+    expect(writes[0].payload).toEqual({ stock_store: 0, stock_warehouse: 8 });
+  });
+});
