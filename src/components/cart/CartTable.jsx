@@ -121,7 +121,13 @@ const CartTable = React.memo(function CartTable({
                 item.unit?.toUpperCase() === 'GM'
               )
             );
-            const hasSubtext = Boolean((activeTab === 'checkout' && isLooseKg) || (safeQty !== billableQty));
+            const hasQtySubtext = Boolean(
+              item.is_cuttable ||
+              (!item.instance_barcode && !item.is_screw && item.barcode !== 'SCREWS')
+            );
+            const hasSubtext = activeTab === 'checkout' && Boolean(
+              hasQtySubtext || isLooseKg || (safeQty !== billableQty)
+            );
 
             const isRowSelected = cart[selectedCartIndex]?.id === item.id;
 
@@ -156,7 +162,7 @@ const CartTable = React.memo(function CartTable({
                       </div>
                   )}
                 </td>
-                <td className="p-2 text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                <td className="py-3 px-2 text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>
                   {item.is_cuttable ? (
                     <div className="flex flex-col items-center justify-center">
                       <div className="inline-flex items-center rounded-lg border border-[var(--border-medium)] bg-[var(--bg-tertiary)] overflow-hidden shadow-sm">
@@ -225,18 +231,20 @@ const CartTable = React.memo(function CartTable({
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center">
-                      <div className="h-8 flex items-center justify-center">
-                        {item.instance_barcode ? (
+                      {item.instance_barcode ? (
+                        <div className="h-8 flex items-center justify-center">
                           <div className="inline-flex items-center h-8 px-3 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-medium)] shadow-sm">
                             <span className="text-sm font-bold text-[var(--text-primary)]">
                               {safeQty} {formatUnitBadge((item.unit === 'SQFT' || item.is_cuttable) && activeTab !== 'checkout' ? 'PCS' : item.unit)}
                             </span>
                           </div>
-                        ) : activeTab === 'checkout' && isLooseKg ? (
-                          (() => {
-                            const currentGrams = item.grams !== undefined && item.grams !== '' ? item.grams : (item.quantity !== '' ? Math.round(Number(item.quantity) * 1000) : '');
-                            return (
-                              <div className="flex flex-col items-center justify-center">
+                        </div>
+                      ) : activeTab === 'checkout' && isLooseKg ? (
+                        (() => {
+                          const currentGrams = item.grams !== undefined && item.grams !== '' ? item.grams : (item.quantity !== '' ? Math.round(Number(item.quantity) * 1000) : '');
+                          return (
+                            <>
+                              <div className="min-h-8 flex items-center justify-center">
                                 <div className="inline-flex items-center rounded-lg border border-[var(--border-medium)] bg-[var(--bg-tertiary)] overflow-hidden shadow-sm">
                                   <button
                                     type="button"
@@ -286,38 +294,42 @@ const CartTable = React.memo(function CartTable({
                                     +50g
                                   </button>
                                 </div>
-                                <div className="mt-1">
-                                  <span className="text-[11px] text-[var(--text-tertiary)] font-medium">
-                                    {Number(safeQty).toFixed(3)} kg ({currentGrams || 0}g)
-                                  </span>
-                                </div>
                               </div>
-                            );
-                          })()
-                        ) : item.is_screw ? (
+                              <div className="h-4 flex items-center justify-center mt-1">
+                                <span className="text-[11px] text-[var(--text-tertiary)] font-medium leading-none">
+                                  {Number(safeQty).toFixed(3)} kg ({currentGrams || 0}g)
+                                </span>
+                              </div>
+                            </>
+                          );
+                        })()
+                      ) : item.is_screw ? (
+                        <div className="h-8 flex items-center justify-center">
                           <div className="w-20 h-8 flex items-center justify-center text-xs font-bold bg-[var(--bg-tertiary)] border border-[var(--border-medium)] rounded-md text-[var(--text-secondary)]">
                             1 SET
                           </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center">
+                        </div>
+                      ) : (
+                        <>
+                          <div className="min-h-8 flex items-center justify-center">
                             <div className="inline-flex items-center rounded-lg border border-[var(--border-medium)] bg-[var(--bg-tertiary)] overflow-hidden shadow-sm">
                               <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-8 h-8 flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-r border-[var(--border-medium)] select-none" style={{ borderRadius: 0 }} aria-label={`Decrease ${item.name} quantity`}>-</button>
                               <input type="number" step="any" min="0" onWheel={handleWheelBlur} value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-14 h-8 text-sm font-bold text-center bg-transparent text-[var(--text-primary)] rounded-none !border-none !shadow-none !outline-none focus:!outline-none focus:!border-none focus:!shadow-none focus:bg-[var(--bg-secondary)] transition-colors p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" style={{ borderRadius: 0, border: 'none', boxShadow: 'none', outline: 'none' }} aria-label={`${item.name} quantity`} />
                               <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-8 h-8 flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-l border-[var(--border-medium)] select-none" style={{ borderRadius: 0 }} aria-label={`Increase ${item.name} quantity`}>+</button>
                             </div>
-                            <div className="mt-1">
-                              <span className="text-[11px] text-[var(--text-tertiary)] font-medium">
-                                {safeQty} {formatUnitBadge(item.unit)}
-                              </span>
-                            </div>
                           </div>
-                        )}
-                      </div>
+                          <div className="h-4 flex items-center justify-center mt-1">
+                            <span className="text-[11px] text-[var(--text-tertiary)] font-medium leading-none">
+                              {safeQty} {formatUnitBadge(item.unit)}
+                            </span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </td>
                 {activeTab === 'checkout' && (<>
-                  <td className="p-2 text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                  <td className="py-3 px-2 text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>
                     {item.is_screw || item.barcode === 'SCREWS' ? (
                       <span className="text-sm font-bold text-[var(--text-tertiary)]">—</span>
                     ) : (
@@ -360,7 +372,7 @@ const CartTable = React.memo(function CartTable({
                       </div>
                     )}
                   </td>
-                  <td className="p-2 text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>
+                  <td className="py-3 px-2 text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>
                     <div className="flex flex-col items-center justify-center">
                       <div className="h-8 flex items-center justify-center w-full">
                         <div className="relative flex items-center justify-center w-full max-w-[120px] h-8 mx-auto">
