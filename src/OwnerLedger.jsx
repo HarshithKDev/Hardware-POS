@@ -1,5 +1,9 @@
 import { useState, useEffect, useRef, useMemo, Fragment, useCallback } from 'react';
+import { localToUtcIso } from './utils';
+import { getPerformedBy } from './utils';
 import { supabase } from './supabaseClient';
+import { casUpdateRow } from './services/atomicStock';
+import { beginCriticalWork } from './services/busyGuard';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
@@ -231,8 +235,8 @@ export default function OwnerLedger({ isActive }) {
         .range(from, from + SALES_PER_PAGE - 1);
     } else {
       // DAY-BY-DAY MODE: Load records strictly of currentDay
-      const start = `${currentDay}T00:00:00`;
-      const end = `${currentDay}T23:59:59.999`;
+      const start = localToUtcIso(`${currentDay}T00:00:00`);
+      const end = localToUtcIso(`${currentDay}T23:59:59.999`);
       query = query
         .gte('created_at', start)
         .lte('created_at', end)
@@ -283,8 +287,8 @@ export default function OwnerLedger({ isActive }) {
           query = query.or(`customer_phone.ilike.%${cleanQ}%,customer_name.ilike.%${cleanQ}%,id.ilike.%${cleanQ}%`);
         }
       } else {
-        const start = `${currentDay}T00:00:00`;
-        const end = `${currentDay}T23:59:59.999`;
+        const start = localToUtcIso(`${currentDay}T00:00:00`);
+        const end = localToUtcIso(`${currentDay}T23:59:59.999`);
         query = query.gte('created_at', start).lte('created_at', end);
       }
 
@@ -341,7 +345,7 @@ export default function OwnerLedger({ isActive }) {
       });
 
       const buffer = await workbook.xlsx.writeBuffer();
-      saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Sales_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+      saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Sales_Export_${new Date().toLocaleDateString('en-CA')}.xlsx`);
     } catch (e) {
       showAlert(`Export failed: ${e.message}`, 'Error');
     }
@@ -409,11 +413,12 @@ export default function OwnerLedger({ isActive }) {
   };
 
   const executeReturnItems = async (itemsToReturn, isAll, bill) => {
+    const endCriticalWork = beginCriticalWork(); // holds back app auto-update reloads
     try {
       if (itemsToReturn.length === 0) return;
 
       const shopId = localStorage.getItem('shop_id');
-      const performedBy = localStorage.getItem('owner_name') || localStorage.getItem('cashier_name') || 'Staff';
+      const performedBy = getPerformedBy();
 
       let updatedBillTotal = Number(bill.total_amount);
 
@@ -434,7 +439,21 @@ export default function OwnerLedger({ isActive }) {
         const refundAmount = itemsToReturn.reduce((sum, item) => sum + (Number(item.price_at_sale) * item.returnQuantity), 0);
         updatedBillTotal = Math.max(0, Number(bill.total_amount) - refundAmount);
         const newStatus = updatedBillTotal <= 0.001 ? 'voided' : bill.status;
-        let billUpdateQuery = supabase.from('bills').update({ total_amount: updatedBillTotal, status: newStatus }).eq('id', bill.id);
+        const billUpdatePayload = { total_amount: updatedBillTotal, status: newStatus };
+        // Keep the payment split consistent with the reduced total (refund comes out of cash first)
+        const round2 = (n) => Math.round(n * 100) / 100;
+        if (bill.payment_method === 'CASH') {
+          billUpdatePayload.cash_amount = round2(updatedBillTotal);
+        } else if (bill.payment_method === 'UPI') {
+          billUpdatePayload.upi_amount = round2(updatedBillTotal);
+        } else if (bill.payment_method === 'SPLIT') {
+          const prevCash = Number(bill.cash_amount || 0);
+          const prevUpi = Number(bill.upi_amount || 0);
+          const cashRefund = Math.min(prevCash, refundAmount);
+          billUpdatePayload.cash_amount = round2(prevCash - cashRefund);
+          billUpdatePayload.upi_amount = round2(Math.max(0, prevUpi - (refundAmount - cashRefund)));
+        }
+        let billUpdateQuery = supabase.from('bills').update(billUpdatePayload).eq('id', bill.id);
         if (shopId) {
           billUpdateQuery = billUpdateQuery.eq('shop_id', shopId);
         }
@@ -443,6 +462,7 @@ export default function OwnerLedger({ isActive }) {
       }
 
       // Restore stock for selected items directly to inventory_batches
+      const stockRestoreFailures = [];
       for (const item of itemsToReturn) {
         const qtyToRestore = item.returnQuantity;
         let targetBatchId = item.batch_id;
@@ -456,18 +476,20 @@ export default function OwnerLedger({ isActive }) {
         }
         
         if (targetBatchId) {
-          let bStockQuery = supabase.from('inventory_batches').select('stock_store').eq('batch_id', targetBatchId);
-          if (shopId) {
-            bStockQuery = bStockQuery.eq('shop_id', shopId);
-          }
-          const { data: batch } = await bStockQuery.maybeSingle();
-          if (batch) {
-            const newStock = Number(batch.stock_store || 0) + Number(qtyToRestore);
-            let updateBatch = supabase.from('inventory_batches').update({ stock_store: newStock }).eq('batch_id', targetBatchId);
-            if (shopId) {
-              updateBatch = updateBatch.eq('shop_id', shopId);
-            }
-            await updateBatch;
+          // Atomic increment (compare-and-swap) so a sale on a counter at the same moment isn't lost
+          try {
+            await casUpdateRow({
+              table: 'inventory_batches',
+              match: { batch_id: targetBatchId, shop_id: shopId },
+              columns: ['stock_store'],
+              compute: (cur) => ({
+                update: { stock_store: Number(cur.stock_store || 0) + Number(qtyToRestore) }
+              })
+            });
+          } catch (stockErr) {
+            // Keep processing the remaining items (same as before), but report it instead of failing silently
+            console.error(`Stock restore failed for ${item.name}:`, stockErr);
+            stockRestoreFailures.push(`${item.name} (${qtyToRestore} ${item.unit || ''})`.trim());
           }
         }
 
@@ -508,7 +530,11 @@ export default function OwnerLedger({ isActive }) {
         }
       }
       
-      showAlert(`Successfully returned ${isAll ? 'full bill' : 'selected items'}.`, "Success");
+      if (stockRestoreFailures.length > 0) {
+        showAlert(`Return recorded, but stock could not be added back for: ${stockRestoreFailures.join(', ')}. Please adjust these items' stock manually.`, "Partial Stock Restore");
+      } else {
+        showAlert(`Successfully returned ${isAll ? 'full bill' : 'selected items'}.`, "Success");
+      }
       queryClient.invalidateQueries({ queryKey: ['bills'] });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
@@ -542,6 +568,8 @@ export default function OwnerLedger({ isActive }) {
     } catch (e) {
       console.error(e);
       showAlert(e.message, "Return Failed");
+    } finally {
+      endCriticalWork();
     }
   };
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getPerformedBy } from './utils';
 import { supabase, provisioningClient } from './supabaseClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
@@ -73,7 +74,7 @@ export default function OwnerStaff() {
         barcode: 'STAFF',
         item_name: name.trim(),
         changes: `Created Staff Account: ${name.trim()} (${isBillable ? 'Billable' : 'Non-Billable'})`,
-        performed_by: localStorage.getItem('owner_name') || 'Owner'
+        performed_by: getPerformedBy()
       }]);
     },
     onSuccess: () => {
@@ -101,7 +102,7 @@ export default function OwnerStaff() {
         barcode: 'STAFF',
         item_name: name,
         changes: `Removed Staff Account: ${name}`,
-        performed_by: localStorage.getItem('owner_name') || 'Owner'
+        performed_by: getPerformedBy()
       }]);
     },
     onSuccess: () => {

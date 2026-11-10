@@ -1,0 +1,28 @@
+name: CI
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+jobs:
+  test:
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: lts/*
+        cache: npm
+    - name: Install dependencies
+      run: npm ci
+    - name: Lint (errors fail the build, warnings are reported)
+      run: npm run lint -- --quiet
+    - name: Unit tests
+      run: npm test
+    - name: Production build
+      run: npm run build
+      env:
+        # The build only embeds these; CI never contacts Supabase.
+        VITE_SUPABASE_URL: https://example.invalid
+        VITE_SUPABASE_ANON_KEY: ci-placeholder

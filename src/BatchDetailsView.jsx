@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { getPerformedBy } from './utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
+import { casUpdateRow } from './services/atomicStock';
 import { useApp } from './AppContext';
 import { Spinner, PageLoader } from './SharedUI';
 import { getInventoryItemByBarcode, saveInventoryBatch } from './services/db';
@@ -263,34 +265,39 @@ export default function BatchDetailsView({
             const currentShopId = shopId || localStorage.getItem('shop_id');
             let totalMoved = 0;
             for (const b of strandedBatches) {
-              const whseQty = Number(b.stock_warehouse);
-              let updateB = supabase
-                .from('inventory_batches')
-                .update({
-                  stock_warehouse: 0,
-                  stock_store: Number(b.stock_store || 0) + whseQty
-                })
-                .eq('batch_id', b.batch_id);
-              if (currentShopId) updateB = updateB.eq('shop_id', currentShopId);
-              await updateB;
-              totalMoved += whseQty;
+              // Compare-and-swap against the live row (not the possibly stale cached batch),
+              // so concurrent sales/receipts on other terminals are never overwritten.
+              const res = await casUpdateRow({
+                table: 'inventory_batches',
+                match: { batch_id: b.batch_id, shop_id: currentShopId },
+                columns: ['stock_warehouse', 'stock_store'],
+                compute: (cur) => {
+                  const whseQty = Number(cur.stock_warehouse || 0);
+                  if (!(whseQty > 0)) return null;
+                  return {
+                    update: {
+                      stock_warehouse: 0,
+                      stock_store: Number(cur.stock_store || 0) + whseQty
+                    },
+                    result: whseQty
+                  };
+                }
+              });
+              if (res.applied) totalMoved += Number(res.result || 0);
             }
 
             if (totalMoved > 0) {
-              let pQ = supabase.from('product_master').select('stock_warehouse, stock_store').eq('barcode', item.barcode);
-              if (currentShopId) pQ = pQ.eq('shop_id', currentShopId);
-              const { data: pData } = await pQ.maybeSingle();
-              if (pData) {
-                let updateP = supabase
-                  .from('product_master')
-                  .update({
-                    stock_warehouse: Math.max(0, Number(pData.stock_warehouse || 0) - totalMoved),
-                    stock_store: Number(pData.stock_store || 0) + totalMoved
-                  })
-                  .eq('barcode', item.barcode);
-                if (currentShopId) updateP = updateP.eq('shop_id', currentShopId);
-                await updateP;
-              }
+              await casUpdateRow({
+                table: 'product_master',
+                match: { barcode: item.barcode, shop_id: currentShopId },
+                columns: ['stock_warehouse', 'stock_store'],
+                compute: (cur) => ({
+                  update: {
+                    stock_warehouse: Math.max(0, Number(cur.stock_warehouse || 0) - totalMoved),
+                    stock_store: Number(cur.stock_store || 0) + totalMoved
+                  }
+                })
+              });
 
               // Also update local IDB cache immediately so offline & instant views sync
               try {
@@ -397,7 +404,7 @@ export default function BatchDetailsView({
           barcode: item.barcode,
           item_name: item.name,
           changes: `Updated Batch ${oldBatch?.batch_number || 1}: ${changes.join(', ')}`,
-          performed_by: localStorage.getItem('owner_name') || 'Owner'
+          performed_by: getPerformedBy()
         }]);
       }
     },
@@ -468,7 +475,7 @@ export default function BatchDetailsView({
         barcode: item.barcode,
         item_name: item.name,
         changes: `Description: ${item.description || 'None'} -> ${cleanDesc || 'None'}`,
-        performed_by: localStorage.getItem('owner_name') || 'Owner'
+        performed_by: getPerformedBy()
       }]);
     },
     onSuccess: async (_, newDesc) => {
@@ -527,7 +534,7 @@ export default function BatchDetailsView({
           barcode: item.barcode,
           item_name: item.name,
           changes: `Updated Min Stock Thresholds: ${changes.join(', ')}`,
-          performed_by: localStorage.getItem('owner_name') || 'Owner'
+          performed_by: getPerformedBy()
         }]);
       }
 
@@ -585,7 +592,7 @@ export default function BatchDetailsView({
             barcode: item.barcode,
             item_name: trimmed,
             changes: `Renamed product from "${item.name}" to "${trimmed}"`,
-            performed_by: localStorage.getItem('owner_name') || 'Owner'
+            performed_by: getPerformedBy()
           }]);
         } catch (err) {
           console.warn('Failed to record rename audit log:', err);
@@ -663,7 +670,7 @@ export default function BatchDetailsView({
         barcode: item.barcode,
         item_name: item.name,
         changes: `Deleted Batch #${oldBatch?.batch_number || 1}${removedStock > 0 ? ` (removed ${removedStock} ${displayUnit} stock)` : ''}`,
-        performed_by: localStorage.getItem('owner_name') || 'Owner'
+        performed_by: getPerformedBy()
       }]);
 
       // 2. Immediately update local IndexedDB cache

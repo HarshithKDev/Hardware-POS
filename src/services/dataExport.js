@@ -1,6 +1,20 @@
 import { supabase } from '../supabaseClient';
 import { formatDateTime } from '../utils';
 
+// Supabase returns at most 1000 rows per request by default, so large tables were
+// silently cut off in exports. Page through until a short page is returned.
+const EXPORT_PAGE_SIZE = 1000;
+async function fetchAllRows(buildQuery) {
+  const rows = [];
+  for (let from = 0; ; from += EXPORT_PAGE_SIZE) {
+    const { data, error } = await buildQuery().range(from, from + EXPORT_PAGE_SIZE - 1);
+    if (error) return { data: from === 0 ? null : rows, error };
+    if (data) rows.push(...data);
+    if (!data || data.length < EXPORT_PAGE_SIZE) break;
+  }
+  return { data: rows, error: null };
+}
+
 /**
  * Applies header styling with custom background color, bold text, borders, and center alignment.
  */
@@ -123,21 +137,26 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   // Step 1: Query All Tables from Remote Supabase
   // -------------------------------------------------------------
   onProgress?.('Fetching inventory items...');
-  let prodQuery = supabase.from('product_master').select('*').order('name');
-  if (shopId) prodQuery = prodQuery.eq('shop_id', shopId);
-  const { data: products = [] } = await prodQuery;
+  const { data: products = [] } = await fetchAllRows(() => {
+    let q = supabase.from('product_master').select('*').order('name').order('barcode');
+    if (shopId) q = q.eq('shop_id', shopId);
+    return q;
+  });
   const productMap = new Map((products || []).map(p => [p.barcode, p]));
 
   onProgress?.('Fetching inventory batches...');
   let batches = [];
   try {
-    let batchQuery = supabase.from('inventory_batches').select('*');
-    if (shopId) batchQuery = batchQuery.eq('shop_id', shopId);
-    const { data: bData, error: bErr } = await batchQuery;
+    const { data: bData, error: bErr } = await fetchAllRows(() => {
+      let q = supabase.from('inventory_batches').select('*').order('batch_id');
+      if (shopId) q = q.eq('shop_id', shopId);
+      return q;
+    });
     if (bErr) {
       console.warn('Batch fetch note, retrying without filter:', bErr.message);
-      const { data: allBatches } = await supabase.from('inventory_batches').select('*');
-      if (allBatches) batches = allBatches;
+      const { data: allBatches } = await fetchAllRows(() => supabase.from('inventory_batches').select('*').order('batch_id'));
+      // Never mix in other shops' batches (barcodes like 1001 repeat across shops)
+      if (allBatches) batches = allBatches.filter(b => !shopId || !b.shop_id || b.shop_id === shopId);
     } else if (bData) {
       batches = bData;
     }
@@ -154,27 +173,30 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   });
 
   onProgress?.('Fetching sales transactions...');
-  let billsQuery = supabase.from('bills').select('*').order('created_at', { ascending: false });
-  if (shopId) billsQuery = billsQuery.eq('shop_id', shopId);
-  const { data: bills = [] } = await billsQuery;
+  const { data: bills = [] } = await fetchAllRows(() => {
+    let q = supabase.from('bills').select('*').order('created_at', { ascending: false }).order('id');
+    if (shopId) q = q.eq('shop_id', shopId);
+    return q;
+  });
   const billMap = new Map((bills || []).map(b => [b.id, b]));
 
   onProgress?.('Fetching bill item details...');
   let billItems = [];
   try {
-    let billItemsQuery = supabase.from('bill_items').select('*');
-    if (shopId) billItemsQuery = billItemsQuery.eq('shop_id', shopId);
-    const { data: biData, error: biErr } = await billItemsQuery;
+    const { data: biData, error: biErr } = await fetchAllRows(() => {
+      let q = supabase.from('bill_items').select('*').order('id');
+      if (shopId) q = q.eq('shop_id', shopId);
+      return q;
+    });
     if (biErr) {
       console.warn('bill_items query note:', biErr.message);
-      const { data: allBi } = await supabase.from('bill_items').select('*');
-      if (allBi) {
-        if (bills && bills.length > 0) {
-          const billIdSet = new Set(bills.map(b => b.id));
-          billItems = allBi.filter(it => billIdSet.has(it.bill_id));
-        } else {
-          billItems = allBi;
-        }
+      // Fallback: fetch items for THIS shop's bills only (never all shops' items)
+      const billIds = (bills || []).map(b => b.id);
+      for (let i = 0; i < billIds.length; i += 200) {
+        const { data: chunk } = await fetchAllRows(() =>
+          supabase.from('bill_items').select('*').in('bill_id', billIds.slice(i, i + 200)).order('id')
+        );
+        if (chunk) billItems.push(...chunk);
       }
     } else if (biData) {
       billItems = biData;
@@ -233,8 +255,9 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   onProgress?.('Fetching expenses...');
   let expenses = [];
   try {
-    let expQuery = supabase.from('expenses').select('*').order('created_at', { ascending: false });
-    const { data: remoteExp } = await expQuery;
+    const { data: remoteExp } = await fetchAllRows(() =>
+      supabase.from('expenses').select('*').order('created_at', { ascending: false })
+    );
     if (remoteExp) {
       expenses = shopId ? remoteExp.filter(e => e.notes === `shop:${shopId}` || !e.notes) : remoteExp;
     }
@@ -1327,7 +1350,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   onProgress?.('Generating Excel file & preparing download...');
   const buffer = await workbook.xlsx.writeBuffer();
   const safeName = (shopSettings?.shop_name || 'Hardware_POS').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const dateStr = new Date().toISOString().slice(0, 10);
+  const dateStr = new Date().toLocaleDateString('en-CA'); // local date (UTC date was 'tomorrow' after 18:30 IST)
   const fileName = `${safeName}_Full_Business_Backup_${dateStr}.xlsx`;
 
   saveAs(

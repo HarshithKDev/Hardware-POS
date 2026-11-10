@@ -130,45 +130,27 @@ describe('Complete Data Export Service', () => {
       }
     ];
 
+    // Flexible chainable fake: any filter/order/range call returns the builder,
+    // and awaiting it resolves to the table's rows.
+    const tableData = {
+      product_master: mockProducts,
+      bills: mockBills,
+      bill_items: mockBillItems,
+      expenses: mockExpenses,
+      categories: mockCategories,
+      subcategories: mockSubcategories,
+      workers: mockWorkers,
+      inventory_batches: mockBatches,
+      audit_logs: mockAuditLogs,
+    };
     mockFrom.mockImplementation((table) => {
-      const selectBuilder = {
-        order: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        limit: vi.fn().mockReturnThis()
-      };
-
-      if (table === 'product_master') {
-        selectBuilder.eq = vi.fn().mockResolvedValue({ data: mockProducts, error: null });
-        selectBuilder.order = vi.fn().mockReturnValue({ eq: selectBuilder.eq });
-      } else if (table === 'bills') {
-        selectBuilder.eq = vi.fn().mockResolvedValue({ data: mockBills, error: null });
-        selectBuilder.order = vi.fn().mockReturnValue({ eq: selectBuilder.eq });
-      } else if (table === 'bill_items') {
-        selectBuilder.eq = vi.fn().mockResolvedValue({ data: mockBillItems, error: null });
-        selectBuilder.order = vi.fn().mockReturnValue({ eq: selectBuilder.eq });
-      } else if (table === 'expenses') {
-        selectBuilder.order = vi.fn().mockResolvedValue({ data: mockExpenses, error: null });
-      } else if (table === 'categories') {
-        selectBuilder.eq = vi.fn().mockResolvedValue({ data: mockCategories, error: null });
-        selectBuilder.order = vi.fn().mockReturnValue({ eq: selectBuilder.eq });
-      } else if (table === 'subcategories') {
-        selectBuilder.eq = vi.fn().mockResolvedValue({ data: mockSubcategories, error: null });
-        selectBuilder.order = vi.fn().mockReturnValue({ eq: selectBuilder.eq });
-      } else if (table === 'workers') {
-        selectBuilder.eq = vi.fn().mockResolvedValue({ data: mockWorkers, error: null });
-        selectBuilder.order = vi.fn().mockReturnValue({ eq: selectBuilder.eq });
-      } else if (table === 'inventory_batches') {
-        selectBuilder.eq = vi.fn().mockResolvedValue({ data: mockBatches, error: null });
-        selectBuilder.order = vi.fn().mockReturnValue({ eq: selectBuilder.eq });
-      } else if (table === 'audit_logs') {
-        selectBuilder.eq = vi.fn().mockResolvedValue({ data: mockAuditLogs, error: null });
-        selectBuilder.limit = vi.fn().mockReturnValue({ eq: selectBuilder.eq });
-        selectBuilder.order = vi.fn().mockReturnValue({ limit: selectBuilder.limit });
-      }
-
-      return {
-        select: vi.fn().mockReturnValue(selectBuilder)
-      };
+      const result = { data: tableData[table] || [], error: null };
+      const builder = {};
+      ['select', 'order', 'eq', 'limit', 'range', 'in', 'gte', 'lte'].forEach((m) => {
+        builder[m] = vi.fn().mockReturnValue(builder);
+      });
+      builder.then = (resolve, reject) => Promise.resolve(result).then(resolve, reject);
+      return builder;
     });
 
     const progressSteps = [];

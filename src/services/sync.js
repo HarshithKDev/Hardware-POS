@@ -8,8 +8,12 @@ import {
   markTransactionFailed,
   deleteOrphanedInventory,
   getLocalInventoryCount,
-  deleteInventoryItemByBarcode
+  deleteInventoryItemByBarcode,
+  markTransactionSubmitting
 } from './db';
+import { finalizeBillMetadata, flushPendingBillPatches } from './billFinalize';
+import { beginCriticalWork } from './busyGuard';
+import { routeReceivedStockToStore } from './atomicStock';
 
 const PAGE_SIZE = 500;
 const BATCH_CHUNK_SIZE = 200;
@@ -23,8 +27,51 @@ const CLOCK_SKEW_BUFFER_MS = 30000; // 30-second safety margin for clock drift /
  * @param {string} userRole - 'owner' or 'worker'
  * @param {object} options - { forceFull: boolean }
  */
-export const syncInventoryToLocal = async (userRole = 'worker', options = {}) => {
+const FULL_SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000; // safety net: full refresh every 6 hours
+
+// Only one inventory sync runs at a time. Calls made while one is running are merged into a
+// single follow-up run (previously every realtime event started its own parallel sync).
+let activeSync = null;
+let queuedSync = null;
+
+export const syncInventoryToLocal = (userRole = 'worker', options = {}) => {
+  if (!activeSync) {
+    activeSync = runInventorySync(userRole, options).finally(() => { activeSync = null; });
+    return activeSync;
+  }
+  if (!queuedSync) {
+    const q = { userRole, forceFull: Boolean(options.forceFull) };
+    q.promise = activeSync.catch(() => {}).then(() => {
+      queuedSync = null;
+      return syncInventoryToLocal(q.userRole, { forceFull: q.forceFull });
+    });
+    queuedSync = q;
+  } else {
+    queuedSync.userRole = userRole;
+    if (options.forceFull) queuedSync.forceFull = true;
+  }
+  return queuedSync.promise;
+};
+
+// Debounced sync for bursty triggers (realtime DB events, peer-terminal broadcasts).
+let debouncedSyncTimer = null;
+export const requestInventorySync = (userRole, delayMs = 1500) => {
+  if (debouncedSyncTimer) clearTimeout(debouncedSyncTimer);
+  debouncedSyncTimer = setTimeout(async () => {
+    debouncedSyncTimer = null;
+    try {
+      await syncInventoryToLocal(userRole || currentRole);
+    } catch (e) {
+      console.warn('[Sync] Debounced sync warning:', e?.message);
+    }
+  }, delayMs);
+};
+
+const runInventorySync = async (userRole = 'worker', options = {}) => {
   const { forceFull = false } = options;
+  // Use the time the sync STARTED as the next watermark: anything changed while a long
+  // (full) sync was downloading is then picked up by the next delta sync.
+  const syncStartedAt = new Date().toISOString();
   const currentShopId = localStorage.getItem('shop_id');
   const isOwner = userRole === 'owner';
   const tableName = isOwner ? 'product_master' : 'product_master_public';
@@ -51,11 +98,14 @@ export const syncInventoryToLocal = async (userRole = 'worker', options = {}) =>
     // - Owner has already synced full cost fields (or worker role)
     // - A valid previous last_sync timestamp exists
     // - Local IndexedDB already contains products
-    const isDelta = !forceFull && !needsCostBackfill && Boolean(prevStatus?.last_sync) && localCount > 0;
+    const fullSyncDue = !prevStatus?.last_full_sync
+      || (Date.now() - Date.parse(prevStatus.last_full_sync)) > FULL_SYNC_INTERVAL_MS;
+    const isDelta = !forceFull && !needsCostBackfill && !fullSyncDue && Boolean(prevStatus?.last_sync) && localCount > 0;
 
     await setSyncStatus(syncKey, { 
       status: 'syncing', 
       last_sync: prevStatus?.last_sync || null,
+      last_full_sync: prevStatus?.last_full_sync || null,
       mode: isDelta ? 'delta' : 'full',
       synced_with_cost: Boolean(prevStatus?.synced_with_cost)
     });
@@ -88,7 +138,8 @@ export const syncInventoryToLocal = async (userRole = 'worker', options = {}) =>
     const completedAt = new Date().toISOString();
     await setSyncStatus(syncKey, { 
       status: 'idle', 
-      last_sync: completedAt,
+      last_sync: syncStartedAt,
+      last_full_sync: isDelta ? (prevStatus?.last_full_sync || null) : syncStartedAt,
       last_mode: isDelta ? 'delta' : 'full',
       synced_with_cost: isOwner ? (usedCostTables || Boolean(prevStatus?.synced_with_cost)) : false,
       error: null 
@@ -106,6 +157,7 @@ export const syncInventoryToLocal = async (userRole = 'worker', options = {}) =>
       status: 'error', 
       error: err.message, 
       last_sync: prevStatus?.last_sync || null,
+      last_full_sync: prevStatus?.last_full_sync || null,
       synced_with_cost: Boolean(prevStatus?.synced_with_cost)
     });
   }
@@ -324,112 +376,199 @@ async function performFullSync({ tableName, userRole, currentShopId }) {
   return { usedCostTables };
 }
 
-export const flushOfflineQueue = async (userRole = 'worker') => {
-  try {
-    const currentShopId = localStorage.getItem('shop_id');
-    const tableName = 'product_master_public';
-    let pingQuery = supabase.from(tableName).select('barcode');
-    if (currentShopId) {
-      pingQuery = pingQuery.eq('shop_id', currentShopId);
+// Only one flush may run at a time. Without this, startup + 60s interval + focus +
+// "online" events could all flush the same queued sale concurrently → duplicate bills.
+let flushInFlight = null;
+const FLUSH_LOCK_NAME = 'hardware-pos-offline-queue-flush';
+
+const UNCERTAIN_SYNC_MESSAGE =
+  'Sync was interrupted while sending this sale, so it may already be recorded. ' +
+  'Check the Sales ledger for this sale before pressing Retry, otherwise it could be billed twice.';
+
+export const flushOfflineQueue = (userRole = 'worker') => {
+  if (flushInFlight) return flushInFlight;
+  flushInFlight = (async () => {
+    const endCriticalWork = beginCriticalWork(); // holds back app auto-update reloads
+    try {
+      // Cross-tab lock: if another tab/window of the POS is already flushing, skip this round.
+      let reachable = true;
+      if (typeof navigator !== 'undefined' && navigator.locks?.request) {
+        await navigator.locks.request(FLUSH_LOCK_NAME, { ifAvailable: true }, async (lock) => {
+          if (!lock) return; // another tab is flushing right now
+          reachable = await flushOfflineQueueUnlocked();
+        });
+      } else {
+        reachable = await flushOfflineQueueUnlocked();
+      }
+      if (!reachable) return; // Offline, skip inventory sync (same as before)
+      // Trigger consolidated delta sync after flushing queue
+      await syncInventoryToLocal(userRole);
+    } catch (err) {
+      console.error('Failed to flush offline queue:', err);
+    } finally {
+      endCriticalWork();
+      flushInFlight = null;
     }
-    const { error: pingError } = await pingQuery.limit(1);
-    if (pingError) return; // Offline, abort flush
+  })();
+  return flushInFlight;
+};
 
-    let queue = await getOfflineQueue(currentShopId);
-    if (queue && queue.length > 0) {
-      queue = queue.filter(tx => tx.status !== 'failed');
-      if (queue.length > 0) {
-        console.log(`Attempting to flush ${queue.length} offline transactions...`);
-        window.dispatchEvent(new CustomEvent('queue_sync_start', { detail: { count: queue.length } }));
+// A sale that fails to sync used to be visible only on the device that made it. Also
+// record it in the shop's audit log so the owner sees it from any device. Best effort.
+async function reportFailedSync(tx, message) {
+  try {
+    const itemCount = Array.isArray(tx.p_items) ? tx.p_items.length : 0;
+    const amount = Number(tx.p_cash_amount || 0) + Number(tx.p_upi_amount || 0);
+    await supabase.from('audit_logs').insert([{
+      shop_id: tx.shop_id || localStorage.getItem('shop_id'),
+      action_type: 'SYNC_FAILED',
+      barcode: null,
+      item_name: `Offline ${String(tx.p_action || 'SALE').toLowerCase()} (${itemCount} item${itemCount === 1 ? '' : 's'}${amount > 0 ? `, Rs.${amount.toFixed(2)}` : ''})`,
+      changes: `Queued ${tx.queued_at || ''} on another device could not be synced: ${message}. Check Failed Syncs on that device.`,
+      performed_by: tx.p_cashier_name || 'System'
+    }]);
+  } catch (e) {
+    console.warn('[Sync] Could not record failed sync in audit log:', e?.message);
+  }
+}
 
-        for (const tx of queue) {
+async function flushOfflineQueueUnlocked() {
+  const currentShopId = localStorage.getItem('shop_id');
+  const tableName = 'product_master_public';
+  let pingQuery = supabase.from(tableName).select('barcode');
+  if (currentShopId) {
+    pingQuery = pingQuery.eq('shop_id', currentShopId);
+  }
+  const { error: pingError } = await pingQuery.limit(1);
+  if (pingError) return false; // Offline, abort flush
+
+  // Retry any bill payment-details updates that failed earlier
+  try {
+    await flushPendingBillPatches();
+  } catch (e) {
+    console.warn('[Sync] Pending bill patch flush warning:', e?.message);
+  }
+
+  const queue = (await getOfflineQueue(currentShopId)) || [];
+
+  // A sale left in "submitting" means a previous flush was cut off mid-request
+  // (tab closed, crash, reload). We can't know if the server recorded it, so do NOT
+  // auto-resend; hand it to the owner via the Failed Syncs list instead.
+  for (const tx of queue.filter(t => t.status === 'submitting')) {
+    await markTransactionFailed(tx.id, UNCERTAIN_SYNC_MESSAGE);
+    await reportFailedSync(tx, 'sync was interrupted; may already be recorded');
+  }
+
+  const pending = queue.filter(tx => !tx.status || tx.status === 'pending');
+  if (pending.length === 0) return true;
+
+  console.log(`Attempting to flush ${pending.length} offline transactions...`);
+  window.dispatchEvent(new CustomEvent('queue_sync_start', { detail: { count: pending.length } }));
+
+  try {
+    for (const tx of pending) {
+      // Claim it; if its state changed since we read the queue, skip it.
+      const claimed = await markTransactionSubmitting(tx.id);
+      if (!claimed) continue;
+
+      try {
+        const rpcPayload = {
+          p_action: tx.p_action,
+          p_location: tx.p_location,
+          p_cashier_name: tx.p_cashier_name,
+          p_items: tx.p_items
+        };
+
+        // Use process_pos_transaction_unsafe matching WorkerTerminal checkout, with graceful fallback
+        let rpcResult = await supabase.rpc('process_pos_transaction_unsafe', rpcPayload);
+        if (rpcResult.error && rpcResult.error.message?.includes('process_pos_transaction_unsafe') && rpcResult.error.message?.includes('does not exist')) {
+          rpcResult = await supabase.rpc('process_pos_transaction', rpcPayload);
+        }
+
+        const { data, error } = rpcResult;
+
+        if (error) {
+          console.error(`Failed to sync transaction ${tx.id}:`, error);
+          const isNetwork = /fetch|network|timeout/i.test(error.message || '');
+          await markTransactionFailed(tx.id, isNetwork ? `${UNCERTAIN_SYNC_MESSAGE} (${error.message})` : error.message);
+          await reportFailedSync(tx, error.message);
+          continue;
+        }
+
+        // The sale is recorded on the server: remove it from the queue FIRST so nothing can resend it.
+        await deleteOfflineTransaction(tx.id);
+        console.log(`Successfully synced offline transaction ${tx.id}`);
+
+        // Receipts queued while the warehouse was disabled (location 'Store') must end up in
+        // store stock, exactly like a live receipt does.
+        if (tx.p_action === 'RECEIVE' && tx.p_location === 'Store') {
           try {
-            const rpcPayload = {
-              p_action: tx.p_action,
-              p_location: tx.p_location,
-              p_cashier_name: tx.p_cashier_name,
-              p_items: tx.p_items
-            };
-
-            // Use process_pos_transaction_unsafe matching WorkerTerminal checkout, with graceful fallback
-            let rpcResult = await supabase.rpc('process_pos_transaction_unsafe', rpcPayload);
-            if (rpcResult.error && rpcResult.error.message?.includes('process_pos_transaction_unsafe') && rpcResult.error.message?.includes('does not exist')) {
-              rpcResult = await supabase.rpc('process_pos_transaction', rpcPayload);
-            }
-
-            const { data, error } = rpcResult;
-            
-            if (error) {
-              console.error(`Failed to sync transaction ${tx.id}:`, error);
-              await markTransactionFailed(tx.id, error.message);
-            } else {
-              // Persist payment breakdown, customer data, and showroom status to the created bill
-              if (data?.bill_id) {
-                try {
-                  const shopId = tx.shop_id || currentShopId || localStorage.getItem('shop_id');
-                  const updatePayload = {
-                    payment_method: tx.p_payment_method,
-                    cash_amount: tx.p_cash_amount,
-                    upi_amount: tx.p_upi_amount
-                  };
-                  if (shopId) {
-                    updatePayload.shop_id = shopId;
-                  }
-                  if (tx.p_customer_name || tx.p_customer_phone) {
-                    updatePayload.customer_name = tx.p_customer_name;
-                    updatePayload.customer_phone = tx.p_customer_phone;
-                  }
-                  if (tx.p_payment_method === 'SHOWROOM') {
-                    updatePayload.status = 'showroom_pending';
-                  }
-                  await supabase.from('bills').update(updatePayload).eq('id', data.bill_id);
-
-                  if (tx.screw_item) {
-                    const scPrice = Number(tx.screw_item.customPriceInput || tx.screw_item.price || 0);
-                    try {
-                      const { error: biErr } = await supabase.from('bill_items').insert({
-                        bill_id: data.bill_id,
-                        shop_id: shopId || null,
-                        barcode: 'SCREWS',
-                        name: 'Screws',
-                        quantity: 1,
-                        billable_quantity: 1,
-                        actual_quantity: 1,
-                        price_at_sale: scPrice,
-                        system_price: scPrice,
-                        profit: scPrice,
-                        unit: 'SET'
-                      });
-                      if (biErr) {
-                        console.warn("Could not insert screws into bill_items during offline queue flush:", biErr);
-                      }
-                    } catch (biErr) {
-                      console.warn("Could not insert screws into bill_items during offline queue flush:", biErr);
-                    }
-                  }
-                } catch (billUpdateErr) {
-                  console.warn("Could not save additional bill metadata during offline queue flush:", billUpdateErr);
-                }
-              }
-
-              await deleteOfflineTransaction(tx.id);
-              console.log(`Successfully synced offline transaction ${tx.id}`);
-            }
-          } catch (e) {
-            console.error('Exception while flushing transaction:', e);
-            await markTransactionFailed(tx.id, e.message || 'Unknown exception');
+            await routeReceivedStockToStore({
+              shopId: tx.shop_id || currentShopId,
+              entries: (tx.p_items || []).map(i => ({
+                barcode: i.barcode,
+                batch_id: i.batch_id,
+                qty: Number(i.actual_quantity)
+              }))
+            });
+          } catch (routeErr) {
+            console.warn('Auto-route of synced receipt to store failed:', routeErr);
           }
         }
-        window.dispatchEvent(new CustomEvent('queue_sync_end'));
+
+        // Persist payment breakdown, customer data, and showroom status to the created bill
+        if (data?.bill_id) {
+          const shopId = tx.shop_id || currentShopId || localStorage.getItem('shop_id');
+          const updatePayload = {
+            payment_method: tx.p_payment_method,
+            cash_amount: tx.p_cash_amount,
+            upi_amount: tx.p_upi_amount
+          };
+          if (shopId) {
+            updatePayload.shop_id = shopId;
+          }
+          if (tx.p_customer_name || tx.p_customer_phone) {
+            updatePayload.customer_name = tx.p_customer_name;
+            updatePayload.customer_phone = tx.p_customer_phone;
+          }
+          if (tx.p_payment_method === 'SHOWROOM') {
+            updatePayload.status = 'showroom_pending';
+          }
+
+          let screwRow = null;
+          if (tx.screw_item) {
+            const scPrice = Number(tx.screw_item.customPriceInput || tx.screw_item.price || 0);
+            screwRow = {
+              bill_id: data.bill_id,
+              shop_id: shopId || null,
+              barcode: 'SCREWS',
+              name: 'Screws',
+              quantity: 1,
+              billable_quantity: 1,
+              actual_quantity: 1,
+              price_at_sale: scPrice,
+              system_price: scPrice,
+              profit: scPrice,
+              unit: 'SET'
+            };
+          }
+
+          const res = await finalizeBillMetadata({ billId: data.bill_id, updatePayload, screwRow });
+          if (!res.ok) {
+            console.warn(`Payment details for synced bill ${data.bill_id} queued for retry:`, res.error);
+          }
+        }
+      } catch (e) {
+        console.error('Exception while flushing transaction:', e);
+        await markTransactionFailed(tx.id, `${UNCERTAIN_SYNC_MESSAGE} (${e.message || 'Unknown exception'})`);
+        await reportFailedSync(tx, e.message || 'Unknown exception');
       }
     }
-    
-    // Trigger consolidated delta sync after flushing queue
-    await syncInventoryToLocal(userRole);
-  } catch (err) {
-    console.error('Failed to flush offline queue:', err);
+  } finally {
+    window.dispatchEvent(new CustomEvent('queue_sync_end'));
   }
-};
+  return true;
+}
 
 let syncInterval = null;
 let currentRole = 'worker';
@@ -475,8 +614,7 @@ export const startRealtimeSync = (userRole = 'worker') => {
           await reconcileDeletedItems(userRole);
           window.dispatchEvent(new CustomEvent('inventory_sync_complete', { detail: { event: 'DELETE', barcode: deletedBarcode } }));
         } else {
-          await syncInventoryToLocal(userRole);
-          window.dispatchEvent(new CustomEvent('inventory_sync_complete', { detail: { event: payload.eventType } }));
+          requestInventorySync(userRole);
         }
       }
     )
@@ -485,8 +623,7 @@ export const startRealtimeSync = (userRole = 'worker') => {
       { event: '*', schema: 'public', table: 'inventory_batches' },
       async (payload) => {
         console.log('[RealtimeSync] inventory_batches change detected:', payload.eventType);
-        await syncInventoryToLocal(userRole);
-        window.dispatchEvent(new CustomEvent('inventory_sync_complete', { detail: { event: payload.eventType } }));
+        requestInventorySync(userRole);
       }
     )
     .subscribe();

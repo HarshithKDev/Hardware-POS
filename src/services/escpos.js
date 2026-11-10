@@ -236,6 +236,11 @@ export function buildEscPosReceipt(receiptData, shopSettings = {}, options = {})
   const unitsStr = `Total Items: ${items.length} (${totalUnits} units)`;
   addText(`${unitsStr}\n`);
 
+  const roundOff = Number(receiptData?.roundOff || 0);
+  if (roundOff !== 0) {
+    addText(`Round Off: ${roundOff > 0 ? '+' : '-'}Rs.${Math.abs(roundOff).toFixed(2)}\n`);
+  }
+
   // Grand Total (Bold, Double height)
   addBytes(0x1B, 0x45, 0x01); // Bold ON
   addBytes(0x1D, 0x21, 0x01); // Double height

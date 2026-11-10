@@ -835,7 +835,7 @@ describe('WorkerScanner Integration', () => {
           ])
         })
       );
-    });
+    }, { timeout: 5000 }); // default 1s is too tight when the full suite runs in parallel
   });
 });
 

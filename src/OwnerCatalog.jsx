@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { getPerformedBy } from './utils';
 import { supabase } from './supabaseClient';
 import { syncInventoryToLocal } from './services/sync';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -207,7 +208,7 @@ export default function OwnerCatalog() {
           action_type: 'CREATE',
           barcode: savedItem.barcode,
           item_name: savedItem.name,
-          performed_by: localStorage.getItem('owner_name') || 'Owner',
+          performed_by: getPerformedBy(),
           changes: `Item: ${savedItem.name}${savedItem.description ? ` | Description: ${savedItem.description}` : ''} | Category: ${savedItem.category || 'N/A'} | Sub-Category: ${savedItem.sub_category || 'N/A'} | Type: ${savedItem.is_cuttable ? 'Cuttable' : (savedItem.is_loose_item ? 'Loose' : 'Standard')}`
         }]);
       } catch (err) {
@@ -519,7 +520,7 @@ export default function OwnerCatalog() {
           barcode: item.barcode,
           item_name: item.name,
           changes: `Bulk Imported CSV Item: ${item.name} | Category: ${item.category || 'N/A'} | Type: ${item.is_cuttable ? 'Cuttable' : (item.is_loose_item ? 'Loose' : 'Standard')}`,
-          performed_by: localStorage.getItem('owner_name') || 'Owner'
+          performed_by: getPerformedBy()
         }));
         await supabase.from('audit_logs').insert(auditLogs);
       } catch (err) {

@@ -55,7 +55,27 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
     enabled: userRole !== 'owner' && !!cashierName,
   });
 
-  const isBillable = userRole === 'owner' || !workerData?.password?.includes('NON_BILLABLE');
+  // Remember the last known billing permission so a non-billable worker doesn't get the
+  // checkout while permissions are loading or unavailable (e.g. offline). Workers we have
+  // never seen keep the previous default (billable) so offline cashiers are not blocked.
+  const billableCacheKey = `pos_worker_billable_${shopId || 'default'}_${cashierName}`;
+  useEffect(() => {
+    if (userRole === 'owner' || !workerData) return;
+    try {
+      localStorage.setItem(billableCacheKey, String(!workerData.password?.includes('NON_BILLABLE')));
+    } catch (e) { /* storage full / unavailable */ }
+  }, [workerData, billableCacheKey, userRole]);
+
+  let isBillable;
+  if (userRole === 'owner') {
+    isBillable = true;
+  } else if (workerData) {
+    isBillable = !workerData.password?.includes('NON_BILLABLE');
+  } else {
+    let cached = null;
+    try { cached = localStorage.getItem(billableCacheKey); } catch (e) { /* ignore */ }
+    isBillable = cached !== 'false';
+  }
 
   if (isLoading) {
     return (

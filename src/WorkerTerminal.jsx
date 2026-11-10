@@ -8,6 +8,10 @@ import { useCart } from './contexts/CartContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { getInventoryItemByBarcode, queueOfflineTransaction, getInventoryByQuery, saveInventoryBatch } from './services/db';
 import { syncInventoryToLocal } from './services/sync';
+import { finalizeBillMetadata } from './services/billFinalize';
+import { routeReceivedStockToStore } from './services/atomicStock';
+import { beginCriticalWork } from './services/busyGuard';
+import { isNetworkishError } from './services/roleGuard';
 import { useApp } from './AppContext';
 import { generateId, formatDateTime, calculateMSP } from './utils';
 import { SCAN_TIMEOUT_MS } from './constants';
@@ -99,6 +103,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const [manualBarcode, setManualBarcode] = useState('');
   const [isMobileScannerOpen, setIsMobileScannerOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  // Synchronous guard: React state updates are async, so a fast double-click/Enter could start two sales
+  const checkoutInFlightRef = useRef(false);
   const [lastReceipt, setLastReceipt] = useState(null);
   const [checkoutModal, setCheckoutModal] = useState({ isOpen: false, cashGiven: '', negotiatedTotal: '', paymentMethod: 'CASH', splitUpi: '', splitCash: '', customerName: '', customerPhone: '', error: '' });
   const [screwsModal, setScrewsModal] = useState({ isOpen: false, price: '' });
@@ -1329,7 +1335,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   }, [cart, showAlert, setCart, calculateTotal]);
 
   const handleCompleteTransaction = async () => {
-    if (isCheckingOut) return;
+    if (isCheckingOut || checkoutInFlightRef.current) return;
     let finalCart = cart.filter(i => Number(i.quantity) > 0);
     if (finalCart.length === 0) return;
 
@@ -1373,6 +1379,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         const splitTotalCents = Math.round(Number(checkoutModal.splitCash) * 100) + Math.round(Number(checkoutModal.splitUpi) * 100);
         if (splitTotalCents < activeTotalCents) {
           setCheckoutModal(prev => ({ ...prev, error: "Split payment amounts must equal or exceed the total due." }));
+          return;
+        }
+        if (Math.round(Number(checkoutModal.splitUpi) * 100) > activeTotalCents) {
+          setCheckoutModal(prev => ({ ...prev, error: "UPI amount cannot be more than the total due." }));
           return;
         }
       }
@@ -1452,6 +1462,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       }
     }
 
+    checkoutInFlightRef.current = true;
+    const endCriticalWork = beginCriticalWork(); // holds back app auto-update reloads
     setIsCheckingOut(true);
     try {
       if ((activeTab === 'checkout' || activeTab === 'transfer') && navigator.onLine) {
@@ -1571,7 +1583,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           
           let activeDiscountableItems = [...originalDiscountableItems];
           let loopSafety = 0;
-          while (totalDiscountToGive > 0.005 && activeDiscountableItems.length > 0 && loopSafety < 10) {
+          while (totalDiscountToGive > 0.005 && activeDiscountableItems.length > 0 && loopSafety < 100) {
             loopSafety++;
             const currentTotalDiscountable = activeDiscountableItems.reduce((sum, i) => sum + (i.maxDiscountableTotal - i.allocatedDiscount), 0);
             let iterationDiscountToGive = totalDiscountToGive;
@@ -1624,8 +1636,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         } else if (paymentMethod === 'UPI') {
           upiAmount = totalForPayment;
         } else if (paymentMethod === 'SPLIT') {
-          cashAmount = Math.round(Number(checkoutModal.splitCash || 0) * 100) / 100;
+          // Record what was actually kept: UPI as paid, cash = rest of the total (any extra
+          // cash handed over was returned as change), so Cash + UPI always equals the bill total.
           upiAmount = Math.round(Number(checkoutModal.splitUpi || 0) * 100) / 100;
+          cashAmount = Math.round((totalForPayment - upiAmount) * 100) / 100;
         }
       }
 
@@ -1688,53 +1702,53 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           if (error) throw error;
           successData = data;
           if (successData?.bill_id) {
-            try {
-              const shopId = localStorage.getItem('shop_id');
-              const updatePayload = {
-                payment_method: payload.p_payment_method,
-                cash_amount: payload.p_cash_amount,
-                upi_amount: payload.p_upi_amount,
-                total_amount: totalForPayment
-              };
-              if (shopId) {
-                updatePayload.shop_id = shopId;
-              }
-              if (payload.p_customer_name || payload.p_customer_phone) {
-                updatePayload.customer_name = payload.p_customer_name;
-                updatePayload.customer_phone = payload.p_customer_phone;
-              }
-              // Mark showroom sales as pending — excluded from revenue until paid
-              if (payload.p_payment_method === 'SHOWROOM') {
-                updatePayload.status = 'showroom_pending';
-              }
-              await supabase.from('bills').update(updatePayload).eq('id', successData.bill_id);
+            const shopId = localStorage.getItem('shop_id');
+            const updatePayload = {
+              payment_method: payload.p_payment_method,
+              cash_amount: payload.p_cash_amount,
+              upi_amount: payload.p_upi_amount,
+              total_amount: totalForPayment
+            };
+            if (shopId) {
+              updatePayload.shop_id = shopId;
+            }
+            if (payload.p_customer_name || payload.p_customer_phone) {
+              updatePayload.customer_name = payload.p_customer_name;
+              updatePayload.customer_phone = payload.p_customer_phone;
+            }
+            // Mark showroom sales as pending — excluded from revenue until paid
+            if (payload.p_payment_method === 'SHOWROOM') {
+              updatePayload.status = 'showroom_pending';
+            }
 
-              const screwItem = finalCart.find(i => i.is_screw || i.barcode === 'SCREWS');
-              if (activeTab === 'checkout' && screwItem) {
-                const scPrice = Number(screwItem.customPriceInput || screwItem.price || 0);
-                try {
-                  const { error: biErr } = await supabase.from('bill_items').insert({
-                    bill_id: successData.bill_id,
-                    shop_id: shopId || null,
-                    barcode: 'SCREWS',
-                    name: 'Screws',
-                    quantity: 1,
-                    billable_quantity: 1,
-                    actual_quantity: 1,
-                    price_at_sale: scPrice,
-                    system_price: scPrice,
-                    profit: scPrice,
-                    unit: 'SET'
-                  });
-                  if (biErr) {
-                    console.warn("Could not insert screws into bill_items:", biErr);
-                  }
-                } catch (biErr) {
-                  console.warn("Could not insert screws into bill_items:", biErr);
-                }
-              }
-            } catch (e) {
-              console.warn("Could not save additional bill data.", e);
+            let screwRow = null;
+            const screwItem = finalCart.find(i => i.is_screw || i.barcode === 'SCREWS');
+            if (activeTab === 'checkout' && screwItem) {
+              const scPrice = Number(screwItem.customPriceInput || screwItem.price || 0);
+              screwRow = {
+                bill_id: successData.bill_id,
+                shop_id: shopId || null,
+                barcode: 'SCREWS',
+                name: 'Screws',
+                quantity: 1,
+                billable_quantity: 1,
+                actual_quantity: 1,
+                price_at_sale: scPrice,
+                system_price: scPrice,
+                profit: scPrice,
+                unit: 'SET'
+              };
+            }
+
+            // Retried automatically; if it still fails it is parked and retried by background sync.
+            // The sale itself is already recorded, so this must never fail the checkout.
+            const finalizeResult = await finalizeBillMetadata({ billId: successData.bill_id, updatePayload, screwRow });
+            if (!finalizeResult.ok) {
+              console.warn('Bill payment details queued for retry:', finalizeResult.error);
+              setTimeout(() => showAlertRef.current(
+                "The sale was saved, but its payment details (Cash/UPI, customer) could not be saved yet. They will be saved automatically when the connection is stable. Do NOT bill this customer again.",
+                "Sale Saved"
+              ), 100);
             }
           }
         } catch (error) {
@@ -1742,6 +1756,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             await queueOfflineTransaction(payload);
             successData = { bill_id: 'OFFL-' + generateId().substring(0, 5).toUpperCase() };
             setTimeout(() => showAlertRef.current("Transaction queued offline. It will sync automatically when internet returns.", "Offline Mode"), 100);
+          } else if (isNetworkishError(error)) {
+            // The request may or may not have reached the server, so the sale may already be
+            // recorded. Never auto-queue here (that could bill twice) — tell the cashier to check.
+            throw new Error("The connection dropped while saving this sale, so it may or may not have been recorded. Open 'Sales & Returns' and check for this sale before completing it again, otherwise the customer could be billed twice.");
           } else {
             let msg = error.message;
             if (msg.includes('chk_current_length_nonnegative')) {
@@ -1812,68 +1830,21 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       if (activeTab === 'receive' && isWarehouseDisabled && navigator.onLine) {
         try {
           const shopId = shopSettings?.id || localStorage.getItem('shop_id');
-          for (const item of finalCart) {
-            const effectiveStockQty = item.is_cuttable
-              ? (item.actual_quantity !== undefined ? Number(item.actual_quantity) : (
-                  item.unit === 'SQFT'
-                    ? Math.round(Number(item.quantity) * (Number(item.default_length) || 100) * (Number(item.default_width) || 3) * 100) / 100
-                    : Math.round(Number(item.quantity) * (Number(item.default_length) || 12) * 100) / 100
-                ))
-              : Number(item.quantity);
-
-            let bQuery = supabase
-              .from('inventory_batches')
-              .select('batch_id, stock_warehouse, stock_store')
-              .eq('barcode', item.barcode);
-
-            if (item.batch_id) {
-              bQuery = bQuery.eq('batch_id', item.batch_id);
-            } else if (item.batch_number !== undefined && item.batch_number !== null) {
-              bQuery = bQuery.eq('batch_number', item.batch_number);
-            } else {
-              bQuery = bQuery.order('created_at', { ascending: false }).limit(1);
-            }
-
-            if (shopId) {
-              bQuery = bQuery.eq('shop_id', shopId);
-            }
-            const { data: bData } = await bQuery.maybeSingle();
-
-            if (bData && Number(bData.stock_warehouse) > 0) {
-              const transferQty = Math.min(Number(bData.stock_warehouse), effectiveStockQty);
-              let updateBatch = supabase
-                .from('inventory_batches')
-                .update({
-                  stock_warehouse: Math.max(0, Number(bData.stock_warehouse) - transferQty),
-                  stock_store: Number(bData.stock_store || 0) + transferQty
-                })
-                .eq('batch_id', bData.batch_id);
-              if (shopId) {
-                updateBatch = updateBatch.eq('shop_id', shopId);
-              }
-              await updateBatch;
-
-              // Also update product_master to keep parent warehouse and store stock in sync
-              let pQuery = supabase
-                .from('product_master')
-                .select('stock_warehouse, stock_store')
-                .eq('barcode', item.barcode);
-              if (shopId) pQuery = pQuery.eq('shop_id', shopId);
-              const { data: pData } = await pQuery.maybeSingle();
-
-              if (pData) {
-                let updateProd = supabase
-                  .from('product_master')
-                  .update({
-                    stock_warehouse: Math.max(0, Number(pData.stock_warehouse || 0) - transferQty),
-                    stock_store: Number(pData.stock_store || 0) + transferQty
-                  })
-                  .eq('barcode', item.barcode);
-                if (shopId) updateProd = updateProd.eq('shop_id', shopId);
-                await updateProd;
-              }
-            }
-          }
+          await routeReceivedStockToStore({
+            shopId,
+            entries: finalCart.map(item => ({
+              barcode: item.barcode,
+              batch_id: item.batch_id,
+              batch_number: item.batch_number,
+              qty: item.is_cuttable
+                ? (item.actual_quantity !== undefined ? Number(item.actual_quantity) : (
+                    item.unit === 'SQFT'
+                      ? Math.round(Number(item.quantity) * (Number(item.default_length) || 100) * (Number(item.default_width) || 3) * 100) / 100
+                      : Math.round(Number(item.quantity) * (Number(item.default_length) || 12) * 100) / 100
+                  ))
+                : Number(item.quantity)
+            }))
+          });
         } catch (e) {
           console.warn("Auto-route warehouse to store fallback:", e);
         }
@@ -1939,12 +1910,20 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
          }
          return item;
       });
-      const finalTotalAmount = finalItemsList.reduce((sum, i) => sum + i.lineTotal, 0);
+      const linesTotal = Math.round(finalItemsList.reduce((sum, i) => sum + i.lineTotal, 0) * 100) / 100;
+      // On checkout the customer pays the negotiated total. Per-item prices are rounded to paise,
+      // so the lines can differ slightly; show that as "Round Off" so NET DUE (and the UPI QR)
+      // always match the amount actually charged and recorded on the bill.
+      const finalTotalAmount = activeTab === 'checkout' && totalForPayment > 0
+        ? Math.round(totalForPayment * 100) / 100
+        : linesTotal;
+      const roundOff = Math.round((finalTotalAmount - linesTotal) * 100) / 100;
 
       setLastReceipt({
         id: successData.bill_id.split('-')[0],
         items: finalItemsList,
         total: finalTotalAmount,
+        roundOff: Math.abs(roundOff) >= 0.01 ? roundOff : 0,
         date: new Date(),
         type: activeTab,
         paymentMethod: paymentMethod,
@@ -2019,6 +1998,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         });
       }
     } finally {
+      checkoutInFlightRef.current = false;
+      endCriticalWork();
       setIsCheckingOut(false);
     }
   };

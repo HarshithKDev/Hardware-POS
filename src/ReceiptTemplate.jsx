@@ -133,6 +133,12 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
         </tbody>
       </table>
       
+      {Number(lastReceipt.roundOff || 0) !== 0 && (
+        <div className="border-t border-black pt-1 flex justify-between items-center text-black" style={{ color: '#000', fontSize: '12px' }}>
+          <span>Round Off</span>
+          <span>{lastReceipt.roundOff > 0 ? '+' : '-'}₹{Math.abs(lastReceipt.roundOff).toFixed(2)}</span>
+        </div>
+      )}
       <div className="border-t border-black pt-2 flex justify-between items-center mb-2 text-black" style={{ color: '#000' }}>
         <span className="font-bold" style={{ fontSize: '14px' }}>NET DUE</span>
         <span className="font-bold" style={{ fontSize: '16px' }}>₹{lastReceipt.total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
