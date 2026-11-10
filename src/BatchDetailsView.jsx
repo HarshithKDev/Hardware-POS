@@ -1298,13 +1298,16 @@ export default function BatchDetailsView({
                                 Open 1 Box
                               </button>
                             )}
+                            {/* Scrap (write off offcuts) is only for cut-length items */}
+                            {item.is_cuttable && (
                             <button
                               onClick={() => setScrapBatch(activeBatch)}
                               className="h-8 px-3 rounded-lg border border-amber-500/50 text-amber-500 hover:bg-amber-500/10 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
-                              title="Remove scrapped / damaged stock from this batch"
+                              title="Write off offcuts / scrap length from this batch"
                             >
                               Scrap
                             </button>
+                            )}
                             </>
                           )}
                           {viewType !== 'recycle' && (
