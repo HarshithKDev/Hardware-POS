@@ -18,6 +18,8 @@ export default function OwnerSettings() {
     shop_address: '',
     phone: '',
     upi_id: '',
+    gstin: '',
+    bill_footer: '',
     admin_email: ''
   });
   
@@ -57,6 +59,8 @@ export default function OwnerSettings() {
         shop_address: addr,
         phone: shopSettings.phone || '',
         upi_id: upi,
+        gstin: shopSettings.gstin || '',
+        bill_footer: shopSettings.bill_footer || '',
         admin_email: shopSettings.admin_email || ''
       });
       setShowAddress(sAddr);
@@ -90,6 +94,8 @@ export default function OwnerSettings() {
         shop_address: addr,
         phone: shopSettings.phone || '',
         upi_id: upi,
+        gstin: shopSettings.gstin || '',
+        bill_footer: shopSettings.bill_footer || '',
         admin_email: shopSettings.admin_email || ''
       });
       setShowAddress(sAddr);
@@ -233,6 +239,8 @@ export default function OwnerSettings() {
         shop_address: addr,
         phone: shopSettings.phone || '',
         upi_id: upi,
+        gstin: shopSettings.gstin || '',
+        bill_footer: shopSettings.bill_footer || '',
         admin_email: shopSettings.admin_email || ''
       });
       setShowAddress(sAddr);
@@ -293,6 +301,8 @@ export default function OwnerSettings() {
         shop_address: formData.shop_address.trim() ? (!showAddress ? 'HIDDEN::' + formData.shop_address.trim() : formData.shop_address.trim()) : null,
         phone: formData.phone.trim() || null,
         upi_id: formData.upi_id.trim() ? (!showUpi ? 'HIDDEN::' + formData.upi_id.trim() : formData.upi_id.trim()) : null,
+        gstin: (formData.gstin || '').trim().toUpperCase() || null,
+        bill_footer: (formData.bill_footer || '').trim() || null,
         logo_url: updatedLogoUrl,
         disable_warehouse: disableWarehouse,
         sound_enabled: soundEnabled
@@ -306,9 +316,11 @@ export default function OwnerSettings() {
         .select()
         .single();
 
-      if (error && (error.code === '42703' || error.message?.includes('disable_warehouse') || error.message?.includes('sound_enabled'))) {
-        delete updates.disable_warehouse;
-        delete updates.sound_enabled;
+      if (error && (error.code === '42703' || error.code === 'PGRST204' || error.message?.includes('disable_warehouse') || error.message?.includes('sound_enabled'))) {
+        // Drop only the column(s) the database rejected. sound_enabled has no column yet (it is
+        // kept per device), and previously disable_warehouse was dropped along with it.
+        if (error.message?.includes('sound_enabled') || !error.message?.includes('disable_warehouse')) delete updates.sound_enabled;
+        if (error.message?.includes('disable_warehouse')) delete updates.disable_warehouse;
         const retry = await supabase
           .from('shop_settings')
           .update(updates)
@@ -686,6 +698,41 @@ export default function OwnerSettings() {
                       onChange={handleInputChange}
                       disabled={!isEditing}
                       placeholder="e.g. storename@upi"
+                      className={`w-full py-2 px-3 rounded-lg border outline-none text-sm transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20' : 'opacity-70 cursor-default'}`}
+                      style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
+                      GSTIN (printed on bills)
+                    </label>
+                    <input
+                      type="text"
+                      name="gstin"
+                      value={formData.gstin}
+                      onChange={handleInputChange}
+                      disabled={!isEditing}
+                      maxLength={15}
+                      placeholder="e.g. 29ABCDE1234F1Z5"
+                      className={`w-full py-2 px-3 rounded-lg border outline-none text-sm uppercase transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20' : 'opacity-70 cursor-default'}`}
+                      style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
+                      Bill Footer Message
+                    </label>
+                    <input
+                      type="text"
+                      name="bill_footer"
+                      value={formData.bill_footer}
+                      onChange={handleInputChange}
+                      disabled={!isEditing}
+                      maxLength={120}
+                      placeholder="e.g. Thank you for shopping with us!"
                       className={`w-full py-2 px-3 rounded-lg border outline-none text-sm transition-colors ${isEditing ? 'focus:ring-2 focus:ring-opacity-20' : 'opacity-70 cursor-default'}`}
                       style={{ backgroundColor: 'var(--bg-tertiary)', borderColor: 'var(--border-light)', color: 'var(--text-primary)', '--tw-ring-color': 'var(--color-accent)' }}
                     />

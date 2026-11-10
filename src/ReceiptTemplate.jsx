@@ -76,6 +76,11 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
             {shopSettings.shop_address}
           </p>
         )}
+        {shopSettings?.gstin && (
+          <p className="mt-0.5 text-black" style={{ color: '#000', fontSize: '10px' }}>
+            GSTIN: {shopSettings.gstin}
+          </p>
+        )}
       </div>
       
       <div className="mb-3 flex justify-between border-b border-black border-dashed pb-2 text-black" style={{ color: '#000', fontSize: '12px' }}>
@@ -174,7 +179,7 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
       )}
       
       <div className="text-center pt-2 mt-2 text-black" style={{ color: '#000', fontSize: '10px' }}>
-        <p>Thank You For Your Business!</p>
+        <p className="whitespace-pre-line">{shopSettings?.bill_footer || 'Thank You For Your Business!'}</p>
       </div>
     </div>
   );

@@ -409,6 +409,10 @@ export default function BatchDetailsView({
       }
     },
     onSuccess: async (_, variables) => {
+      // Captured before the refresh so we know whether the MRP changed
+      const batchBefore = batches.find(b => b.batch_id === variables.batch_id);
+      const oldMrp = Number(batchBefore?.selling_price ?? item?.price ?? 0);
+      const newMrp = variables.mrp !== undefined ? Number(variables.mrp) : oldMrp;
       try {
         const localItem = await getInventoryItemByBarcode(item.barcode);
         if (localItem) {
@@ -444,7 +448,18 @@ export default function BatchDetailsView({
       queryClient.invalidateQueries({ queryKey: ['inventory_item'] });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       setIsEditingBatch(false);
-      showAlert('Batch details updated successfully.', 'Success');
+      if (batchBefore && Math.abs(newMrp - oldMrp) >= 0.005) {
+        // Labels already on the shelf still show the old MRP; offer to print new ones now
+        showConfirm(
+          `Batch updated. The MRP changed from ₹${oldMrp.toFixed(2)} to ₹${newMrp.toFixed(2)}, so labels already on the products still show the old price.\n\nPrint new labels for this batch now?`,
+          () => setPrintBatchModal({ isOpen: true, batch: { ...batchBefore, selling_price: newMrp } }),
+          'Price Changed',
+          'Print Labels',
+          'Later'
+        );
+      } else {
+        showAlert('Batch details updated successfully.', 'Success');
+      }
     },
     onError: (e) => {
       showAlert('Failed to update batch: ' + e.message, 'Error');

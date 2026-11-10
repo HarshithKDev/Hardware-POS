@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import Barcode from 'react-barcode';
 import { Search, Printer, X, Check, Layers } from 'lucide-react';
 import { getInventoryByQuery } from './services/db';
 import { useApp } from './AppContext';
 import { debounce } from './utils';
+import BarcodeLabelSheet, { MAX_LABELS_PER_PRINT, clampLabelQty } from './components/print/BarcodeLabelSheet';
 
 export default function WorkerPrintBarcode() {
   const { showAlert } = useApp();
@@ -382,9 +382,9 @@ export default function WorkerPrintBarcode() {
                     <input
                       type="number"
                       min="1"
-                      max="500"
+                      max={MAX_LABELS_PER_PRINT}
                       value={labelQty}
-                      onChange={(e) => setLabelQty(Math.max(1, Math.min(500, parseInt(e.target.value, 10) || 1)))}
+                      onChange={(e) => setLabelQty(clampLabelQty(e.target.value))}
                       className="w-12 h-full text-center text-xs font-bold bg-transparent text-[var(--text-primary)] rounded-none !border-none !shadow-none !outline-none focus:!outline-none focus:!border-none focus:!shadow-none focus:bg-[var(--bg-secondary)] transition-colors p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       style={{ borderRadius: 0, border: 'none', boxShadow: 'none', outline: 'none' }}
                       aria-label="Quantity of labels"
@@ -392,7 +392,7 @@ export default function WorkerPrintBarcode() {
                     <button
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => setLabelQty(q => Math.min(500, q + 1))}
+                      onClick={() => setLabelQty(q => clampLabelQty(q + 1))}
                       className="w-8 h-full flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors border-l border-[var(--border-medium)] select-none cursor-pointer"
                       style={{ borderRadius: 0 }}
                       aria-label="Increase quantity"
@@ -453,75 +453,13 @@ export default function WorkerPrintBarcode() {
       </div>
 
       {/* Hidden Portal Container for Direct Thermal Printing */}
-      {isPrinting && selectedProduct && selectedBatch && createPortal(
-        <div
-          id="printable-barcodes"
-          className="absolute -top-[9999px] left-0 opacity-0 pointer-events-none print:static print:opacity-100 print:pointer-events-auto"
-          style={{ backgroundColor: '#ffffff', margin: 0, padding: 0 }}
-        >
-          <style dangerouslySetInnerHTML={{ __html: `
-            @media print {
-              @page { size: 50mm 25mm; margin: 0 !important; }
-              body { margin: 0 !important; padding: 0 !important; }
-              #printable-barcodes { display: block !important; margin: 0 !important; padding: 0 !important; }
-            }
-          `}} />
-          {Array.from({ length: Number(labelQty) || 1 }).map((_, index) => (
-            <div
-              key={`${barcodeValue}-${index}`}
-              className="thermal-barcode"
-              style={{
-                backgroundColor: '#ffffff',
-                width: '50mm',
-                height: '25mm',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'hidden',
-                pageBreakAfter: 'always'
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '9px',
-                  fontWeight: 'bold',
-                  color: '#000000',
-                  marginBottom: '1px',
-                  textAlign: 'center',
-                  width: '100%',
-                  padding: '0 4px',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis'
-                }}
-              >
-                {selectedProduct.name}
-              </div>
-              <Barcode
-                value={barcodeValue}
-                width={1.3}
-                height={26}
-                fontSize={10}
-                margin={0}
-                displayValue={true}
-                lineColor="#000000"
-                background="#ffffff"
-              />
-              <div
-                style={{
-                  fontSize: '9px',
-                  fontWeight: 'bold',
-                  color: '#000000',
-                  marginTop: '1px'
-                }}
-              >
-                MRP: ₹{activeSellingPrice}
-              </div>
-            </div>
-          ))}
-        </div>,
-        document.body
+      {isPrinting && selectedProduct && selectedBatch && (
+        <BarcodeLabelSheet
+          name={selectedProduct.name}
+          barcodeValue={barcodeValue}
+          mrp={activeSellingPrice}
+          count={labelQty}
+        />
       )}
     </div>
   );

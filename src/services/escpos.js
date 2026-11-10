@@ -271,7 +271,7 @@ export function buildEscPosReceipt(receiptData, shopSettings = {}, options = {})
 
   // Footer Message
   addBytes(0x1B, 0x61, 0x01); // Align Center
-  addText("THANK YOU FOR YOUR BUSINESS!\n");
+  addText(`${String(shopSettings?.bill_footer || 'THANK YOU FOR YOUR BUSINESS!').toUpperCase()}\n`);
   addText("Goods once sold can be exchanged\nwithin 7 days with this bill.\n");
   addText(divider);
 
