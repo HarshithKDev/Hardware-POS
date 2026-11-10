@@ -140,7 +140,7 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
         </div>
       )}
       <div className="border-t border-black pt-2 flex justify-between items-center mb-2 text-black" style={{ color: '#000' }}>
-        <span className="font-bold" style={{ fontSize: '14px' }}>NET DUE</span>
+        <span className="font-bold" style={{ fontSize: '14px' }}>{lastReceipt.paymentMethod === 'SHOWROOM' ? 'SHOWROOM DISPATCH (NOT A SALE)' : 'NET DUE'}</span>
         <span className="font-bold" style={{ fontSize: '16px' }}>₹{lastReceipt.total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
       </div>
 
@@ -161,7 +161,7 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
         </div>
       )}
       
-      {shopSettings?.upi_id && !shopSettings.upi_id.startsWith('HIDDEN::') && lastReceipt.paymentMethod !== 'CASH' && (
+      {shopSettings?.upi_id && !shopSettings.upi_id.startsWith('HIDDEN::') && lastReceipt.paymentMethod !== 'CASH' && lastReceipt.paymentMethod !== 'SHOWROOM' && (
         <div className="flex flex-col items-center justify-center mt-3 pb-3 border-b border-black border-dashed text-black" style={{ color: '#000' }}>
           <p className="font-bold mb-1" style={{ fontSize: '10px' }}>Scan to Pay via UPI</p>
           <QRCodeSVG 

@@ -534,6 +534,10 @@ async function flushOfflineQueueUnlocked() {
           if (tx.p_payment_method === 'SHOWROOM') {
             updatePayload.status = 'showroom_pending';
           }
+          // Receipts with the warehouse disabled use location 'Store'; re-tag so they aren't sales
+          if (tx.p_action === 'RECEIVE' && tx.p_location === 'Store') {
+            updatePayload.location = 'Warehouse-Inbound';
+          }
 
           let screwRow = null;
           if (tx.screw_item) {

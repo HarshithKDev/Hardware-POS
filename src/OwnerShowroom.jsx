@@ -46,7 +46,28 @@ export default function OwnerShowroom() {
 
   const hasMore = bills.length === SHOWROOM_PAGE_SIZE;
 
-  const totalValue = bills.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
+  // Total across ALL dispatches (previously only the current page was summed)
+  const { data: totalValue = 0 } = useQuery({
+    queryKey: ['showroom-sales-total', shopId],
+    queryFn: async () => {
+      let sum = 0;
+      const PAGE = 1000;
+      for (let from = 0; ; from += PAGE) {
+        let q = supabase
+          .from('bills')
+          .select('total_amount')
+          .eq('location', 'Store')
+          .or('status.eq.showroom_pending,payment_method.eq.SHOWROOM,status.eq.showroom');
+        if (shopId) q = q.eq('shop_id', shopId);
+        const { data, error } = await q.order('created_at', { ascending: false }).order('id').range(from, from + PAGE - 1);
+        if (error) throw error;
+        (data || []).forEach(b => { sum += Number(b.total_amount || 0); });
+        if (!data || data.length < PAGE) break;
+      }
+      return sum;
+    },
+    staleTime: 1000 * 60,
+  });
 
   if (selectedBill) {
     return (
@@ -65,14 +86,14 @@ export default function OwnerShowroom() {
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
         <PageTitleReset
           title="Showroom Dispatches"
-          subtitle="Record of products deducted and sent to the showroom. Excluded from shop sales and profit."
+          subtitle="Stock sent to the showroom. Deducted from store stock and inventory value; not counted as sales."
           onReset={handleResetShowroom}
           tooltip="Click title to reset showroom dispatches to first page"
         />
         {bills.length > 0 && (
           <div className="shrink-0 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] px-5 py-3 shadow-sm text-left sm:text-right">
             <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-0.5">
-              Total Dispatched Value
+              Total Dispatched (at MRP)
             </span>
             <span className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)] tabular-nums">
               ₹{totalValue.toFixed(2)}

@@ -14,9 +14,39 @@ import { Spinner, PageLoader } from './SharedUI';
 import PageTitleReset from './components/PageTitleReset';
 
 const getLocalStorageKey = (shopId) => `hardware_pos_expenses_${shopId || 'default'}`;
+// Expenses that could not be saved to the database yet (uploaded automatically later)
+const getPendingKey = (shopId) => `hardware_pos_expenses_pending_${shopId || 'default'}`;
 
+const EXPENSE_CATEGORIES = [
+  'Staff Advance', 'Salary', 'Tea / Food', 'Transport / Delivery', 'Electricity',
+  'Rent', 'Repairs / Maintenance', 'Shop Supplies', 'Other'
+];
+const PAYMENT_MODES = ['CASH', 'UPI'];
+
+const readPending = (shopId) => {
+  try { return JSON.parse(localStorage.getItem(getPendingKey(shopId)) || '[]') || []; } catch { return []; }
+};
+const writePending = (shopId, list) => {
+  try {
+    if (list.length === 0) localStorage.removeItem(getPendingKey(shopId));
+    else localStorage.setItem(getPendingKey(shopId), JSON.stringify(list));
+  } catch { /* storage full */ }
+};
+
+// Insert with shop_id; if the column doesn't exist yet (migration not run), retry without it.
+async function insertExpenseRemote(expense) {
+  const { _pending, ...row } = expense;
+  let { error } = await supabase.from('expenses').insert([row]);
+  if (error && (error.code === '42703' || error.code === 'PGRST204' || /shop_id/.test(error.message || ''))) {
+    const { shop_id: _s, ...withoutShop } = row;
+    ({ error } = await supabase.from('expenses').insert([withoutShop]));
+  }
+  // Already saved by an earlier attempt whose response was lost -> treat as success
+  if (error && error.code === '23505') return null;
+  return error;
+}
 export default function OwnerExpenses({ isOwner = false, cashierName: propCashierName }) {
-  const { cashierName: appCashierName, userRole, showAlert, shopSettings } = useApp();
+  const { cashierName: appCashierName, userRole, showAlert, showConfirm, shopSettings } = useApp();
   const currentCashier = propCashierName || appCashierName || (userRole === 'owner' ? 'Owner' : 'Staff');
   const shopId = shopSettings?.id || localStorage.getItem('shop_id');
 
@@ -31,7 +61,9 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
   const [selectedWorkerId, setSelectedWorkerId] = useState('');
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
-
+  const [category, setCategory] = useState('');
+  const [paymentMode, setPaymentMode] = useState('CASH');
+  const canDelete = isOwner || userRole === 'owner';
   const handleResetExpenses = () => {
     setIsModalOpen(false);
     setAmount('');
@@ -68,6 +100,21 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
     let remoteData = null;
     let dbSuccess = false;
 
+    // Upload anything saved on this device while the database was unreachable
+    const pendingBefore = readPending(shopId);
+    if (pendingBefore.length > 0) {
+      const stillPending = [];
+      for (const exp of pendingBefore) {
+        try {
+          const err = await insertExpenseRemote(exp);
+          if (err) stillPending.push(exp);
+        } catch {
+          stillPending.push(exp);
+        }
+      }
+      writePending(shopId, stillPending);
+    }
+
     try {
       const { data, error } = await supabase
         .from('expenses')
@@ -88,6 +135,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
         }
 
         const filtered = shopId ? data.filter(e => {
+          if (e.shop_id) return e.shop_id === shopId;
           if (e.notes === `shop:${shopId}`) return true;
           if (e.worker_id && shopWorkerIds.has(e.worker_id)) return true;
           return false;
@@ -115,11 +163,12 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
       }
     }
 
+    const pendingNow = readPending(shopId).map(e => ({ ...e, _pending: true }));
     if (dbSuccess && remoteData) {
-      setExpenses(remoteData);
+      setExpenses([...pendingNow, ...remoteData]);
       localStorage.setItem(storageKey, JSON.stringify(remoteData));
     } else {
-      setExpenses(localData);
+      setExpenses([...pendingNow, ...localData.filter(e => !pendingNow.some(p => p.id === e.id))]);
     }
 
     setIsLoading(false);
@@ -156,12 +205,16 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
 
     setIsSaving(true);
 
+    const finalCategory = category || (finalWorkerId ? 'Staff Advance' : 'Other');
     const newExpense = {
       id: generateId(),
+      shop_id: shopId || undefined,
       worker_id: finalWorkerId,
       worker_name: finalWorkerName,
       amount: numAmount,
       reason: reason.trim(),
+      category: finalCategory,
+      payment_mode: paymentMode,
       notes: shopId ? `shop:${shopId}` : null,
       recorded_by: currentCashier,
       created_at: new Date().toISOString()
@@ -169,13 +222,21 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
 
     try {
       // 1. Try Supabase insert
+      let savedRemotely = false;
       try {
-        const { error } = await supabase.from('expenses').insert([newExpense]);
+        const error = await insertExpenseRemote(newExpense);
         if (error) {
           console.warn('Remote expense insert failed:', error.message);
+        } else {
+          savedRemotely = true;
         }
       } catch (err) {
-        console.warn('Network exception inserting expense, fallback to local state:', err);
+        console.warn('Network exception inserting expense:', err);
+      }
+      if (!savedRemotely) {
+        // Keep it in a separate "pending" list so a later reload can't overwrite it; it is
+        // uploaded automatically the next time the Expenses page loads with a connection.
+        writePending(shopId, [newExpense, ...readPending(shopId)]);
       }
 
       // 2. Log to audit_logs
@@ -185,23 +246,29 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
           action_type: 'EXPENSE',
           barcode: 'CASH',
           item_name: finalWorkerName,
-          changes: `Expense: ₹${numAmount} for "${reason.trim()}" (${finalWorkerName})`,
+          changes: `Expense: ₹${numAmount} (${paymentMode}, ${finalCategory}) for "${reason.trim()}" (${finalWorkerName})`,
           performed_by: currentCashier
         }]);
       } catch (auditErr) {
         console.warn('Audit log write error:', auditErr);
       }
 
-      // 3. Save locally in state & localStorage
-      const updatedExpenses = [newExpense, ...expenses];
-      setExpenses(updatedExpenses);
-      localStorage.setItem(getLocalStorageKey(shopId), JSON.stringify(updatedExpenses));
-
-      showAlert(`Recorded ₹${numAmount.toFixed(2)} for ${reason.trim()}.`, 'Recorded');
+      // 3. Update the list on screen
+      const shown = savedRemotely ? newExpense : { ...newExpense, _pending: true };
+      setExpenses(prev => [shown, ...prev]);
+      if (savedRemotely) {
+        const cached = (() => { try { return JSON.parse(localStorage.getItem(getLocalStorageKey(shopId)) || '[]'); } catch { return []; } })();
+        localStorage.setItem(getLocalStorageKey(shopId), JSON.stringify([newExpense, ...cached]));
+        showAlert(`Recorded ₹${numAmount.toFixed(2)} for ${reason.trim()}.`, 'Recorded');
+      } else {
+        showAlert(`Could not reach the server. ₹${numAmount.toFixed(2)} for ${reason.trim()} is saved on THIS device only and will upload automatically when the connection is back (shown as "Not synced"). Do not enter it again.`, 'Saved Offline');
+      }
 
       // Reset form
       setAmount('');
       setReason('');
+      setCategory('');
+      setPaymentMode('CASH');
       setSelectedWorkerId('');
       setIsModalOpen(false);
     } catch (err) {
@@ -211,8 +278,41 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
     }
   };
 
-  const totalExpenses = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const handleDeleteExpense = (exp) => {
+    showConfirm(
+      `Delete the expense of ₹${Number(exp.amount || 0).toFixed(2)} for "${exp.reason}"? This cannot be undone.`,
+      async () => {
+        try {
+          if (exp._pending) {
+            writePending(shopId, readPending(shopId).filter(p => p.id !== exp.id));
+          } else {
+            const { error } = await supabase.from('expenses').delete().eq('id', exp.id);
+            if (error) throw error;
+            try {
+              await supabase.from('audit_logs').insert([{
+                shop_id: shopId,
+                action_type: 'EXPENSE_DELETED',
+                barcode: 'CASH',
+                item_name: exp.worker_name || 'General Shop',
+                changes: `Deleted expense: ₹${exp.amount} for "${exp.reason}" (recorded by ${exp.recorded_by || 'Staff'})`,
+                performed_by: currentCashier
+              }]);
+            } catch (auditErr) { console.warn('Audit log write error:', auditErr); }
+          }
+          setExpenses(prev => prev.filter(e => e.id !== exp.id));
+          try {
+            const cached = JSON.parse(localStorage.getItem(getLocalStorageKey(shopId)) || '[]');
+            localStorage.setItem(getLocalStorageKey(shopId), JSON.stringify(cached.filter(e => e.id !== exp.id)));
+          } catch { /* ignore */ }
+        } catch (err) {
+          showAlert(`Could not delete the expense: ${err.message}`, 'Error');
+        }
+      },
+      'Delete Expense', 'Delete', 'Cancel', true
+    );
+  };
 
+  const totalExpenses = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   return (
     <div className="h-full flex flex-col relative w-full animate-fade-in">
       {/* Header */}
@@ -285,9 +385,17 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
                     </div>
 
                     <div className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
-                      <span>{exp.worker_name || 'General'}</span>
+                      <span>{exp.worker_name || 'General'}{exp.category ? ` · ${exp.category}` : ''}{exp.payment_mode ? ` · ${exp.payment_mode}` : ''}</span>
                       <span>{formatDateTime(exp.created_at).full}</span>
                     </div>
+                    {(exp._pending || canDelete) && (
+                      <div className="flex items-center justify-between text-xs">
+                        {exp._pending ? <span className="font-bold" style={{ color: 'var(--color-warning)' }}>Not synced</span> : <span />}
+                        {canDelete && (
+                          <button type="button" onClick={() => handleDeleteExpense(exp)} className="font-semibold" style={{ color: 'var(--color-error)' }}>Delete</button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -325,14 +433,19 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
 
                         <td className="p-3.5 text-center align-middle whitespace-nowrap text-sm font-medium capitalize" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}>
                           {exp.worker_name || 'General'}
+                          {exp.category && <span className="block text-[11px] normal-case opacity-80">{exp.category}{exp.payment_mode ? ` · ${exp.payment_mode}` : ''}</span>}
                         </td>
 
                         <td className="p-3.5 text-center align-middle whitespace-nowrap font-bold text-sm" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--color-accent)' }}>
                           ₹{totalAmt.toFixed(2)}
+                          {exp._pending && <span className="block text-[10px] font-bold uppercase" style={{ color: 'var(--color-warning)' }}>Not synced</span>}
                         </td>
 
                         <td className="p-3.5 text-center align-middle whitespace-nowrap text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
                           {exp.recorded_by || 'Staff'}
+                          {canDelete && (
+                            <button type="button" onClick={() => handleDeleteExpense(exp)} className="block mx-auto mt-1 text-[11px] font-semibold hover:underline" style={{ color: 'var(--color-error)' }}>Delete</button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -419,6 +532,31 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* Category & payment mode */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-secondary)]">Category</label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full h-10 px-2 text-sm font-medium rounded-md bg-[var(--bg-input)] text-[var(--text-input)] border border-[var(--border-input)] focus:outline-none focus:border-[var(--color-accent)]"
+                  >
+                    <option value="">{selectedWorkerId && selectedWorkerId !== 'GENERAL' ? 'Staff Advance' : 'Other'} (auto)</option>
+                    {EXPENSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-secondary)]">Paid By</label>
+                  <select
+                    value={paymentMode}
+                    onChange={(e) => setPaymentMode(e.target.value)}
+                    className="w-full h-10 px-2 text-sm font-medium rounded-md bg-[var(--bg-input)] text-[var(--text-input)] border border-[var(--border-input)] focus:outline-none focus:border-[var(--color-accent)]"
+                  >
+                    {PAYMENT_MODES.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
               </div>
 
               {/* Submit Buttons */}

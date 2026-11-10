@@ -1339,7 +1339,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     let finalCart = cart.filter(i => Number(i.quantity) > 0);
     if (finalCart.length === 0) return;
 
-    if (activeTab === 'checkout') {
+    // Showroom dispatch = stock leaving the store (not a sale): no MSP, negotiation or payment rules
+    const isShowroomDispatch = activeTab === 'checkout' && checkoutModal.paymentMethod === 'SHOWROOM';
+
+    if (activeTab === 'checkout' && !isShowroomDispatch) {
       const subMspItem = finalCart.find(i => {
         if (i.is_screw || i.barcode === 'SCREWS') return false;
         const price = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0);
@@ -1390,7 +1393,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     }
 
     // --- APPLY CART-LEVEL NEGOTIATED TOTAL DISCOUNT (Proportional) ---
-    if (activeTab === 'checkout' && checkoutModal.negotiatedTotal !== '') {
+    if (activeTab === 'checkout' && !isShowroomDispatch && checkoutModal.negotiatedTotal !== '') {
       const targetTotal = Number(checkoutModal.negotiatedTotal);
       const currentCartTotal = calculateTotal();
       let totalDiscountToGive = currentCartTotal - targetTotal;
@@ -1550,7 +1553,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       }
       
       // Secondary pass to apply the calculated discounts cleanly
-      if (activeTab === 'checkout' && checkoutModal.negotiatedTotal !== '') {
+      if (activeTab === 'checkout' && !isShowroomDispatch && checkoutModal.negotiatedTotal !== '') {
         const targetTotal = Number(checkoutModal.negotiatedTotal);
         const currentCartTotal = calculateTotal();
         let totalDiscountToGive = currentCartTotal - targetTotal;
@@ -1630,7 +1633,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       let upiAmount = 0;
       let totalForPayment = 0;
       if (activeTab === 'checkout') {
-        totalForPayment = checkoutModal.negotiatedTotal !== '' ? Number(checkoutModal.negotiatedTotal) : calculateTotal();
+        totalForPayment = (!isShowroomDispatch && checkoutModal.negotiatedTotal !== '') ? Number(checkoutModal.negotiatedTotal) : calculateTotal();
         if (paymentMethod === 'CASH') {
           cashAmount = totalForPayment;
         } else if (paymentMethod === 'UPI') {
@@ -1719,6 +1722,11 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             // Mark showroom sales as pending — excluded from revenue until paid
             if (payload.p_payment_method === 'SHOWROOM') {
               updatePayload.status = 'showroom_pending';
+            }
+            // Stock receipts made with the warehouse disabled are processed with location 'Store'
+            // (so stock lands in the store). Re-tag the bill so it never shows up as a sale.
+            if (payload.p_action === 'RECEIVE' && payload.p_location === 'Store') {
+              updatePayload.location = 'Warehouse-Inbound';
             }
 
             let screwRow = null;
@@ -1858,6 +1866,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       queryClient.invalidateQueries({ queryKey: ['unifiedAuditLogs'] });
       queryClient.invalidateQueries({ queryKey: ['owner-reports'] });
       queryClient.invalidateQueries({ queryKey: ['showroom-sales'] });
+      queryClient.invalidateQueries({ queryKey: ['showroom-sales-total'] });
 
       if (navigator.onLine) {
         // Trigger background sync to ensure true consistency with server

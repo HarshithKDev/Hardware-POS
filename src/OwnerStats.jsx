@@ -934,11 +934,34 @@ export default function OwnerStats({ isActive }) {
       topProducts = Object.values(productStats).sort((a, b) => b.profit - a.profit).slice(0, 10);
     }
 
+    // Expenses for the same period, so profit can be shown after expenses (best effort)
+    let tfExpenses = 0;
+    try {
+      const { data: expData, error: expErr } = await supabase
+        .from('expenses')
+        .select('*')
+        .gte('created_at', localToUtcIso(tfStart))
+        .lte('created_at', localToUtcIso(tfEnd));
+      if (!expErr && expData) {
+        let shopWorkerIds = new Set();
+        if (shopId) {
+          const { data: wData } = await supabase.from('workers').select('id').eq('shop_id', shopId);
+          (wData || []).forEach(w => shopWorkerIds.add(w.id));
+        }
+        expData
+          .filter(e => !shopId || (e.shop_id ? e.shop_id === shopId : (e.notes === `shop:${shopId}` || (e.worker_id && shopWorkerIds.has(e.worker_id)))))
+          .forEach(e => { tfExpenses += Number(e.amount) || 0; });
+      }
+    } catch (e) {
+      console.warn('Could not load expenses for stats:', e?.message);
+    }
+
     return {
       tfTrueRevenue,
       tfGrossProfit,
       tfTotalCost,
       tfTotalDiscount,
+      tfExpenses: Math.round(tfExpenses * 100) / 100,
       tfSalesDetails,
       topProducts,
       trend,
@@ -1138,6 +1161,7 @@ export default function OwnerStats({ isActive }) {
 
   const tfTrueRevenue = salesData?.tfTrueRevenue ?? 0;
   const tfGrossProfit = salesData?.tfGrossProfit ?? 0;
+  const tfExpenses = salesData?.tfExpenses ?? 0;
   const tfTotalCost = salesData?.tfTotalCost ?? 0;
   const tfTotalDiscount = salesData?.tfTotalDiscount ?? 0;
   const tfSalesDetails = salesData?.tfSalesDetails ?? [];
@@ -1323,9 +1347,13 @@ export default function OwnerStats({ isActive }) {
                       <p className="text-sm sm:text-xl font-medium tabular-nums" style={{ color: 'var(--text-primary)' }}>₹{tfTrueRevenue.toFixed(2)}</p>
                     </div>
                     <div className="pl-1 sm:pl-2">
-                      <p className="text-[10px] sm:text-xs font-bold uppercase mb-0.5 sm:mb-1 truncate" style={{ color: 'var(--color-success)' }}>Net Profit</p>
+                      <p className="text-[10px] sm:text-xs font-bold uppercase mb-0.5 sm:mb-1 truncate" style={{ color: 'var(--color-success)' }}>Gross Profit</p>
                       <p className="text-sm sm:text-xl font-bold tabular-nums" style={{ color: 'var(--color-success)' }}>₹{tfGrossProfit.toFixed(2)}</p>
                     </div>
+                  </div>
+                  <div className="flex justify-between items-center px-3 sm:px-4 py-2 text-xs sm:text-sm shrink-0" style={{ borderBottom: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}>
+                    <span>Expenses in this period: <strong className="tabular-nums" style={{ color: 'var(--text-primary)' }}>₹{tfExpenses.toFixed(2)}</strong></span>
+                    <span>Profit after expenses: <strong className="tabular-nums" style={{ color: (tfGrossProfit - tfExpenses) >= 0 ? 'var(--color-success)' : 'var(--color-error)' }}>₹{(tfGrossProfit - tfExpenses).toFixed(2)}</strong></span>
                   </div>
                   <div className="flex-1 min-h-0 overflow-y-auto w-full modal-scroll">
                     {/* MOBILE PROFIT CARD LIST */}

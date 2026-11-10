@@ -18,7 +18,7 @@ export default function CheckoutModal({
 }) {
   if (!isOpen) return null;
 
-  const isInvalidNegotiatedTotal = checkoutModal.negotiatedTotal !== '' && (
+  const isInvalidNegotiatedTotal = checkoutModal.paymentMethod !== 'SHOWROOM' && checkoutModal.negotiatedTotal !== '' && (
     Number(checkoutModal.negotiatedTotal) < minPossibleTotal || 
     Number(checkoutModal.negotiatedTotal) < screwPrice
   );
@@ -86,6 +86,8 @@ export default function CheckoutModal({
             </div>
           </div>
 
+          {/* Showroom dispatch is a stock movement, not a sale: no negotiated amount / MSP rules */}
+          {checkoutModal.paymentMethod !== 'SHOWROOM' && (
           <div className="mb-3.5">
             <label htmlFor="negotiated-total" className="block text-xs font-bold uppercase tracking-wider mb-1.5 flex justify-between items-center" style={{ color: 'var(--text-secondary)' }}>
               <span>Final Negotiated Amount (₹)</span>
@@ -132,6 +134,7 @@ export default function CheckoutModal({
               </p>
             )}
           </div>
+          )}
 
           <div className="mb-3.5">
             <label className="block text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-secondary)' }}>Payment Method</label>
@@ -171,7 +174,7 @@ export default function CheckoutModal({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <p className="text-xs font-medium leading-relaxed">
-                  Goods dispatched to showroom. Products are deducted from store inventory and recorded under Showroom without adding to shop sales revenue or profit.
+                  Stock transfer to the showroom. Items are removed from store stock (and from inventory value). Not a sale: no payment, revenue or profit is recorded.
                 </p>
               </div>
             )}

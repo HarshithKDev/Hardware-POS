@@ -246,14 +246,9 @@ export default function OwnerLedger({ isActive }) {
     const { data, error } = await query;
     if (error) throw error;
     
-    // Auto-clean any non-sale (inbound stock receiving) records that mistakenly had location set to Store with 0 total & no payment
+    // Stock receipts are now tagged 'Warehouse-Inbound' when saved (and old ones are fixed by the
+    // SQL migration), so the ledger no longer writes to the database while loading.
     const rawBills = data || [];
-    const inboundOrphans = rawBills.filter(b => !b.payment_method && Number(b.total_amount) === 0);
-    if (inboundOrphans.length > 0) {
-      inboundOrphans.forEach(b => {
-        supabase.from('bills').update({ location: 'Warehouse-Inbound' }).eq('id', b.id).then(() => {});
-      });
-    }
 
     return rawBills.filter(b => b.payment_method || Number(b.total_amount) > 0 || b.status === 'voided');
   }, [shopId, isSearching, salesPage, searchQuery, currentDay]);
