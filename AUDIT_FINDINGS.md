@@ -227,3 +227,32 @@ Legend: ✅ fixed · 🟡 partly fixed in the app, rest needs the database · �
 | EX3 | 🟡 | Every expense is saved with category "Staff Advance" (DB default), even "General Shop" expenses like electricity; payment mode always CASH. |
 | EX4 | 🟡 | No edit or delete — mistakes are permanent. |
 | EX5 | 🟡 | Expenses aren't included in profit/stats, and cash paid out isn't reflected in expected cash. |
+
+## Second review — fix status
+
+| # | Status | What was done |
+|---|--------|---------------|
+| S1 / EX1 | 🟡 | App writes and reads `expenses.shop_id` once the column exists. SQL in `supabase/migrations/20261110_audit_fixes.sql` (step 1 adds + backfills it; step 2 restricts access per shop — review first). |
+| S2 | ⛔ SQL ready | Step 3 of the migration file clears/drops `owner_password` (review first). |
+| S3 | ⛔ | Needs auth/RLS definitions. |
+| S4 | ✅ | Stock receipts are tagged `Warehouse-Inbound` when saved; migration step 4 fixes old ones. |
+| S5 | ⛔ | Needs the sale function (A11). |
+| S6 | ➖ | Unused tables left in place; `stock_instances` is no longer needed (cut-length items are tracked by total). |
+| S7 | ✅ | Settings save no longer drops "disable warehouse"; migration step 5 adds `sound_enabled`. |
+| S8 | ✅ | GSTIN and bill footer editable in Settings and printed on both receipt types. |
+| CL1 | ✅ (by design change) | Per client: cut-length items are tracked by total only; offcuts are written off with the new per-batch **Scrap** action. |
+| CL2 | ✅ | The cut-length dialog uses the same stock rule as the sale. |
+| CL3 | ✅ | Batch barcodes use the exact batch number; old piece labels still scan. |
+| CL4 / CL5 | ✅ | Piece-tracking dialogs and code removed; cart quantity is the total in every tab. |
+| BI1–BI5 | ✅ | Paged barcode lookup, existing barcodes skipped and listed, row validation, category errors stop the import, chunked insert with exact report. |
+| BP1–BP3 | ✅ | 300-label cap, reprint prompt after MRP change, one shared label layout. |
+| SR1 | ✅ (by design change) | Per client: showroom is only a stock-out record — deducted from store stock and inventory value, no revenue/settlement. |
+| SR2 | ✅ | No MSP / negotiated amount / payment for showroom dispatch; slip says "not a sale", no UPI QR. |
+| SR3 | 🟡 | Covered by the retried bill details (A2); fully fixed when the sale function saves everything at once. |
+| SR4 | ✅ | Total covers all dispatches. |
+| EX2 | ✅ | Unsaved expenses stay on the device as "Not synced" and upload automatically. |
+| EX3 | ✅ | Category and payment mode selectable. |
+| EX4 | ✅ | Owner can delete an expense (audit logged). |
+| EX5 | ✅ | Profit view shows expenses and profit after expenses. |
+
+New finding while fixing: in the mobile scanner, editing a quantity changed only the display for cut-length items while the sale deducted the old amount — fixed.
