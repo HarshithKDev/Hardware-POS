@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getPerformedBy } from './utils';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
-import { generateId } from './utils';
+import { generateId, priceInputValue } from './utils';
 import { useApp } from './AppContext';
 
 export default function CreateBatchModal({ item, onClose, onBatchCreated }) {
@@ -10,9 +10,10 @@ export default function CreateBatchModal({ item, onClose, onBatchCreated }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ 
     wholesaler: '',
-    cost_price: item?.cost_price !== undefined && item?.cost_price !== null ? String(item.cost_price) : '', 
-    msp: item?.msp !== undefined && item?.msp !== null ? String(item.msp) : '', 
-    price: item?.price !== undefined && item?.price !== null ? String(item.price) : '' 
+    // Pre-fill real prices; leave the box empty when the saved value is 0 (new products)
+    cost_price: priceInputValue(item?.cost_price),
+    msp: priceInputValue(item?.msp),
+    price: priceInputValue(item?.price)
   });
 
   const createBatchMutation = useMutation({

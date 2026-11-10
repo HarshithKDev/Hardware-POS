@@ -155,3 +155,13 @@ export function localToUtcIso(localDateTime) {
   const d = new Date(localDateTime); // no offset in the string → parsed as local time
   return isNaN(d.getTime()) ? localDateTime : d.toISOString();
 }
+
+/** Value for a price input: real prices are pre-filled, 0 / missing shows an empty box. */
+export function priceInputValue(...candidates) {
+  for (const v of candidates) {
+    if (v === undefined || v === null || v === '') continue;
+    const n = Number(v);
+    if (Number.isFinite(n) && n > 0) return String(v);
+  }
+  return '';
+}

@@ -385,3 +385,14 @@ describe('Scrap stock from a batch', () => {
     expect(writes[0].payload).toEqual({ stock_store: 0, stock_warehouse: 8 });
   });
 });
+
+import { priceInputValue } from '../utils';
+describe('Price boxes start empty instead of 0', () => {
+  it('pre-fills real prices but not zeros', () => {
+    expect(priceInputValue(0)).toBe('');
+    expect(priceInputValue(null, undefined)).toBe('');
+    expect(priceInputValue('0.00')).toBe('');
+    expect(priceInputValue(0, 45)).toBe('45');
+    expect(priceInputValue(120.5)).toBe('120.5');
+  });
+});

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { getPerformedBy } from './utils';
+import { getPerformedBy, priceInputValue } from './utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import { casUpdateRow, scrapBatchStock } from './services/atomicStock';
@@ -249,9 +249,9 @@ export default function BatchDetailsView({
     if (activeBatch) {
       setBatchEditForm({
         wholesaler: activeBatch.supplier || '',
-        cost: activeBatch.purchase_cost ?? item?.cost_price ?? 0,
-        msp: activeBatch.msp ?? item?.msp ?? item?.cost_price ?? 0,
-        mrp: activeBatch.selling_price ?? item?.price ?? 0
+        cost: priceInputValue(activeBatch.purchase_cost, item?.cost_price),
+        msp: priceInputValue(activeBatch.msp, item?.msp, item?.cost_price),
+        mrp: priceInputValue(activeBatch.selling_price, item?.price)
       });
     }
   }, [activeBatch?.batch_id, activeBatch?.supplier, activeBatch?.purchase_cost, activeBatch?.msp, activeBatch?.selling_price, item?.cost_price, item?.msp, item?.price]);
@@ -1231,9 +1231,9 @@ export default function BatchDetailsView({
                               setIsEditingBatch(false);
                               setBatchEditForm({
                                 wholesaler: activeBatch.supplier || '',
-                                cost: activeBatch.purchase_cost ?? item?.cost_price ?? 0,
-                                msp: activeBatch.msp ?? item?.msp ?? item?.cost_price ?? 0,
-                                mrp: activeBatch.selling_price ?? item?.price ?? 0
+                                cost: priceInputValue(activeBatch.purchase_cost, item?.cost_price),
+                                msp: priceInputValue(activeBatch.msp, item?.msp, item?.cost_price),
+                                mrp: priceInputValue(activeBatch.selling_price, item?.price)
                               });
                             }}
                             className="h-8 px-3 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
