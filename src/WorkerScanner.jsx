@@ -149,43 +149,24 @@ export default function WorkerScanner({ cashierName }) {
 
   const handleScan = async (barcode) => {
     try {
-      let isInstance = false;
       let searchBarcode = barcode;
-      let instanceBarcodeSuffix = "";
       let instanceBatchId = null; // Will extract later if needed
       let scannedBatchNumber = null;
       let batch = null;
-      let instLength = 0;
       
       // Try exactly first
       let item = await getInventoryItemByBarcode(searchBarcode);
       
+      // Batch labels are [barcode]-[batch]; old cut-piece labels ([barcode]-[batch]-[piece])
+      // still resolve to their batch.
       if (!item && barcode.includes('-')) {
         const parts = barcode.split('-');
-        if (parts.length === 3 && !isNaN(parts[1]) && !isNaN(parts[2])) {
-          // Cuttable item: [Barcode]-[BatchNumber]-[SequenceNumber]
-          const parentItem = await getInventoryItemByBarcode(parts[0]);
-          if (parentItem && parentItem.is_cuttable) {
-            item = parentItem;
-            searchBarcode = parts[0];
-            scannedBatchNumber = Number(parts[1]);
-            isInstance = true;
-            // The batch is part[1], the piece is part[2], the full instance barcode is the original barcode
-            instanceBarcodeSuffix = parts[2];
-          }
-        } else if (parts.length === 2 && !isNaN(parts[1])) {
-          // Standard item with batch: [Barcode]-[BatchNumber]
+        if (parts.length >= 2 && parts.slice(1).every(p => p !== '' && !isNaN(p))) {
           const parentItem = await getInventoryItemByBarcode(parts[0]);
           if (parentItem) {
             item = parentItem;
             searchBarcode = parts[0];
             scannedBatchNumber = Number(parts[1]);
-            // If it's cuttable, they shouldn't just scan the batch code, but we pass it as not-an-instance so it gets rejected below
-            if (parentItem.is_cuttable) {
-              isInstance = false;
-            } else {
-              isInstance = false;
-            }
           }
         }
       }
@@ -253,11 +234,9 @@ export default function WorkerScanner({ cashierName }) {
         return;
       }
 
-      const isSqft = item.unit === 'SQFT';
-      const dLen = Number(item.default_length) || (isSqft ? 100 : 12);
-      const dWid = isSqft ? (Number(item.default_width) || 3) : 1;
-      const fullDim = isSqft ? (dLen * dWid) : dLen;
-      const addQty = item.is_cuttable ? fullDim : 1;
+      // Every scan adds 1 unit (1 piece, or 1 ft / m / sqft for cut-length items);
+      // the total can then be typed into the quantity box.
+      const addQty = 1;
 
       setCart(prev => {
         const existingIdx = prev.findIndex(i => 
@@ -278,8 +257,7 @@ export default function WorkerScanner({ cashierName }) {
             ...newCart[existingIdx], 
             quantity: newQty,
             actual_quantity: newQty,
-            billableQuantity: newQty,
-            cut_pieces: item.is_cuttable ? Math.round(newQty / fullDim) : newCart[existingIdx].cut_pieces
+            billableQuantity: newQty
           };
           return newCart;
         } else {
@@ -292,9 +270,6 @@ export default function WorkerScanner({ cashierName }) {
             billableQuantity: addQty,
             maxStock: maxStock,
             instance_barcode: null,
-            cut_pieces: item.is_cuttable ? 1 : null,
-            cut_length: item.is_cuttable ? dLen : null,
-            is_full_piece: item.is_cuttable ? true : false,
             scanned_barcode: searchBarcode + (scannedBatchNumber ? '-' + String(scannedBatchNumber).padStart(2, '0') : ''),
             batch_id: instanceBatchId,
             purchase_cost: batch ? batch.purchase_cost : (item.cost_price || 0),
@@ -320,7 +295,8 @@ export default function WorkerScanner({ cashierName }) {
     }
 
     setCart(prev => {
-      return prev.map(i => i.id === id ? { ...i, quantity: newQty } : i).filter(i => i.quantity !== 0);
+      // Keep actual/billable in step: the sale deducts actual_quantity for cut-length items
+      return prev.map(i => i.id === id ? { ...i, quantity: newQty, actual_quantity: newQty, billableQuantity: newQty } : i).filter(i => i.quantity !== 0);
     });
   };
 

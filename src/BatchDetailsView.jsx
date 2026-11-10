@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { getPerformedBy } from './utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
-import { casUpdateRow } from './services/atomicStock';
+import { casUpdateRow, scrapBatchStock } from './services/atomicStock';
+import ScrapStockModal from './components/inventory/ScrapStockModal';
 import { useApp } from './AppContext';
 import { Spinner, PageLoader } from './SharedUI';
 import { getInventoryItemByBarcode, saveInventoryBatch } from './services/db';
@@ -38,7 +39,7 @@ export default function BatchDetailsView({
   const [printBatchModal, setPrintBatchModal] = useState({ isOpen: false, batch: null });
   const [createBatchModalOpen, setCreateBatchModalOpen] = useState(false);
   const [batchToDelete, setBatchToDelete] = useState(null);
-
+  const [scrapBatch, setScrapBatch] = useState(null);
   // Tab scroll state
   const tabScrollRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -1263,6 +1264,15 @@ export default function BatchDetailsView({
                           </button>
                           {viewType !== 'recycle' && (
                             <button
+                              onClick={() => setScrapBatch(activeBatch)}
+                              className="h-8 px-3 rounded-lg border border-amber-500/50 text-amber-500 hover:bg-amber-500/10 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
+                              title="Remove scrapped / damaged stock from this batch"
+                            >
+                              Scrap
+                            </button>
+                          )}
+                          {viewType !== 'recycle' && (
+                            <button
                               onClick={() => {
                                 setBatchToDelete(activeBatch.batch_id);
                               }}
@@ -1385,14 +1395,10 @@ export default function BatchDetailsView({
                   </div>
                   <div>
                     <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
-                      {item.unit === 'SQFT' ? 'Mesh Roll Specification' : 'Pipe Specification'}
+                      Cut-Length Item
                     </h4>
                     <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                      {item.unit === 'SQFT' ? (
-                        <>Roll Dimensions: <strong className="text-[var(--text-primary)]">{item.default_width || 0} ft (H) × {item.default_length || 0} ft (L)</strong> = {((Number(item.default_width) || 0) * (Number(item.default_length) || 0)).toFixed(0)} SQFT per roll</>
-                      ) : (
-                        <>Standard Length: <strong className="text-[var(--text-primary)]">{item.default_length || 0} {item.unit || 'ft'}</strong></>
-                      )}
+                      Stocked and sold by total {String(item.unit || 'ft').toLowerCase()} (no pieces). Use <strong>Scrap</strong> on a batch to write off offcuts.
                     </p>
                   </div>
                 </div>
@@ -1419,6 +1425,57 @@ export default function BatchDetailsView({
           selectedBatch={printBatchModal.batch}
         />
       )}
+
+      {/* SCRAP STOCK MODAL */}
+      <ScrapStockModal
+        isOpen={!!scrapBatch}
+        item={item}
+        batch={scrapBatch}
+        isWarehouseDisabled={isWarehouseDisabled}
+        onClose={() => setScrapBatch(null)}
+        onConfirm={async ({ qty, location, reason }) => {
+          const currentShopId = shopId || localStorage.getItem('shop_id');
+          const { fromStore, fromWarehouse } = await scrapBatchStock({
+            batchId: scrapBatch.batch_id,
+            barcode: item.barcode,
+            shopId: currentShopId,
+            qty,
+            location,
+            allowOtherLocation: isWarehouseDisabled,
+          });
+          try {
+            await supabase.from('audit_logs').insert([{
+              shop_id: currentShopId,
+              action_type: 'SCRAP',
+              barcode: item.barcode,
+              item_name: item.name,
+              changes: `Scrapped ${qty} ${item.unit || ''} from Batch ${scrapBatch.batch_number || 1}${fromWarehouse > 0 && fromStore > 0 ? ` (store ${fromStore}, warehouse ${fromWarehouse})` : fromWarehouse > 0 ? ' (warehouse)' : ' (store)'}${reason ? ` — ${reason}` : ''}`,
+              performed_by: getPerformedBy()
+            }]);
+          } catch (e) {
+            console.warn('Could not write scrap audit log:', e);
+          }
+          // Update the local copy immediately; the background sync confirms it
+          try {
+            const localItem = await getInventoryItemByBarcode(item.barcode);
+            if (localItem?.batches) {
+              const b = localItem.batches.find(x => x.batch_id === scrapBatch.batch_id);
+              if (b) {
+                b.stock_store = Math.max(0, Number(b.stock_store || 0) - fromStore);
+                b.stock_warehouse = Math.max(0, Number(b.stock_warehouse || 0) - fromWarehouse);
+                await saveInventoryBatch([localItem]);
+              }
+            }
+          } catch (e) {
+            console.warn('Could not update local stock after scrap:', e);
+          }
+          queryClient.invalidateQueries({ queryKey: ['inventory_item'] });
+          queryClient.invalidateQueries({ queryKey: ['inventory'] });
+          queryClient.invalidateQueries({ queryKey: ['unifiedAuditLogs'] });
+          setScrapBatch(null);
+          showAlert(`Scrapped ${qty} ${item.unit || ''} of ${item.name}.`, 'Stock Updated');
+        }}
+      />
 
       {/* CREATE BATCH MODAL */}
       {createBatchModalOpen && (

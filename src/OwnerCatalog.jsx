@@ -141,8 +141,9 @@ export default function OwnerCatalog() {
           min_quantity_store: Number(itemData.min_quantity_store) || 0,
           is_loose_item: itemData.item_type === 'loose',
           is_cuttable: itemData.item_type === 'cuttable',
-          default_length: itemData.item_type === 'cuttable' ? (Number(itemData.default_length) || null) : null,
-          default_width: (itemData.item_type === 'cuttable' && itemData.unit === 'SQFT') ? (Number(itemData.default_width) || null) : null,
+          // Cut-length items are tracked by total length/area only (no piece length / roll size)
+          default_length: null,
+          default_width: null,
           billing_increment: Number(itemData.billing_increment) || 0.01,
           billing_method: itemData.billing_method || 'exact',
           price: Number(itemData.price) || 0,
@@ -279,8 +280,6 @@ export default function OwnerCatalog() {
       { header: 'price', key: 'price', width: 15 },
       { header: 'unit', key: 'unit', width: 15 },
       { header: 'type', key: 'type', width: 15 },
-      { header: 'default_length', key: 'default_length', width: 15 },
-      { header: 'default_width', key: 'default_width', width: 15 },
       { header: 'min_quantity_warehouse', key: 'min_quantity_warehouse', width: 25 },
       { header: 'min_quantity_store', key: 'min_quantity_store', width: 25 }
     ];
@@ -299,7 +298,7 @@ export default function OwnerCatalog() {
     sheet.addRow({
       barcode: '', name: 'Cuttable Item Example (Pipe)', description: 'Schedule 40 PVC pipe', category: catNames[0] || 'Plumbing', sub_category: subCatNames[0] || 'Pipes',
       cost_price: 120, msp: 150, price: 180, unit: 'FT', type: 'Cuttable',
-      default_length: 20, min_quantity_warehouse: 50, min_quantity_store: 10
+      min_quantity_warehouse: 50, min_quantity_store: 10
     });
 
     // Style headers
@@ -403,8 +402,8 @@ export default function OwnerCatalog() {
           unit: unit,
           is_loose_item: isLoose,
           is_cuttable: isCuttable,
-          default_length: isCuttable ? (Number(row.default_length || row.Default_Length || row['Default Length']) || null) : null,
-          default_width: (isCuttable && unit.toUpperCase() === 'SQFT') ? (Number(row.default_width || row.Default_Width || row['Default Width'] || row.default_height || row.Default_Height || row['Default Height']) || null) : null,
+          default_length: null,
+          default_width: null,
           min_quantity_warehouse: Number(row.min_quantity_warehouse || row.Min_Quantity_Warehouse || row['Min Quantity (Warehouse)'] || row.min_quantity || 0),
           min_quantity_store: Number(row.min_quantity_store || row.Min_Quantity_Store || row['Min Quantity (Store)'] || row.min_quantity || 0),
           is_active: true
@@ -676,33 +675,10 @@ export default function OwnerCatalog() {
           </div>
 
           {form.item_type === 'cuttable' && (
-            <>
-              <div className="lg:col-span-2">
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-def-length">
-                  {form.unit === 'SQFT' ? 'Default Roll Length (ft)' : 'Default Length (per piece)'}
-                </label>
-                <div className="relative">
-                  <input id="item-def-length" type="number" step="any" min="0" required value={form.default_length} onChange={(e) => setForm({ ...form, default_length: e.target.value })} placeholder={form.unit === 'SQFT' ? 'e.g. 100' : 'e.g. 12'} className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-                  <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{form.unit === 'SQFT' ? 'ft' : (UNIT_TYPES.find(u => u.value === form.unit)?.label || form.unit)}</span>
-                </div>
-              </div>
-              {form.unit === 'SQFT' && (
-                <div className="lg:col-span-2">
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-def-width">Default Roll Height (ft)</label>
-                  <div className="relative">
-                    <input id="item-def-width" type="number" step="any" min="0" required value={form.default_width} onChange={(e) => setForm({ ...form, default_width: e.target.value })} placeholder="e.g. 3" className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-                    <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>ft</span>
-                  </div>
-                </div>
-              )}
-              <div className="lg:col-span-4 p-3 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-medium)] text-xs text-[var(--text-secondary)]">
-                {form.unit === 'SQFT' ? (
-                  <span>Mesh is billed in <strong>sqft</strong>. When receiving rolls, entering Qty <strong>10</strong> will automatically add <strong>{10 * (Number(form.default_length) || 100) * (Number(form.default_width) || 3)} sqft</strong> to inventory ({form.default_width || 3}ft height × {form.default_length || 100}ft length per roll).</span>
-                ) : (
-                  <span>Pipes/bars are billed in <strong>{form.unit || 'FT'}</strong>. When receiving stock, entering Qty <strong>10</strong> will automatically add <strong>{10 * (Number(form.default_length) || 12)} {form.unit || 'FT'}</strong> to inventory ({form.default_length || 12} {form.unit || 'FT'} per piece).</span>
-                )}
-              </div>
-            </>
+            <div className="lg:col-span-4 p-3 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-medium)] text-xs text-[var(--text-secondary)]">
+              Cut-length items are stocked and sold by the <strong>total {form.unit === 'SQFT' ? 'sqft' : (form.unit || 'FT').toLowerCase()}</strong>.
+              When receiving, enter the total (e.g. <strong>200 {form.unit === 'SQFT' ? 'sqft' : (form.unit || 'FT').toLowerCase()}</strong>); when selling, enter the amount sold. No piece lengths or roll sizes needed.
+            </div>
           )}
 
           {/* Pricing fields removed. Pricing is now exclusively handled at the batch level in the Inventory tab. */}

@@ -128,3 +128,67 @@ export async function routeReceivedStockToStore({ entries, shopId }) {
     }
   }
 }
+
+/**
+ * Remove scrapped / damaged stock from one batch (e.g. "10 ft of pipe offcuts").
+ * Only the total is reduced — no pieces are tracked.
+ *
+ * @param {object} opts
+ * @param {string} opts.batchId
+ * @param {string} opts.barcode
+ * @param {string} [opts.shopId]
+ * @param {number} opts.qty            Quantity to remove, in the product's unit.
+ * @param {'store'|'warehouse'} opts.location  Where the scrap is.
+ * @param {boolean} [opts.allowOtherLocation] Take any remainder from the other location
+ *        (used when the warehouse is disabled and everything counts as store stock).
+ * @returns {Promise<{ fromStore: number, fromWarehouse: number }>}
+ */
+export async function scrapBatchStock({ batchId, barcode, shopId, qty, location, allowOtherLocation = false }) {
+  const amount = Math.round(Number(qty) * 1000) / 1000;
+  if (!(amount > 0)) throw new Error('Enter a quantity greater than 0.');
+
+  const res = await casUpdateRow({
+    table: 'inventory_batches',
+    match: { batch_id: batchId, shop_id: shopId },
+    columns: ['stock_store', 'stock_warehouse'],
+    compute: (cur) => {
+      const store = Number(cur.stock_store || 0);
+      const whse = Number(cur.stock_warehouse || 0);
+      const primary = location === 'warehouse' ? whse : store;
+      const secondary = location === 'warehouse' ? store : whse;
+      const available = primary + (allowOtherLocation ? secondary : 0);
+      if (amount > available + 1e-9) {
+        throw new Error(`Only ${Math.round(available * 100) / 100} available in this batch${allowOtherLocation ? '' : ` (${location})`}; cannot scrap ${amount}.`);
+      }
+      const fromPrimary = Math.min(primary, amount);
+      const fromSecondary = Math.round((amount - fromPrimary) * 1000) / 1000;
+      const fromStore = location === 'warehouse' ? fromSecondary : fromPrimary;
+      const fromWarehouse = location === 'warehouse' ? fromPrimary : fromSecondary;
+      return {
+        update: {
+          stock_store: Math.round((store - fromStore) * 1000) / 1000,
+          stock_warehouse: Math.round((whse - fromWarehouse) * 1000) / 1000,
+        },
+        result: { fromStore, fromWarehouse },
+      };
+    },
+  });
+  if (res.notFound) throw new Error('This batch no longer exists. Refresh and try again.');
+  const { fromStore, fromWarehouse } = res.result;
+
+  // Keep the product-level totals in step (clamped at 0), like other stock moves do
+  await casUpdateRow({
+    table: 'product_master',
+    match: { barcode, shop_id: shopId },
+    columns: ['stock_store', 'stock_warehouse'],
+    compute: (cur) => ({
+      update: {
+        stock_store: Math.max(0, Math.round((Number(cur.stock_store || 0) - fromStore) * 1000) / 1000),
+        stock_warehouse: Math.max(0, Math.round((Number(cur.stock_warehouse || 0) - fromWarehouse) * 1000) / 1000),
+        updated_at: new Date().toISOString(),
+      },
+    }),
+  });
+
+  return { fromStore, fromWarehouse };
+}

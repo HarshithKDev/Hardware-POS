@@ -11,6 +11,7 @@ import { syncInventoryToLocal } from './services/sync';
 import { finalizeBillMetadata } from './services/billFinalize';
 import { routeReceivedStockToStore } from './services/atomicStock';
 import { beginCriticalWork } from './services/busyGuard';
+import { buildTransactionItems } from './services/transactionPayload';
 import { isNetworkishError } from './services/roleGuard';
 import { useApp } from './AppContext';
 import { generateId, formatDateTime, calculateMSP } from './utils';
@@ -24,13 +25,8 @@ import {
   CheckoutModal,
   SelectBatchModal,
   LooseItemModal,
-  SelectPieceModal,
-  ReceiveLengthModal,
-  ManualInstanceBarcodeModal,
-  CutLengthModal,
   ScrewsModal,
-  ReceiveCuttableModal,
-  CuttableCheckoutModal
+  CuttableQuantityModal
 } from './components/terminal';
 import { broadcastStockUpdate, subscribeToStockUpdates } from './services/realtimeStock';
 
@@ -145,8 +141,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   }, [cart.length]);
 
   // Cuttable item states
-  const [receiveCuttableModal, setReceiveCuttableModal] = useState({ isOpen: false, modalData: null });
-  const [cuttableCheckoutModal, setCuttableCheckoutModal] = useState({ isOpen: false, modalData: null });
+  // Cut-length items: one dialog asking for the TOTAL quantity (ft / m / sqft) in every tab
+  const [cuttableModal, setCuttableModal] = useState({ isOpen: false, modalData: null });
   
   // Batch selection
   const [selectBatchModal, setSelectBatchModal] = useState({ isOpen: false, item: null, batches: [] });
@@ -176,8 +172,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   
   useEffect(() => {
     // Prevent state desync ("COMMAREA Loss") by resetting modals when navigating between tabs
-    setCuttableCheckoutModal({ isOpen: false, modalData: null });
-    setReceiveCuttableModal({ isOpen: false, modalData: null });
+    setCuttableModal({ isOpen: false, modalData: null });
     setLooseItemModal({ isOpen: false, item: null, qty: '' });
     setManualBarcode('');
     setSuggestions([]);
@@ -335,7 +330,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         return;
       }
 
-      let scannedInstanceBarcode = null;
       let scannedBatchNumber = null;
     let searchBarcode = cleanBarcode.replace(/\s+/g, '-'); // Scanner keyboard mapping issues sometimes turn hyphens into spaces
 
@@ -346,31 +340,21 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     }
 
     // If exact match fails, check if it's a hyphenated instance barcode for cuttables or batches
+    // Batch labels are [barcode]-[batch] (e.g. 1002-03). Old cut-piece labels
+    // ([barcode]-[batch][piece] like 1002-0104, or 1002-01-04) still scan to their batch.
     if (!item && searchBarcode.includes('-')) {
       const parts = searchBarcode.split('-');
-      if (parts.length === 3 && !isNaN(parts[1]) && !isNaN(parts[2])) {
-        const parentItem = await getInventoryItemByBarcode(parts[0]);
-        if (parentItem && parentItem.is_cuttable) {
-          searchBarcode = parts[0];
-          scannedBatchNumber = Number(parts[1]);
-          scannedInstanceBarcode = searchBarcode + '-' + parts[1] + parts[2];
-          item = parentItem;
-        }
-      } else if (parts.length === 2 && !isNaN(parts[1])) {
+      if (parts.length >= 2 && parts.slice(1).every(p => p !== '' && !isNaN(p))) {
         const parentItem = await getInventoryItemByBarcode(parts[0]);
         if (parentItem) {
-          if (parentItem.is_cuttable) {
-            searchBarcode = parts[0];
-            // Cuttable instance barcodes are printed as [parent]-[batch][piece] (e.g. 1002-0104)
-            // Batch is always the first 2 digits of the second part, since batch is padded to 2 chars.
-            const batchStr = parts[1].length > 2 ? parts[1].slice(0, 2) : parts[1];
-            scannedBatchNumber = Number(batchStr);
-            scannedInstanceBarcode = searchBarcode + '-' + parts[1];
-            item = parentItem;
+          searchBarcode = parts[0];
+          item = parentItem;
+          const exact = Number(parts[1]);
+          const hasExactBatch = (parentItem.batches || []).some(b => b.batch_number === exact);
+          if (parts.length === 2 && !hasExactBatch && parentItem.is_cuttable && parts[1].length > 2) {
+            scannedBatchNumber = Number(parts[1].slice(0, 2)); // legacy piece label
           } else {
-            searchBarcode = parts[0];
-            scannedBatchNumber = Number(parts[1]);
-            item = parentItem;
+            scannedBatchNumber = exact;
           }
         }
       }
@@ -425,82 +409,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           return;
         }
 
-        if (currentTab === 'receive') {
-          // Check if already in cart
-          const existingItem = cartRef.current.find(c => c.barcode === item.barcode && c.batch_id === selectedBatch?.batch_id);
-          if (existingItem) {
-            playScanSuccessSound();
-            setCart(prev => prev.map(c => {
-              if (c.barcode === item.barcode && c.batch_id === selectedBatch?.batch_id) {
-                const newPieces = (Number(c.quantity) || 0) + 1;
-                const isSqft = c.unit === 'SQFT';
-                const dLen = Number(c.default_length) || (isSqft ? 100 : 12);
-                const dWid = isSqft ? (Number(c.default_width) || 3) : 1;
-                const totalDim = isSqft ? (newPieces * dLen * dWid) : (newPieces * dLen);
-                return {
-                  ...c,
-                  quantity: newPieces,
-                  actual_quantity: totalDim,
-                  billableQuantity: totalDim
-                };
-              }
-              return c;
-            }));
-          } else {
-            setReceiveCuttableModal({
-              isOpen: true,
-              modalData: { item, batch: selectedBatch, action: 'receive' }
-            });
-          }
-          setManualBarcode('');
-          return;
-        }
-
-        if (currentTab === 'transfer') {
-          const existingItem = cartRef.current.find(c => c.barcode === item.barcode && c.batch_id === selectedBatch?.batch_id);
-          if (existingItem) {
-            const isSqft = item.unit === 'SQFT';
-            const dLen = Number(item.default_length) || (isSqft ? 100 : 12);
-            const dWid = isSqft ? (Number(item.default_width) || 3) : 1;
-            const singlePieceDim = isSqft ? (dLen * dWid) : dLen;
-            const currentPieces = Number(existingItem.quantity) || 0;
-            const maxPieces = Math.floor((Number(selectedBatch?.stock_warehouse) || 0) / singlePieceDim);
-
-            if (currentPieces + 1 > maxPieces) {
-              playScanErrorSound();
-              showAlertRef.current(`Only ${maxPieces} pieces available in warehouse for ${item.name}.`, "Stock Limit");
-              setManualBarcode('');
-              return;
-            }
-
-            playScanSuccessSound();
-            setCart(prev => prev.map(c => {
-              if (c.barcode === item.barcode && c.batch_id === selectedBatch?.batch_id) {
-                const newPieces = currentPieces + 1;
-                const totalDim = newPieces * singlePieceDim;
-                return {
-                  ...c,
-                  quantity: newPieces,
-                  actual_quantity: totalDim,
-                  billableQuantity: totalDim
-                };
-              }
-              return c;
-            }));
-          } else {
-            setReceiveCuttableModal({
-              isOpen: true,
-              modalData: { item, batch: selectedBatch, action: 'transfer' }
-            });
-          }
-          setManualBarcode('');
-          return;
-        }
-
-        if (currentTab === 'checkout') {
-          setCuttableCheckoutModal({
+        // Cut-length item: ask for the total quantity (e.g. 200 ft received, 30 ft sold).
+        // Scanning again for an item already in the cart adds to that line.
+        if (currentTab === 'receive' || currentTab === 'transfer' || currentTab === 'checkout') {
+          setCuttableModal({
             isOpen: true,
-            modalData: { item, batch: selectedBatch }
+            modalData: { item, batch: selectedBatch, action: currentTab }
           });
           setManualBarcode('');
           return;
@@ -729,26 +643,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     const item = selectBatchModal.item;
     setSelectBatchModal({ isOpen: false, item: null, batches: [] });
     
-    if (item.is_cuttable) {
-      if (activeTabRef.current === 'receive') {
-        setReceiveCuttableModal({
-          isOpen: true,
-          modalData: { item, batch, action: 'receive' }
-        });
-        return;
-      } else if (activeTabRef.current === 'transfer') {
-        setReceiveCuttableModal({
-          isOpen: true,
-          modalData: { item, batch, action: 'transfer' }
-        });
-        return;
-      } else if (activeTabRef.current === 'checkout') {
-        setCuttableCheckoutModal({
-          isOpen: true,
-          modalData: { item, batch }
-        });
-        return;
-      }
+    if (item.is_cuttable && ['receive', 'transfer', 'checkout'].includes(activeTabRef.current)) {
+      setCuttableModal({
+        isOpen: true,
+        modalData: { item, batch, action: activeTabRef.current }
+      });
+      return;
     }
     
     playScanSuccessSound();
@@ -780,109 +680,47 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     });
   };
 
-  const handleReceiveCuttableSubmit = ({ pieces, totalDimension, item, batch }) => {
+  const handleCuttableSubmit = ({ item, batch, qty, cartItemId }) => {
     playScanSuccessSound();
+    const total = Math.round(Number(qty) * 100) / 100;
     setCart(prev => {
-      const existingIdx = prev.findIndex(c => c.barcode === item.barcode && c.batch_id === batch?.batch_id);
-      if (existingIdx >= 0) {
+      // Editing an existing line: replace its quantity
+      if (cartItemId) {
+        return prev.map(c => c.id === cartItemId
+          ? { ...c, quantity: total, actual_quantity: total, billableQuantity: total, customTotalInput: undefined }
+          : c);
+      }
+      // Same item + batch already in the cart: add to it
+      const idx = prev.findIndex(c => c.barcode === item.barcode && c.batch_id === (batch?.batch_id || null));
+      if (idx >= 0) {
         const updated = [...prev];
-        const newPieces = (Number(updated[existingIdx].quantity) || 0) + pieces;
-        const isSqft = item.unit === 'SQFT';
-        const dLen = Number(item.default_length) || (isSqft ? 100 : 12);
-        const dWid = isSqft ? (Number(item.default_width) || 3) : 1;
-        const totalDim = isSqft ? (newPieces * dLen * dWid) : (newPieces * dLen);
-        updated[existingIdx] = {
-          ...updated[existingIdx],
-          quantity: newPieces,
-          actual_quantity: totalDim,
-          billableQuantity: totalDim
-        };
+        const newTotal = Math.round(((Number(updated[idx].actual_quantity ?? updated[idx].quantity) || 0) + total) * 100) / 100;
+        updated[idx] = { ...updated[idx], quantity: newTotal, actual_quantity: newTotal, billableQuantity: newTotal, customTotalInput: undefined };
         return updated;
       }
+      const sellPrice = Number(batch?.selling_price ?? (item.price || 0));
       return [...prev, {
         ...item,
         id: generateId(),
         scanned_barcode: batch?.batch_number ? `${item.barcode}-${String(batch.batch_number).padStart(2, '0')}` : item.barcode,
         batch_id: batch?.batch_id || null,
         batch_number: batch?.batch_number || null,
-        quantity: pieces,
-        actual_quantity: totalDimension,
-        billableQuantity: totalDimension,
+        quantity: total,
+        actual_quantity: total,
+        billableQuantity: total,
         unit: item.unit,
-        default_length: item.default_length,
-        default_width: item.default_width,
         purchase_cost: Number(batch?.purchase_cost ?? (item.cost_price || 0)).toFixed(2),
-        selling_price: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2),
+        selling_price: sellPrice.toFixed(2),
         msp_price: Number(calculateMSP(batch, item)).toFixed(2),
-        price: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2),
+        price: sellPrice.toFixed(2),
         msp: Number(calculateMSP(batch, item)).toFixed(2),
-        customPriceInput: Number(batch?.selling_price ?? (item.price || 0)).toFixed(2),
+        customPriceInput: sellPrice.toFixed(2),
         discountPct: 0,
         is_cuttable: true,
         instance_barcode: null
       }];
     });
-    setReceiveCuttableModal({ isOpen: false, modalData: null });
-  };
-
-  const handleCuttableCheckoutSubmit = (data) => {
-    playScanSuccessSound();
-    const { item, batch, cartItemId, billableQty, deductQty, cutPieces, cutLength } = data;
-    const sellPrice = Number(batch?.selling_price ?? (item.price || 0));
-
-    if (cartItemId) {
-      setCart(prev => prev.map(c => {
-        if (c.id === cartItemId) {
-          const customP = c.customPriceInput !== undefined && c.customPriceInput !== '' ? Number(c.customPriceInput) : sellPrice;
-          return {
-            ...c,
-            quantity: billableQty,
-            actual_quantity: deductQty,
-            billableQuantity: billableQty,
-            cut_pieces: cutPieces,
-            cut_length: cutLength,
-            is_full_piece: cutLength === Number(c.default_length),
-            scrap_action: null,
-            scrap_leftover: 0,
-            customTotalInput: (customP * billableQty).toFixed(2)
-          };
-        }
-        return c;
-      }));
-      setCuttableCheckoutModal({ isOpen: false, modalData: null });
-      return;
-    }
-
-    setCart(prev => {
-      return [...prev, {
-        ...item,
-        id: generateId(),
-        scanned_barcode: batch?.batch_number ? `${item.barcode}-${String(batch.batch_number).padStart(2, '0')}` : item.barcode,
-        batch_id: batch?.batch_id || null,
-        batch_number: batch?.batch_number || null,
-        quantity: billableQty,
-        actual_quantity: deductQty,
-        billableQuantity: billableQty,
-        cut_pieces: cutPieces,
-        cut_length: cutLength,
-        is_full_piece: cutLength === Number(item.default_length),
-        scrap_action: null,
-        scrap_leftover: 0,
-        unit: item.unit,
-        default_length: item.default_length,
-        default_width: item.default_width,
-        purchase_cost: Number(batch?.purchase_cost ?? (item.cost_price || 0)).toFixed(2),
-        selling_price: Number(sellPrice).toFixed(2),
-        msp_price: Number(calculateMSP(batch, item)).toFixed(2),
-        price: Number(sellPrice).toFixed(2),
-        msp: Number(calculateMSP(batch, item)).toFixed(2),
-        customPriceInput: Number(sellPrice).toFixed(2),
-        discountPct: 0,
-        is_cuttable: true,
-        instance_barcode: null
-      }];
-    });
-    setCuttableCheckoutModal({ isOpen: false, modalData: null });
+    setCuttableModal({ isOpen: false, modalData: null });
   };
 
   const handleEditCuttableItem = useCallback(async (cartItem) => {
@@ -902,14 +740,14 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       stock_store: cartItem.stock_store
     };
 
-    setCuttableCheckoutModal({
+    setCuttableModal({
       isOpen: true,
       modalData: {
         item,
         batch,
+        action: activeTabRef.current,
         cartItemId: cartItem.id,
-        initialCutPieces: cartItem.cut_pieces || 1,
-        initialCutLength: cartItem.cut_length || item.default_length
+        initialQty: Number(cartItem.actual_quantity ?? cartItem.quantity) || ''
       }
     });
   }, []);
@@ -950,17 +788,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             }
           }
           
-          if (i.is_cuttable && (activeTab === 'receive' || activeTab === 'transfer')) {
-            const isSqft = i.unit === 'SQFT';
-            const dLen = Number(i.default_length) || (isSqft ? 100 : 12);
-            const dWid = isSqft ? (Number(i.default_width) || 3) : 1;
-            const singleDim = isSqft ? (dLen * dWid) : dLen;
-            const totalDim = Math.round((Number(newQty) || 0) * singleDim * 100) / 100;
+          if (i.is_cuttable) {
+            // Cut-length items: quantity = total length/area in every tab (no pieces)
             return {
               ...i,
               quantity: newQty,
-              actual_quantity: totalDim,
-              billableQuantity: totalDim,
+              actual_quantity: newQty,
+              billableQuantity: newQty,
               customTotalInput: undefined
             };
           }
@@ -980,7 +814,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             quantity: newQty, 
             billableQuantity: billableQty, 
             grams: updatedGrams,
-            pieceLength: (i.is_cuttable && i.unit !== 'SQFT') ? newQty : i.pieceLength, 
             customTotalInput: undefined 
           };
         }
@@ -1006,31 +839,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           let newQty = parseFloat((l * w * r).toFixed(2));
           
           if (activeTab === 'checkout' && newQty > 0) {
-            if (updated.is_cuttable && updated.instance_barcode) {
-              const maxLength = Number(updated.max_available_length || 0);
-              const otherLengths = prev.filter(cartItem => cartItem.id !== id && cartItem.instance_barcode === updated.instance_barcode).reduce((sum, cartItem) => sum + ((Number(cartItem.length) || 0) * (Number(cartItem.rolls) || 1)), 0);
-              const availableForThisRow = Math.max(0, maxLength - otherLengths);
-              
-              if ((l * r) > availableForThisRow) {
-                if (field === 'rolls') {
-                  r = Math.max(1, Math.floor(availableForThisRow / (l || 1)));
-                  updated.rolls = r;
-                  limitMsg = `You only have ${availableForThisRow} ft left on this piece. Clamped rolls to ${r}.`;
-                }
-                
-                if ((l * r) > availableForThisRow) {
-                  l = Number((availableForThisRow / r).toFixed(2));
-                  updated.length = l;
-                  limitMsg = `You only have ${availableForThisRow} ft left on this piece. Clamped length to ${l}.`;
-                }
-                newQty = parseFloat((l * w * r).toFixed(2));
-              }
-            } else {
-              const maxStock = isWarehouseDisabled 
-                ? (Number(i.stock_store || 0) + Number(i.stock_warehouse || 0)) 
-                : Number(i.stock_store || 0);
-              if (newQty > maxStock) { limitMsg = `You only have ${maxStock} of ${i.name} in the store.`; newQty = maxStock; }
-            }
+            const maxStock = isWarehouseDisabled 
+              ? (Number(i.stock_store || 0) + Number(i.stock_warehouse || 0)) 
+              : Number(i.stock_store || 0);
+            if (newQty > maxStock) { limitMsg = `You only have ${maxStock} of ${i.name} in the store.`; newQty = maxStock; }
           }
           let billableQty = newQty;
           const method = updated.billing_method || 'exact';
@@ -1457,14 +1269,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       }
     }
 
-    if (activeTab === 'receive') {
-      const missingDefaults = finalCart.filter(i => i.is_cuttable && !i.default_length);
-      if (missingDefaults.length > 0) {
-        showAlert(`Please set Default Length in the Catalog for: ${missingDefaults.map(i => i.name).join(', ')}`, "Missing Dimensions");
-        return;
-      }
-    }
-
     checkoutInFlightRef.current = true;
     const endCriticalWork = beginCriticalWork(); // holds back app auto-update reloads
     setIsCheckingOut(true);
@@ -1657,40 +1461,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         p_customer_name: checkoutModal.customerName || null,
         p_customer_phone: checkoutModal.customerPhone || null,
         screw_item: finalCart.find(i => i.is_screw || i.barcode === 'SCREWS') || null,
-        p_items: finalCart.filter(i => !i.is_screw && i.barcode !== 'SCREWS').map(i => {
-          let calcQuantity = Number(i.quantity);
-          if (i.is_cuttable) {
-            if (activeTab === 'receive' || activeTab === 'transfer') {
-              const isSqft = i.unit === 'SQFT';
-              const dLen = Number(i.default_length) || (isSqft ? 100 : 12);
-              const dWid = isSqft ? (Number(i.default_width) || 3) : 1;
-              calcQuantity = Math.round(Number(i.quantity) * dLen * (isSqft ? dWid : 1) * 100) / 100;
-            } else {
-              calcQuantity = Number(i.actual_quantity !== undefined ? i.actual_quantity : i.quantity);
-            }
-          }
-          const finalPrice = i.customPriceInput !== undefined && i.customPriceInput !== '' ? Number(i.customPriceInput) : Number(i.price || 0);
-          return {
-            barcode: i.barcode,
-            name: i.name,
-            batch_id: i.batch_id || null,
-            actual_quantity: calcQuantity,
-            billable_quantity: i.billableQuantity !== undefined && i.billableQuantity !== '' ? Number(i.billableQuantity) : (i.is_cuttable ? Number(i.quantity) : calcQuantity),
-            system_price: i.selling_price !== undefined ? Number(i.selling_price) : Number(i.price || 0),
-            final_price: finalPrice,
-            negotiated_discount: i.discountPct || 0,
-            unit: i.unit,
-            instance_barcode: null,
-            cut_length: i.cut_length || null,
-            discard_scrap: i.scrap_action === 'discard',
-            num_rolls: (activeTab === 'receive' && i.is_cuttable) ? Number(i.quantity) : null,
-            default_length: i.default_length ? Number(i.default_length) : null,
-            default_width: i.default_width ? Number(i.default_width) : null,
-            purchase_cost: i.purchase_cost !== undefined ? Number(i.purchase_cost) : (i.cost_price ? Number(i.cost_price) : 0),
-            selling_price: i.selling_price !== undefined ? Number(i.selling_price) : (i.price ? Number(i.price) : 0),
-            msp: i.msp_price !== undefined ? Number(i.msp_price) : (i.msp ? Number(i.msp) : 0)
-          };
-        }),
+        p_items: buildTransactionItems(finalCart, activeTab),
       };
 
       let successData = null;
@@ -1791,11 +1562,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         const localItem = await getInventoryItemByBarcode(item.barcode);
         if (localItem) {
           const effectiveStockQty = item.is_cuttable
-            ? (item.actual_quantity !== undefined ? Number(item.actual_quantity) : (
-                item.unit === 'SQFT'
-                  ? Math.round(Number(item.quantity) * (Number(item.default_length) || 100) * (Number(item.default_width) || 3) * 100) / 100
-                  : Math.round(Number(item.quantity) * (Number(item.default_length) || 12) * 100) / 100
-              ))
+            ? Number(item.actual_quantity !== undefined && item.actual_quantity !== '' ? item.actual_quantity : item.quantity)
             : Number(item.quantity);
 
           if (activeTab === 'receive') {
@@ -1845,11 +1612,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               batch_id: item.batch_id,
               batch_number: item.batch_number,
               qty: item.is_cuttable
-                ? (item.actual_quantity !== undefined ? Number(item.actual_quantity) : (
-                    item.unit === 'SQFT'
-                      ? Math.round(Number(item.quantity) * (Number(item.default_length) || 100) * (Number(item.default_width) || 3) * 100) / 100
-                      : Math.round(Number(item.quantity) * (Number(item.default_length) || 12) * 100) / 100
-                  ))
+                ? Number(item.actual_quantity !== undefined && item.actual_quantity !== '' ? item.actual_quantity : item.quantity)
                 : Number(item.quantity)
             }))
           });
@@ -2131,7 +1894,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       }
 
       // If other modals are open, skip hotkeys
-      if (looseItemModal.isOpen || receiveCuttableModal.isOpen || cuttableCheckoutModal.isOpen) {
+      if (looseItemModal.isOpen || cuttableModal.isOpen) {
         return;
       }
 
@@ -2359,8 +2122,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     calculateTotal,
     printPreviewOpen,
     looseItemModal.isOpen,
-    receiveCuttableModal.isOpen,
-    cuttableCheckoutModal.isOpen,
+    cuttableModal.isOpen,
     cart,
     selectedCartIndex,
     activeTab,
@@ -2440,21 +2202,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         onClose={() => setLooseItemModal({ isOpen: false, item: null, qty: '' })}
       />
 
-      <ReceiveCuttableModal
-        isOpen={receiveCuttableModal.isOpen}
-        modalData={receiveCuttableModal.modalData}
+      <CuttableQuantityModal
+        isOpen={cuttableModal.isOpen}
+        modalData={cuttableModal.modalData}
         cart={cart}
-        onSubmit={handleReceiveCuttableSubmit}
-        onClose={() => setReceiveCuttableModal({ isOpen: false, modalData: null })}
-      />
-
-      <CuttableCheckoutModal
-        isOpen={cuttableCheckoutModal.isOpen}
-        modalData={cuttableCheckoutModal.modalData}
-        cart={cart}
-        onSubmit={handleCuttableCheckoutSubmit}
-        onClose={() => setCuttableCheckoutModal({ isOpen: false, modalData: null })}
         isWarehouseDisabled={isWarehouseDisabled}
+        onSubmit={handleCuttableSubmit}
+        onClose={() => setCuttableModal({ isOpen: false, modalData: null })}
       />
 
       <ScrewsModal

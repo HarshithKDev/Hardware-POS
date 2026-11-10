@@ -6,9 +6,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import {
   CheckoutModal,
   SelectBatchModal,
-  LooseItemModal,
-  CutLengthModal,
-  ManualInstanceBarcodeModal
+  LooseItemModal
 } from '../components/terminal';
 
 // 2. Direct ESC/POS Thermal Printing Service
@@ -174,41 +172,6 @@ describe('4. Code Architecture & Performance Optimizations', () => {
       });
     });
 
-    describe('CutLengthModal', () => {
-      it('detects remnant scrap when remaining length is less than 1 unit', () => {
-        const mockItem = {
-          barcode: '6001',
-          name: 'Finolex Submersible Cable 3 Core',
-          unit: 'm'
-        };
-
-        const mockInstance = {
-          instance_barcode: '6001-01',
-          current_length: '10' // 10 meters available
-        };
-
-        const mockState = {
-          isOpen: true,
-          item: mockItem,
-          instance: mockInstance,
-          cutQty: '9.4', // cutting 9.4 -> 0.6m left (< 1m scrap)
-          discardScrap: true
-        };
-
-        render(
-          <CutLengthModal
-            isOpen={true}
-            cutLengthModal={mockState}
-            setCutLengthModal={vi.fn()}
-            cart={[]}
-            onSubmit={vi.fn()}
-            onClose={vi.fn()}
-          />
-        );
-
-        expect(screen.getByText(/Only 0.60 m left. Discard remaining scrap\?/)).toBeDefined();
-      });
-    });
   });
 
   describe('Part 2: Direct ESC/POS Raw Thermal Printing', () => {

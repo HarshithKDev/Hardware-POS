@@ -169,7 +169,7 @@ const CartTable = React.memo(function CartTable({
                         <button 
                           type="button" 
                           onMouseDown={(e) => e.preventDefault()} 
-                          onClick={() => onUpdateQuantity(item.id, Math.max(activeTab === 'checkout' ? 0.1 : 1, safeQty - 1))} 
+                          onClick={() => onUpdateQuantity(item.id, Math.max(Math.min(1, safeQty), safeQty - 1))} 
                           className="w-8 h-8 flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-r border-[var(--border-medium)] select-none"
                           style={{ borderRadius: 0 }}
                           aria-label="Decrease quantity"
@@ -178,8 +178,8 @@ const CartTable = React.memo(function CartTable({
                         </button>
                         <input 
                           type="number" 
-                          step={activeTab === 'checkout' ? "any" : "1"} 
-                          min={activeTab === 'checkout' ? "0" : "1"} 
+                          step="any" 
+                          min="0" 
                           onWheel={handleWheelBlur} 
                           value={item.quantity} 
                           onChange={(e) => onUpdateQuantity(item.id, e.target.value)} 
@@ -198,36 +198,10 @@ const CartTable = React.memo(function CartTable({
                           +
                         </button>
                       </div>
-                      <div className="flex flex-col items-center justify-center mt-1">
-                        {activeTab === 'checkout' ? (
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onEditCuttableItem && onEditCuttableItem(item);
-                              }}
-                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--color-accent)] hover:underline hover:text-[var(--text-primary)] transition-colors cursor-pointer px-2 py-0.5 rounded bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] border border-[var(--border-medium)]"
-                              title="Click to edit cut pieces or length"
-                            >
-                              <span>
-                                {item.cut_pieces 
-                                  ? (item.unit === 'SQFT' 
-                                      ? `${item.cut_pieces} × ${item.cut_length || item.default_length} FT (${item.default_width || 3} FT H)` 
-                                      : `${item.cut_pieces} × ${item.cut_length || item.default_length} ${item.unit || 'FT'}`)
-                                  : `${safeQty} ${item.unit}`}
-                              </span>
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-2.5 h-2.5 opacity-70">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                              </svg>
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-[11px] text-[var(--text-tertiary)] font-medium">
-                            {safeQty} {item.unit === 'SQFT' ? (safeQty === 1 ? 'Roll' : 'Rolls') : (safeQty === 1 ? 'Piece' : 'Pieces')} · {item.actual_quantity !== undefined ? item.actual_quantity : Math.round(safeQty * Number(item.default_length || 12) * (item.unit === 'SQFT' ? Number(item.default_width || 3) : 1) * 100) / 100} {item.unit}
-                          </span>
-                        )}
-                      </div>
+                      {/* Cut-length items: the quantity is the total length / area (no pieces) */}
+                      <span className="mt-1 text-[11px] text-[var(--text-tertiary)] font-medium">
+                        Total {safeQty} {String(item.unit || '').toLowerCase()}
+                      </span>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center">
