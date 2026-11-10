@@ -1,4 +1,5 @@
 import { useCallback, useState, useEffect, useRef } from 'react';
+import { localToUtcIso } from './utils';
 import { createPortal } from 'react-dom';
 import { supabase } from './supabaseClient';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
@@ -767,8 +768,8 @@ export default function OwnerStats({ isActive }) {
     let billsQuery = supabase
       .from('bills')
       .select('id, total_amount, created_at')
-      .gte('created_at', queryStart)
-      .lte('created_at', queryEnd)
+      .gte('created_at', localToUtcIso(queryStart))
+      .lte('created_at', localToUtcIso(queryEnd))
       .eq('location', 'Store')
       .neq('status', 'voided')
       .neq('status', 'showroom_pending')
@@ -866,7 +867,12 @@ export default function OwnerStats({ isActive }) {
     }));
 
     // Filter bills for the timeframe metrics
-    const tfBills = billsData.filter(b => b.created_at >= tfStart && b.created_at <= tfEnd);
+    const tfStartMs = new Date(tfStart).getTime();
+    const tfEndMs = new Date(tfEnd).getTime();
+    const tfBills = billsData.filter(b => {
+      const t = new Date(b.created_at).getTime();
+      return t >= tfStartMs && t <= tfEndMs;
+    });
     const tfBillIds = new Set(tfBills.map(b => b.id));
 
     let tfTrueRevenue = 0, tfGrossProfit = 0, tfTotalCost = 0, tfTotalDiscount = 0;
@@ -949,7 +955,7 @@ export default function OwnerStats({ isActive }) {
     let dsBillsQuery = supabase
       .from('bills')
       .select('id')
-      .gte('created_at', deadStockStartIso)
+      .gte('created_at', localToUtcIso(deadStockStartIso))
       .eq('location', 'Store')
       .neq('status', 'voided')
       .neq('status', 'showroom_pending')

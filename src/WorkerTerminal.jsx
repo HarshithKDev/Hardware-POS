@@ -1381,6 +1381,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           setCheckoutModal(prev => ({ ...prev, error: "Split payment amounts must equal or exceed the total due." }));
           return;
         }
+        if (Math.round(Number(checkoutModal.splitUpi) * 100) > activeTotalCents) {
+          setCheckoutModal(prev => ({ ...prev, error: "UPI amount cannot be more than the total due." }));
+          return;
+        }
       }
       // SHOWROOM: No payment validation needed — customer will pay at the showroom
     }
@@ -1579,7 +1583,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           
           let activeDiscountableItems = [...originalDiscountableItems];
           let loopSafety = 0;
-          while (totalDiscountToGive > 0.005 && activeDiscountableItems.length > 0 && loopSafety < 10) {
+          while (totalDiscountToGive > 0.005 && activeDiscountableItems.length > 0 && loopSafety < 100) {
             loopSafety++;
             const currentTotalDiscountable = activeDiscountableItems.reduce((sum, i) => sum + (i.maxDiscountableTotal - i.allocatedDiscount), 0);
             let iterationDiscountToGive = totalDiscountToGive;
@@ -1632,8 +1636,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         } else if (paymentMethod === 'UPI') {
           upiAmount = totalForPayment;
         } else if (paymentMethod === 'SPLIT') {
-          cashAmount = Math.round(Number(checkoutModal.splitCash || 0) * 100) / 100;
+          // Record what was actually kept: UPI as paid, cash = rest of the total (any extra
+          // cash handed over was returned as change), so Cash + UPI always equals the bill total.
           upiAmount = Math.round(Number(checkoutModal.splitUpi || 0) * 100) / 100;
+          cashAmount = Math.round((totalForPayment - upiAmount) * 100) / 100;
         }
       }
 
@@ -1904,12 +1910,20 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
          }
          return item;
       });
-      const finalTotalAmount = finalItemsList.reduce((sum, i) => sum + i.lineTotal, 0);
+      const linesTotal = Math.round(finalItemsList.reduce((sum, i) => sum + i.lineTotal, 0) * 100) / 100;
+      // On checkout the customer pays the negotiated total. Per-item prices are rounded to paise,
+      // so the lines can differ slightly; show that as "Round Off" so NET DUE (and the UPI QR)
+      // always match the amount actually charged and recorded on the bill.
+      const finalTotalAmount = activeTab === 'checkout' && totalForPayment > 0
+        ? Math.round(totalForPayment * 100) / 100
+        : linesTotal;
+      const roundOff = Math.round((finalTotalAmount - linesTotal) * 100) / 100;
 
       setLastReceipt({
         id: successData.bill_id.split('-')[0],
         items: finalItemsList,
         total: finalTotalAmount,
+        roundOff: Math.abs(roundOff) >= 0.01 ? roundOff : 0,
         date: new Date(),
         type: activeTab,
         paymentMethod: paymentMethod,

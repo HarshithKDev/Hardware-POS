@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useMemo, Fragment, useCallback } from 'react';
+import { localToUtcIso } from './utils';
+import { getPerformedBy } from './utils';
 import { supabase } from './supabaseClient';
 import { casUpdateRow } from './services/atomicStock';
 import { beginCriticalWork } from './services/busyGuard';
@@ -233,8 +235,8 @@ export default function OwnerLedger({ isActive }) {
         .range(from, from + SALES_PER_PAGE - 1);
     } else {
       // DAY-BY-DAY MODE: Load records strictly of currentDay
-      const start = `${currentDay}T00:00:00`;
-      const end = `${currentDay}T23:59:59.999`;
+      const start = localToUtcIso(`${currentDay}T00:00:00`);
+      const end = localToUtcIso(`${currentDay}T23:59:59.999`);
       query = query
         .gte('created_at', start)
         .lte('created_at', end)
@@ -285,8 +287,8 @@ export default function OwnerLedger({ isActive }) {
           query = query.or(`customer_phone.ilike.%${cleanQ}%,customer_name.ilike.%${cleanQ}%,id.ilike.%${cleanQ}%`);
         }
       } else {
-        const start = `${currentDay}T00:00:00`;
-        const end = `${currentDay}T23:59:59.999`;
+        const start = localToUtcIso(`${currentDay}T00:00:00`);
+        const end = localToUtcIso(`${currentDay}T23:59:59.999`);
         query = query.gte('created_at', start).lte('created_at', end);
       }
 
@@ -416,7 +418,7 @@ export default function OwnerLedger({ isActive }) {
       if (itemsToReturn.length === 0) return;
 
       const shopId = localStorage.getItem('shop_id');
-      const performedBy = localStorage.getItem('owner_name') || localStorage.getItem('cashier_name') || 'Staff';
+      const performedBy = getPerformedBy();
 
       let updatedBillTotal = Number(bill.total_amount);
 

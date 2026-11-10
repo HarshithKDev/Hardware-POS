@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getPerformedBy } from './utils';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import { generateId } from './utils';
@@ -76,7 +77,7 @@ export default function CreateBatchModal({ item, onClose, onBatchCreated }) {
           barcode: item.barcode,
           item_name: item.name,
           changes: `Created Batch #${nextBatchNum}${insertPayload.supplier ? ` | Wholesaler: ${insertPayload.supplier}` : ''} | Cost: ₹${insertPayload.purchase_cost} | MSP: ₹${insertPayload.msp} | MRP: ₹${insertPayload.selling_price}`,
-          performed_by: localStorage.getItem('owner_name') || 'Owner'
+          performed_by: getPerformedBy()
         }]);
       } catch (err) {
         console.error("Failed to log batch creation", err);

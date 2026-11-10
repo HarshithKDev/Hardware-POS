@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { localToUtcIso } from './utils';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import { Spinner, PageLoader } from './SharedUI';
@@ -176,8 +177,8 @@ export default function OwnerAuditLogs() {
           .range(searchPage * AUDIT_SEARCH_PER_PAGE, (searchPage + 1) * AUDIT_SEARCH_PER_PAGE - 1);
       } else {
         // DAY-BY-DAY MODE: Load records strictly of currentDay
-        const start = `${currentDay}T00:00:00`;
-        const end = `${currentDay}T23:59:59.999`;
+        const start = localToUtcIso(`${currentDay}T00:00:00`);
+        const end = localToUtcIso(`${currentDay}T23:59:59.999`);
         auditQuery = auditQuery
           .gte('created_at', start)
           .lte('created_at', end)

@@ -73,7 +73,8 @@ describe('Delta / Incremental Sync System', () => {
     vi.mocked(db.getSyncStatus).mockResolvedValue({
       key: 'inventory_sync_test-shop-123_worker',
       status: 'idle',
-      last_sync: lastSyncTime
+      last_sync: lastSyncTime,
+      last_full_sync: new Date().toISOString() // recent full sync → delta allowed
     });
     vi.mocked(db.getLocalInventoryCount).mockResolvedValue(150);
 
@@ -135,7 +136,8 @@ describe('Delta / Incremental Sync System', () => {
     vi.mocked(db.getSyncStatus).mockResolvedValue({
       key: 'inventory_sync_test-shop-123_worker',
       status: 'idle',
-      last_sync: '2026-10-21T18:00:00.000Z'
+      last_sync: '2026-10-21T18:00:00.000Z',
+      last_full_sync: new Date().toISOString() // recent full sync → delta attempted first
     });
     vi.mocked(db.getLocalInventoryCount).mockResolvedValue(150);
 
@@ -204,5 +206,35 @@ describe('Delta / Incremental Sync System', () => {
       expect.stringContaining('inventory_sync_test-shop-123_owner'),
       expect.objectContaining({ last_mode: 'full', synced_with_cost: true })
     );
+  });
+
+  it('runs a FULL sync when the last full sync is older than 6 hours (safety net)', async () => {
+    vi.mocked(db.getSyncStatus).mockResolvedValue({
+      key: 'inventory_sync_test-shop-123_worker',
+      status: 'idle',
+      last_sync: new Date().toISOString(),
+      last_full_sync: new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString()
+    });
+    vi.mocked(db.getLocalInventoryCount).mockResolvedValue(150);
+    const prodQuery = createChainableQuery([{ barcode: '1001' }]);
+    vi.mocked(supabase.from).mockImplementation(() => prodQuery);
+
+    await syncInventoryToLocal('worker');
+
+    expect(prodQuery.gt).not.toHaveBeenCalled();      // no delta filter
+    expect(prodQuery.range).toHaveBeenCalled();        // paginated full download
+  });
+
+  it('merges overlapping sync requests into one follow-up run', async () => {
+    vi.mocked(db.getSyncStatus).mockResolvedValue({ last_sync: new Date().toISOString(), last_full_sync: new Date().toISOString() });
+    vi.mocked(db.getLocalInventoryCount).mockResolvedValue(150);
+    const prodQuery = createChainableQuery([]);
+    vi.mocked(supabase.from).mockImplementation(() => prodQuery);
+
+    await Promise.all([1, 2, 3, 4, 5].map(() => syncInventoryToLocal('worker')));
+
+    // 1 running + 1 merged follow-up = 2 runs, each does a ping + one delta query
+    const deltaCalls = prodQuery.gt.mock.calls.length;
+    expect(deltaCalls).toBe(2);
   });
 });

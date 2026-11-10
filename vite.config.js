@@ -80,5 +80,11 @@ export default defineConfig({
     globals: true,
     environment: 'happy-dom',
     setupFiles: './vitest.setup.js',
+    // Dummy values so modules that create the Supabase client can be imported in tests.
+    // No test talks to a real server.
+    env: {
+      VITE_SUPABASE_URL: 'http://localhost:54321',
+      VITE_SUPABASE_ANON_KEY: 'test-anon-key',
+    },
   }
 })

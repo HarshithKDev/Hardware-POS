@@ -6,6 +6,7 @@
 
 import { supabase } from '../supabaseClient';
 import { getInventoryItemByBarcode, saveInventoryBatch } from './db';
+import { requestInventorySync } from './sync';
 
 // Module-level reference to the active subscription channel for efficient broadcast reuse
 let activeSubscriptionChannel = null;
@@ -167,6 +168,10 @@ export function subscribeToStockUpdates({
         }
         if (itemsToSave.length > 0) {
           await saveInventoryBatch(itemsToSave);
+          // The optimistic decrement above can be applied twice (once here and once by the
+          // database-change sync). Schedule a sync shortly after so local stock is corrected
+          // to the server's exact numbers.
+          if (navigator.onLine) requestInventorySync();
         }
       } catch (err) {
         console.warn("[RealtimeStock] Error applying peer stock update to IndexedDB:", err);

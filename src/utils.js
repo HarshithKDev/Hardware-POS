@@ -129,3 +129,29 @@ export function formatDayHeader(dateStr) {
 }
 
 export { useSessionState } from './hooks/useSessionState';
+
+/**
+ * Name to record in audit logs for the current user. Previously every screen used the
+ * owner's name from localStorage, so actions by staff on a shared device were logged
+ * as the owner. The role is verified against the signed-in account at start-up.
+ */
+export function getPerformedBy() {
+  let role = null;
+  try {
+    role = sessionStorage.getItem('posUserRole') || localStorage.getItem('posUserRole');
+  } catch (e) { /* storage unavailable */ }
+  if (!role || role === 'owner') {
+    try { return localStorage.getItem('owner_name') || 'Owner'; } catch (e) { return 'Owner'; }
+  }
+  return role;
+}
+
+/**
+ * Convert a local wall-clock string like "2026-11-10T00:00:00" into a UTC ISO timestamp.
+ * Database timestamps are compared in UTC; sending the local string as-is made each
+ * "day" in reports run from 05:30 to 05:29 IST instead of midnight to midnight.
+ */
+export function localToUtcIso(localDateTime) {
+  const d = new Date(localDateTime); // no offset in the string → parsed as local time
+  return isNaN(d.getTime()) ? localDateTime : d.toISOString();
+}

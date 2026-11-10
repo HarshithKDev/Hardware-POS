@@ -1,4 +1,5 @@
 import { useState, Fragment } from 'react';
+import { getPerformedBy } from './utils';
 import { supabase } from './supabaseClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
@@ -65,7 +66,7 @@ export default function OwnerCategories() {
         barcode: 'CATEGORY',
         item_name: name,
         changes: `Added Category: ${name}`,
-        performed_by: localStorage.getItem('owner_name') || 'Owner'
+        performed_by: getPerformedBy()
       }]);
     },
     onSuccess: () => {
@@ -97,7 +98,7 @@ export default function OwnerCategories() {
         barcode: 'SUB-CATEGORY',
         item_name: name,
         changes: `Added Sub-category: ${name} (under ${category_name})`,
-        performed_by: localStorage.getItem('owner_name') || 'Owner'
+        performed_by: getPerformedBy()
       }]);
 
       return category_name;
@@ -139,7 +140,7 @@ export default function OwnerCategories() {
         barcode: 'CATEGORY',
         item_name: name,
         changes: `Deleted Category: ${name}`,
-        performed_by: localStorage.getItem('owner_name') || 'Owner'
+        performed_by: getPerformedBy()
       }]);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['categories'] }),
@@ -172,7 +173,7 @@ export default function OwnerCategories() {
         barcode: 'SUB-CATEGORY',
         item_name: name,
         changes: `Deleted Sub-category: ${name} (from ${category_name || 'unknown'})`,
-        performed_by: localStorage.getItem('owner_name') || 'Owner'
+        performed_by: getPerformedBy()
       }]);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['subcategories'] }),

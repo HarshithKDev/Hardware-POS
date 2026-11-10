@@ -318,3 +318,32 @@ describe('D2: app update waits for critical work', () => {
     expect(isCriticalWorkInProgress()).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Medium-severity helpers
+// ---------------------------------------------------------------------------
+import { localToUtcIso, getPerformedBy } from '../utils';
+
+describe('E1: local day boundaries are converted to UTC for queries', () => {
+  it('converts local midnight to the matching UTC instant', () => {
+    expect(localToUtcIso('2026-11-10T00:00:00')).toBe(new Date(2026, 10, 10, 0, 0, 0).toISOString());
+    expect(localToUtcIso('2026-11-10T23:59:59.999')).toBe(new Date(2026, 10, 10, 23, 59, 59, 999).toISOString());
+  });
+  it('leaves unparsable input unchanged', () => {
+    expect(localToUtcIso('not-a-date')).toBe('not-a-date');
+  });
+});
+
+describe('C8: audit logs record the real user', () => {
+  it('uses the staff name for staff sessions even if an owner name is cached', () => {
+    localStorage.setItem('owner_name', 'Harsh');
+    sessionStorage.setItem('posUserRole', 'Raju');
+    expect(getPerformedBy()).toBe('Raju');
+    sessionStorage.clear();
+  });
+  it('uses the owner name for the owner', () => {
+    localStorage.setItem('owner_name', 'Harsh');
+    localStorage.setItem('posUserRole', 'owner');
+    expect(getPerformedBy()).toBe('Harsh');
+  });
+});

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { getPerformedBy } from './utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import { casUpdateRow } from './services/atomicStock';
@@ -403,7 +404,7 @@ export default function BatchDetailsView({
           barcode: item.barcode,
           item_name: item.name,
           changes: `Updated Batch ${oldBatch?.batch_number || 1}: ${changes.join(', ')}`,
-          performed_by: localStorage.getItem('owner_name') || 'Owner'
+          performed_by: getPerformedBy()
         }]);
       }
     },
@@ -474,7 +475,7 @@ export default function BatchDetailsView({
         barcode: item.barcode,
         item_name: item.name,
         changes: `Description: ${item.description || 'None'} -> ${cleanDesc || 'None'}`,
-        performed_by: localStorage.getItem('owner_name') || 'Owner'
+        performed_by: getPerformedBy()
       }]);
     },
     onSuccess: async (_, newDesc) => {
@@ -533,7 +534,7 @@ export default function BatchDetailsView({
           barcode: item.barcode,
           item_name: item.name,
           changes: `Updated Min Stock Thresholds: ${changes.join(', ')}`,
-          performed_by: localStorage.getItem('owner_name') || 'Owner'
+          performed_by: getPerformedBy()
         }]);
       }
 
@@ -591,7 +592,7 @@ export default function BatchDetailsView({
             barcode: item.barcode,
             item_name: trimmed,
             changes: `Renamed product from "${item.name}" to "${trimmed}"`,
-            performed_by: localStorage.getItem('owner_name') || 'Owner'
+            performed_by: getPerformedBy()
           }]);
         } catch (err) {
           console.warn('Failed to record rename audit log:', err);
@@ -669,7 +670,7 @@ export default function BatchDetailsView({
         barcode: item.barcode,
         item_name: item.name,
         changes: `Deleted Batch #${oldBatch?.batch_number || 1}${removedStock > 0 ? ` (removed ${removedStock} ${displayUnit} stock)` : ''}`,
-        performed_by: localStorage.getItem('owner_name') || 'Owner'
+        performed_by: getPerformedBy()
       }]);
 
       // 2. Immediately update local IndexedDB cache

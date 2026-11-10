@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, forwardRef } from 'react';
+import { getPerformedBy } from './utils';
 import { TableVirtuoso } from 'react-virtuoso';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import PrintBatchModal from './PrintBatchModal';
@@ -213,7 +214,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
             barcode: barcode,
             item_name: itemToDelete.name,
             changes: `${itemToDelete.name} was moved to Recycle Bin (Whse Stock: ${itemToDelete.stock_warehouse}, Store Stock: ${itemToDelete.stock_store})`,
-            performed_by: localStorage.getItem('owner_name') || 'Owner'
+            performed_by: getPerformedBy()
           }]);
         }
         try {
@@ -249,7 +250,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
             barcode: barcode,
             item_name: itemToRestore.name,
             changes: `${itemToRestore.name} was restored from Recycle Bin`,
-            performed_by: localStorage.getItem('owner_name') || 'Owner'
+            performed_by: getPerformedBy()
           }]);
         }
         try {
@@ -358,7 +359,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
           barcode: itemToLog ? itemToLog.barcode : 'Unknown',
           item_name: itemToLog ? itemToLog.name : 'Unknown Item',
           changes: `Deleted Batch #${batchNum}`,
-          performed_by: localStorage.getItem('owner_name') || 'Owner'
+          performed_by: getPerformedBy()
         }]);
       } catch (err) {
         console.error("Failed to log batch deletion", err);
@@ -423,7 +424,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
         barcode: item.barcode,
         item_name: item.name,
         changes: `Item updated via Global Edit${item.cost_price !== undefined ? ` (Cost Price: ₹${item.cost_price})` : ''}`,
-        performed_by: localStorage.getItem('owner_name') || 'Owner'
+        performed_by: getPerformedBy()
       }));
       await supabase.from('audit_logs').insert(auditLogs);
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
@@ -465,7 +466,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
               barcode: item.barcode,
               item_name: item.name,
               changes: `${item.name} was ${isRecycle ? 'restored from' : 'moved to'} Recycle Bin`,
-              performed_by: localStorage.getItem('owner_name') || 'Owner'
+              performed_by: getPerformedBy()
             }));
             await supabase.from('audit_logs').insert(auditLogs);
             
