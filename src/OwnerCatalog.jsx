@@ -6,6 +6,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { generateId } from './utils';
 import { BARCODE_START_VALUE, BARCODE_RETRY_ATTEMPTS, UNIT_TYPES, STALE_TIME_5MIN } from './constants';
+import { fetchAllShopBarcodes, nextNumericBarcode } from './services/catalog';
+
+// Empty cell → 0; text like "abc" → NaN (reported by validation instead of silently becoming 0)
+const toImportNumber = (v) => {
+  if (v === undefined || v === null || String(v).trim() === '') return 0;
+  return Number(String(v).replace(/[₹,\s]/g, ''));
+};
 import { Spinner, CreatableDropdown } from './SharedUI';
 import { 
   saveInventoryBatch, 
@@ -169,20 +176,9 @@ export default function OwnerCatalog() {
 
         if (error.code === '23505' && error.message.includes('barcode')) {
           console.warn(`Barcode ${currentBarcode} taken, retrying... (Attempt ${attempt + 1}/${BARCODE_RETRY_ATTEMPTS})`);
-          let latestQuery = supabase.from('product_master_public').select('barcode');
-          if (shopId) {
-            latestQuery = latestQuery.eq('shop_id', shopId);
-          }
-          let { data: allBcs } = await latestQuery;
-          if (!allBcs || allBcs.length === 0) {
-            const fallbackQ = await supabase.from('product_master').select('barcode').eq('shop_id', shopId);
-            allBcs = fallbackQ.data;
-          }
-          const maxNum = (allBcs || []).reduce((max, item) => {
-            const num = parseInt(item.barcode, 10);
-            return !isNaN(num) ? Math.max(max, num) : max;
-          }, parseInt(currentBarcode, 10));
-          currentBarcode = (maxNum + 1).toString();
+          // Use the complete barcode list (paged); the old single query stopped at 1000 products
+          const allBcs = await fetchAllShopBarcodes(shopId);
+          currentBarcode = nextNumericBarcode(allBcs, Number(currentBarcode) + 1);
         } else {
           throw error;
         }
@@ -374,6 +370,7 @@ export default function OwnerCatalog() {
           }
         });
         if (hasData) {
+          rowObj.__row = rowNumber;
           jsonData.push(rowObj);
         }
       });
@@ -392,14 +389,15 @@ export default function OwnerCatalog() {
         if (unit === 'GRAMS' || unit === 'GRAM' || unit === 'G') unit = 'KG';
         
         return {
+          __row: row.__row,
           barcode: String(row.barcode || row.Barcode || '').trim(),
           name: String(row.name || row.Name || '').trim(),
           category: String(row.category || row.Category || 'Uncategorized').trim(),
           sub_category: String(row.sub_category || row.Subcategory || '').trim(),
           description: String(row.description || row.Description || '').trim() || null,
-          cost_price: Number(row.cost_price || row.Cost || 0),
-          msp: Number(row.msp || row.MSP || 0),
-          price: Number(row.price || row.Price || row.MRP || 0),
+          cost_price: toImportNumber(row.cost_price ?? row.Cost),
+          msp: toImportNumber(row.msp ?? row.MSP),
+          price: toImportNumber(row.price ?? row.Price ?? row.MRP),
           stock_warehouse: 0,
           stock_store: 0,
           unit: unit,
@@ -416,6 +414,30 @@ export default function OwnerCatalog() {
       if (formattedData.length === 0) {
         throw new Error('No valid rows found. Ensure the "name" column exists and is filled.');
       }
+
+      // Validate every row first (row numbers match the Excel sheet) so nothing is half-imported
+      const validUnits = new Set(UNIT_TYPES.map(u => u.value));
+      const rowErrors = [];
+      const seenInFile = new Map();
+      formattedData.forEach((r, idx) => {
+        const rowNo = r.__row || idx + 2;
+        const problems = [];
+        for (const [field, label] of [['price', 'MRP'], ['msp', 'MSP'], ['cost_price', 'Cost']]) {
+          if (!Number.isFinite(r[field])) problems.push(`${label} is not a number`);
+          else if (r[field] < 0) problems.push(`${label} is negative`);
+        }
+        if (Number.isFinite(r.msp) && Number.isFinite(r.price) && r.price > 0 && r.msp > r.price) problems.push('MSP is higher than MRP');
+        if (!validUnits.has(r.unit)) problems.push(`unit "${r.unit}" must be one of ${[...validUnits].join(', ')}`);
+        if (r.barcode) {
+          if (seenInFile.has(r.barcode)) problems.push(`barcode ${r.barcode} is repeated (also row ${seenInFile.get(r.barcode)})`);
+          else seenInFile.set(r.barcode, rowNo);
+        }
+        if (problems.length) rowErrors.push(`Row ${rowNo} (${r.name}): ${problems.join('; ')}`);
+      });
+      if (rowErrors.length > 0) {
+        const shown = rowErrors.slice(0, 15).join('\n');
+        throw new Error(`Nothing was imported. Please fix these rows and try again:\n${shown}${rowErrors.length > 15 ? `\n...and ${rowErrors.length - 15} more` : ''}`);
+      }
       
       const missingCatSubcat = formattedData.some(r => !r.category || !r.sub_category);
       if (missingCatSubcat) {
@@ -429,8 +451,10 @@ export default function OwnerCatalog() {
 
       if (newCatsToInsert.length > 0) {
         const { error: catError } = await supabase.from('categories').insert(newCatsToInsert);
-        if (catError) console.error("Error auto-creating categories:", catError);
-        else queryClient.invalidateQueries({ queryKey: ['categories'] });
+        if (catError && catError.code !== '23505') {
+          throw new Error(`Could not create the new categories (${newCatsToInsert.map(c => c.name).join(', ')}): ${catError.message}. Nothing was imported.`);
+        }
+        queryClient.invalidateQueries({ queryKey: ['categories'] });
       }
 
       const uniqueSubcategories = [];
@@ -448,35 +472,30 @@ export default function OwnerCatalog() {
 
       if (newSubsToInsert.length > 0) {
         const { error: subError } = await supabase.from('subcategories').insert(newSubsToInsert);
-        if (subError) console.error("Error auto-creating sub-categories:", subError);
-        else queryClient.invalidateQueries({ queryKey: ['subcategories'] });
+        if (subError && subError.code !== '23505') {
+          throw new Error(`Could not create the new sub-categories: ${subError.message}. Nothing was imported.`);
+        }
+        queryClient.invalidateQueries({ queryKey: ['subcategories'] });
       }
 
-      // Resolve barcode conflicts to avoid overwriting existing items
-      let existingQuery = supabase.from('product_master_public').select('barcode');
-      if (shopId) {
-        existingQuery = existingQuery.eq('shop_id', shopId);
-      }
-      let { data: existingInventory } = await existingQuery;
-      if (!existingInventory || existingInventory.length === 0) {
-        const fallbackQ = await supabase.from('product_master').select('barcode').eq('shop_id', shopId);
-        existingInventory = fallbackQ.data;
-      }
-      const existingBarcodes = new Set(existingInventory?.map(i => i.barcode) || []);
-      let maxBarcodeNum = existingInventory?.reduce((max, item) => {
-        const num = parseInt(item.barcode, 10);
-        return !isNaN(num) ? Math.max(max, num) : max;
-      }, parseInt(BARCODE_START_VALUE, 10) - 1) || parseInt(BARCODE_START_VALUE, 10) - 1;
+      // Complete list of barcodes already used by this shop (paged; includes deleted products)
+      const existingList = await fetchAllShopBarcodes(shopId);
+      const existingBarcodes = new Set(existingList);
+      let maxBarcodeNum = Number(nextNumericBarcode([...existingList, ...formattedData.map(r => r.barcode).filter(Boolean)])) - 1;
 
-      let conflictCount = 0;
+      // A row whose barcode already exists is SKIPPED and reported. Previously it silently got a
+      // new barcode, creating a duplicate product while shelf labels still pointed to the old one.
+      const skippedExisting = [];
       let generatedCount = 0;
       const productMasterData = [];
-      
-      formattedData.forEach(row => {
-        if (!row.barcode || existingBarcodes.has(row.barcode)) {
+      formattedData.forEach((row, idx) => {
+        if (row.barcode && existingBarcodes.has(row.barcode)) {
+          skippedExisting.push(`Row ${row.__row || idx + 2}: ${row.name} (barcode ${row.barcode})`);
+          return;
+        }
+        if (!row.barcode) {
           maxBarcodeNum++;
-          if (row.barcode) conflictCount++; // It had a barcode but it was a conflict
-          else generatedCount++; // It was empty and we generated one
+          generatedCount++;
           row.barcode = maxBarcodeNum.toString();
         }
         existingBarcodes.add(row.barcode);
@@ -506,13 +525,27 @@ export default function OwnerCatalog() {
         });
       });
         
-      let { error } = await supabase.from('product_master').insert(productMasterData);
-      if (error && (error.message?.includes('description') || error.code === '42703')) {
-        const fallbackData = productMasterData.map(({ description: _d, ...rest }) => rest);
-        const retryRes = await supabase.from('product_master').insert(fallbackData);
-        error = retryRes.error;
+      if (productMasterData.length === 0) {
+        throw new Error(`Nothing to import: all ${skippedExisting.length} rows use barcodes that already exist.\n${skippedExisting.slice(0, 15).join('\n')}`);
       }
-      if (error) throw error;
+
+      // Insert in chunks so a very large file doesn't time out
+      const CHUNK = 200;
+      let insertedCount = 0;
+      for (let i = 0; i < productMasterData.length; i += CHUNK) {
+        const chunk = productMasterData.slice(i, i + CHUNK);
+        let { error } = await supabase.from('product_master').insert(chunk);
+        if (error && (error.message?.includes('description') || error.code === '42703')) {
+          const fallbackData = chunk.map(({ description: _d, ...rest }) => rest);
+          const retryRes = await supabase.from('product_master').insert(fallbackData);
+          error = retryRes.error;
+        }
+        if (error) {
+          queryClient.invalidateQueries({ queryKey: ['inventory'] });
+          throw new Error(`Imported ${insertedCount} of ${productMasterData.length} items, then the database rejected items ${i + 1}–${i + chunk.length} ("${chunk[0].name}" onwards): ${error.message}. Fix the file and import again — already-imported barcodes will be skipped.`);
+        }
+        insertedCount += chunk.length;
+      }
 
       try {
         const auditLogs = productMasterData.map(item => ({
@@ -527,14 +560,12 @@ export default function OwnerCatalog() {
         console.error("Failed to log bulk import", err);
       }
 
-      if (conflictCount > 0 || generatedCount > 0) {
-        let msg = `Imported ${formattedData.length} items. `;
-        if (generatedCount > 0) msg += `Auto-generated ${generatedCount} barcodes. `;
-        if (conflictCount > 0) msg += `Resolved ${conflictCount} conflicts.`;
-        showAlert(msg, 'Success');
-      } else {
-        showAlert(`Successfully imported ${formattedData.length} items! Syncing...`, 'Success');
+      let msg = `Imported ${insertedCount} items.`;
+      if (generatedCount > 0) msg += ` Auto-generated ${generatedCount} barcodes.`;
+      if (skippedExisting.length > 0) {
+        msg += `\n\nSkipped ${skippedExisting.length} rows because their barcode already exists (edit those products in Inventory instead):\n${skippedExisting.slice(0, 15).join('\n')}${skippedExisting.length > 15 ? `\n...and ${skippedExisting.length - 15} more` : ''}`;
       }
+      showAlert(msg, skippedExisting.length > 0 ? 'Imported with Skipped Rows' : 'Success');
 
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
       queryClient.invalidateQueries({ queryKey: ['nextBarcode'] });
