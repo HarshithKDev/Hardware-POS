@@ -72,7 +72,8 @@ export default defineConfig({
         ],
       },
       devOptions: {
-        enabled: true
+        // main.jsx unregisters service workers on localhost, so the dev SW was never used
+        enabled: false
       }
     })
   ],

@@ -388,7 +388,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
       queryClient.invalidateQueries({ queryKey: ['inventory_item'] });
     } catch (err) {
       console.error(err);
-      alert("Failed to delete batch: " + err.message);
+      showAlert("Failed to delete batch: " + err.message, "Error");
     } finally {
       setBatchToDelete(null);
     }

@@ -10,19 +10,80 @@ Severity: 🔴 Critical (money/stock/security loss) · 🟠 High · 🟡 Medium 
 
 ---
 
-## Fix status (critical items)
+## Fix status
 
+Legend: ✅ fixed · 🟡 partly fixed in the app, rest needs the database · ⛔ needs the database / Supabase settings · ➖ intentionally not changed (reason given)
+
+### Critical
 | # | Status | What was done |
 |---|--------|---------------|
-| A1 | ✅ Fixed (app) | Offline flush now runs once at a time (in-tab guard + cross-tab Web Lock). Each sale is claimed as `submitting` before sending and removed from the queue immediately after the server accepts it. A sale interrupted mid-send is **never auto-resent**; it goes to Failed Syncs with a "check ledger before Retry" note. Test reproduces the old bug (2 sales → 8 RPC calls) and proves the fix. |
-| A12 | ✅ Fixed | Synchronous ref guard on checkout prevents double-submit. |
-| A2 | ✅ Mitigated (app) | Payment/customer/screws details are retried 3×; if still failing they are parked and retried by background sync (screws line is duplicate-checked). Cashier is told the sale is saved and not to re-bill. Full fix = single RPC (needs DB). |
-| B1 | ✅ Fixed (app) | Return restore, warehouse-disabled routing and stranded-stock auto-heal now use compare-and-swap writes (`src/services/atomicStock.js`); auto-heal also stops using stale cached numbers. Owner "set stock to X" edits are intentionally absolute and unchanged. |
-| C1 | 🟡 Partly (app) | Stored role is verified against the signed-in account on start-up; mismatch → signed out. Owner screens are held until verified. **Server-side RLS still required.** |
-| C2 | 🟡 Partly (app) | Non-billable status is remembered, so checkout isn't shown to a known non-billable worker while loading/offline. **Server-side check in the sale RPC still required.** |
-| A3 | ⛔ Needs DB | Price/MSP must be enforced inside the sale RPC; can't be fixed from the browser. |
+| A1 | ✅ | Offline flush runs once at a time (in-tab + cross-tab lock); sales claimed as `submitting`; interrupted sends go to Failed Syncs instead of being re-sent. |
+| A2 | 🟡 | Payment details retried and parked for background retry. Full fix = one RPC that saves everything atomically. |
+| A3 | ⛔ | Price/MSP must be enforced inside the sale RPC. |
+| B1 | ✅ | Compare-and-swap stock writes (`src/services/atomicStock.js`). |
+| C1 | 🟡 | Role verified against the signed-in account. RLS still required. |
+| C2 | 🟡 | Known non-billable workers blocked offline. Sale RPC must check it too. |
 
- & billing correctness
+### High
+| # | Status | What was done |
+|---|--------|---------------|
+| A4 | ✅ | Connection drop during checkout → clear "check Sales & Returns before re-billing" message; never auto-queued (could duplicate). |
+| A5 | 🟡 | Partial returns keep Cash/UPI consistent with the new total; per-item stock failures are reported. Atomic returns + credit notes need a DB function/table. |
+| A6 | ➖ | Ledger auto-reclassify only touches bills with total 0 and no payment method; after A2 a real sale no longer ends up in that state. |
+| B2 | ✅ | The buggy code was in an unused function; removed. |
+| B3 | ➖ | Verified: on-screen stock is the sum of batches, so restoring to the batch is correct. |
+| B4 | ✅ | Offline receipts made with warehouse disabled are routed to store after sync. |
+| C3 | ✅ (app) | Removed staff are signed out on their device within 5 minutes. Deleting the Auth user still needs a server function. |
+| C4 | ⛔ | Legacy login emails can only be removed after migrating those accounts in Supabase Auth. |
+| C5 | ✅ | Owner logout strips cost prices from the device; owner's next login re-syncs them. |
+| D1 | ✅ | Single service-worker registration; unused `public/sw.js` removed. |
+| D2 | ✅ | Hourly update check; auto-reload waits until no sale/sync/return is in progress. |
+| F1 | ⛔ | Needs a schema/RLS export from Supabase. |
+| F2 | ✅ | CI runs lint (errors), unit tests and build. |
+
+### Medium
+| # | Status | What was done |
+|---|--------|---------------|
+| A7 | ✅ | NET DUE and UPI QR = amount charged; paise difference shown as "Round Off". |
+| A8 | ✅ | Split payments record cash kept (Cash + UPI = total); UPI part can't exceed total. |
+| A9 | ⛔ | Linking offline receipt numbers to real bills needs a column on `bills`. |
+| A10 | ✅ | Failed syncs are also written to the audit log. |
+| B5 | ✅ | Peer-terminal broadcast schedules a reconcile sync. |
+| B6 | ✅ | Watermark = sync start time; full refresh every 6 hours. |
+| B7 | ✅ | One sync at a time, follow-ups merged, realtime triggers debounced. |
+| B8 | ✅ | Was in the removed unused function. |
+| C6 | ⛔ | Disabling public sign-up is a Supabase setting (staff creation must move to a server function first). |
+| C7 | ➖ | Staff names on the login screen is a UX choice; left for the owner. |
+| C8 | ✅ (app) | Audit logs record the actual staff member. Server-written logs need DB triggers. |
+| C9 | ⛔ | `process_pos_transaction_unsafe` lives in the DB. |
+| C10 | ✅ | `npm audit fix`: 20 → 9 (high 9 → 1). Remaining fixes are major downgrades or build-time-only. |
+| D3 | ➖ | Queued sales keep the original cashier name; flushing needs a login by design. |
+| D4 | ✅ | Covered by A4. |
+| E1 | ✅ | Ledger, stats and audit logs use local (IST) day boundaries. |
+| E2 | ✅ | Export pages past the 1000-row limit and never mixes other shops' rows. |
+| F3 | ✅ | All test files pass; lint 0 errors (`set-state-in-effect` downgraded to warning). |
+| F4 | ➖ | Splitting the 3,000-line components is a risky refactor; recommended as separate work. |
+
+### Low
+| # | Status | What was done |
+|---|--------|---------------|
+| A11 | ⛔ | Sequential invoice numbers need a DB sequence. |
+| A12 | ✅ | Synchronous double-submit guard. |
+| D5 | ✅ | Launcher serves the production build, or opens `POS_URL` (e.g. the Vercel URL). |
+| D6 | ✅ | PWA dev mode disabled. |
+| E3 | ✅ | Export filenames use the local date. |
+| F5 | ➖ | Fallback logic left in place until the schema is versioned (F1). |
+| F6 | ➖ | Settings duplication is harmless (DB value wins); revisit with F1. |
+| F7 | ✅ / ➖ | Last native `alert()` replaced. Pinch-zoom stays disabled on purpose for counter tablets. |
+
+### New finding
+| # | Sev | Flaw |
+|---|-----|------|
+| G1 | 🟡 | Inventory "Global Edit" upserts a full product snapshot (incl. stock) into `product_master`, while on-screen stock comes from batches — edited stock may not take effect and stale values can overwrite. Needs testing against the live DB. (`src/OwnerInventory.jsx` saveBulkEdits) |
+
+---
+
+## A. Money & billing correctness
 
 | # | Sev | Flaw | Where |
 |---|-----|------|-------|

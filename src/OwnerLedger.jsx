@@ -345,7 +345,7 @@ export default function OwnerLedger({ isActive }) {
       });
 
       const buffer = await workbook.xlsx.writeBuffer();
-      saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Sales_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+      saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Sales_Export_${new Date().toLocaleDateString('en-CA')}.xlsx`);
     } catch (e) {
       showAlert(`Export failed: ${e.message}`, 'Error');
     }

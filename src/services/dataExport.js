@@ -1350,7 +1350,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   onProgress?.('Generating Excel file & preparing download...');
   const buffer = await workbook.xlsx.writeBuffer();
   const safeName = (shopSettings?.shop_name || 'Hardware_POS').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const dateStr = new Date().toISOString().slice(0, 10);
+  const dateStr = new Date().toLocaleDateString('en-CA'); // local date (UTC date was 'tomorrow' after 18:30 IST)
   const fileName = `${safeName}_Full_Business_Backup_${dateStr}.xlsx`;
 
   saveAs(
