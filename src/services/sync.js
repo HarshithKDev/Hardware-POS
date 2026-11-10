@@ -422,7 +422,7 @@ async function reportFailedSync(tx, message) {
     await supabase.from('audit_logs').insert([{
       shop_id: tx.shop_id || localStorage.getItem('shop_id'),
       action_type: 'SYNC_FAILED',
-      barcode: null,
+      barcode: 'SYNC', // audit_logs.barcode is NOT NULL
       item_name: `Offline ${String(tx.p_action || 'SALE').toLowerCase()} (${itemCount} item${itemCount === 1 ? '' : 's'}${amount > 0 ? `, Rs.${amount.toFixed(2)}` : ''})`,
       changes: `Queued ${tx.queued_at || ''} on another device could not be synced: ${message}. Check Failed Syncs on that device.`,
       performed_by: tx.p_cashier_name || 'System'
