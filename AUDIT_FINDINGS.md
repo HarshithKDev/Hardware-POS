@@ -168,3 +168,62 @@ Legend: ✅ fixed · 🟡 partly fixed in the app, rest needs the database · �
 4. **D1, D2** — single service worker + update prompt.
 5. **A3** — server-side pricing/MSP.
 6. Then E-series, remaining B/D, and F cleanup.
+
+---
+
+# Second review (2026-11-10): database schema + remaining areas
+
+## S. Database schema
+| # | Sev | Flaw |
+|---|-----|------|
+| S1 | 🔴 | **`expenses` has no `shop_id`.** All shops' expenses share one table; the app downloads every row and filters by a text note (`shop:<id>`). Unless RLS blocks it, any shop can read/insert another shop's expenses. Also gets slower as the table grows. |
+| S2 | 🟠 | **`shop_settings.owner_password` column.** Unused by the app. If it contains passwords in plain text, anyone who can read `shop_settings` (staff load this row at start-up) can read them. Clear it and drop the column. |
+| S3 | 🟠 | **`workers` is not linked to Supabase Auth users** (no auth user id), so logins are matched by name-derived emails. Root cause of C3/C4: a removed worker's login can't be revoked reliably. |
+| S4 | 🟡 | **`bills.payment_method` defaults to `'CASH'`.** If the payment update after a sale fails, a UPI sale shows as cash. Receipts with the warehouse disabled are saved with location `Store` and may appear in the sales ledger as cash bills — verify with data. |
+| S5 | 🟡 | No invoice-number column/sequence (A11). |
+| S6 | 🟡 | **Half-built features:** `returns`/`return_items` (proper return records — the app deletes bill lines instead), `register_sessions` (cash drawer open/close), `stock_instances` (cut-piece tracking) exist but are never used. |
+| S7 | ⚪ | No `sound_enabled` column: every Settings save fails once and retries; the sound setting is only saved on the device. |
+| S8 | ⚪ | `gstin` and `bill_footer` exist but can't be edited in Settings; GSTIN prints only on thermal (ESC/POS) receipts. |
+| S9 | — | RLS policies, functions and triggers were not part of this schema; still needed to fix A3/C1/C2/C9. |
+
+## CL. Cut-length items
+| # | Sev | Flaw |
+|---|-----|------|
+| CL1 | 🟠 | **Stock is one total length per batch; leftover offcuts aren't tracked.** E.g. 10 pipes × 12 ft = 120 ft. Sell ten 10-ft cuts → system shows 20 ft available, but reality is ten 2-ft offcuts, and it will happily sell a 10-ft cut from it. Scrap/discard is never recorded (always null), so stock is overstated and wastage is invisible. |
+| CL2 | 🟡 | With the warehouse disabled, the cut screen counts warehouse stock as available, but the sale deducts from store → shows "available" then fails at checkout. |
+| CL3 | 🟡 | Piece barcodes (`1002-0104`) assume a 2-digit batch number; from batch 100 onward scans resolve to the wrong batch. |
+| CL4 | ⚪ | `CutLengthModal`, `ReceiveLengthModal`, `SelectPieceModal`, `ManualInstanceBarcodeModal` are never shown (dead code); the scanner still parses piece barcodes but discards the piece id. |
+| CL5 | ⚪ | Cart `quantity` means "pieces" when receiving but "length" at checkout — fragile, easy to break. |
+
+## BI. Bulk catalog import / adding products
+| # | Sev | Flaw |
+|---|-----|------|
+| BI1 | 🟠 | **Barcode lookup isn't paginated (1000-row limit).** With 1000+ products the existing-barcode list is incomplete → generated barcodes collide → the whole import fails. "Add Product" uses the same lookup and can fail with "Failed to generate a unique barcode". |
+| BI2 | 🟠 | **A row whose barcode already exists silently gets a new barcode** → duplicate product instead of an update; labels already on shelves still point to the old product. |
+| BI3 | 🟡 | No validation: text/negative prices become NaN/negative; MSP > MRP or cost > MRP accepted; any unit text accepted. |
+| BI4 | 🟡 | All rows in one insert: one bad row fails the whole file, with a raw database error and no row number. |
+| BI5 | ⚪ | Category auto-create failures are only logged; the product insert then fails with an unexplained foreign-key error. |
+
+## BP. Barcode label printing
+| # | Sev | Flaw |
+|---|-----|------|
+| BP1 | 🟡 | Label quantity has no limit — a typo like 1000 renders 1000 barcodes, can freeze the counter and waste the roll. |
+| BP2 | 🟡 | Labels show the batch price at print time; after a price change, old labels show the old MRP while checkout charges the new one. No "reprint labels for changed prices" flow. |
+| BP3 | ⚪ | Two separate label layouts (Print Barcodes screen vs batch print modal) produce different-looking labels. |
+
+## SR. Showroom dispatch
+| # | Sev | Flaw |
+|---|-----|------|
+| SR1 | 🟠 | **No way to close a showroom dispatch:** no "payment received" or "returned from showroom" action, and the ledger hides showroom bills so they can't be returned there either. Goods leave stock permanently and the money never enters revenue. |
+| SR2 | 🟡 | Dispatch goes through the sale checkout: MSP rules and a "negotiated amount" are enforced for an internal transfer; value recorded at selling price, not cost. |
+| SR3 | 🟡 | Showroom status is set in the second save step (A2/S4) — if it fails, the dispatch is recorded as a CASH sale and counted as revenue until the retry succeeds. |
+| SR4 | ⚪ | "Total value" on the Showroom page sums only the current page. |
+
+## EX. Expenses
+| # | Sev | Flaw |
+|---|-----|------|
+| EX1 | 🔴 | Shop isolation — see S1. |
+| EX2 | 🟠 | **If saving to the database fails, it still says "Recorded"**, keeps it only in browser storage, and the next page load from the database overwrites it → expense silently lost. |
+| EX3 | 🟡 | Every expense is saved with category "Staff Advance" (DB default), even "General Shop" expenses like electricity; payment mode always CASH. |
+| EX4 | 🟡 | No edit or delete — mistakes are permanent. |
+| EX5 | 🟡 | Expenses aren't included in profit/stats, and cash paid out isn't reflected in expected cash. |
