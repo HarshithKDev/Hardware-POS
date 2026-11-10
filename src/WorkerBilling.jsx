@@ -13,6 +13,7 @@ const WorkerPriceCheck = lazy(() => import('./WorkerPriceCheck'));
 const OwnerLedger = lazy(() => import('./OwnerLedger'));
 const OwnerExpenses = lazy(() => import('./OwnerExpenses'));
 const WorkerPrintBarcode = lazy(() => import('./WorkerPrintBarcode'));
+const ScrewBoxesView = lazy(() => import('./ScrewBoxesView'));
 
 export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = false }) {
   const { tab } = useParams();
@@ -93,6 +94,7 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
     tabs.push({ key: 'sales', label: 'Sales & Returns' });
     tabs.push({ key: 'print-barcode', label: 'Print Barcodes' });
     tabs.push({ key: 'expenses', label: 'Expenses' });
+    tabs.push({ key: 'screw-boxes', label: 'Screw Boxes' });
   } else {
     tabs.push({ key: 'receive', label: 'Inbound' });
     if (!isWarehouseDisabled) {
@@ -137,6 +139,15 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
               </div>
             ) : (
               <WorkerPriceCheck />
+            )
+          ) : activeTab === 'screw-boxes' ? (
+            isBillable ? (
+              <ScrewBoxesView />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full flex-1">
+                <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>Opening screw boxes is only available for billable accounts.</p>
+              </div>
             )
           ) : activeTab === 'expenses' ? (
             isBillable ? (

@@ -704,3 +704,20 @@ export const stripOwnerOnlyDataFromLocalInventory = async () => {
   }
   await tx.done;
 };
+
+/** All active screw-box products in this shop's local catalog (works offline). */
+export const getLocalScrewBoxes = async (targetShopId) => {
+  const shopId = targetShopId || localStorage.getItem('shop_id');
+  let all = [];
+  if (typeof indexedDB === 'undefined') {
+    all = cachedInventory || [];
+  } else {
+    const db = await initDB();
+    all = await db.getAll('product_master');
+  }
+  return all
+    .filter(i => (!shopId || !i.shop_id || i.shop_id === shopId)
+      && i.is_active !== false
+      && String(i.unit || '').toUpperCase() === 'BOX')
+    .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+};

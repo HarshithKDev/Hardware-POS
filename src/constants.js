@@ -46,3 +46,10 @@ export const UNIT_TYPES = [
 
 // --- React Query Cache ---
 export const STALE_TIME_5MIN = 1000 * 60 * 5;
+
+// --- Screw Box ---
+// A "Screw Box" product is stocked and sold as whole boxes, and a box can be "opened for
+// loose sale" (removed from stock, not a sale). It is marked by the unit 'BOX', which every
+// screen (including staff devices) already receives, so no database change is needed.
+export const SCREW_BOX_UNIT = 'BOX';
+export const isScrewBox = (item) => String(item?.unit || '').toUpperCase() === SCREW_BOX_UNIT;

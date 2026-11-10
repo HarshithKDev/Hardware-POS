@@ -229,11 +229,22 @@ describe('B1: casUpdateRow', () => {
   });
 
   it('gives up with a clear error under constant contention', async () => {
-    handler = (s) => (s.op === 'select' ? { data: { a: 1 }, error: null } : { error: null, count: 0 });
+    let v = 1;
+    // every read sees a value changed by another terminal, so every guarded write misses
+    handler = (s) => (s.op === 'select' ? { data: { a: v++ }, error: null } : { error: null, count: 0 });
     await expect(casUpdateRow({
       table: 't', match: { id: 1 }, columns: ['a'], maxAttempts: 2,
       compute: (c) => ({ update: { a: c.a + 1 } }),
     })).rejects.toThrow(/another terminal/i);
+  });
+
+  it('reports a permission problem when the database silently refuses the update', async () => {
+    // row never changes but the write matches nothing -> row-level permissions refused it
+    handler = (s) => (s.op === 'select' ? { data: { a: 1 }, error: null } : { error: null, count: 0 });
+    await expect(casUpdateRow({
+      table: 't', match: { id: 1 }, columns: ['a'],
+      compute: (c) => ({ update: { a: c.a + 1 } }),
+    })).rejects.toThrow(/not allowed to change stock/i);
   });
 });
 
@@ -394,5 +405,55 @@ describe('Price boxes start empty instead of 0', () => {
     expect(priceInputValue('0.00')).toBe('');
     expect(priceInputValue(0, 45)).toBe('45');
     expect(priceInputValue(120.5)).toBe('120.5');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Screw boxes: open 1 box for loose sale (removed from stock, not a sale)
+// ---------------------------------------------------------------------------
+import { openScrewBox, pickBoxBatch, storeBoxCount } from '../services/screwBox';
+import { isScrewBox } from '../constants';
+
+describe('Screw boxes', () => {
+  const box = {
+    barcode: '1400', name: 'Screw Box 8x1', unit: 'BOX',
+    batches: [
+      { batch_id: 'B2', batch_number: 2, stock_store: 4, stock_warehouse: 0 },
+      { batch_id: 'B1', batch_number: 1, stock_store: 0, stock_warehouse: 3 },
+      { batch_id: 'B3', batch_number: 3, stock_store: 1, stock_warehouse: 0, is_active: false },
+    ],
+  };
+
+  it('is identified by the BOX unit', () => {
+    expect(isScrewBox(box)).toBe(true);
+    expect(isScrewBox({ unit: 'PCS' })).toBe(false);
+  });
+
+  it('counts store boxes only (warehouse too when the warehouse is disabled)', () => {
+    expect(storeBoxCount(box, false)).toBe(4);
+    expect(storeBoxCount(box, true)).toBe(7);
+  });
+
+  it('opens from the oldest batch that has a box in the store', () => {
+    expect(pickBoxBatch(box, false).batch_id).toBe('B2');
+    expect(pickBoxBatch(box, true).batch_id).toBe('B1');
+  });
+
+  it('removes exactly 1 box from store stock and records it in the audit log', async () => {
+    const writes = [];
+    handler = (s) => {
+      if (s.op === 'select') return { data: { stock_store: 4, stock_warehouse: 0 }, error: null };
+      writes.push(s);
+      return { error: null, count: 1 };
+    };
+    await openScrewBox({ item: box, shopId: 'S', isWarehouseDisabled: false });
+    expect(writes.find(w => w.table === 'inventory_batches').payload).toEqual({ stock_store: 3, stock_warehouse: 0 });
+    const audit = writes.find(w => w.table === 'audit_logs' && w.op === 'insert');
+    expect(audit.payload[0]).toMatchObject({ action_type: 'BOX_OPENED', barcode: '1400' });
+  });
+
+  it('refuses when no box is left in the store', async () => {
+    const empty = { ...box, batches: [{ batch_id: 'B1', batch_number: 1, stock_store: 0, stock_warehouse: 5 }] };
+    await expect(openScrewBox({ item: empty, shopId: 'S', isWarehouseDisabled: false })).rejects.toThrow(/No Screw Box 8x1 left in store/);
   });
 });

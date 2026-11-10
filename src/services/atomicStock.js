@@ -26,12 +26,20 @@ export async function casUpdateRow({ table, match, columns, compute, maxAttempts
     return q;
   };
 
+  let previousSnapshot = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const { data: current, error: readError } = await applyMatch(
       supabase.from(table).select(columns.join(', '))
     ).maybeSingle();
     if (readError) throw readError;
     if (!current) return { applied: false, notFound: true };
+
+    // If the previous write matched nothing but the row is unchanged, nobody else changed it:
+    // the database refused the update for this account (row-level permissions).
+    const snapshot = JSON.stringify(columns.map(c => current[c]));
+    if (previousSnapshot !== null && snapshot === previousSnapshot) {
+      throw new Error('This account is not allowed to change stock for this item. Please ask the owner.');
+    }
 
     const out = compute(current);
     if (!out || !out.update) return { applied: false, skipped: true, current };
@@ -51,6 +59,7 @@ export async function casUpdateRow({ table, match, columns, compute, maxAttempts
       return { applied: true, result: out.result, current };
     }
 
+    previousSnapshot = snapshot;
     // Small randomized backoff before re-reading
     await new Promise((r) => setTimeout(r, 40 * attempt + Math.floor(Math.random() * 60)));
   }

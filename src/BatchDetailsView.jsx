@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import { casUpdateRow, scrapBatchStock } from './services/atomicStock';
 import ScrapStockModal from './components/inventory/ScrapStockModal';
+import { openScrewBox } from './services/screwBox';
+import { isScrewBox } from './constants';
 import { useApp } from './AppContext';
 import { Spinner, PageLoader } from './SharedUI';
 import { getInventoryItemByBarcode, saveInventoryBatch } from './services/db';
@@ -1263,6 +1265,39 @@ export default function BatchDetailsView({
                             Print Labels
                           </button>
                           {viewType !== 'recycle' && (
+                            <>
+                            {isScrewBox(item) && (
+                              <button
+                                onClick={() => {
+                                  const inStore = Number(activeBatch.stock_store || 0) + (isWarehouseDisabled ? Number(activeBatch.stock_warehouse || 0) : 0);
+                                  if (inStore < 1) {
+                                    showAlert('There are no boxes of this batch in store stock to open.', 'No Boxes in Store');
+                                    return;
+                                  }
+                                  showConfirm(
+                                    `Open 1 box of ${item.name} (Batch ${String(activeBatch.batch_number || 1).padStart(2, '0')}) for loose sale?\n\nIt is removed from store stock and inventory value. This is not a sale.`,
+                                    async () => {
+                                      try {
+                                        await openScrewBox({ item, batch: activeBatch, shopId, isWarehouseDisabled });
+                                        queryClient.invalidateQueries({ queryKey: ['inventory_item'] });
+                                        queryClient.invalidateQueries({ queryKey: ['inventory'] });
+                                        queryClient.invalidateQueries({ queryKey: ['unifiedAuditLogs'] });
+                                        showAlert(`1 box of ${item.name} opened for loose sale.`, 'Box Opened');
+                                      } catch (err) {
+                                        showAlert(err.message || 'Could not open the box.', 'Error');
+                                      }
+                                    },
+                                    'Open Screw Box',
+                                    'Open 1 Box',
+                                    'Cancel'
+                                  );
+                                }}
+                                className="h-8 px-3 rounded-lg border border-emerald-500/50 text-emerald-500 hover:bg-emerald-500/10 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
+                                title="Remove 1 box from store stock to sell its screws loose (not a sale)"
+                              >
+                                Open 1 Box
+                              </button>
+                            )}
                             <button
                               onClick={() => setScrapBatch(activeBatch)}
                               className="h-8 px-3 rounded-lg border border-amber-500/50 text-amber-500 hover:bg-amber-500/10 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
@@ -1270,6 +1305,7 @@ export default function BatchDetailsView({
                             >
                               Scrap
                             </button>
+                            </>
                           )}
                           {viewType !== 'recycle' && (
                             <button

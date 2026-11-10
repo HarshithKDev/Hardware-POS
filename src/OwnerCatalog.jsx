@@ -7,6 +7,7 @@ import { useApp } from './AppContext';
 import { generateId } from './utils';
 import { BARCODE_START_VALUE, BARCODE_RETRY_ATTEMPTS, UNIT_TYPES, STALE_TIME_5MIN } from './constants';
 import { fetchAllShopBarcodes, nextNumericBarcode } from './services/catalog';
+import { SCREW_BOX_UNIT } from './constants';
 
 // Empty cell → 0; text like "abc" → NaN (reported by validation instead of silently becoming 0)
 const toImportNumber = (v) => {
@@ -206,7 +207,7 @@ export default function OwnerCatalog() {
           barcode: savedItem.barcode,
           item_name: savedItem.name,
           performed_by: getPerformedBy(),
-          changes: `Item: ${savedItem.name}${savedItem.description ? ` | Description: ${savedItem.description}` : ''} | Category: ${savedItem.category || 'N/A'} | Sub-Category: ${savedItem.sub_category || 'N/A'} | Type: ${savedItem.is_cuttable ? 'Cuttable' : (savedItem.is_loose_item ? 'Loose' : 'Standard')}`
+          changes: `Item: ${savedItem.name}${savedItem.description ? ` | Description: ${savedItem.description}` : ''} | Category: ${savedItem.category || 'N/A'} | Sub-Category: ${savedItem.sub_category || 'N/A'} | Type: ${savedItem.unit === SCREW_BOX_UNIT ? 'Screw Box' : savedItem.is_cuttable ? 'Cuttable' : (savedItem.is_loose_item ? 'Loose' : 'Standard')}`
         }]);
       } catch (err) {
         console.error("Failed to log item creation", err);
@@ -300,6 +301,11 @@ export default function OwnerCatalog() {
       cost_price: 120, msp: 150, price: 180, unit: 'FT', type: 'Cuttable',
       min_quantity_warehouse: 50, min_quantity_store: 10
     });
+    sheet.addRow({
+      barcode: '', name: 'Screw Box Example (8x1 inch, 100 pcs)', description: 'Sold by the box; can be opened for loose sale', category: catNames[0] || 'Hardware', sub_category: subCatNames[0] || 'Screws',
+      cost_price: 90, msp: 110, price: 130, unit: 'BOX', type: 'Screw Box',
+      min_quantity_warehouse: 5, min_quantity_store: 2
+    });
 
     // Style headers
     sheet.getRow(1).font = { bold: true };
@@ -384,7 +390,8 @@ export default function OwnerCatalog() {
         const rowType = String(row.type || row.Type || 'Standard').trim().toLowerCase();
         const isLoose = rowType === 'loose';
         const isCuttable = rowType === 'cuttable';
-        let unit = String(row.unit || row.Unit || 'PCS').trim().toUpperCase();
+        const isScrewBoxRow = ['screw box', 'screwbox', 'screw_box', 'box'].includes(rowType);
+        let unit = isScrewBoxRow ? SCREW_BOX_UNIT : String(row.unit || row.Unit || 'PCS').trim().toUpperCase();
         if (unit === 'GRAMS' || unit === 'GRAM' || unit === 'G') unit = 'KG';
         
         return {
@@ -415,7 +422,7 @@ export default function OwnerCatalog() {
       }
 
       // Validate every row first (row numbers match the Excel sheet) so nothing is half-imported
-      const validUnits = new Set(UNIT_TYPES.map(u => u.value));
+      const validUnits = new Set([...UNIT_TYPES.map(u => u.value), SCREW_BOX_UNIT]);
       const rowErrors = [];
       const seenInFile = new Map();
       formattedData.forEach((r, idx) => {
@@ -551,7 +558,7 @@ export default function OwnerCatalog() {
           action_type: 'CREATE',
           barcode: item.barcode,
           item_name: item.name,
-          changes: `Bulk Imported CSV Item: ${item.name} | Category: ${item.category || 'N/A'} | Type: ${item.is_cuttable ? 'Cuttable' : (item.is_loose_item ? 'Loose' : 'Standard')}`,
+          changes: `Bulk Imported CSV Item: ${item.name} | Category: ${item.category || 'N/A'} | Type: ${item.unit === SCREW_BOX_UNIT ? 'Screw Box' : item.is_cuttable ? 'Cuttable' : (item.is_loose_item ? 'Loose' : 'Standard')}`,
           performed_by: getPerformedBy()
         }));
         await supabase.from('audit_logs').insert(auditLogs);
@@ -656,20 +663,26 @@ export default function OwnerCatalog() {
                 setForm(prev => ({ 
                   ...prev, 
                   item_type: newType,
-                  unit: newType === 'cuttable' && prev.unit === 'PCS' ? 'FT' : prev.unit
+                  // Screw boxes are always counted in boxes; leaving that type resets to pieces
+                  unit: newType === 'screw_box'
+                    ? SCREW_BOX_UNIT
+                    : (prev.unit === SCREW_BOX_UNIT ? 'PCS' : (newType === 'cuttable' && prev.unit === 'PCS' ? 'FT' : prev.unit))
                 }));
               }} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
                 <option value="standard">Standard Item</option>
                 <option value="loose">Loose / Bulk Box (Prompt Qty)</option>
                 <option value="cuttable">Cuttable Stock (Pipes/Mesh)</option>
+                <option value="screw_box">Screw Box (sold by the box, can be opened for loose sale)</option>
               </select>
             </div>
           </div>
           <div className="lg:col-span-2">
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-unit">Unit Type</label>
             <div className="relative">
-              <select id="item-unit" required value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
-                {UNIT_TYPES.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
+              <select id="item-unit" required disabled={form.item_type === 'screw_box'} value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} className="w-full h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md appearance-none cursor-pointer" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
+                {form.item_type === 'screw_box'
+                  ? <option value={SCREW_BOX_UNIT}>Boxes</option>
+                  : UNIT_TYPES.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
               </select>
             </div>
           </div>
