@@ -250,12 +250,12 @@ export default function InventoryRow({
               <span className="text-xs font-bold text-[var(--text-primary)] block truncate" title={item.name}>
                 {item.name}
               </span>
-              <div className="text-[11px] text-[var(--text-secondary)] font-medium mt-0.5">
+              <div className="text-xs text-[var(--text-secondary)] font-medium mt-0.5">
                 Barcode: <span className="font-semibold text-[var(--color-accent)] tracking-wider">{item.barcode}</span>
               </div>
             </div>
             <span
-              className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase shrink-0"
+              className="text-[11px] px-2 py-0.5 rounded-full font-bold uppercase shrink-0"
               style={{
                 backgroundColor: item.is_cuttable ? 'var(--color-accent-bg)' : 'rgba(16, 185, 129, 0.15)',
                 color: item.is_cuttable ? 'var(--color-accent)' : 'var(--color-success)',
@@ -309,11 +309,11 @@ export default function InventoryRow({
                           <span className="text-xs font-bold text-[var(--text-primary)]">
                             Batch #{bNum}
                           </span>
-                          <span className="text-[11px] font-semibold text-[var(--text-secondary)] tracking-wide">
+                          <span className="text-xs font-semibold text-[var(--text-secondary)] tracking-wide">
                             ({bCode})
                           </span>
                         </div>
-                        <div className="text-[10px] text-[var(--text-secondary)] mt-0.5">
+                        <div className="text-xs text-[var(--text-secondary)] mt-0.5">
                           {!isWarehouseDisabled && (
                             <>
                               Whse: <span className="font-semibold text-[var(--text-primary)]">{whseQty}</span>
@@ -326,7 +326,7 @@ export default function InventoryRow({
                       </div>
 
                       <div className="text-right shrink-0">
-                        <div className="text-[9px] uppercase tracking-wider font-semibold text-[var(--text-tertiary)]">
+                        <div className="text-[11px] uppercase tracking-wider font-semibold text-[var(--text-tertiary)]">
                           MRP
                         </div>
                         <div className="text-xs font-extrabold text-[var(--color-success)]">
@@ -358,19 +358,19 @@ export default function InventoryRow({
           </div>
           <div className="flex flex-col gap-2.5">
             <div>
-              <label className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Item Name</label>
+              <label className="text-[11px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Item Name</label>
               <input type="text" value={data.name || ''} onChange={e=>onEditChange(item.barcode, 'name', e.target.value)} className="h-10 px-3 w-full text-sm rounded-md focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Category</label>
+                <label className="text-[11px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Category</label>
                 <select value={data.category || ''} onChange={e=>{onEditChange(item.barcode, 'category', e.target.value); onEditChange(item.barcode, 'sub_category', '');}} className="h-10 px-2 w-full text-xs rounded-md focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
                   <option value="">None</option>
                   {categories?.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Subcategory</label>
+                <label className="text-[11px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Subcategory</label>
                 <select value={data.sub_category || ''} onChange={e=>onEditChange(item.barcode, 'sub_category', e.target.value)} disabled={!data.category} className="h-10 px-2 w-full text-xs rounded-md focus:outline-none disabled:opacity-50" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-secondary)' }}>
                   <option value="">None</option>
                   {availableSubcategories.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
@@ -380,17 +380,17 @@ export default function InventoryRow({
             <div className={`grid ${isWarehouseDisabled ? 'grid-cols-1' : 'grid-cols-2'} gap-2`}>
               {!isWarehouseDisabled && (
                 <div>
-                  <label className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Warehouse Stock</label>
+                  <label className="text-[11px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Warehouse Stock</label>
                   <input type="number" step="any" min="0" value={data.stock_warehouse ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_warehouse', e.target.value)} className="h-9 px-2 w-full text-xs text-center rounded focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                 </div>
               )}
               <div>
-                <label className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">{isWarehouseDisabled ? 'Total Stock' : 'Store Stock'}</label>
+                <label className="text-[11px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">{isWarehouseDisabled ? 'Total Stock' : 'Store Stock'}</label>
                 <input type="number" step="any" min="0" value={data.stock_store ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_store', e.target.value)} className="h-9 px-2 w-full text-xs text-center rounded focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
               </div>
             </div>
             <div>
-              <label className="text-[10px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Cost Price (₹)</label>
+              <label className="text-[11px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Cost Price (₹)</label>
               <input
                 type="number"
                 step="any"
@@ -502,11 +502,11 @@ export default function InventoryRow({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[10px] font-mono font-bold text-[var(--color-accent)]">
+                <span className="text-xs font-mono font-bold text-[var(--color-accent)]">
                   #{item.barcode}
                 </span>
                 {item.is_loose_item && (
-                  <span className="px-1.5 py-0.2 text-[8px] font-bold uppercase rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                  <span className="px-1.5 py-0.2 text-[11px] font-bold uppercase rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
                     Loose
                   </span>
                 )}
@@ -515,7 +515,7 @@ export default function InventoryRow({
                 {item.name}
               </div>
               {(item.category || item.sub_category) && (
-                <div className="text-[10px] text-[var(--text-tertiary)] truncate mt-0.5">
+                <div className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">
                   {item.category}{item.sub_category ? ` › ${item.sub_category}` : ''}
                 </div>
               )}
@@ -526,12 +526,12 @@ export default function InventoryRow({
               <div className="text-right">
                 <div className="text-xs font-bold text-[var(--text-primary)] tabular-nums leading-none">
                   {totalStore}
-                  <span className="text-[9px] font-normal text-[var(--text-secondary)] uppercase ml-0.5">
+                  <span className="text-[11px] font-normal text-[var(--text-secondary)] uppercase ml-0.5">
                     {displayUnit}
                   </span>
                 </div>
                 {!isWarehouseDisabled && (
-                  <div className="text-[9px] text-[var(--text-tertiary)] tabular-nums mt-0.5">
+                  <div className="text-xs text-[var(--text-tertiary)] tabular-nums mt-0.5">
                     Whse: {totalWhse} {displayUnit}
                   </div>
                 )}
@@ -554,12 +554,12 @@ export default function InventoryRow({
               type="button"
               onTouchStart={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => { 
-                e.stopPropagation(); 
+              onClick={(e) => {
+                e.stopPropagation();
                 setIsHovered(false);
-                onOpenBatchDetails && onOpenBatchDetails(item); 
+                onOpenBatchDetails && onOpenBatchDetails(item);
               }}
-              className="flex-1 py-1 px-2.5 text-[11px] font-bold uppercase rounded-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5 hover:brightness-110"
+              className="flex-1 py-1 px-2.5 text-[11px] font-bold rounded-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5 hover:brightness-110"
               style={{
                 backgroundColor: item.is_cuttable ? 'var(--color-accent-bg)' : 'rgba(16, 185, 129, 0.1)',
                 color: item.is_cuttable ? 'var(--color-accent)' : 'var(--color-success)',
@@ -577,11 +577,11 @@ export default function InventoryRow({
                 type="button"
                 onTouchStart={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => { 
-                  e.stopPropagation(); 
+                onClick={(e) => {
+                  e.stopPropagation();
                   onRestore && onRestore(item.barcode);
                 }}
-                className="py-1 px-3 rounded-md transition-all active:scale-95 text-white font-bold text-[11px] uppercase tracking-wider flex items-center justify-center gap-1 shadow-sm hover:opacity-90 cursor-pointer"
+                className="py-1 px-3 rounded-md transition-all active:scale-95 text-white font-bold text-[11px] flex items-center justify-center gap-1 shadow-sm hover:opacity-90 cursor-pointer"
                 title="Restore Item"
                 style={{ backgroundColor: 'var(--color-success-solid)' }}
               >
@@ -593,11 +593,11 @@ export default function InventoryRow({
                 type="button"
                 onTouchStart={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => { 
-                  e.stopPropagation(); 
+                onClick={(e) => {
+                  e.stopPropagation();
                   window.dispatchEvent(new CustomEvent('openCreateBatchModal', { detail: item }));
                 }}
-                className="py-1 px-3 rounded-md transition-all active:scale-95 text-white font-bold text-[11px] uppercase tracking-wider flex items-center justify-center gap-1 shadow-sm hover:opacity-90 cursor-pointer"
+                className="py-1 px-3 rounded-md transition-all active:scale-95 text-white font-bold text-[11px] flex items-center justify-center gap-1 shadow-sm hover:opacity-90 cursor-pointer"
                 title="Create New Batch"
                 style={{ backgroundColor: 'var(--color-accent-solid)' }}
               >
@@ -619,7 +619,7 @@ export default function InventoryRow({
         <div className="flex items-center justify-center gap-2 w-full min-h-[1.5rem] px-1">
           <span className="truncate text-center" title={item.name}>{item.name}</span>
           {item.is_loose_item && (
-            <span className="shrink-0 px-2 py-0.5 text-[9px] font-bold uppercase rounded-full whitespace-nowrap" style={{ backgroundColor: 'rgba(234, 179, 8, 0.1)', color: 'var(--color-warning)', border: '1px solid rgba(234, 179, 8, 0.2)' }}>Loose</span>
+            <span className="shrink-0 px-2 py-0.5 text-[11px] font-bold uppercase rounded-full whitespace-nowrap" style={{ backgroundColor: 'rgba(234, 179, 8, 0.1)', color: 'var(--color-warning)', border: '1px solid rgba(234, 179, 8, 0.2)' }}>Loose</span>
           )}
         </div>
       </td>
@@ -628,14 +628,14 @@ export default function InventoryRow({
       <td className="hidden md:table-cell p-3 w-28 lg:w-32 text-sm text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
         <button
           type="button"
-          onClick={(e) => { 
-            e.stopPropagation(); 
+          onClick={(e) => {
+            e.stopPropagation();
             setIsHovered(false);
-            onOpenBatchDetails && onOpenBatchDetails(item); 
+            onOpenBatchDetails && onOpenBatchDetails(item);
           }}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
-          className="inline-flex px-2.5 py-1 text-[10px] font-bold uppercase rounded-full whitespace-nowrap cursor-pointer transition-all active:scale-95 shadow-sm items-center justify-center gap-1.5 w-[96px] h-[26px] hover:brightness-110"
+          className="inline-flex px-2.5 py-1 text-[11px] font-bold rounded-full whitespace-nowrap cursor-pointer transition-all active:scale-95 shadow-sm items-center justify-center gap-1.5 w-[96px] h-[26px] hover:brightness-110"
           style={{
             backgroundColor: item.is_cuttable ? 'var(--color-accent-bg)' : 'rgba(16, 185, 129, 0.1)',
             color: item.is_cuttable ? 'var(--color-accent)' : 'var(--color-success)',
@@ -651,20 +651,20 @@ export default function InventoryRow({
       {/* Pricing removed from parent row */}
       {!isWarehouseDisabled && (
         <td className="hidden md:table-cell p-3 w-24 lg:w-28 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
-          {totalWhse} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{displayUnit}</span>
+          {totalWhse} <span className="text-xs font-normal" style={{ color: 'var(--text-secondary)' }}>{displayUnit}</span>
         </td>
       )}
       <td className="hidden md:table-cell p-3 w-24 lg:w-28 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
-        {totalStore} <span className="text-[10px] font-normal" style={{ color: 'var(--text-secondary)' }}>{displayUnit}</span>
+        {totalStore} <span className="text-xs font-normal" style={{ color: 'var(--text-secondary)' }}>{displayUnit}</span>
       </td>
       <td className="hidden md:table-cell p-3 w-28 lg:w-32 text-center">
         {viewType === 'recycle' ? (
           <button 
-            onClick={(e) => { 
-              e.stopPropagation(); 
+            onClick={(e) => {
+              e.stopPropagation();
               onRestore && onRestore(item.barcode);
             }}
-            className="px-3 py-1.5 rounded-md transition-all active:scale-95 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1 mx-auto shadow-sm hover:opacity-90"
+            className="px-3 py-1.5 rounded-md transition-all active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1 mx-auto shadow-sm hover:opacity-90"
             title="Restore Item"
             style={{ backgroundColor: 'var(--color-success-solid)' }}
           >
@@ -673,11 +673,11 @@ export default function InventoryRow({
           </button>
         ) : (
           <button 
-            onClick={(e) => { 
-              e.stopPropagation(); 
+            onClick={(e) => {
+              e.stopPropagation();
               window.dispatchEvent(new CustomEvent('openCreateBatchModal', { detail: item }));
             }}
-            className="px-3 py-1.5 rounded-md transition-all active:scale-95 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1 mx-auto shadow-sm hover:opacity-90"
+            className="px-3 py-1.5 rounded-md transition-all active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1 mx-auto shadow-sm hover:opacity-90"
             title="Create New Batch"
             style={{ backgroundColor: 'var(--color-accent-solid)' }}
           >

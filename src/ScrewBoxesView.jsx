@@ -3,7 +3,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { getLocalScrewBoxes } from './services/db';
 import { openScrewBox, storeBoxCount } from './services/screwBox';
-import { PageLoader, Spinner } from './SharedUI';
+import { PageLoader } from './SharedUI';
+import { Button, PageHeader } from './components/ui';
 
 /**
  * Billable staff: list of screw boxes with store stock. "Open 1 Box" removes one box from
@@ -71,12 +72,11 @@ export default function ScrewBoxesView() {
   return (
     <div className="flex-1 flex flex-col h-full px-4 pb-6 pt-1 md:px-0 animate-fade-in">
       <div className="max-w-3xl w-full mx-auto flex flex-col gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-[var(--text-primary)]">Screw Boxes</h1>
-          <p className="text-xs mt-1 text-[var(--text-secondary)]">
-            Opening a box for loose sale removes 1 box from store stock. It is not a sale.
-          </p>
-        </div>
+        <PageHeader
+          title="Screw Boxes"
+          subtitle="Opening a box for loose sale removes 1 box from store stock. It is not a sale."
+          className="mb-0"
+        />
 
         <input
           type="text"
@@ -84,7 +84,7 @@ export default function ScrewBoxesView() {
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search screw box name or barcode..."
           aria-label="Search screw boxes"
-          className="w-full h-11 px-3 text-sm rounded-lg bg-[var(--bg-input)] text-[var(--text-input)] border border-[var(--border-input)] focus:outline-none focus:border-[var(--color-accent)]"
+          className="w-full h-10 px-3 text-sm rounded-md bg-[var(--bg-input)] text-[var(--text-input)] border border-[var(--border-input)] focus:outline-none focus:border-[var(--color-accent)]"
         />
 
         {isLoading ? (
@@ -99,22 +99,22 @@ export default function ScrewBoxesView() {
               const count = storeBoxCount(item, isWarehouseDisabled);
               const isOpening = openingBarcode === item.barcode;
               return (
-                <div key={item.barcode} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)]">
+                <div key={item.barcode} className="flex items-center justify-between gap-3 p-3 rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-secondary)]">
                   <div className="min-w-0">
                     <p className="font-semibold text-sm text-[var(--text-primary)] truncate">{item.name}</p>
                     <p className="text-xs text-[var(--text-secondary)]">
                       #{item.barcode} · <span className={count < 1 ? 'text-[var(--color-error)] font-semibold' : ''}>{count} {count === 1 ? 'box' : 'boxes'} in store</span>
                     </p>
                   </div>
-                  <button
-                    type="button"
+                  <Button
+                    variant="success"
+                    size="sm"
                     onClick={() => handleOpen(item)}
-                    disabled={isOpening || count < 1}
-                    className="h-9 px-4 shrink-0 rounded-lg text-xs font-bold uppercase tracking-wider text-white disabled:opacity-40 flex items-center gap-2"
-                    style={{ backgroundColor: 'var(--color-success-solid)' }}
+                    disabled={count < 1}
+                    loading={isOpening}
                   >
-                    {isOpening ? <Spinner className="w-3.5 h-3.5 text-white" /> : 'Open 1 Box'}
-                  </button>
+                    Open 1 Box
+                  </Button>
                 </div>
               );
             })}

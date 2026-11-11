@@ -208,7 +208,7 @@ export default function WorkerPrintBarcode() {
               <div className="flex flex-col items-center justify-center h-48 text-center p-4 text-[var(--text-tertiary)]">
                 <Search className="w-7 h-7 mb-2 opacity-30" />
                 <p className="text-xs font-semibold text-[var(--text-secondary)]">Search product directory</p>
-                <p className="text-[11px] mt-0.5">Type barcode or product name to find items</p>
+                <p className="text-xs mt-0.5">Type barcode or product name to find items</p>
               </div>
             ) : isLoading && products.length === 0 ? (
               <div className="flex items-center justify-center h-32 text-xs text-[var(--text-secondary)]">
@@ -217,7 +217,7 @@ export default function WorkerPrintBarcode() {
             ) : products.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-48 text-center p-4 text-[var(--text-tertiary)]">
                 <p className="text-xs font-semibold text-[var(--text-secondary)]">No products found</p>
-                <p className="text-[11px] mt-0.5">Try searching with a different name or barcode.</p>
+                <p className="text-xs mt-0.5">Try searching with a different name or barcode.</p>
               </div>
             ) : (
               products.map((prod) => {
@@ -238,14 +238,14 @@ export default function WorkerPrintBarcode() {
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-mono text-[11px] font-bold text-[var(--color-accent)] bg-[var(--color-accent-solid)]/10 px-1.5 py-0.5 rounded border border-[var(--color-accent)]/20">
+                        <span className="font-mono text-xs font-bold text-[var(--color-accent)] bg-[var(--color-accent-solid)]/10 px-1.5 py-0.5 rounded border border-[var(--color-accent)]/20">
                           #{prod.barcode}
                         </span>
                         <span className="font-semibold text-xs sm:text-sm text-[var(--text-primary)] truncate">
                           {prod.name}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 mt-1 text-[11px] text-[var(--text-secondary)]">
+                      <div className="flex items-center gap-2 mt-1 text-xs text-[var(--text-secondary)]">
                         <span className="truncate">{prod.category || 'General'}</span>
                         <span>•</span>
                         <span>{bCount > 0 ? `${bCount} ${bCount === 1 ? 'batch' : 'batches'}` : '1 batch'}</span>
@@ -305,7 +305,7 @@ export default function WorkerPrintBarcode() {
                 </div>
 
                 <div className="text-right shrink-0">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)] block">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)] block">
                     MRP
                   </span>
                   <span className="text-base font-bold text-[var(--text-primary)] tabular-nums">
@@ -439,7 +439,7 @@ export default function WorkerPrintBarcode() {
                   type="button"
                   onClick={handlePrint}
                   disabled={isPrinting}
-                  className="w-full h-10 rounded-lg bg-[var(--color-accent-solid)] text-white font-semibold text-xs sm:text-sm tracking-wide shadow-sm hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="w-full h-10 rounded-lg bg-[var(--color-accent-solid)] text-white font-semibold text-xs sm:text-sm shadow-sm hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   <Printer className="w-4 h-4" />
                   <span>

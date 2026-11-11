@@ -214,7 +214,7 @@ export default function OwnerStaff() {
             <button
               type="submit"
               disabled={addStaffMutation.isPending}
-              className="w-full md:w-auto h-10 px-8 text-white text-sm font-semibold uppercase tracking-wider disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-1 flex justify-center items-center min-w-[150px] rounded-md transition-opacity hover:opacity-90"
+              className="w-full md:w-auto h-10 px-8 text-white text-sm font-semibold disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-1 flex justify-center items-center min-w-[150px] rounded-md transition-opacity hover:opacity-90"
               style={{ backgroundColor: 'var(--color-accent-solid)' }}
             >
               {addStaffMutation.isPending ? <Spinner className="w-5 h-5 text-white" /> : 'Create Account'}
@@ -236,11 +236,11 @@ export default function OwnerStaff() {
                 <span className="font-bold text-base truncate" style={{ color: 'var(--text-primary)' }}>{staff.name}</span>
                 <div>
                   {staff.password?.includes('NON_BILLABLE') ? (
-                    <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-sm inline-block" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-error)' }}>
+                    <span className="px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider rounded-sm inline-block" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-error)' }}>
                       Non-Billable
                     </span>
                   ) : (
-                    <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-sm inline-block" style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', color: 'var(--color-success)' }}>
+                    <span className="px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider rounded-sm inline-block" style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', color: 'var(--color-success)' }}>
                       Billable
                     </span>
                   )}
@@ -249,7 +249,7 @@ export default function OwnerStaff() {
               <button
                 onClick={() => handleRemove(staff.id, staff.name)}
                 disabled={removeStaffMutation.isPending}
-                className="h-8 px-4 text-xs font-semibold uppercase tracking-wider focus:outline-none transition-colors disabled:opacity-50 rounded-md shrink-0"
+                className="h-8 px-4 text-xs font-semibold focus:outline-none transition-colors disabled:opacity-50 rounded-md shrink-0"
                 style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
                 aria-label={`Remove ${staff.name}`}
               >
@@ -278,11 +278,11 @@ export default function OwnerStaff() {
                 <td className="p-4 text-sm font-medium text-center" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{staff.name}</td>
                 <td className="p-4 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
                   {staff.password?.includes('NON_BILLABLE') ? (
-                    <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-sm" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-error)' }}>
+                    <span className="px-2 py-1 text-[11px] font-bold uppercase tracking-wider rounded-sm" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-error)' }}>
                       Non-Billable
                     </span>
                   ) : (
-                    <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-sm" style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', color: 'var(--color-success)' }}>
+                    <span className="px-2 py-1 text-[11px] font-bold uppercase tracking-wider rounded-sm" style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', color: 'var(--color-success)' }}>
                       Billable
                     </span>
                   )}
@@ -291,7 +291,7 @@ export default function OwnerStaff() {
                   <button
                     onClick={() => handleRemove(staff.id, staff.name)}
                     disabled={removeStaffMutation.isPending}
-                    className="h-8 px-4 text-xs font-semibold uppercase tracking-wider focus:outline-none transition-colors disabled:opacity-50 rounded-md"
+                    className="h-8 px-4 text-xs font-semibold focus:outline-none transition-colors disabled:opacity-50 rounded-md"
                     style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
                     onMouseEnter={(e) => {
                       if (!removeStaffMutation.isPending) {

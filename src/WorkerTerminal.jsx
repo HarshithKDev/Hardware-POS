@@ -2255,13 +2255,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   } else {
                     showConfirm("Clear cart?", handleCancelSale, 'Clear Cart', 'Clear Cart', 'Keep Cart', true);
                   }
-                }} 
-                className="w-1/3 py-4 text-white font-black uppercase tracking-widest text-xs md:text-sm shadow-lg rounded-lg transition-all active:scale-95 flex items-center justify-center text-center" 
+                }}
+                className="w-1/3 py-4 text-white font-black text-xs md:text-sm shadow-lg rounded-lg transition-all active:scale-95 flex items-center justify-center text-center"
                 style={{ backgroundColor: 'var(--color-error-solid)' }}
               >
                 {activeCartTab.startsWith('held_') ? 'CANCEL HELD' : 'CLEAR'}
               </button>
-              <button onClick={handleCompleteTransaction} className="w-2/3 py-4 text-white font-black uppercase tracking-widest text-lg shadow-lg rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2" style={{ backgroundColor: 'var(--color-accent-solid)' }}>
+              <button onClick={handleCompleteTransaction} className="w-2/3 py-4 text-white font-black text-lg shadow-lg rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2" style={{ backgroundColor: 'var(--color-accent-solid)' }}>
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                 COMPLETE {cart.length}
               </button>
@@ -2287,7 +2287,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                     <button
                       type="button"
                       onClick={() => handleCancelHeldCart(activeCartTab)}
-                      className="w-full py-3.5 text-white font-bold uppercase tracking-wider text-xs shadow-md rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2"
+                      className="w-full py-3.5 text-white font-bold text-xs shadow-md rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2"
                       style={{ backgroundColor: 'var(--color-error-solid)' }}
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -2296,7 +2296,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                     <button
                       type="button"
                       onClick={() => switchCartTab('local')}
-                      className="w-full py-3.5 font-bold uppercase tracking-wider text-xs rounded-lg transition-all active:scale-95"
+                      className="w-full py-3.5 font-bold text-xs rounded-lg transition-all active:scale-95"
                       style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
                     >
                       ← Back to Local Cart
@@ -2325,7 +2325,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           <div className="p-4 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1)] flex-shrink-0" style={{ backgroundColor: 'var(--bg-secondary)', borderTop: '2px solid var(--border-medium)' }}>
             <button 
               onClick={() => setIsMobileScannerOpen(!isMobileScannerOpen)}
-              className="w-full py-5 font-bold uppercase text-lg text-white shadow-md rounded-md transition-all active:scale-95 flex items-center justify-center gap-2"
+              className="w-full py-5 font-bold text-lg text-white shadow-md rounded-md transition-all active:scale-95 flex items-center justify-center gap-2"
               style={{ backgroundColor: isMobileScannerOpen ? 'var(--color-error)' : 'var(--color-success)' }}
             >
               {isMobileScannerOpen ? (
@@ -2359,7 +2359,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             <button 
               type="button"
               onClick={() => handleRestoreCart('local')}
-              className="px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-sm transition-colors shrink-0"
+              className="px-4 py-1.5 text-xs font-bold rounded-sm transition-colors shrink-0"
               style={{
                 backgroundColor: activeCartTab === 'local' ? 'var(--color-accent)' : 'var(--bg-primary)',
                 color: activeCartTab === 'local' ? '#fff' : 'var(--text-secondary)',
@@ -2387,7 +2387,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                     title={`Switch to ${hc.name}`}
                   >
                     <span>{hc.name}</span>
-                    <span className="bg-white/20 px-1.5 rounded-full text-[10px]">{hc.items?.length || 0}</span>
+                    <span className="bg-white/20 px-1.5 rounded-full text-xs">{hc.items?.length || 0}</span>
                   </button>
                   <button
                     type="button"
@@ -2426,7 +2426,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                     title={`Switch to ${pc.worker_name}'s Cart`}
                   >
                     <span>{pc.worker_name}'s Cart</span>
-                    <span className="bg-white/20 px-1.5 rounded-full text-[10px]">{pc.items?.length || 0}</span>
+                    <span className="bg-white/20 px-1.5 rounded-full text-xs">{pc.items?.length || 0}</span>
                   </button>
                   <button
                     type="button"
@@ -2487,7 +2487,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                         }}
                       >
                         <span className="truncate pr-2 font-medium" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
-                        <span className="text-[10px]  whitespace-nowrap self-center px-1.5 py-0.5 rounded-sm" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)' }}>#{item.barcode}</span>
+                        <span className="text-xs  whitespace-nowrap self-center px-1.5 py-0.5 rounded-sm" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)' }}>#{item.barcode}</span>
                       </li>
                     ))}
                   </ul>
@@ -2538,7 +2538,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                     <button
                       type="button"
                       onClick={() => setScrewsModal({ isOpen: true, price: '' })}
-                      className="h-10 md:h-9 px-3.5 rounded-md border text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                      className="h-10 md:h-9 px-3.5 rounded-md border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
                       style={{
                         borderColor: 'var(--border-input)',
                         backgroundColor: 'var(--bg-input)',
@@ -2635,7 +2635,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   type="button"
                   data-testid="bottom-cancel-held-cart"
                   onClick={() => handleCancelHeldCart(activeCartTab)}
-                  className="flex-1 sm:flex-none min-h-[40px] md:h-10 px-4 md:px-5 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md flex items-center justify-center gap-2 transition-all active:scale-95"
+                  className="flex-1 sm:flex-none min-h-[40px] md:h-10 px-4 md:px-5 text-sm font-semibold focus:outline-none rounded-md flex items-center justify-center gap-2 transition-all active:scale-95"
                   style={{ backgroundColor: 'transparent', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2654,7 +2654,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                     'Keep Cart',
                     true
                   )}
-                  className="flex-1 sm:flex-none min-h-[40px] md:h-10 px-4 md:px-5 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md flex items-center justify-center gap-2 transition-all active:scale-95"
+                  className="flex-1 sm:flex-none min-h-[40px] md:h-10 px-4 md:px-5 text-sm font-semibold focus:outline-none rounded-md flex items-center justify-center gap-2 transition-all active:scale-95"
                   style={{ backgroundColor: 'transparent', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
                 >
                   <span>Discard Cart</span>
@@ -2663,7 +2663,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                 <button
                   type="button"
                   onClick={() => showConfirm("Clear all items?", handleCancelSale, activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items', 'Clear', 'Cancel', true)}
-                  className="flex-1 sm:flex-none min-h-[40px] md:h-10 px-4 md:px-5 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md flex items-center justify-center gap-2 transition-all active:scale-95"
+                  className="flex-1 sm:flex-none min-h-[40px] md:h-10 px-4 md:px-5 text-sm font-semibold focus:outline-none rounded-md flex items-center justify-center gap-2 transition-all active:scale-95"
                   style={{ backgroundColor: 'transparent', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
                 >
                   <span>{activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items'}</span>
@@ -2672,7 +2672,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               {activeTab === 'checkout' && activeCartTab === 'local' && (
                 <button
                   onClick={handleHoldCart}
-                  className="flex-1 sm:flex-none min-h-[40px] md:h-10 px-4 md:px-5 text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md flex items-center justify-center gap-2"
+                  className="flex-1 sm:flex-none min-h-[40px] md:h-10 px-4 md:px-5 text-sm font-semibold focus:outline-none rounded-md flex items-center justify-center gap-2"
                   style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--color-accent)', border: '1px solid var(--color-accent)' }}
                 >
                   <span>Hold Cart</span>
@@ -2681,7 +2681,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             </div>
             <button
               onClick={() => activeTab === 'checkout' ? handleOpenCheckoutModal() : handleCompleteTransaction()}
-              className="w-full sm:w-auto min-h-[40px] md:h-10 px-6 md:px-8 text-white text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md focus:ring-2 focus:ring-offset-1 flex justify-center items-center gap-2"
+              className="w-full sm:w-auto min-h-[40px] md:h-10 px-6 md:px-8 text-white text-sm font-semibold focus:outline-none rounded-md focus:ring-2 focus:ring-offset-1 flex justify-center items-center gap-2"
               style={{ backgroundColor: 'var(--color-accent-solid)', border: '1px solid transparent' }}
             >
               <span>{isCheckingOut ? 'Saving...' : 'Complete'}</span>

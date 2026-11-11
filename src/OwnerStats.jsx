@@ -185,11 +185,11 @@ function SalesTrendChart({ trend, isLoading }) {
                 backgroundColor: 'var(--color-accent-solid)',
               }}
             >
-              <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm flex items-center gap-1 pointer-events-none" style={{ color: 'var(--text-primary)', backgroundColor: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-light)' }}>
-                ₹{formatINR(point.rev, 0)} <span className="font-medium text-[9px]" style={{ color: 'var(--text-tertiary)' }}>({point.label})</span>
+              <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm flex items-center gap-1 pointer-events-none" style={{ color: 'var(--text-primary)', backgroundColor: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-light)' }}>
+                ₹{formatINR(point.rev, 0)} <span className="font-medium text-xs" style={{ color: 'var(--text-tertiary)' }}>({point.label})</span>
               </span>
             </div>
-            <span className={`absolute -bottom-4 left-1/2 -translate-x-1/2 text-[6px] sm:text-[7px] md:text-[8px] font-bold uppercase whitespace-nowrap text-center`} style={{ color: 'var(--text-tertiary)' }}>
+            <span className={`absolute -bottom-4 left-1/2 -translate-x-1/2 text-[9px] sm:text-[10px] md:text-[11px] font-semibold uppercase whitespace-nowrap text-center`} style={{ color: 'var(--text-tertiary)' }}>
               {point.label}
             </span>
           </div>
@@ -207,7 +207,7 @@ function TopProductsList({ products }) {
       <p className="text-xs font-semibold uppercase tracking-wider mb-3 pb-2 shrink-0 flex items-center justify-between" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-light)' }}>
         <span>Top 10 Profit Makers</span>
         {products.length > 0 && (
-          <span className="text-[10px] font-bold text-[var(--color-success)]">{products.length} Items</span>
+          <span className="text-xs font-bold text-[var(--color-success)]">{products.length} Items</span>
         )}
       </p>
       <ul className="flex-1 overflow-y-auto modal-scroll pr-1 divide-y divide-[var(--border-light)]">
@@ -396,7 +396,7 @@ function DashboardDateFilter({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold uppercase rounded-md transition-all cursor-pointer shadow-sm hover:border-[var(--text-secondary)] focus:outline-none"
+        className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-md transition-all cursor-pointer shadow-sm hover:border-[var(--text-secondary)] focus:outline-none"
         style={{
           border: '1px solid var(--border-medium)',
           backgroundColor: 'var(--bg-secondary)',
@@ -507,7 +507,7 @@ function DashboardDateFilter({
               {/* Day of Week Header */}
               <div className="grid grid-cols-7 text-center">
                 {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((d) => (
-                  <span key={d} className="text-[10px] font-bold uppercase" style={{ color: 'var(--text-tertiary)' }}>
+                  <span key={d} className="text-[11px] font-bold uppercase" style={{ color: 'var(--text-tertiary)' }}>
                     {d}
                   </span>
                 ))}
@@ -591,7 +591,7 @@ function DashboardDateFilter({
                   className="flex items-center justify-between pt-2 border-t mt-1"
                   style={{ borderColor: 'var(--border-light)' }}
                 >
-                  <div className="text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                  <div className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
                     {rangeStart && rangeEnd ? (
                       rangeStart === rangeEnd ? (
                         formatDateLabel(rangeStart, false)
@@ -606,7 +606,7 @@ function DashboardDateFilter({
                     <button
                       type="button"
                       onClick={() => setIsOpen(false)}
-                      className="px-2.5 py-1 text-[11px] font-semibold rounded hover:bg-[var(--bg-tertiary)] cursor-pointer transition-colors"
+                      className="px-2.5 py-1 text-xs font-semibold rounded hover:bg-[var(--bg-tertiary)] cursor-pointer transition-colors"
                       style={{ color: 'var(--text-tertiary)' }}
                     >
                       Cancel
@@ -614,7 +614,7 @@ function DashboardDateFilter({
                     <button
                       type="button"
                       onClick={handleApplyRange}
-                      className="px-3 py-1 text-[11px] font-bold uppercase rounded text-white shadow-sm hover:opacity-90 cursor-pointer transition-opacity"
+                      className="px-3 py-1 text-[11px] font-bold rounded text-white shadow-sm hover:opacity-90 cursor-pointer transition-opacity"
                       style={{ backgroundColor: 'var(--color-accent-solid)' }}
                     >
                       Apply
@@ -1234,7 +1234,7 @@ export default function OwnerStats({ isActive }) {
               <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>These transactions encountered errors when uploading to the cloud and require manual review to resolve.</p>
             </div>
           </div>
-          <button onClick={() => setActiveModal('failed-syncs')} className="px-5 py-2.5 text-xs font-bold text-white uppercase tracking-wider shrink-0 shadow-sm hover:opacity-90 transition-opacity" style={{ backgroundColor: 'var(--color-error-solid)' }}>
+          <button onClick={() => setActiveModal('failed-syncs')} className="px-5 py-2.5 text-xs font-bold text-white shrink-0 shadow-sm hover:opacity-90 transition-opacity" style={{ backgroundColor: 'var(--color-error-solid)' }}>
             Review Issues
           </button>
         </div>
@@ -1345,15 +1345,15 @@ export default function OwnerStats({ isActive }) {
                 <>
                   <div className="grid grid-cols-3 p-3 sm:p-4 shrink-0 text-center" style={{ backgroundColor: 'var(--color-success-bg)', borderBottom: '1px solid var(--border-medium)' }}>
                     <div className="pr-1 sm:pr-2" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                      <p className="text-[10px] sm:text-xs font-bold uppercase mb-0.5 sm:mb-1 truncate" style={{ color: 'var(--text-secondary)' }}>Total Cost</p>
+                      <p className="text-[11px] sm:text-xs font-bold uppercase mb-0.5 sm:mb-1 truncate" style={{ color: 'var(--text-secondary)' }}>Total Cost</p>
                       <p className="text-sm sm:text-xl font-medium tabular-nums" style={{ color: 'var(--text-primary)' }}>₹{formatINR(tfTotalCost, 2)}</p>
                     </div>
                     <div className="px-1 sm:px-2" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                      <p className="text-[10px] sm:text-xs font-bold uppercase mb-0.5 sm:mb-1 truncate" style={{ color: 'var(--text-secondary)' }}>Total Sold</p>
+                      <p className="text-[11px] sm:text-xs font-bold uppercase mb-0.5 sm:mb-1 truncate" style={{ color: 'var(--text-secondary)' }}>Total Sold</p>
                       <p className="text-sm sm:text-xl font-medium tabular-nums" style={{ color: 'var(--text-primary)' }}>₹{formatINR(tfTrueRevenue, 2)}</p>
                     </div>
                     <div className="pl-1 sm:pl-2">
-                      <p className="text-[10px] sm:text-xs font-bold uppercase mb-0.5 sm:mb-1 truncate" style={{ color: 'var(--color-success)' }}>Gross Profit</p>
+                      <p className="text-[11px] sm:text-xs font-bold uppercase mb-0.5 sm:mb-1 truncate" style={{ color: 'var(--color-success)' }}>Gross Profit</p>
                       <p className="text-sm sm:text-xl font-bold tabular-nums" style={{ color: 'var(--color-success)' }}>₹{formatINR(tfGrossProfit, 2)}</p>
                     </div>
                   </div>
@@ -1379,15 +1379,15 @@ export default function OwnerStats({ isActive }) {
                             </div>
                             <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[var(--border-medium)] text-center text-xs">
                               <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
-                                <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Qty</span>
+                                <span className="text-[11px] text-[var(--text-secondary)] uppercase block">Qty</span>
                                 <span className="font-semibold text-[var(--text-primary)] tabular-nums">{item.qty} {item.unit}</span>
                               </div>
                               <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
-                                <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Cost</span>
+                                <span className="text-[11px] text-[var(--text-secondary)] uppercase block">Cost</span>
                                 <span className="font-semibold text-[var(--text-secondary)] tabular-nums">₹{formatINR(item.lineCost, 2)}</span>
                               </div>
                               <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
-                                <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Sold For</span>
+                                <span className="text-[11px] text-[var(--text-secondary)] uppercase block">Sold For</span>
                                 <span className="font-semibold text-[var(--text-primary)] tabular-nums">₹{formatINR(item.lineRev, 2)}</span>
                               </div>
                             </div>
@@ -1399,7 +1399,7 @@ export default function OwnerStats({ isActive }) {
                     {/* DESKTOP PROFIT TABLE */}
                     <table className="hidden md:table w-full text-center border-collapse">
                       <thead className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
-                        <tr className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                        <tr className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                           <th className="p-3" style={{ borderRight: '1px solid var(--border-medium)' }}>Item Sold</th>
                           <th className="p-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Total Qty</th>
                           <th className="p-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Total Cost</th>
@@ -1442,17 +1442,17 @@ export default function OwnerStats({ isActive }) {
                       <div key={item.barcode} className="p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-light)] shadow-sm space-y-2">
                         <div className="flex items-start justify-between gap-2">
                           <span className="font-semibold text-sm text-[var(--text-primary)] leading-tight">{item.name}</span>
-                          <span className="text-[11px] font-mono text-[var(--color-accent)] bg-[var(--bg-tertiary)] px-2 py-0.5 rounded border border-[var(--border-medium)]">
+                          <span className="text-xs font-mono text-[var(--color-accent)] bg-[var(--bg-tertiary)] px-2 py-0.5 rounded border border-[var(--border-medium)]">
                             #{item.barcode}
                           </span>
                         </div>
                         <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border-medium)] text-center text-xs">
                           <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
-                            <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Min Alert</span>
+                            <span className="text-[11px] text-[var(--text-secondary)] uppercase block">Min Alert</span>
                             <span className="font-bold text-[var(--text-tertiary)] tabular-nums">{item.min_quantity_store ?? 10} {item.unit || 'PCS'}</span>
                           </div>
                           <div className="bg-red-500/10 border border-red-500/20 p-1.5 rounded">
-                            <span className="text-[10px] text-red-400 uppercase block font-semibold">Current Stock</span>
+                            <span className="text-[11px] text-red-400 uppercase block font-semibold">Current Stock</span>
                             <span className="font-bold text-red-400 tabular-nums">{item.stock_store} {item.unit || 'PCS'}</span>
                           </div>
                         </div>
@@ -1468,17 +1468,17 @@ export default function OwnerStats({ isActive }) {
                       <div key={item.barcode} className="p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-light)] shadow-sm space-y-2">
                         <div className="flex items-start justify-between gap-2">
                           <span className="font-semibold text-sm text-[var(--text-primary)] leading-tight">{item.name}</span>
-                          <span className="text-[11px] font-mono text-[var(--color-accent)] bg-[var(--bg-tertiary)] px-2 py-0.5 rounded border border-[var(--border-medium)]">
+                          <span className="text-xs font-mono text-[var(--color-accent)] bg-[var(--bg-tertiary)] px-2 py-0.5 rounded border border-[var(--border-medium)]">
                             #{item.barcode}
                           </span>
                         </div>
                         <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border-medium)] text-center text-xs">
                           <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
-                            <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Min Alert</span>
+                            <span className="text-[11px] text-[var(--text-secondary)] uppercase block">Min Alert</span>
                             <span className="font-bold text-[var(--text-tertiary)] tabular-nums">{item.min_quantity_warehouse ?? 50} {item.unit || 'PCS'}</span>
                           </div>
                           <div className="bg-red-500/10 border border-red-500/20 p-1.5 rounded">
-                            <span className="text-[10px] text-red-400 uppercase block font-semibold">Current Whse</span>
+                            <span className="text-[11px] text-red-400 uppercase block font-semibold">Current Whse</span>
                             <span className="font-bold text-red-400 tabular-nums">{item.stock_warehouse} {item.unit || 'PCS'}</span>
                           </div>
                         </div>
@@ -1494,17 +1494,17 @@ export default function OwnerStats({ isActive }) {
                       <div key={item.barcode} className="p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-light)] shadow-sm space-y-2">
                         <div className="flex items-start justify-between gap-2">
                           <span className="font-semibold text-sm text-[var(--text-primary)] leading-tight">{item.name}</span>
-                          <span className="text-[11px] font-mono text-[var(--color-accent)] bg-[var(--bg-tertiary)] px-2 py-0.5 rounded border border-[var(--border-medium)]">
+                          <span className="text-xs font-mono text-[var(--color-accent)] bg-[var(--bg-tertiary)] px-2 py-0.5 rounded border border-[var(--border-medium)]">
                             #{item.barcode}
                           </span>
                         </div>
                         <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border-medium)] text-center text-xs">
                           <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
-                            <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Locked Qty</span>
+                            <span className="text-[11px] text-[var(--text-secondary)] uppercase block">Locked Qty</span>
                             <span className="font-bold text-amber-400 tabular-nums">{item.totalQty}</span>
                           </div>
                           <div className="bg-red-500/10 border border-red-500/20 p-1.5 rounded">
-                            <span className="text-[10px] text-red-400 uppercase block font-semibold">Capital Tied Up</span>
+                            <span className="text-[11px] text-red-400 uppercase block font-semibold">Capital Tied Up</span>
                             <span className="font-bold text-red-400 tabular-nums">₹{formatINR(item.deadValue, 2)}</span>
                           </div>
                         </div>

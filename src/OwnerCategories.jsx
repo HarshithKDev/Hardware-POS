@@ -251,7 +251,7 @@ export default function OwnerCategories() {
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.name, cat.name); }}
-                      className="h-8 px-3 text-xs font-semibold uppercase tracking-wider focus:outline-none transition-colors rounded-md"
+                      className="h-8 px-3 text-xs font-semibold focus:outline-none transition-colors rounded-md"
                       style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
                       aria-label={`Delete category ${cat.name}`}
                     >
@@ -325,7 +325,7 @@ export default function OwnerCategories() {
                       <td className="p-2 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.name, cat.name); }}
-                          className="h-8 px-4 text-xs font-semibold uppercase tracking-wider focus:outline-none transition-colors"
+                          className="h-8 px-4 text-xs font-semibold focus:outline-none transition-colors"
                           style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
                           onMouseEnter={(e) => {
                             e.target.style.backgroundColor = 'var(--color-error)';

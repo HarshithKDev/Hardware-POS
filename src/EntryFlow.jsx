@@ -315,7 +315,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
                 </div>
               </div>
               {error && <p className="text-sm font-semibold" style={{ color: 'var(--color-error)' }}>{error}</p>}
-              <button type="submit" disabled={isSettingUp} className="w-full h-12 text-sm font-bold uppercase tracking-wider disabled:opacity-50 flex justify-center items-center rounded-lg" style={{ backgroundColor: 'var(--color-accent-solid)', color: 'var(--color-accent-fg)' }}>
+              <button type="submit" disabled={isSettingUp} className="w-full h-12 text-sm font-bold disabled:opacity-50 flex justify-center items-center rounded-lg" style={{ backgroundColor: 'var(--color-accent-solid)', color: 'var(--color-accent-fg)' }}>
                 {isSettingUp ? <Spinner className="w-5 h-5 text-white" /> : 'Log In'}
               </button>
               <div className="text-center pt-2">
@@ -417,7 +417,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
             <button
               type="submit"
               disabled={isSettingUp}
-              className="w-full h-12 text-sm font-bold uppercase tracking-wider disabled:opacity-50 flex justify-center items-center rounded-lg"
+              className="w-full h-12 text-sm font-bold disabled:opacity-50 flex justify-center items-center rounded-lg"
               style={{ backgroundColor: 'var(--color-accent-solid)', color: 'var(--color-accent-fg)' }}
             >
               {isSettingUp ? <Spinner className="w-5 h-5 text-white" /> : 'Register My Shop'}

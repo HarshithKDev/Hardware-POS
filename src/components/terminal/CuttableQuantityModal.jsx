@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { formatINR } from '../../utils';
+import { Modal, Button, Input } from '../ui';
 
 /**
  * Cut-length items (pipes, mesh, wire…) are tracked only as a TOTAL quantity in their unit
@@ -28,18 +29,6 @@ export default function CuttableQuantityModal({
       }, 50);
     }
   }, [isOpen, modalData]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
 
   if (!isOpen || !modalData?.item) return null;
 
@@ -77,59 +66,56 @@ export default function CuttableQuantityModal({
       ? `Total ${unitLabel} to send to the store`
       : `Total ${unitLabel} to sell`;
 
+  const subtitle = `${batch?.batch_number ? `Batch ${String(batch.batch_number).padStart(2, '0')} · ` : ''}${available !== null ? `${available} ${unitLabel} in stock` : `Measured in ${unitLabel}`}${action === 'checkout' && price > 0 ? ` · ₹${formatINR(price, 2)}/${unitLabel}` : ''}`;
+
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm rounded-xl border border-[var(--border-light)] shadow-2xl overflow-hidden bg-[var(--bg-primary)]">
-        <div className="p-4 border-b border-[var(--border-light)] bg-[var(--bg-tertiary)]">
-          <h2 className="text-base font-bold text-[var(--text-primary)]">{title}: {item.name}</h2>
-          <p className="text-xs mt-0.5 text-[var(--text-secondary)]">
-            {batch?.batch_number ? `Batch ${String(batch.batch_number).padStart(2, '0')} · ` : ''}
-            {available !== null ? `${available} ${unitLabel} in stock` : `Measured in ${unitLabel}`}
-            {action === 'checkout' && price > 0 ? ` · ₹${formatINR(price, 2)}/${unitLabel}` : ''}
-          </p>
-        </div>
-
-        <div className="p-5 flex flex-col gap-3">
-          <label htmlFor="cuttable-qty" className="block text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-            {question}
-          </label>
-          <div className="flex items-center rounded-md bg-[var(--bg-input)] border border-[var(--border-input)] focus-within:border-[var(--color-accent)] px-3 h-12">
-            <input
-              id="cuttable-qty"
-              ref={inputRef}
-              type="number"
-              step="any"
-              min="0"
-              value={qtyInput}
-              onChange={(e) => setQtyInput(e.target.value)}
-              placeholder="0"
-              className="w-full h-full bg-transparent text-xl font-bold text-[var(--text-input)] p-0"
-              style={{ outline: 'none', border: 'none', boxShadow: 'none' }}
-            />
-            <span className="text-sm font-bold text-[var(--text-secondary)] ml-2 shrink-0">{unitLabel}</span>
-          </div>
-
-          {exceeds && (
-            <p className="text-xs font-bold" style={{ color: 'var(--color-error)' }}>
-              Insufficient stock! Only {available} {unitLabel} available.
-            </p>
-          )}
-          {action === 'checkout' && qty > 0 && !exceeds && price > 0 && (
-            <p className="text-sm font-semibold text-[var(--text-primary)]">
-              Amount: ₹{formatINR((Math.round(qty * price * 100) / 100), 2)}
-            </p>
-          )}
-        </div>
-
-        <div className="px-5 py-3 border-t border-[var(--border-light)] bg-[var(--bg-tertiary)] flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="h-9 px-4 text-xs font-semibold rounded-md border border-[var(--border-medium)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">
-            Cancel
-          </button>
-          <button type="submit" disabled={!canSubmit} className="h-9 px-5 text-xs font-bold uppercase tracking-wider rounded-md text-white disabled:opacity-50" style={{ backgroundColor: 'var(--color-accent-solid)' }}>
+    <Modal
+      as="form"
+      onSubmit={handleSubmit}
+      onClose={onClose}
+      title={`${title}: ${item.name}`}
+      subtitle={subtitle}
+      titleId="cuttable-modal-title"
+      size="sm"
+      zIndex={10000}
+      focusFirst={false}
+      restoreFocus={false}
+      footer={(
+        <>
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="primary" disabled={!canSubmit} className="min-w-[96px]">
             {cartItemId ? 'Update' : 'Add'}
-          </button>
-        </div>
-      </form>
-    </div>
+          </Button>
+        </>
+      )}
+    >
+      <div className="flex flex-col gap-3">
+        <Input
+          id="cuttable-qty"
+          ref={inputRef}
+          label={question}
+          size="lg"
+          type="number"
+          step="any"
+          min="0"
+          value={qtyInput}
+          onChange={(e) => setQtyInput(e.target.value)}
+          placeholder="0"
+          suffix={unitLabel}
+          error={exceeds}
+        />
+
+        {exceeds && (
+          <p className="text-xs font-semibold" style={{ color: 'var(--color-error)' }}>
+            Insufficient stock! Only {available} {unitLabel} available.
+          </p>
+        )}
+        {action === 'checkout' && qty > 0 && !exceeds && price > 0 && (
+          <p className="text-sm font-semibold text-[var(--text-primary)]">
+            Amount: ₹{formatINR((Math.round(qty * price * 100) / 100), 2)}
+          </p>
+        )}
+      </div>
+    </Modal>
   );
 }

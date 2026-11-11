@@ -51,7 +51,7 @@ const CartTable = React.memo(function CartTable({
               type="button"
               data-testid="empty-held-cart-cancel"
               onClick={() => onCancelHeldCart ? onCancelHeldCart(activeCartTab) : cancelHeldCart(activeCartTab)}
-              className="px-5 py-2.5 text-xs font-bold uppercase tracking-wider rounded-md text-white transition-opacity hover:opacity-90 shadow-sm flex items-center gap-2"
+              className="px-5 py-2.5 text-xs font-bold rounded-md text-white transition-opacity hover:opacity-90 shadow-sm flex items-center gap-2"
               style={{ backgroundColor: 'var(--color-error-solid)' }}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -62,7 +62,7 @@ const CartTable = React.memo(function CartTable({
             <button
               type="button"
               onClick={() => onBackToLocal ? onBackToLocal() : switchCartTab('local')}
-              className="px-5 py-2.5 text-xs font-bold uppercase tracking-wider rounded-md transition-colors"
+              className="px-5 py-2.5 text-xs font-bold rounded-md transition-colors"
               style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
             >
               ← Back to Local Cart
@@ -150,14 +150,14 @@ const CartTable = React.memo(function CartTable({
                 <td className="py-4 px-3 text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)' }}>
                   <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name}</p>
                   {item.pieceLength && (
-                    <p className="text-[10px] uppercase font-bold mt-1" style={{ color: 'var(--text-tertiary)' }}>Length per piece: {item.pieceLength} {item.unit}</p>
+                    <p className="text-[11px] uppercase font-bold mt-1" style={{ color: 'var(--text-tertiary)' }}>Length per piece: {item.pieceLength} {item.unit}</p>
                   )}
                   {activeTab === 'checkout' && !item.is_screw && item.barcode !== 'SCREWS' && (
                     <div className="flex justify-center gap-2 mt-1">
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
+                        <span className="text-[11px] font-semibold px-1.5 py-0.5 uppercase tracking-wider" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
                           MRP: ₹{formatINR(Number(item.price || 0), 2)}{isLooseKg ? '/kg' : ''}
                         </span>
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider group/msp cursor-help rounded-sm" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
+                        <span className="text-[11px] font-semibold px-1.5 py-0.5 uppercase tracking-wider group/msp cursor-help rounded-sm" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
                           MSP: {userRole === 'owner' ? `₹${formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}${isLooseKg ? '/kg' : ''}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}{isLooseKg ? '/kg' : ''}</span></span>}
                         </span>
                       </div>
@@ -200,7 +200,7 @@ const CartTable = React.memo(function CartTable({
                         </button>
                       </div>
                       {/* Cut-length items: the quantity is the total length / area (no pieces) */}
-                      <span className="mt-1 text-[11px] text-[var(--text-tertiary)] font-medium">
+                      <span className="mt-1 text-xs text-[var(--text-tertiary)] font-medium">
                         Total {safeQty} {String(item.unit || '').toLowerCase()}
                       </span>
                     </div>
@@ -271,7 +271,7 @@ const CartTable = React.memo(function CartTable({
                                 </div>
                               </div>
                               <div className="h-4 flex items-center justify-center mt-1">
-                                <span className="text-[11px] text-[var(--text-tertiary)] font-medium leading-none">
+                                <span className="text-xs text-[var(--text-tertiary)] font-medium leading-none">
                                   {Number(safeQty).toFixed(3)} kg ({currentGrams || 0}g)
                                 </span>
                               </div>
@@ -294,7 +294,7 @@ const CartTable = React.memo(function CartTable({
                             </div>
                           </div>
                           <div className="h-4 flex items-center justify-center mt-1">
-                            <span className="text-[11px] text-[var(--text-tertiary)] font-medium leading-none">
+                            <span className="text-xs text-[var(--text-tertiary)] font-medium leading-none">
                               {safeQty} {formatUnitBadge(item.unit)}
                             </span>
                           </div>
@@ -311,7 +311,7 @@ const CartTable = React.memo(function CartTable({
                       <div className="flex flex-col items-center justify-center">
                         <div className="h-8 flex items-center justify-center w-full">
                           <div className="relative flex items-center justify-center w-full max-w-[120px] h-8 mx-auto">
-                            <span className="absolute left-3 text-[11px] font-bold pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>₹</span>
+                            <span className="absolute left-3 text-xs font-bold pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>₹</span>
                             <input 
                               type="number" 
                               step="0.01" 
@@ -333,14 +333,14 @@ const CartTable = React.memo(function CartTable({
                         </div>
                         {isItemBelowMsp ? (
                           <div className="h-4 flex items-center justify-center mt-1">
-                            <span className="text-[10px] font-bold leading-none" style={{ color: 'var(--color-error)' }}>
+                            <span className="text-xs font-bold leading-none" style={{ color: 'var(--color-error)' }}>
                               Min: ₹{formatINR(itemMsp, 2)}
                             </span>
                           </div>
                         ) : hasSubtext ? (
                           <div className="h-4 flex items-center justify-center mt-1">
                             {isLooseKg ? (
-                              <span className="text-[10px] text-[var(--text-tertiary)] font-normal leading-none">per kg</span>
+                              <span className="text-xs text-[var(--text-tertiary)] font-normal leading-none">per kg</span>
                             ) : null}
                           </div>
                         ) : null}
@@ -351,7 +351,7 @@ const CartTable = React.memo(function CartTable({
                     <div className="flex flex-col items-center justify-center">
                       <div className="h-8 flex items-center justify-center w-full">
                         <div className="relative flex items-center justify-center w-full max-w-[120px] h-8 mx-auto">
-                          <span className="absolute left-3 text-[11px] font-bold pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>₹</span>
+                          <span className="absolute left-3 text-xs font-bold pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>₹</span>
                           <input 
                             type="number" 
                             step="0.01" 
@@ -373,7 +373,7 @@ const CartTable = React.memo(function CartTable({
                       {hasSubtext && (
                         <div className="h-4 flex items-center justify-center mt-1">
                           {safeQty !== billableQty ? (
-                            <span className="text-[10px] text-[var(--text-tertiary)] font-normal leading-none">Billed: {billableQty} {item.unit}</span>
+                            <span className="text-xs text-[var(--text-tertiary)] font-normal leading-none">Billed: {billableQty} {item.unit}</span>
                           ) : null}
                         </div>
                       )}

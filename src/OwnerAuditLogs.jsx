@@ -15,14 +15,14 @@ const formatChanges = (changes) => {
     if (text.includes(': ')) {
       const [key, ...rest] = text.split(': ');
       return (
-        <span key={i} className="inline-flex items-center px-2 py-1 rounded text-[11px] whitespace-nowrap" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
-          <span className="font-bold mr-1 uppercase text-[9px] tracking-wider" style={{ color: 'var(--text-secondary)' }}>{key}:</span>
+        <span key={i} className="inline-flex items-center px-2 py-1 rounded text-xs whitespace-nowrap" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
+          <span className="font-bold mr-1 uppercase text-[11px] tracking-wider" style={{ color: 'var(--text-secondary)' }}>{key}:</span>
           <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{rest.join(': ')}</span>
         </span>
       );
     }
     return (
-      <span key={i} className="inline-flex items-center px-2 py-1 rounded text-[11px] font-medium whitespace-nowrap" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
+      <span key={i} className="inline-flex items-center px-2 py-1 rounded text-xs font-medium whitespace-nowrap" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
         {text}
       </span>
     );
@@ -298,7 +298,7 @@ export default function OwnerAuditLogs() {
           {/* Advanced Filter Toggle */}
           <button
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className="h-10 px-4 text-xs font-bold uppercase tracking-wider focus:outline-none shadow-sm rounded-md flex items-center gap-2 transition-colors shrink-0"
+            className="h-10 px-4 text-xs font-bold focus:outline-none shadow-sm rounded-md flex items-center gap-2 transition-colors shrink-0"
             style={{
               backgroundColor: showAdvanced ? 'var(--color-accent)' : 'var(--bg-input)',
               border: showAdvanced ? '1px solid var(--color-accent)' : '1px solid var(--border-medium)',
@@ -375,7 +375,7 @@ export default function OwnerAuditLogs() {
                     setCustomDate('');
                     setDatePageIndex(0);
                   }}
-                  className="h-10 px-2.5 text-[11px] font-bold uppercase tracking-wider rounded-md transition-colors hover:bg-[var(--bg-hover)]"
+                  className="h-10 px-2.5 text-[11px] font-bold rounded-md transition-colors hover:bg-[var(--bg-hover)]"
                   style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--color-accent)' }}
                   title="Return to latest active day"
                 >
@@ -462,17 +462,17 @@ export default function OwnerAuditLogs() {
                   <td className="md:hidden block p-4 border-none w-full">
                     <div className="flex justify-between items-start mb-2 gap-2">
                       <div className="flex-1 min-w-0">
-                        <div className="text-[10px] font-bold tracking-widest text-[var(--color-accent)] mb-1">
+                        <div className="text-xs font-bold tracking-widest text-[var(--color-accent)] mb-1">
                           {log.barcode === 'CATEGORY' || log.barcode === 'SUB-CATEGORY' || log.barcode === '---' ? <span style={{ color: 'var(--text-tertiary)' }}>—</span> : log.barcode}
                         </div>
                         <div className="text-sm font-bold text-[var(--text-primary)] leading-tight whitespace-normal break-words">{log.item_name}</div>
-                        <div className="text-[10px] text-[var(--text-secondary)] mt-1">{log.date}</div>
+                        <div className="text-xs text-[var(--text-secondary)] mt-1">{log.date}</div>
                       </div>
                       <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                        <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-sm text-right" style={{ backgroundColor: styles.bg, color: styles.text }}>
+                        <span className="px-2 py-1 text-[11px] font-bold uppercase tracking-wider rounded-sm text-right" style={{ backgroundColor: styles.bg, color: styles.text }}>
                           {log.action_type}
                         </span>
-                        <div className="text-[10px] uppercase text-[var(--text-tertiary)] font-bold mt-1">
+                        <div className="text-[11px] uppercase text-[var(--text-tertiary)] font-bold mt-1">
                           By {log.performed_by}
                         </div>
                       </div>
@@ -488,7 +488,7 @@ export default function OwnerAuditLogs() {
                     {log.date}
                   </td>
                   <td className="hidden md:table-cell p-3 w-24 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                    <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-sm" style={{ 
+                    <span className="px-2 py-1 text-[11px] font-bold uppercase tracking-wider rounded-sm" style={{ 
                       backgroundColor: styles.bg,
                       color: styles.text
                     }}>
@@ -545,7 +545,7 @@ export default function OwnerAuditLogs() {
               {availableDates.length > 0 && (
                 <>
                   <span className="hidden sm:inline">•</span>
-                  <span className="hidden sm:inline text-[11px] text-[var(--text-tertiary)]">
+                  <span className="hidden sm:inline text-xs text-[var(--text-tertiary)]">
                     Day {availableDates.indexOf(currentDay) >= 0 ? availableDates.indexOf(currentDay) + 1 : datePageIndex + 1} of {availableDates.length}
                   </span>
                 </>

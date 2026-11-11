@@ -118,3 +118,28 @@ formatting, centered tables, clear status badges (CASH / COMPLETED / SALE).
 2. **Components (2–3 days):** Button, Input, Modal, Table, Badge, PageHeader, Toast (DS1) — then migrate the busiest screens first: Checkout, Inventory/Batch, Sales & Returns, Dashboard.
 3. **Behaviour (1–2 days):** toasts instead of success alerts (S1), date display (F2), red only for danger (C3), primary/secondary buttons (B1, C4), table footers/sorting (T4, T5).
 4. **Polish:** top bar & sidebar grouping (L1, L4), skeletons/empty states, optional light theme.
+
+---
+
+## Progress
+
+**Step 1 — done:** radius tokens (6/10/14px), tertiary text contrast (C1), darker solid
+button fills (C2), global keyboard focus ring (F1), Inter bundled locally (TY1), tokens for
+control heights / type scale / z-layers.
+
+**Step 2 — done (first pass):**
+- Shared components in `src/components/ui/`: `Button` (primary / success / danger / warning /
+  secondary / ghost / danger-outline; sizes 32 / 40 / 48px; loading keeps width), `Input`
+  (label, prefix ₹, suffix unit, hint, inline error), `FieldLabel`, `Modal` (role=dialog,
+  focus trap, Esc, optional focus restore), `Badge`, `PageHeader`, `table` class set.
+- Moved onto them: Checkout payment, Sell cut-length, Loose item, Include screws, Select
+  batch, Scrap stock, the shared Confirm dialog, Screw Boxes screen. Counter modals keep
+  their existing keyboard behaviour (no focus moves, checkout Esc/Enter/1-4 unchanged).
+  Payment buttons show their shortcut key (K2).
+- Minimum text size: nothing under 11px (uppercase labels/badges) / 12px (other text).
+  Printed labels and receipts unchanged.
+- Buttons no longer forced to UPPERCASE with wide letter-spacing (DS5).
+
+**Still open:** migrate the big screens (Inventory/Batch, Sales & Returns, Dashboard,
+Expenses) to the shared components; z-index layers (needs all modals on `Modal` first,
+since stacking order depends on it); step 3 behaviour items.

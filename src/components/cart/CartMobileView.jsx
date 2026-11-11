@@ -33,7 +33,7 @@ const CartMobileView = React.memo(function CartMobileView({
             <button
               type="button"
               onClick={() => onCancelHeldCart ? onCancelHeldCart(activeCartTab) : cancelHeldCart(activeCartTab)}
-              className="w-full py-3 text-sm font-bold uppercase tracking-wider rounded-md text-white transition-opacity hover:opacity-90 shadow-sm flex items-center justify-center gap-2"
+              className="w-full py-3 text-sm font-bold rounded-md text-white transition-opacity hover:opacity-90 shadow-sm flex items-center justify-center gap-2"
               style={{ backgroundColor: 'var(--color-error-solid)' }}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -42,7 +42,7 @@ const CartMobileView = React.memo(function CartMobileView({
             <button
               type="button"
               onClick={() => onBackToLocal ? onBackToLocal() : switchCartTab('local')}
-              className="w-full py-3 text-sm font-bold uppercase tracking-wider rounded-md transition-colors"
+              className="w-full py-3 text-sm font-bold rounded-md transition-colors"
               style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
             >
               ← Back to Local Cart
@@ -121,11 +121,11 @@ const CartMobileView = React.memo(function CartMobileView({
               </button>
             </div>
             {item.pieceLength && (
-              <p className="text-[10px] uppercase font-bold mt-1" style={{ color: 'var(--text-tertiary)' }}>Length per piece: {item.pieceLength} {item.unit}</p>
+              <p className="text-[11px] uppercase font-bold mt-1" style={{ color: 'var(--text-tertiary)' }}>Length per piece: {item.pieceLength} {item.unit}</p>
             )}
             <p className="text-xs mt-1 mb-1" style={{ color: 'var(--color-accent)' }}>#{item.scanned_barcode || item.barcode}</p>
             {activeTab === 'checkout' && !item.is_screw && item.barcode !== 'SCREWS' && (
-              <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>
+              <p className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>
                 MRP: ₹{formatINR(Number(item.price || 0), 2)}{item.is_loose_item && item.unit?.toUpperCase() === 'KG' ? '/kg' : ''} • <span className="group/msp cursor-help">MSP: {userRole === 'owner' ? `₹${formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}${item.is_loose_item && item.unit?.toUpperCase() === 'KG' ? '/kg' : ''}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}{item.is_loose_item && item.unit?.toUpperCase() === 'KG' ? '/kg' : ''}</span></span>}</span>
               </p>
             )}
@@ -226,7 +226,7 @@ const CartMobileView = React.memo(function CartMobileView({
                               className="w-12 h-full text-sm font-bold text-center bg-transparent text-[var(--text-primary)] focus:outline-none p-0"
                               aria-label={`${item.name} quantity in grams`}
                             />
-                            <span className="text-[10px] font-bold pointer-events-none text-[var(--text-tertiary)] ml-1 shrink-0 uppercase select-none">
+                            <span className="text-[11px] font-bold pointer-events-none text-[var(--text-tertiary)] ml-1 shrink-0 uppercase select-none">
                               g
                             </span>
                           </div>
@@ -244,7 +244,7 @@ const CartMobileView = React.memo(function CartMobileView({
                             +
                           </button>
                         </div>
-                        <span className="text-[10px] text-[var(--text-tertiary)] font-normal mt-0.5">
+                        <span className="text-xs text-[var(--text-tertiary)] font-normal mt-0.5">
                           ({Number(safeQty).toFixed(3)} kg)
                         </span>
                       </div>
@@ -266,7 +266,7 @@ const CartMobileView = React.memo(function CartMobileView({
                         <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-14 h-8 text-sm font-bold text-center bg-transparent text-[var(--text-primary)] rounded-none !border-none !shadow-none !outline-none focus:!outline-none focus:!border-none focus:!shadow-none focus:bg-[var(--bg-secondary)] transition-colors p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" style={{ borderRadius: 0, border: 'none', boxShadow: 'none', outline: 'none' }} aria-label={`${item.name} quantity`} />
                         <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-8 h-8 flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-l border-[var(--border-medium)] select-none" style={{ borderRadius: 0 }} aria-label={`Increase ${item.name} quantity`}>+</button>
                       </div>
-                      <span className="text-[10px] text-[var(--text-tertiary)] font-medium mt-0.5">
+                      <span className="text-xs text-[var(--text-tertiary)] font-medium mt-0.5">
                         {safeQty} {formatUnitBadge(item.unit === 'SQFT' && activeTab !== 'checkout' ? 'ROLLS' : item.unit)}
                       </span>
                     </div>

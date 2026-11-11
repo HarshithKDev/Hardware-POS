@@ -338,7 +338,7 @@ export default function WorkerScanner({ cashierName }) {
           <button
             onClick={handleSend}
             disabled={isSending}
-            className="w-full py-6 text-white font-black uppercase tracking-widest text-xl shadow-lg rounded-lg transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
+            className="w-full py-6 text-white font-black text-xl shadow-lg rounded-lg transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
             style={{ backgroundColor: 'var(--color-accent-solid)' }}
           >
             {isSending ? 'SENDING...' : (
@@ -426,7 +426,7 @@ export default function WorkerScanner({ cashierName }) {
               unlockAudio();
               setIsScanning(!isScanning);
             }}
-            className="w-full py-5 font-bold uppercase text-lg text-white shadow-md rounded-md transition-all active:scale-95 flex items-center justify-center gap-2"
+            className="w-full py-5 font-bold text-lg text-white shadow-md rounded-md transition-all active:scale-95 flex items-center justify-center gap-2"
             style={{ backgroundColor: isScanning ? 'var(--color-error)' : 'var(--color-success)' }}
           >
             {isScanning ? (

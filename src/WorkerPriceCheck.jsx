@@ -303,7 +303,7 @@ export default function WorkerPriceCheck() {
                     className="cursor-pointer text-right px-3.5 py-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)] hover:border-[var(--color-accent)] transition-all select-none"
                     title="Tap to reveal minimum price"
                   >
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center justify-end gap-1">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center justify-end gap-1">
                       MSP
                       <Eye className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
                     </span>
@@ -333,11 +333,11 @@ export default function WorkerPriceCheck() {
                         <span className="text-xs font-semibold text-[var(--text-tertiary)]">{displayUnit || 'pcs'}</span>
                       </div>
                       {Number(storeStock) < STORE_LOW_STOCK_THRESHOLD ? (
-                        <span className="text-[10px] font-bold text-amber-500 flex items-center gap-1">
+                        <span className="text-xs font-bold text-amber-500 flex items-center gap-1">
                           <AlertTriangle size={11} /> Low stock
                         </span>
                       ) : (
-                        <span className="text-[10px] font-medium text-[var(--color-success)]">In Stock</span>
+                        <span className="text-xs font-medium text-[var(--color-success)]">In Stock</span>
                       )}
                     </div>
 
@@ -354,11 +354,11 @@ export default function WorkerPriceCheck() {
                           <span className="text-xs font-semibold text-[var(--text-tertiary)]">{displayUnit || 'pcs'}</span>
                         </div>
                         {Number(whseStock) < WAREHOUSE_LOW_STOCK_THRESHOLD ? (
-                          <span className="text-[10px] font-bold text-amber-500 flex items-center gap-1">
+                          <span className="text-xs font-bold text-amber-500 flex items-center gap-1">
                             <AlertTriangle size={11} /> Low stock
                           </span>
                         ) : (
-                          <span className="text-[10px] font-medium text-[var(--color-success)]">In Stock</span>
+                          <span className="text-xs font-medium text-[var(--color-success)]">In Stock</span>
                         )}
                       </div>
                     )}
@@ -370,7 +370,7 @@ export default function WorkerPriceCheck() {
               <button
                 type="button"
                 onClick={handleScanAnother}
-                className="w-full py-4 md:py-5 rounded-xl font-bold text-base uppercase tracking-wider text-white bg-[var(--color-accent-solid)] hover:opacity-90 active:scale-98 transition-all shadow-md flex items-center justify-center gap-2 mt-2"
+                className="w-full py-4 md:py-5 rounded-xl font-bold text-base text-white bg-[var(--color-accent-solid)] hover:opacity-90 active:scale-98 transition-all shadow-md flex items-center justify-center gap-2 mt-2"
               >
                 <Camera className="w-5 h-5" />
                 Scan Another Item
@@ -427,7 +427,7 @@ export default function WorkerPriceCheck() {
                     unlockAudio();
                     setIsScanning(true);
                   }}
-                  className="px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider text-white bg-[var(--color-accent-solid)] hover:opacity-90 active:scale-95 transition-all shadow-sm flex items-center gap-2"
+                  className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-[var(--color-accent-solid)] hover:opacity-90 active:scale-95 transition-all shadow-sm flex items-center gap-2"
                 >
                   <RefreshCw className="w-4 h-4" />
                   Start Camera Scanner

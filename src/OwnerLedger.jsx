@@ -682,7 +682,7 @@ export default function OwnerLedger({ isActive }) {
               <div
                 className="absolute top-full left-0 right-0 mt-1 rounded-lg shadow-xl z-50 overflow-hidden border border-[var(--border-medium)] bg-[var(--bg-secondary)] py-1 max-h-64 overflow-y-auto"
               >
-                <div className="px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] border-b border-[var(--border-light)]">
+                <div className="px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] border-b border-[var(--border-light)]">
                   Customer Suggestions (Phone / Name)
                 </div>
                 {filteredSuggestions.map((cust, idx) => (
@@ -707,7 +707,7 @@ export default function OwnerLedger({ isActive }) {
                         </span>
                       )}
                     </div>
-                    <span className="text-[10px] text-[var(--color-accent)] font-semibold uppercase">Filter</span>
+                    <span className="text-[11px] text-[var(--color-accent)] font-semibold uppercase">Filter</span>
                   </button>
                 ))}
               </div>
@@ -746,7 +746,7 @@ export default function OwnerLedger({ isActive }) {
                       setCustomDate('');
                       setDatePageIndex(0);
                     }}
-                    className="h-10 md:h-9 px-2.5 text-[11px] font-bold uppercase tracking-wider rounded-md transition-colors hover:bg-[var(--bg-hover)]"
+                    className="h-10 md:h-9 px-2.5 text-[11px] font-bold rounded-md transition-colors hover:bg-[var(--bg-hover)]"
                     style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--color-accent)' }}
                     title="Return to latest active day"
                   >
@@ -802,7 +802,7 @@ export default function OwnerLedger({ isActive }) {
                   <td className="md:hidden block p-4 border-none">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <div className="text-[11px] font-bold text-[var(--text-secondary)]">{formatDateTime(bill.created_at).full}</div>
+                        <div className="text-xs font-bold text-[var(--text-secondary)]">{formatDateTime(bill.created_at).full}</div>
                         {(bill.customer_phone || bill.customer_name) ? (
                            <div className="text-xs font-semibold text-[var(--text-primary)] mt-1 flex items-center gap-1.5 flex-wrap">
                             {bill.customer_phone && (
@@ -817,7 +817,7 @@ export default function OwnerLedger({ isActive }) {
                           </div>
                         ) : (
                           <div className="mt-1">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[var(--bg-hover)] text-[var(--text-secondary)] border border-[var(--border-light)]">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--bg-hover)] text-[var(--text-secondary)] border border-[var(--border-light)]">
                               Walk-in Customer
                             </span>
                           </div>
@@ -826,7 +826,7 @@ export default function OwnerLedger({ isActive }) {
                       <div className="text-right">
                         <div className={`text-base font-bold ${bill.status === 'voided' ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--color-accent)]'}`}>₹{formatINR(Number(bill.total_amount), 2)}</div>
                         {bill.payment_method && (
-                          <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded inline-block mt-0.5" style={{ backgroundColor: bill.payment_method === 'CASH' ? 'rgba(16, 185, 129, 0.15)' : bill.payment_method === 'UPI' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(234, 179, 8, 0.15)', color: bill.payment_method === 'CASH' ? 'var(--color-success)' : bill.payment_method === 'UPI' ? 'var(--color-accent)' : 'var(--color-warning)' }}>{bill.payment_method}</span>
+                          <span className="px-1.5 py-0.5 text-[11px] font-bold uppercase rounded inline-block mt-0.5" style={{ backgroundColor: bill.payment_method === 'CASH' ? 'rgba(16, 185, 129, 0.15)' : bill.payment_method === 'UPI' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(234, 179, 8, 0.15)', color: bill.payment_method === 'CASH' ? 'var(--color-success)' : bill.payment_method === 'UPI' ? 'var(--color-accent)' : 'var(--color-warning)' }}>{bill.payment_method}</span>
                         )}
                       </div>
                     </div>
@@ -834,7 +834,7 @@ export default function OwnerLedger({ isActive }) {
                       <div className="text-xs font-medium capitalize" style={{ color: 'var(--text-secondary)' }}>Cashier: {bill.cashier_name}</div>
                       <div className="flex items-center gap-2">
                         {bill.status === 'voided' ? (
-                          <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-red-500/15 text-red-500">RETURNED</span>
+                          <span className="px-2 py-0.5 text-[11px] font-bold uppercase rounded bg-red-500/15 text-red-500">RETURNED</span>
                         ) : (
                           <button
                             type="button"
@@ -855,7 +855,7 @@ export default function OwnerLedger({ isActive }) {
                   {/* Desktop Table Cells - Center Aligned */}
                   <td className="hidden md:table-cell py-4 px-3 w-[20%] text-sm text-center" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
                     <div className="font-semibold text-xs text-[var(--text-primary)]">{formatDateTime(bill.created_at).datePart}</div>
-                    <div className="text-[11px] text-[var(--text-secondary)]">{formatDateTime(bill.created_at).timePart}</div>
+                    <div className="text-xs text-[var(--text-secondary)]">{formatDateTime(bill.created_at).timePart}</div>
                   </td>
 
                   <td className="hidden md:table-cell py-4 px-3 w-[24%] text-sm text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
@@ -886,9 +886,9 @@ export default function OwnerLedger({ isActive }) {
 
                   <td className="hidden md:table-cell py-4 px-3 w-[12%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
                     {bill.status === 'voided' ? (
-                      <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-red-500/15 text-red-500 inline-block">VOIDED</span>
+                      <span className="px-2 py-0.5 text-[11px] font-bold uppercase rounded bg-red-500/15 text-red-500 inline-block">VOIDED</span>
                     ) : bill.payment_method ? (
-                      <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded inline-block" style={{ backgroundColor: bill.payment_method === 'CASH' ? 'rgba(16, 185, 129, 0.15)' : bill.payment_method === 'UPI' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(234, 179, 8, 0.15)', color: bill.payment_method === 'CASH' ? 'var(--color-success)' : bill.payment_method === 'UPI' ? 'var(--color-accent)' : 'var(--color-warning)' }}>{bill.payment_method}</span>
+                      <span className="px-2 py-0.5 text-[11px] font-bold uppercase rounded inline-block" style={{ backgroundColor: bill.payment_method === 'CASH' ? 'rgba(16, 185, 129, 0.15)' : bill.payment_method === 'UPI' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(234, 179, 8, 0.15)', color: bill.payment_method === 'CASH' ? 'var(--color-success)' : bill.payment_method === 'UPI' ? 'var(--color-accent)' : 'var(--color-warning)' }}>{bill.payment_method}</span>
                     ) : (
                       <span className="text-xs text-[var(--text-tertiary)]">--</span>
                     )}
@@ -901,7 +901,7 @@ export default function OwnerLedger({ isActive }) {
                   {/* Dedicated Return Button on ALL Rows */}
                   <td className="hidden md:table-cell py-4 px-3 w-[14%] text-center">
                     {bill.status === 'voided' ? (
-                      <span className="px-2.5 py-1 text-[10px] font-bold uppercase rounded bg-red-500/15 text-red-500 inline-block">
+                      <span className="px-2.5 py-1 text-[11px] font-bold uppercase rounded bg-red-500/15 text-red-500 inline-block">
                         RETURNED
                       </span>
                     ) : (
@@ -952,7 +952,7 @@ export default function OwnerLedger({ isActive }) {
                 {availableDates.length > 0 && (
                   <>
                     <span className="hidden sm:inline">•</span>
-                    <span className="hidden sm:inline text-[11px] text-[var(--text-tertiary)]">
+                    <span className="hidden sm:inline text-xs text-[var(--text-tertiary)]">
                       Day {availableDates.indexOf(currentDay) >= 0 ? availableDates.indexOf(currentDay) + 1 : datePageIndex + 1} of {availableDates.length}
                     </span>
                   </>
@@ -1138,7 +1138,7 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
 
                   {isCuttable ? (
                     <div className="flex items-center">
-                      <span className="text-[11px] font-semibold px-2.5 py-1 rounded bg-[var(--bg-tertiary)] border border-[var(--border-light)] text-[var(--text-secondary)]">
+                      <span className="text-xs font-semibold px-2.5 py-1 rounded bg-[var(--bg-tertiary)] border border-[var(--border-light)] text-[var(--text-secondary)]">
                         Non-returnable (Cut Item)
                       </span>
                     </div>

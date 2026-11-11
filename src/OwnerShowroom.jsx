@@ -152,7 +152,7 @@ export default function OwnerShowroom() {
                                 ₹{formatINR(Number(bill.total_amount), 2)}
                               </p>
                               <span
-                                className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase inline-block mt-0.5 tracking-wider"
+                                className="text-[11px] font-bold px-1.5 py-0.5 rounded uppercase inline-block mt-0.5 tracking-wider"
                                 style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', border: '1px solid rgba(59, 130, 246, 0.2)' }}
                               >
                                 SHOWROOM

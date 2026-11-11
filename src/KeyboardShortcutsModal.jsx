@@ -93,7 +93,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }) {
               <h2 className="text-base font-bold flex items-center gap-2">
                 <span>Keyboard Shortcuts</span>
                 <span 
-                  className="text-[10px] font-mono px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold"
+                  className="text-[11px] font-mono px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold"
                   style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)' }}
                 >
                   POS Speed Mode
@@ -146,7 +146,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }) {
                             {k}
                           </kbd>
                           {kIdx < sc.keys.length - 1 && (
-                            <span className="text-[10px] font-bold text-[var(--text-tertiary)]">/</span>
+                            <span className="text-xs font-bold text-[var(--text-tertiary)]">/</span>
                           )}
                         </React.Fragment>
                       ))}
@@ -165,11 +165,11 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }) {
         >
           <span className="flex items-center gap-1.5">
             <Info size={13} className="text-[var(--color-accent)] inline shrink-0" />
-            <span>Press <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] border border-[var(--border-medium)] font-mono font-bold text-[10px] text-[var(--text-primary)]">F1</kbd> anytime to open this guide</span>
+            <span>Press <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] border border-[var(--border-medium)] font-mono font-bold text-xs text-[var(--text-primary)]">F1</kbd> anytime to open this guide</span>
           </span>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md text-white transition-opacity hover:opacity-90"
+            className="px-4 py-1.5 text-xs font-bold rounded-md text-white transition-opacity hover:opacity-90"
             style={{ backgroundColor: 'var(--color-accent-solid)' }}
           >
             Got it (Esc)

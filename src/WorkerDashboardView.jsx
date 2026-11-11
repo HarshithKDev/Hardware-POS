@@ -447,7 +447,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
     Table: (props) => (
       <table
         {...props}
-        className={`w-full text-center table-fixed text-[11px] sm:text-xs md:text-sm min-w-full ${props.className || ''}`}
+        className={`w-full text-center table-fixed text-xs sm:text-xs md:text-sm min-w-full ${props.className || ''}`}
         style={{
           ...props.style,
           color: 'var(--text-primary)',
@@ -547,13 +547,13 @@ export default function WorkerDashboardView({ isBillable = true }) {
       <div className={`grid ${isWarehouseDisabled ? 'grid-cols-1' : 'grid-cols-2'} gap-3 md:gap-4 mb-3 md:mb-4`}>
         <button onClick={() => setLowStockModal({ isOpen: true, type: 'store' })} className="p-3 md:p-4 rounded-lg border border-[var(--border-light)] text-left cursor-pointer flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
           <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full" style={{ backgroundColor: storeAlerts > 0 ? 'var(--color-error)' : 'var(--color-accent)' }} />
-          <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider mb-1 ml-3" style={{ color: 'var(--text-secondary)' }}>{isWarehouseDisabled ? 'Low Stock Alerts' : 'Low Store Stock'}</p>
+          <p className="text-[11px] md:text-xs font-semibold uppercase tracking-wider mb-1 ml-3" style={{ color: 'var(--text-secondary)' }}>{isWarehouseDisabled ? 'Low Stock Alerts' : 'Low Store Stock'}</p>
           <p className="text-xl md:text-2xl font-semibold ml-3" style={{ color: storeAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{storeAlerts} Items</p>
         </button>
         {!isWarehouseDisabled && (
           <button onClick={() => setLowStockModal({ isOpen: true, type: 'warehouse' })} className="p-3 md:p-4 rounded-lg border border-[var(--border-light)] text-left cursor-pointer flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
             <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full" style={{ backgroundColor: whseAlerts > 0 ? 'var(--color-error)' : 'var(--color-accent)' }} />
-            <p className="text-[10px] md:text-xs font-semibold uppercase tracking-wider mb-1 ml-3" style={{ color: 'var(--text-secondary)' }}>Low Warehouse Stock</p>
+            <p className="text-[11px] md:text-xs font-semibold uppercase tracking-wider mb-1 ml-3" style={{ color: 'var(--text-secondary)' }}>Low Warehouse Stock</p>
             <p className="text-xl md:text-2xl font-semibold ml-3" style={{ color: whseAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{whseAlerts} Items</p>
           </button>
         )}
@@ -570,7 +570,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
               setInventorySearch(e.target.value);
               debouncedSetSearch(e.target.value);
             }}
-            className="w-full h-10 px-2.5 sm:px-3 text-[11px] sm:text-xs md:text-sm border shadow-sm focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]/30 rounded-lg leading-normal"
+            className="w-full h-10 px-2.5 sm:px-3 text-xs sm:text-xs md:text-sm border shadow-sm focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]/30 rounded-lg leading-normal"
             style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)', colorScheme: 'dark' }}
           />
         </div>
@@ -579,7 +579,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
           <select
             value={selectedCategory}
             onChange={(e) => handleCategoryChange(e.target.value)}
-            className="w-full h-10 pl-2.5 sm:pl-3 pr-7 sm:pr-8 text-[11px] sm:text-xs md:text-sm border shadow-sm focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]/30 rounded-lg cursor-pointer font-medium leading-normal truncate"
+            className="w-full h-10 pl-2.5 sm:pl-3 pr-7 sm:pr-8 text-xs sm:text-xs md:text-sm border shadow-sm focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]/30 rounded-lg cursor-pointer font-medium leading-normal truncate"
             style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)', colorScheme: 'dark' }}
           >
             <option value="ALL" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>All Categories</option>
@@ -596,7 +596,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
             value={selectedSubcategory}
             onChange={(e) => setSelectedSubcategory(e.target.value)}
             disabled={availableSubcategories.length === 0}
-            className="w-full h-10 pl-2.5 sm:pl-3 pr-7 sm:pr-8 text-[11px] sm:text-xs md:text-sm border shadow-sm focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]/30 rounded-lg cursor-pointer font-medium leading-normal truncate disabled:opacity-50"
+            className="w-full h-10 pl-2.5 sm:pl-3 pr-7 sm:pr-8 text-xs sm:text-xs md:text-sm border shadow-sm focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]/30 rounded-lg cursor-pointer font-medium leading-normal truncate disabled:opacity-50"
             style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)', colorScheme: 'dark' }}
           >
             <option value="ALL" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
@@ -704,11 +704,11 @@ export default function WorkerDashboardView({ isBillable = true }) {
                     <div key={item.id} className="p-3 border flex justify-between items-center shadow-sm" style={{ borderColor: 'var(--border-light)', backgroundColor: 'var(--bg-primary)' }}>
                       <div className="flex flex-col gap-1">
                         <span className="font-bold text-sm leading-tight" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
-                        <span className=" text-[10px] bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded-sm self-start" style={{ color: 'var(--color-accent)' }}>#{item.barcode}</span>
+                        <span className=" text-xs bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded-sm self-start" style={{ color: 'var(--color-accent)' }}>#{item.barcode}</span>
                       </div>
                       <div className="flex items-center gap-4 md:gap-6">
                         <div className="flex flex-col items-center">
-                          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{isWarehouseDisabled ? 'Stock' : 'Store'}</span>
+                          <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>{isWarehouseDisabled ? 'Stock' : 'Store'}</span>
                           <span className={`text-lg font-bold ${lowStockModal.type === 'store' ? 'text-[var(--color-error)]' : 'text-[var(--text-primary)]'}`}>
                             {item.stock_store}
                           </span>
@@ -717,7 +717,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
                           <>
                             <div className="w-[1px] h-8 bg-[var(--border-light)]"></div>
                             <div className="flex flex-col items-center">
-                              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Warehouse</span>
+                              <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Warehouse</span>
                               <span className={`text-lg font-bold ${lowStockModal.type === 'warehouse' ? 'text-[var(--color-error)]' : 'text-[var(--text-primary)]'}`}>
                                 {item.stock_warehouse}
                               </span>

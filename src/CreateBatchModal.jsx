@@ -200,10 +200,10 @@ export default function CreateBatchModal({ item, onClose, onBatchCreated }) {
         </div>
 
         <div className="p-4 md:p-6 border-t border-[var(--border-light)] bg-[var(--bg-secondary)] flex justify-end gap-3 sticky bottom-0 z-10">
-          <button type="button" onClick={onClose} className="px-5 py-2 text-sm font-bold uppercase tracking-wider rounded-md transition-colors" style={{ color: 'var(--color-error)', border: '1px solid var(--color-error)', backgroundColor: 'transparent' }}>
+          <button type="button" onClick={onClose} className="px-5 py-2 text-sm font-bold rounded-md transition-colors" style={{ color: 'var(--color-error)', border: '1px solid var(--color-error)', backgroundColor: 'transparent' }}>
             Cancel
           </button>
-          <button type="submit" form="createBatchForm" disabled={createBatchMutation.isPending} className="px-6 py-2 text-sm font-bold uppercase tracking-wider rounded-md text-white transition-colors disabled:opacity-50 flex items-center gap-2" style={{ backgroundColor: 'var(--color-accent-solid)' }}>
+          <button type="submit" form="createBatchForm" disabled={createBatchMutation.isPending} className="px-6 py-2 text-sm font-bold rounded-md text-white transition-colors disabled:opacity-50 flex items-center gap-2" style={{ backgroundColor: 'var(--color-accent-solid)' }}>
             {createBatchMutation.isPending ? 'Creating...' : 'Create Batch'}
           </button>
         </div>

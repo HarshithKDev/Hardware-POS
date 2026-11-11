@@ -107,7 +107,7 @@ export default function BillDetailsView({
           <button
             type="button"
             onClick={() => onProcessReturn(currentBill)}
-            className="flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-bold uppercase tracking-wider text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-all cursor-pointer shadow-sm hover:border-red-500 active:scale-95"
+            className="flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-bold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-all cursor-pointer shadow-sm hover:border-red-500 active:scale-95"
             title="Process Return for this Bill"
           >
             <Undo2 className="w-4 h-4 text-red-400" />
@@ -129,7 +129,7 @@ export default function BillDetailsView({
 
             {currentBill.payment_method && (
               <span
-                className="px-2.5 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider"
+                className="px-2.5 py-0.5 text-[11px] font-bold rounded uppercase tracking-wider"
                 style={{
                   backgroundColor: currentBill.payment_method === 'CASH'
                     ? 'rgba(34, 197, 94, 0.15)'
@@ -149,11 +149,11 @@ export default function BillDetailsView({
             )}
 
             {isVoided ? (
-              <span className="px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full bg-red-500/15 text-red-400 border border-red-500/30">
+              <span className="px-2.5 py-0.5 text-[11px] font-bold uppercase rounded-full bg-red-500/15 text-red-400 border border-red-500/30">
                 Voided / Returned
               </span>
             ) : (
-              <span className="px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              <span className="px-2.5 py-0.5 text-[11px] font-bold uppercase rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                 Completed
               </span>
             )}
@@ -193,7 +193,7 @@ export default function BillDetailsView({
       {/* ROW 3: CLEAN KPI SUMMARY CARDS */}
       <div className={`grid ${showProfit ? 'grid-cols-3' : 'grid-cols-2'} gap-2 sm:gap-3 mb-4 shrink-0`}>
         <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] p-2.5 sm:p-4 shadow-sm flex flex-col justify-between">
-          <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+          <span className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
             Total Items
           </span>
           <div className="mt-1 flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
@@ -201,7 +201,7 @@ export default function BillDetailsView({
               {items.length} {items.length === 1 ? 'item' : 'items'}
             </span>
             {totalItemsCount !== items.length && (
-              <span className="text-[11px] sm:text-xs text-[var(--text-secondary)]">
+              <span className="text-xs sm:text-xs text-[var(--text-secondary)]">
                 ({totalItemsCount} units)
               </span>
             )}
@@ -209,7 +209,7 @@ export default function BillDetailsView({
         </div>
 
         <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] p-2.5 sm:p-4 shadow-sm flex flex-col justify-between">
-          <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+          <span className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
             Discount
           </span>
           <div className="mt-1">
@@ -221,7 +221,7 @@ export default function BillDetailsView({
 
         {showProfit && (
           <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] p-2.5 sm:p-4 shadow-sm flex flex-col justify-between">
-            <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+            <span className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               Gross Profit
             </span>
             <div className="mt-1">
@@ -264,7 +264,7 @@ export default function BillDetailsView({
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[11px] font-bold text-[var(--text-tertiary)] bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded">
+                          <span className="text-xs font-bold text-[var(--text-tertiary)] bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded">
                             #{idx + 1}
                           </span>
                           <span className="font-semibold text-sm text-[var(--text-primary)] leading-tight">
@@ -273,12 +273,12 @@ export default function BillDetailsView({
                         </div>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           {it.barcode && (
-                            <span className="text-[10px] text-[var(--text-secondary)] font-mono">
+                            <span className="text-xs text-[var(--text-secondary)] font-mono">
                               #{it.barcode}
                             </span>
                           )}
                           {it.instance_barcode && (
-                            <span className="text-[10px] text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20 font-mono">
+                            <span className="text-xs text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20 font-mono">
                               Piece: {it.instance_barcode}
                             </span>
                           )}
@@ -295,19 +295,19 @@ export default function BillDetailsView({
                     {/* Pricing & Qty Metrics */}
                     <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[var(--border-medium)] text-center text-xs">
                       <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
-                        <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Qty</span>
+                        <span className="text-[11px] text-[var(--text-secondary)] uppercase block">Qty</span>
                         <span className="font-semibold text-[var(--text-primary)] tabular-nums">
-                          {qty} <span className="text-[10px] uppercase font-normal">{it.unit || 'PCS'}</span>
+                          {qty} <span className="text-[11px] uppercase font-normal">{it.unit || 'PCS'}</span>
                         </span>
                       </div>
 
                       <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
-                        <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Rate</span>
+                        <span className="text-[11px] text-[var(--text-secondary)] uppercase block">Rate</span>
                         <span className="font-semibold text-[var(--text-primary)] tabular-nums">
                           {it.barcode === 'SCREWS' || it.is_screw ? '—' : `₹${formatINR(soldPrice, 2)}`}
                         </span>
                         {mrp > soldPrice && it.barcode !== 'SCREWS' && !it.is_screw && (
-                          <span className="text-[9px] line-through text-[var(--text-tertiary)] block">
+                          <span className="text-xs line-through text-[var(--text-tertiary)] block">
                             ₹{formatINR(mrp, 2)}
                           </span>
                         )}
@@ -315,7 +315,7 @@ export default function BillDetailsView({
 
                       {showProfit && (
                         <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
-                          <span className="text-[10px] uppercase block" style={{ color: isVoided ? 'var(--text-tertiary)' : 'var(--color-success)' }}>
+                          <span className="text-[11px] uppercase block" style={{ color: isVoided ? 'var(--text-tertiary)' : 'var(--color-success)' }}>
                             Profit
                           </span>
                           <span className="font-bold tabular-nums" style={{ color: isVoided ? 'var(--text-tertiary)' : 'var(--color-success)' }}>
@@ -326,7 +326,7 @@ export default function BillDetailsView({
                     </div>
 
                     {discountPct > 0 && (
-                      <div className="flex items-center justify-between text-[11px] px-2 py-1 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                      <div className="flex items-center justify-between text-xs px-2 py-1 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400">
                         <span>Discount Applied</span>
                         <span className="font-bold tabular-nums">{discountPct.toFixed(1)}% OFF</span>
                       </div>
@@ -378,12 +378,12 @@ export default function BillDetailsView({
                           </div>
                           <div className="flex items-center justify-center gap-2 mt-0.5 flex-wrap">
                             {it.barcode && (
-                              <span className="text-[11px] text-[var(--text-secondary)] font-mono">
+                              <span className="text-xs text-[var(--text-secondary)] font-mono">
                                 #{it.barcode}
                               </span>
                             )}
                             {it.instance_barcode && (
-                              <span className="text-[10px] text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20 font-mono">
+                              <span className="text-xs text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20 font-mono">
                                 Piece: {it.instance_barcode}
                               </span>
                             )}

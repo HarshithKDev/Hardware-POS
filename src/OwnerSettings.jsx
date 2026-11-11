@@ -371,28 +371,28 @@ export default function OwnerSettings() {
           <div className="flex items-center gap-2">
             {!isEditing ? (
               <button 
-                type="button" 
+                type="button"
                 onClick={() => setIsEditing(true)}
-                className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all border shadow-sm hover:bg-[var(--bg-hover)] active:scale-95 cursor-pointer"
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all border shadow-sm hover:bg-[var(--bg-hover)] active:scale-95 cursor-pointer"
                 style={{ borderColor: 'var(--border-medium)', color: 'var(--text-primary)', backgroundColor: 'var(--bg-secondary)' }}
               >
                 <Edit2 size={14} /> Edit Profile
               </button>
             ) : (
               <div className="flex items-center gap-2">
-                <button  
-                  type="button" 
+                <button 
+                  type="button"
                   onClick={handleCancel}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all border hover:bg-[var(--bg-tertiary)] cursor-pointer"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all border hover:bg-[var(--bg-tertiary)] cursor-pointer"
                   style={{ borderColor: 'var(--border-medium)', color: 'var(--text-secondary)' }}
                 >
                   Cancel
                 </button>
                 <button 
-                  type="button" 
-                  onClick={handleSave} 
+                  type="button"
+                  onClick={handleSave}
                   disabled={isLoading}
-                  className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-white text-xs font-bold uppercase tracking-wider shadow-sm transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-white text-xs font-bold shadow-sm transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   style={{ backgroundColor: 'var(--color-accent-solid)' }}
                 >
                   {isLoading ? (
@@ -472,7 +472,7 @@ export default function OwnerSettings() {
                           <button
                             type="button"
                             onClick={() => playScanSuccessSound()}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded border border-[var(--border-medium)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all active:scale-95 cursor-pointer shrink-0"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded border border-[var(--border-medium)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all active:scale-95 cursor-pointer shrink-0"
                             title="Test scan sound"
                           >
                             <Volume2 size={11} className="text-[var(--color-accent)]" />
@@ -533,7 +533,7 @@ export default function OwnerSettings() {
                   ) : (
                     <div className="flex flex-col items-center opacity-60">
                       <Upload className="w-5 h-5 mb-0.5" />
-                      <span className="text-[9px] uppercase font-bold">Logo</span>
+                      <span className="text-[11px] uppercase font-bold">Logo</span>
                     </div>
                   )}
                 </div>
@@ -601,7 +601,7 @@ export default function OwnerSettings() {
                   Shop Profile & Billing Details
                 </h2>
                 {isEditing && (
-                  <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded border bg-[var(--color-accent-solid)]/10 text-[var(--color-accent)] border-[var(--color-accent)]/20 animate-pulse">
+                  <span className="px-2 py-0.5 text-[11px] font-bold uppercase rounded border bg-[var(--color-accent-solid)]/10 text-[var(--color-accent)] border-[var(--color-accent)]/20 animate-pulse">
                     Editing Mode
                   </span>
                 )}
@@ -681,7 +681,7 @@ export default function OwnerSettings() {
                         UPI ID (Digital Payment)
                       </label>
                       <label className="flex items-center gap-1.5 cursor-pointer">
-                        <span className="text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>Show on Bill</span>
+                        <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Show on Bill</span>
                         <input 
                           type="checkbox" 
                           checked={showUpi} 
@@ -745,7 +745,7 @@ export default function OwnerSettings() {
                       Shop Address
                     </label>
                     <label className="flex items-center gap-1.5 cursor-pointer">
-                      <span className="text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>Show on Bill</span>
+                      <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Show on Bill</span>
                       <input 
                         type="checkbox" 
                         checked={showAddress} 
@@ -830,7 +830,7 @@ export default function OwnerSettings() {
                     Download Business Data
                   </h2>
                 </div>
-                <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] border border-[var(--border-medium)]">
+                <span className="px-2 py-0.5 text-[11px] font-bold uppercase rounded bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] border border-[var(--border-medium)]">
                   XLSX
                 </span>
               </div>
@@ -840,7 +840,7 @@ export default function OwnerSettings() {
               </p>
 
               {/* Clean structured breakdown */}
-              <div className="grid grid-cols-2 gap-2 text-[11px] text-[var(--text-tertiary)] bg-[var(--bg-tertiary)]/40 p-2.5 rounded-lg border border-[var(--border-light)]">
+              <div className="grid grid-cols-2 gap-2 text-xs text-[var(--text-tertiary)] bg-[var(--bg-tertiary)]/40 p-2.5 rounded-lg border border-[var(--border-light)]">
                 <div className="flex items-center gap-1.5 truncate">
                   <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent-solid)] shrink-0" />
                   <span>Products & Inventory</span>
@@ -870,7 +870,7 @@ export default function OwnerSettings() {
                 type="button"
                 onClick={handleDownloadCompleteData}
                 disabled={isExporting}
-                className="w-full mt-1 py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 active:scale-98 hover:brightness-110"
+                className="w-full mt-1 py-2.5 px-4 rounded-lg font-bold text-xs text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 active:scale-98 hover:brightness-110"
                 style={{ backgroundColor: 'var(--color-accent-solid)' }}
               >
                 {isExporting ? (

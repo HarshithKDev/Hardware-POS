@@ -337,13 +337,13 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
               className="h-10 px-3 sm:px-4 rounded-lg border flex flex-col justify-center text-center shrink-0" 
               style={{ backgroundColor: 'var(--color-accent-bg)', borderColor: 'rgba(59, 130, 246, 0.3)' }}
             >
-              <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider leading-none" style={{ color: 'var(--color-accent)' }}>Total Expenses</span>
+              <span className="text-[11px] sm:text-[11px] font-bold uppercase tracking-wider leading-none" style={{ color: 'var(--color-accent)' }}>Total Expenses</span>
               <span className="text-xs sm:text-sm font-bold leading-tight mt-0.5" style={{ color: 'var(--color-accent)' }}>₹{formatINR(totalExpenses, 2)}</span>
             </div>
           )}
           <button
             onClick={() => setIsModalOpen(true)}
-            className="h-10 px-4 rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 text-white shadow-sm transition-all active:scale-95 shrink-0 cursor-pointer flex-1 sm:flex-initial"
+            className="h-10 px-4 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 text-white shadow-sm transition-all active:scale-95 shrink-0 cursor-pointer flex-1 sm:flex-initial"
             style={{ backgroundColor: 'var(--color-accent-solid)' }}
           >
             <Plus size={16} strokeWidth={2.5} />
@@ -441,18 +441,18 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
 
                         <td className="p-3.5 text-center align-middle whitespace-nowrap text-sm font-medium capitalize" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}>
                           {exp.worker_name || 'General'}
-                          {exp.category && <span className="block text-[11px] normal-case opacity-80">{exp.category}{exp.payment_mode ? ` · ${exp.payment_mode}` : ''}</span>}
+                          {exp.category && <span className="block text-xs normal-case opacity-80">{exp.category}{exp.payment_mode ? ` · ${exp.payment_mode}` : ''}</span>}
                         </td>
 
                         <td className="p-3.5 text-center align-middle whitespace-nowrap font-bold text-sm" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--color-accent)' }}>
                           ₹{formatINR(totalAmt, 2)}
-                          {exp._pending && <span className="block text-[10px] font-bold uppercase" style={{ color: 'var(--color-warning)' }}>Not synced</span>}
+                          {exp._pending && <span className="block text-[11px] font-bold uppercase" style={{ color: 'var(--color-warning)' }}>Not synced</span>}
                         </td>
 
                         <td className="p-3.5 text-center align-middle whitespace-nowrap text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
                           {exp.recorded_by || 'Staff'}
                           {canDelete && (
-                            <button type="button" onClick={() => handleDeleteExpense(exp)} className="block mx-auto mt-1 text-[11px] font-semibold hover:underline" style={{ color: 'var(--color-error)' }}>Delete</button>
+                            <button type="button" onClick={() => handleDeleteExpense(exp)} className="block mx-auto mt-1 text-xs font-semibold hover:underline" style={{ color: 'var(--color-error)' }}>Delete</button>
                           )}
                         </td>
                       </tr>
@@ -579,7 +579,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="h-9 px-4 text-xs font-bold uppercase tracking-wider rounded-md text-white shadow-sm transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="h-9 px-4 text-xs font-bold rounded-md text-white shadow-sm transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
                   style={{ backgroundColor: 'var(--color-accent-solid)' }}
                 >
                   {isSaving ? (

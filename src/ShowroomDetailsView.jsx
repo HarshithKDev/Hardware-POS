@@ -49,7 +49,7 @@ export default function ShowroomDetailsView({
           type="button"
           onClick={onBack}
           aria-label="Back to Showroom Dispatches"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider text-[var(--text-secondary)] hover:text-white bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] border border-[var(--border-medium)] transition-all cursor-pointer shadow-sm hover:border-[var(--color-accent)] active:scale-95"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-[var(--text-secondary)] hover:text-white bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] border border-[var(--border-medium)] transition-all cursor-pointer shadow-sm hover:border-[var(--color-accent)] active:scale-95"
           title="Back to Showroom Dispatches"
         >
           <ArrowLeft className="w-4 h-4 text-[var(--color-accent)]" />
@@ -130,14 +130,14 @@ export default function ShowroomDetailsView({
 
                     <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border-medium)] text-center text-xs">
                       <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
-                        <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Qty Deducted</span>
+                        <span className="text-[11px] text-[var(--text-secondary)] uppercase block">Qty Deducted</span>
                         <span className="font-semibold text-[var(--text-primary)] tabular-nums">
-                          {qty} <span className="text-[10px] uppercase font-normal">{it.unit || 'PCS'}</span>
+                          {qty} <span className="text-[11px] uppercase font-normal">{it.unit || 'PCS'}</span>
                         </span>
                       </div>
 
                       <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
-                        <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Unit Value</span>
+                        <span className="text-[11px] text-[var(--text-secondary)] uppercase block">Unit Value</span>
                         <span className="font-semibold text-[var(--text-primary)] tabular-nums">
                           ₹{formatINR(unitPrice, 2)}
                         </span>

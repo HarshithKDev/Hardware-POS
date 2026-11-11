@@ -740,7 +740,7 @@ export default function OwnerCatalog() {
           <button
             type="submit"
             disabled={addItemMutation.isPending || !nextBarcode}
-            className="w-full md:w-auto h-10 px-10 text-white text-sm font-semibold uppercase tracking-wider disabled:opacity-50 focus:outline-none rounded-md focus:ring-2 focus:ring-offset-1 flex justify-center items-center min-w-[200px]"
+            className="w-full md:w-auto h-10 px-10 text-white text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md focus:ring-2 focus:ring-offset-1 flex justify-center items-center min-w-[200px]"
             style={{ backgroundColor: 'var(--color-accent-solid)' }}
           >
             {addItemMutation.isPending ? <Spinner className="w-5 h-5 text-white" /> : 'Save Item'}

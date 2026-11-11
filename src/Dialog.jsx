@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import Button from './components/ui/Button';
 
 // ---------------------------------------------------------------
 // Shared Dialog components with proper accessibility:
@@ -107,7 +108,7 @@ export function DialogOverlay({ isOpen, onClose, children, labelId, maxWidth = '
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelId}
-        className="w-[94%] sm:w-full flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl"
+        className="w-[94%] sm:w-full flex flex-col rounded-2xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl"
         style={{
           maxWidth: maxWidth,
           backgroundColor: 'var(--bg-secondary)',
@@ -235,26 +236,12 @@ export function ConfirmDialog({
 
       {/* Footer */}
       <div className="px-5 sm:px-6 pb-5 sm:pb-6 pt-2 flex items-center justify-end gap-2.5">
-        <button
-          onClick={onCancel}
-          className="flex-1 sm:flex-none h-11 sm:h-10 px-4 sm:px-6 text-sm font-medium rounded-md border border-[var(--border-light)] hover:bg-[var(--bg-hover)] transition-colors active:scale-95 cursor-pointer flex items-center justify-center"
-          style={{
-            backgroundColor: 'transparent',
-            color: 'var(--text-primary)',
-          }}
-        >
+        <Button variant="secondary" onClick={onCancel} className="flex-1 sm:flex-none h-11 sm:h-10 sm:px-6">
           {cancelLabel}
-        </button>
-        <button
-          onClick={onConfirm}
-          className={`flex-1 sm:flex-none h-11 sm:h-10 px-4 sm:px-6 text-sm font-semibold rounded-md transition-opacity hover:opacity-90 active:scale-95 cursor-pointer flex items-center justify-center ${isDestructive ? 'text-white' : ''}`}
-          style={{ 
-            backgroundColor: isDestructive ? 'var(--color-error)' : 'var(--color-accent)', 
-            color: isDestructive ? '#fff' : 'var(--color-accent-fg)' 
-          }}
-        >
+        </Button>
+        <Button variant={isDestructive ? 'danger' : 'primary'} onClick={onConfirm} className="flex-1 sm:flex-none h-11 sm:h-10 sm:px-6">
           {confirmLabel}
-        </button>
+        </Button>
       </div>
     </DialogOverlay>
   );

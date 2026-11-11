@@ -340,7 +340,7 @@ export default function OwnerDashboard() {
               aria-label={label}
             >
               <Icon size={19} strokeWidth={(isActive || (isMore && isSidebarOpen)) ? 2.5 : 2} />
-              <span className="text-[10px] font-semibold tracking-tight">{label}</span>
+              <span className="text-xs font-semibold tracking-tight">{label}</span>
             </button>
           );
         })}

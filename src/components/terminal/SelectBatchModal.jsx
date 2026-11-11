@@ -1,5 +1,5 @@
-import React from 'react';
 import { formatINR } from '../../utils';
+import { Modal, Button } from '../ui';
 
 export default function SelectBatchModal({
   isOpen,
@@ -15,24 +15,18 @@ export default function SelectBatchModal({
   if (!isOpen || !item) return null;
 
   return (
-    <div
-      className="fixed inset-0 flex items-center justify-center z-[100] print:hidden px-4 animate-fade-in"
-      style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="select-batch-title"
+    <Modal
+      onClose={onClose}
+      title={`Select Batch for ${item.name}`}
+      titleId="select-batch-title"
+      size="md"
+      zIndex={100}
+      focusFirst={false}
+      restoreFocus={false}
+      bodyClassName="p-4"
+      footer={<Button variant="secondary" onClick={onClose}>Cancel</Button>}
     >
-      <div 
-        className="w-[85%] max-w-[450px] flex flex-col rounded-xl overflow-hidden animate-scale-in border border-[var(--border-light)] shadow-2xl" 
-        style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
-      >
-        <div className="flex justify-between items-center pr-1 pl-4 py-1" style={{ borderBottom: '1px solid var(--border-light)' }}>
-          <span id="select-batch-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
-            Select Batch for {item.name}
-          </span>
-        </div>
-        
-        <div className="p-4 max-h-[60vh] overflow-y-auto">
+        <div className="flex flex-col gap-2">
           {batches.map(batch => {
             const stockField = activeTab === 'transfer' ? 'stock_warehouse' : 'stock_store';
             const hasStock = activeTab === 'receive' || Number(batch[stockField]) > 0;
@@ -42,7 +36,7 @@ export default function SelectBatchModal({
                 type="button"
                 onClick={() => hasStock ? onSelectBatch(batch) : null}
                 disabled={!hasStock}
-                className={`w-full text-left p-4 mb-2 rounded-lg border flex justify-between items-center transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] ${hasStock ? 'hover:bg-[var(--bg-hover)] cursor-pointer' : 'opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]'}`}
+                className={`w-full text-left p-4 rounded-[10px] border flex justify-between items-center gap-3 transition-colors ${hasStock ? 'hover:bg-[var(--bg-hover)] cursor-pointer' : 'opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]'}`}
                 style={{ borderColor: 'var(--border-medium)', backgroundColor: hasStock ? 'var(--bg-primary)' : 'var(--bg-tertiary)' }}
               >
                 <div>
@@ -77,17 +71,6 @@ export default function SelectBatchModal({
           )}
         </div>
         
-        <div className="p-4 flex justify-end gap-2" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-          <button 
-            type="button"
-            onClick={onClose} 
-            className="h-9 px-6 text-sm font-semibold focus:outline-none rounded-md transition-colors cursor-pointer" 
-            style={{ backgroundColor: 'transparent', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
