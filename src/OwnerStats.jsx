@@ -165,8 +165,18 @@ function StatCard({ title, value, accentColor, borderColor, onClick, clickLabel,
   );
 }
 
+/** Short rupee label for chart bars: ₹850, ₹2.5k, ₹1.2L */
+function compactINR(n) {
+  const v = Number(n) || 0;
+  if (v >= 99950) return `₹${(v / 100000).toFixed(v >= 1000000 ? 0 : 1).replace(/\.0$/, '')}L`;
+  if (v >= 999.5) return `₹${(v / 1000).toFixed(v >= 10000 ? 0 : 1).replace(/\.0$/, '')}k`;
+  return `₹${Math.round(v)}`;
+}
+
 /** Sales trend bar chart */
 function SalesTrendChart({ trend, isLoading }) {
+  // Amount labels above every bar when there is room (week / day views); month view keeps hover only
+  const showBarLabels = (trend || []).length <= 12;
   const [isAnimated, setIsAnimated] = useState(false);
 
   useEffect(() => {
@@ -183,7 +193,7 @@ function SalesTrendChart({ trend, isLoading }) {
         <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Sales Trend</p>
       </div>
 
-      <div className="flex flex-1 items-end min-h-[8rem] gap-1 md:gap-3 w-full px-2 mb-4" role="img" aria-label="sales trend chart">
+      <div className={`flex flex-1 items-end min-h-[8rem] gap-1 md:gap-3 w-full px-2 mb-4 ${showBarLabels ? 'pt-6' : ''}`} role="img" aria-label="sales trend chart">
         {isLoading ? (
           <div className="w-full h-full flex items-center justify-center">
             <div className="premium-wave-loader scale-75">
@@ -200,6 +210,11 @@ function SalesTrendChart({ trend, isLoading }) {
                 backgroundColor: 'var(--color-accent-solid)',
               }}
             >
+              {showBarLabels && point.rev > 0 && (
+                <span className={`absolute -top-5 left-1/2 -translate-x-1/2 text-xs font-semibold tabular-nums whitespace-nowrap pointer-events-none transition-opacity group-hover:opacity-0 ${isAnimated ? 'opacity-100' : 'opacity-0'}`} style={{ color: 'var(--text-secondary)' }}>
+                  {compactINR(point.rev)}
+                </span>
+              )}
               <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm flex items-center gap-1 pointer-events-none" style={{ color: 'var(--text-primary)', backgroundColor: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-light)' }}>
                 ₹{formatINR(point.rev, 0)} <span className="font-medium text-xs" style={{ color: 'var(--text-tertiary)' }}>({point.label})</span>
               </span>
@@ -1271,7 +1286,6 @@ export default function OwnerStats({ isActive }) {
         <StatCard
           title={isWarehouseDisabled ? "Low Stock" : "Shop Low Stock"}
           value={lowStoreItems.length}
-          accentColor={lowStoreItems.length > 0 ? 'var(--color-error)' : undefined}
           borderColor={lowStoreItems.length > 0 ? 'var(--color-error)' : 'var(--color-accent)'}
           onClick={() => setActiveModal('low-store')}
           clickLabel="View low stock items"
@@ -1280,7 +1294,6 @@ export default function OwnerStats({ isActive }) {
           <StatCard
             title="Warehouse Low Stock"
             value={lowWarehouseItems.length}
-            accentColor={lowWarehouseItems.length > 0 ? 'var(--color-error)' : undefined}
             borderColor={lowWarehouseItems.length > 0 ? 'var(--color-error)' : 'var(--color-accent)'}
             onClick={() => setActiveModal('low-warehouse')}
             clickLabel="View warehouse low stock"
@@ -1289,7 +1302,6 @@ export default function OwnerStats({ isActive }) {
         <StatCard
           title="Dead Stock Value"
           value={`₹${formatINR(deadStockValue, 0)}`}
-          accentColor={deadStockValue > DEAD_STOCK_ALARM_VALUE ? 'var(--color-error)' : 'var(--color-warning)'}
           borderColor={deadStockValue > DEAD_STOCK_ALARM_VALUE ? 'var(--color-error)' : 'var(--color-warning)'}
           onClick={() => setActiveModal('dead-stock')}
           clickLabel="View dead stock items"
@@ -1306,15 +1318,20 @@ export default function OwnerStats({ isActive }) {
       </div>
 
       {/* ROW 3: CAPITAL */}
-      <div className={`grid ${isWarehouseDisabled ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-3'} gap-3 lg:gap-4 shrink-0`}>
-        <StatCard title="Total Asset Value" value={`₹${formatINR(totalInventoryValue, 2)}`} borderColor="var(--text-tertiary)" />
-        {!isWarehouseDisabled && (
-          <StatCard title="Warehouse Capital" value={`₹${formatINR(warehouseCapital, 2)}`} borderColor="var(--color-accent)" />
-        )}
-        <div className={isWarehouseDisabled ? '' : 'col-span-2 md:col-span-1'}>
-          <StatCard title={isWarehouseDisabled ? "Stock Capital" : "Store Capital"} value={`₹${formatINR(storeCapital, 2)}`} borderColor="var(--color-accent)" />
+      {isWarehouseDisabled ? (
+        // Without a warehouse, all stock is in the store, so asset value and stock capital are the same figure
+        <div className="grid grid-cols-1 gap-3 lg:gap-4 shrink-0">
+          <StatCard title="Stock Capital (Total Asset Value)" value={`₹${formatINR(totalInventoryValue, 2)}`} borderColor="var(--text-tertiary)" />
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 lg:gap-4 shrink-0">
+          <StatCard title="Total Asset Value" value={`₹${formatINR(totalInventoryValue, 2)}`} borderColor="var(--text-tertiary)" />
+          <StatCard title="Warehouse Capital" value={`₹${formatINR(warehouseCapital, 2)}`} borderColor="var(--color-accent)" />
+          <div className="col-span-2 md:col-span-1">
+            <StatCard title="Store Capital" value={`₹${formatINR(storeCapital, 2)}`} borderColor="var(--color-accent)" />
+          </div>
+        </div>
+      )}
 
       {/* MODALS */}
       {activeModal && createPortal(
