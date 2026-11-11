@@ -16,6 +16,7 @@ import {
 import { AlertTriangle, Calendar, ArrowUpRight } from 'lucide-react';
 import { useSessionState } from './hooks/useSessionState';
 import PageTitleReset from './components/PageTitleReset';
+import { billPaymentSplit } from './services/dayClosing';
 import { buttonClass, useSort, SortTh } from './components/ui';
 
 const PROFIT_SORT = {
@@ -114,7 +115,7 @@ function AnimatedNumber({ valueStr, duration = 250 }) {
 }
 
 /** Reusable stat card */
-function StatCard({ title, value, accentColor, borderColor, onClick, clickLabel, children }) {
+function StatCard({ title, value, accentColor, borderColor, onClick, clickLabel, children, className = '' }) {
   const Tag = onClick ? 'button' : 'div';
   const strVal = String(value ?? '');
   const valLen = strVal.length;
@@ -125,13 +126,13 @@ function StatCard({ title, value, accentColor, borderColor, onClick, clickLabel,
     : valLen > 9
       ? 'text-lg sm:text-xl xl:text-2xl'
       : valLen > 6
-        ? 'text-xl sm:text-2xl 2xl:text-3xl'
+        ? 'text-xl sm:text-2xl'
         : 'text-2xl sm:text-3xl 2xl:text-4xl';
 
   return (
     <Tag
       onClick={onClick}
-      className={`relative p-3.5 sm:p-4 rounded-lg border border-[var(--border-light)] text-left w-full flex flex-col justify-between h-full transition-all ${onClick ? 'cursor-pointer group hover:border-[var(--color-accent)]' : ''}`}
+      className={`${className} relative p-3.5 sm:p-4 rounded-lg border border-[var(--border-light)] text-left w-full flex flex-col justify-between h-full transition-all ${onClick ? 'cursor-pointer group hover:border-[var(--color-accent)]' : ''}`}
       style={{
         backgroundColor: 'var(--bg-secondary)',
       }}
@@ -151,13 +152,16 @@ function StatCard({ title, value, accentColor, borderColor, onClick, clickLabel,
       </div>
 
       {/* Value Row - Scalable, responsive, never truncated with dots */}
-      <div className="w-full mt-auto min-w-0">
+      <div className="w-full mt-auto min-w-0 @container">
         <p 
           className={`${fontSizeClass} font-bold tracking-tight whitespace-nowrap overflow-visible tabular-nums leading-tight`} 
           style={{ color: accentColor || 'var(--text-primary)' }} 
           title={strVal}
         >
-          <AnimatedNumber valueStr={value} duration={250} />
+          {/* Shrinks below the size above only when the box is too narrow for the amount */}
+          <span style={{ fontSize: `min(1em, ${(100 / (Math.max(valLen, 4) * 0.64)).toFixed(2)}cqw)` }}>
+            <AnimatedNumber valueStr={value} duration={250} />
+          </span>
         </p>
       </div>
       {children}
@@ -793,7 +797,7 @@ export default function OwnerStats({ isActive }) {
     const shopId = localStorage.getItem('shop_id');
     let billsQuery = supabase
       .from('bills')
-      .select('id, total_amount, created_at')
+      .select('id, total_amount, cash_amount, upi_amount, payment_method, created_at')
       .gte('created_at', localToUtcIso(queryStart))
       .lte('created_at', localToUtcIso(queryEnd))
       .eq('location', 'Store')
@@ -902,6 +906,13 @@ export default function OwnerStats({ isActive }) {
     const tfBillIds = new Set(tfBills.map(b => b.id));
 
     let tfTrueRevenue = 0, tfGrossProfit = 0, tfTotalCost = 0, tfTotalDiscount = 0;
+    // Money received by payment mode (same split as the day closing report)
+    let tfCashCents = 0, tfUpiCents = 0;
+    tfBills.forEach(bill => {
+      const { cash, upi } = billPaymentSplit(bill);
+      tfCashCents += Math.round(cash * 100);
+      tfUpiCents += Math.round(upi * 100);
+    });
     let tfSalesDetails = [];
     let topProducts = [];
 
@@ -987,6 +998,8 @@ export default function OwnerStats({ isActive }) {
       tfGrossProfit,
       tfTotalCost,
       tfTotalDiscount,
+      tfCash: tfCashCents / 100,
+      tfUpi: tfUpiCents / 100,
       tfExpenses: Math.round(tfExpenses * 100) / 100,
       tfSalesDetails,
       topProducts,
@@ -1197,6 +1210,8 @@ export default function OwnerStats({ isActive }) {
   const tfExpenses = salesData?.tfExpenses ?? 0;
   const tfTotalCost = salesData?.tfTotalCost ?? 0;
   const tfTotalDiscount = salesData?.tfTotalDiscount ?? 0;
+  const tfCash = salesData?.tfCash ?? 0;
+  const tfUpi = salesData?.tfUpi ?? 0;
   const tfSalesDetails = salesData?.tfSalesDetails ?? [];
   const topProducts = salesData?.topProducts ?? [];
   const tfTrend = salesData?.trend ?? [];
@@ -1268,8 +1283,10 @@ export default function OwnerStats({ isActive }) {
       )}
 
       {/* ROW 1: TODAY'S VITALS */}
-      <div className={`grid grid-cols-2 md:grid-cols-3 ${isWarehouseDisabled ? '2xl:grid-cols-5' : '2xl:grid-cols-6'} gap-3 lg:gap-4 mb-4 shrink-0`}>
+      <div className={`grid grid-cols-2 md:grid-cols-4 ${isWarehouseDisabled ? '2xl:grid-cols-7' : '2xl:grid-cols-8'} gap-3 lg:gap-4 mb-4 shrink-0`}>
         <StatCard title="Revenue" value={`₹${formatINR(tfTrueRevenue, 2)}`} borderColor="var(--color-success)" />
+        <StatCard title="Cash" value={`₹${formatINR(tfCash, 2)}`} borderColor="var(--color-success)" />
+        <StatCard title="UPI" value={`₹${formatINR(tfUpi, 2)}`} borderColor="var(--color-accent)" />
         <StatCard
           title="Profit"
           value={`₹${formatINR(tfGrossProfit, 2)}`}
@@ -1301,6 +1318,8 @@ export default function OwnerStats({ isActive }) {
         )}
         <StatCard
           title="Dead Stock Value"
+          // 7 boxes: widen the last one so the 4-per-row layout has no empty slot
+          className={isWarehouseDisabled ? 'col-span-2 2xl:col-span-1' : ''}
           value={`₹${formatINR(deadStockValue, 0)}`}
           borderColor={deadStockValue > DEAD_STOCK_ALARM_VALUE ? 'var(--color-error)' : 'var(--color-warning)'}
           onClick={() => setActiveModal('dead-stock')}
