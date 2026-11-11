@@ -671,9 +671,10 @@ export default function WorkerDashboardView({ isBillable = true }) {
           onClick={() => setLowStockModal({ isOpen: false, type: null })}
           role="dialog"
           aria-modal="true"
+          aria-labelledby="low-stock-modal-title"
         >
           <div
-            className="w-full max-w-3xl flex flex-col h-[70vh] max-h-[620px] rounded-2xl overflow-hidden shadow-2xl border border-[var(--border-light)] animate-scale-in my-auto"
+            className="w-full max-w-3xl flex flex-col h-[70vh] max-h-[620px] rounded-[14px] overflow-hidden shadow-2xl border border-[var(--border-light)] animate-scale-in my-auto"
             style={{ backgroundColor: 'var(--bg-secondary)' }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -681,12 +682,13 @@ export default function WorkerDashboardView({ isBillable = true }) {
               className="flex justify-between items-center px-5 py-3.5 shrink-0 border-b border-[var(--border-light)]"
               style={{ backgroundColor: 'var(--bg-tertiary)' }}
             >
-              <span className="text-xs sm:text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
+              <span id="low-stock-modal-title" className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
                 {isWarehouseDisabled ? 'Low Stock Items' : (lowStockModal.type === 'store' ? 'Low Store Stock Items' : 'Low Warehouse Stock Items')}
               </span>
               <button
                 onClick={() => setLowStockModal({ isOpen: false, type: null })}
                 className={buttonClass({ variant: 'secondary', size: 'sm' })}
+                title="Close (Esc)"
               >
                 <span>Close</span>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
