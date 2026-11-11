@@ -457,3 +457,16 @@ describe('Screw boxes', () => {
     await expect(openScrewBox({ item: empty, shopId: 'S', isWarehouseDisabled: false })).rejects.toThrow(/No Screw Box 8x1 left in store/);
   });
 });
+
+import { formatINR } from '../utils';
+describe('Indian number formatting for prices', () => {
+  it('uses lakh/crore grouping', () => {
+    expect(formatINR(100000)).toBe('1,00,000.00');
+    expect(formatINR(30000)).toBe('30,000.00');
+    expect(formatINR(10000, 0)).toBe('10,000');
+    expect(formatINR(12345678.9)).toBe('1,23,45,678.90');
+    expect(formatINR(999.5)).toBe('999.50');
+    expect(formatINR('21100')).toBe('21,100.00');
+    expect(formatINR(undefined)).toBe('0.00');
+  });
+});

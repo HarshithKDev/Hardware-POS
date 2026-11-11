@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { localToUtcIso } from './utils';
+import { localToUtcIso, formatINR } from './utils';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import { Spinner, PageLoader } from './SharedUI';
@@ -215,7 +215,7 @@ export default function OwnerAuditLogs() {
             if (data.quantity !== undefined) parts.push(`Qty: ${data.quantity}${u}`);
             if (data.location) parts.push(`Loc: ${data.location}`);
             if (data.instance) parts.push(`Piece: #${data.instance.split('-')[1] || data.instance}`);
-            if (data.price !== undefined) parts.push(`Price: ₹${data.price}`);
+            if (data.price !== undefined) parts.push(`Price: ₹${formatINR(data.price, 2)}`);
             if (data.discountPct !== undefined && data.discountPct > 0) parts.push(`Disc: ${data.discountPct}%`);
             
             if (parts.length > 0) return parts.join(' | ');

@@ -2,7 +2,7 @@ import { useState, Fragment } from 'react';
 import { supabase } from './supabaseClient';
 import { PageLoader, EmptyState } from './SharedUI';
 import { useQuery } from '@tanstack/react-query';
-import { formatDateTime, useSessionState } from './utils';
+import { formatDateTime, useSessionState, formatINR } from './utils';
 import { ChevronRight, Phone } from 'lucide-react';
 import ShowroomDetailsView from './ShowroomDetailsView';
 import PageTitleReset from './components/PageTitleReset';
@@ -96,7 +96,7 @@ export default function OwnerShowroom() {
               Total Dispatched (at MRP)
             </span>
             <span className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)] tabular-nums">
-              ₹{totalValue.toFixed(2)}
+              ₹{formatINR(totalValue, 2)}
             </span>
           </div>
         )}
@@ -149,7 +149,7 @@ export default function OwnerShowroom() {
                           <div className="text-right flex items-center gap-2">
                             <div>
                               <p className="text-base font-bold text-[var(--text-primary)] tabular-nums">
-                                ₹{Number(bill.total_amount).toFixed(2)}
+                                ₹{formatINR(Number(bill.total_amount), 2)}
                               </p>
                               <span
                                 className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase inline-block mt-0.5 tracking-wider"
@@ -189,7 +189,7 @@ export default function OwnerShowroom() {
                       </td>
                       <td className="py-4 px-6 text-sm font-bold text-center align-middle tabular-nums" style={{ color: 'var(--text-primary)' }}>
                         <div className="flex items-center justify-center gap-2">
-                          <span>₹{Number(bill.total_amount).toFixed(2)}</span>
+                          <span>₹{formatINR(Number(bill.total_amount), 2)}</span>
                           <ChevronRight className="w-4 h-4 text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                       </td>

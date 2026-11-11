@@ -3,7 +3,7 @@ import Barcode from 'react-barcode';
 import { Search, Printer, X, Check, Layers } from 'lucide-react';
 import { getInventoryByQuery } from './services/db';
 import { useApp } from './AppContext';
-import { debounce } from './utils';
+import { debounce, formatINR } from './utils';
 import BarcodeLabelSheet, { MAX_LABELS_PER_PRINT, clampLabelQty } from './components/print/BarcodeLabelSheet';
 
 export default function WorkerPrintBarcode() {
@@ -254,7 +254,7 @@ export default function WorkerPrintBarcode() {
 
                     <div className="text-right shrink-0">
                       <div className="font-bold text-xs sm:text-sm text-[var(--text-primary)] tabular-nums">
-                        ₹{Number(firstPrice).toFixed(2)}
+                        ₹{formatINR(Number(firstPrice), 2)}
                       </div>
                       {isSelected && (
                         <div className="mt-1 flex justify-end">
@@ -309,7 +309,7 @@ export default function WorkerPrintBarcode() {
                     MRP
                   </span>
                   <span className="text-base font-bold text-[var(--text-primary)] tabular-nums">
-                    ₹{activeSellingPrice}
+                    ₹{formatINR(activeSellingPrice, 2)}
                   </span>
                 </div>
               </div>
@@ -336,7 +336,7 @@ export default function WorkerPrintBarcode() {
                               : 'bg-[var(--bg-tertiary)] border-[var(--border-medium)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
                           }`}
                         >
-                          Batch #{bNum} &bull; ₹{Number(b.selling_price ?? selectedProduct.price ?? 0).toFixed(2)}
+                          Batch #{bNum} &bull; ₹{formatINR(Number(b.selling_price ?? selectedProduct.price ?? 0), 2)}
                         </button>
                       );
                     })}
@@ -428,7 +428,7 @@ export default function WorkerPrintBarcode() {
                     />
                   </div>
                   <div className="text-xs sm:text-sm font-bold text-black tracking-wide">
-                    MRP: ₹{activeSellingPrice}
+                    MRP: ₹{formatINR(activeSellingPrice, 2)}
                   </div>
                 </div>
               </div>

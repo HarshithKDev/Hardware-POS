@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatINR } from '../../utils';
 
 import { useCart } from '../../contexts/CartContext';
 import { useApp } from '../../AppContext';
@@ -154,10 +155,10 @@ const CartTable = React.memo(function CartTable({
                   {activeTab === 'checkout' && !item.is_screw && item.barcode !== 'SCREWS' && (
                     <div className="flex justify-center gap-2 mt-1">
                         <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
-                          MRP: ₹{Number(item.price || 0).toFixed(2)}{isLooseKg ? '/kg' : ''}
+                          MRP: ₹{formatINR(Number(item.price || 0), 2)}{isLooseKg ? '/kg' : ''}
                         </span>
                         <span className="text-[10px] font-semibold px-1.5 py-0.5 uppercase tracking-wider group/msp cursor-help rounded-sm" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
-                          MSP: {userRole === 'owner' ? `₹${Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}${isLooseKg ? '/kg' : ''}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}{isLooseKg ? '/kg' : ''}</span></span>}
+                          MSP: {userRole === 'owner' ? `₹${formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}${isLooseKg ? '/kg' : ''}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}{isLooseKg ? '/kg' : ''}</span></span>}
                         </span>
                       </div>
                   )}
@@ -333,7 +334,7 @@ const CartTable = React.memo(function CartTable({
                         {isItemBelowMsp ? (
                           <div className="h-4 flex items-center justify-center mt-1">
                             <span className="text-[10px] font-bold leading-none" style={{ color: 'var(--color-error)' }}>
-                              Min: ₹{itemMsp.toFixed(2)}
+                              Min: ₹{formatINR(itemMsp, 2)}
                             </span>
                           </div>
                         ) : hasSubtext ? (
@@ -381,10 +382,10 @@ const CartTable = React.memo(function CartTable({
                 </>)}
                 {activeTab === 'receive' && (<>
                   <td className="p-2 text-center align-middle text-sm font-semibold bg-[var(--bg-tertiary)] group/msp cursor-help" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}>
-                    {userRole === 'owner' ? `₹${Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}</span></span>}
+                    {userRole === 'owner' ? `₹${formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}</span></span>}
                   </td>
                   <td className="p-2 text-center align-middle text-sm font-semibold bg-[var(--bg-tertiary)]" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}>
-                    ₹{Number(item.selling_price !== undefined ? item.selling_price : item.price || 0).toFixed(2)}
+                    ₹{formatINR(Number(item.selling_price !== undefined ? item.selling_price : item.price || 0), 2)}
                   </td>
                 </>)}
                 <td className="p-2 text-center align-middle">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, forwardRef } from 'react';
-import { getPerformedBy } from './utils';
+import { getPerformedBy, formatINR } from './utils';
 import { TableVirtuoso } from 'react-virtuoso';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import PrintBatchModal from './PrintBatchModal';
@@ -423,7 +423,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
         action_type: 'UPDATE',
         barcode: item.barcode,
         item_name: item.name,
-        changes: `Item updated via Global Edit${item.cost_price !== undefined ? ` (Cost Price: ₹${item.cost_price})` : ''}`,
+        changes: `Item updated via Global Edit${item.cost_price !== undefined ? ` (Cost Price: ₹${formatINR(item.cost_price, 2)})` : ''}`,
         performed_by: getPerformedBy()
       }));
       await supabase.from('audit_logs').insert(auditLogs);

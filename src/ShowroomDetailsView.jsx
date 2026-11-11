@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
-import { formatDateTime } from './utils';
+import { formatDateTime, formatINR } from './utils';
 import { PageLoader } from './SharedUI';
 import {
   ArrowLeft,
@@ -85,7 +85,7 @@ export default function ShowroomDetailsView({
             Total Dispatched Value
           </span>
           <span className="text-xl sm:text-2xl font-bold text-[var(--text-primary)] tabular-nums">
-            ₹{Number(currentBill.total_amount || 0).toFixed(2)}
+            ₹{formatINR(Number(currentBill.total_amount || 0), 2)}
           </span>
         </div>
       </div>
@@ -123,7 +123,7 @@ export default function ShowroomDetailsView({
                       <div className="text-right shrink-0">
                         <span className="text-xs text-[var(--text-tertiary)] block">Total</span>
                         <span className="font-bold text-sm text-[var(--text-primary)] tabular-nums">
-                          ₹{lineTotal.toFixed(2)}
+                          ₹{formatINR(lineTotal, 2)}
                         </span>
                       </div>
                     </div>
@@ -139,7 +139,7 @@ export default function ShowroomDetailsView({
                       <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
                         <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Unit Value</span>
                         <span className="font-semibold text-[var(--text-primary)] tabular-nums">
-                          ₹{unitPrice.toFixed(2)}
+                          ₹{formatINR(unitPrice, 2)}
                         </span>
                       </div>
                     </div>
@@ -183,11 +183,11 @@ export default function ShowroomDetailsView({
                         </td>
 
                         <td className="py-3 px-4 text-center font-medium text-sm text-[var(--text-secondary)] tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                          ₹{unitPrice.toFixed(2)}
+                          ₹{formatINR(unitPrice, 2)}
                         </td>
 
                         <td className="py-3 px-4 text-center font-bold text-sm text-[var(--text-primary)] tabular-nums">
-                          ₹{lineTotal.toFixed(2)}
+                          ₹{formatINR(lineTotal, 2)}
                         </td>
                       </tr>
                     );

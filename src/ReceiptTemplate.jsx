@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { formatDateTime as defaultFormatDateTime } from './utils';
+import { formatDateTime as defaultFormatDateTime, formatINR } from './utils';
 
 const formatGramRate = (ratePerKg) => {
   const perGram = Number(ratePerKg || 0) / 1000;
@@ -120,8 +120,8 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
               ? `${item.grams !== undefined ? item.grams : Math.round(Number(item.quantity) * 1000)} g` 
               : `${item.quantity} ${item.unit}`;
             const isScrew = Boolean(item.is_screw || item.barcode === 'SCREWS');
-            const displayMrp = isScrew ? '—' : (isLooseKg ? formatGramRate(item.mrp) : item.mrp.toFixed(2));
-            const displayRate = isScrew ? '—' : (isLooseKg ? formatGramRate(item.finalRate) : item.finalRate.toFixed(2));
+            const displayMrp = isScrew ? '—' : (isLooseKg ? formatGramRate(item.mrp) : formatINR(item.mrp, 2));
+            const displayRate = isScrew ? '—' : (isLooseKg ? formatGramRate(item.finalRate) : formatINR(item.finalRate, 2));
 
             return (
               <tr key={i} className="hover:!bg-transparent" style={{ backgroundColor: 'transparent' }}>
@@ -131,7 +131,7 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
                 <td className="py-1 text-center text-black" style={{ color: '#000', backgroundColor: 'transparent' }}>{displayQty}</td>
                 <td className="py-1 text-right pr-1 text-black" style={{ color: '#000', backgroundColor: 'transparent' }}>{displayMrp}</td>
                 <td className="py-1 text-right pr-1 text-black" style={{ color: '#000', backgroundColor: 'transparent' }}>{displayRate}</td>
-                <td className="py-1 text-right text-black" style={{ color: '#000', backgroundColor: 'transparent' }}>{item.lineTotal.toFixed(2)}</td>
+                <td className="py-1 text-right text-black" style={{ color: '#000', backgroundColor: 'transparent' }}>{formatINR(item.lineTotal, 2)}</td>
               </tr>
             );
           })}
@@ -141,12 +141,12 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
       {Number(lastReceipt.roundOff || 0) !== 0 && (
         <div className="border-t border-black pt-1 flex justify-between items-center text-black" style={{ color: '#000', fontSize: '12px' }}>
           <span>Round Off</span>
-          <span>{lastReceipt.roundOff > 0 ? '+' : '-'}₹{Math.abs(lastReceipt.roundOff).toFixed(2)}</span>
+          <span>{lastReceipt.roundOff > 0 ? '+' : '-'}₹{formatINR(Math.abs(lastReceipt.roundOff), 2)}</span>
         </div>
       )}
       <div className="border-t border-black pt-2 flex justify-between items-center mb-2 text-black" style={{ color: '#000' }}>
         <span className="font-bold" style={{ fontSize: '14px' }}>{lastReceipt.paymentMethod === 'SHOWROOM' ? 'SHOWROOM DISPATCH (NOT A SALE)' : 'NET DUE'}</span>
-        <span className="font-bold" style={{ fontSize: '16px' }}>₹{lastReceipt.total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+        <span className="font-bold" style={{ fontSize: '16px' }}>₹{formatINR(lastReceipt.total, 2)}</span>
       </div>
 
       {lastReceipt.paymentMethod && (
@@ -154,7 +154,7 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
           <span className="font-semibold">PAID VIA</span>
           <span className="font-bold">
             {lastReceipt.paymentMethod === 'SPLIT' 
-              ? `Cash: ₹${Number(lastReceipt.cashAmount || 0).toFixed(2)} + UPI: ₹${Number(lastReceipt.upiAmount || 0).toFixed(2)}`
+              ? `Cash: ₹${formatINR(Number(lastReceipt.cashAmount || 0), 2)} + UPI: ₹${formatINR(Number(lastReceipt.upiAmount || 0), 2)}`
               : lastReceipt.paymentMethod}
           </span>
         </div>

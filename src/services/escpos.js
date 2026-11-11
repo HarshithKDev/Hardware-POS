@@ -3,6 +3,8 @@
  * Communicates directly with POS thermal receipt printers (Epson, TVS, NGX, Rongta, Munbyn, Xprinter, etc.)
  * via WebSerial or WebUSB for instant (sub-100ms) printing, native paper cutting, and cash drawer kick pulses.
  */
+import { formatINR } from '../utils';
+
 
 // Global active port reference
 let activeSerialPort = null;
@@ -208,7 +210,7 @@ export function buildEscPosReceipt(receiptData, shopSettings = {}, options = {})
     const qty = isScrew ? 1 : Number(item.quantity || 1);
     const unit = isScrew ? 'SET' : (item.unit || 'PCS');
     const rate = Number(item.finalRate || item.selling_price || item.price || 0);
-    const amt = Number(item.lineTotal || (qty * rate)).toFixed(2);
+    const amt = formatINR(Number(item.lineTotal || (qty * rate)), 2);
 
     if (charsPerLine === 48) {
       const namePart = itemName.slice(0, colFormat.name).padEnd(colFormat.name);
@@ -238,14 +240,14 @@ export function buildEscPosReceipt(receiptData, shopSettings = {}, options = {})
 
   const roundOff = Number(receiptData?.roundOff || 0);
   if (roundOff !== 0) {
-    addText(`Round Off: ${roundOff > 0 ? '+' : '-'}Rs.${Math.abs(roundOff).toFixed(2)}\n`);
+    addText(`Round Off: ${roundOff > 0 ? '+' : '-'}Rs.${formatINR(Math.abs(roundOff), 2)}\n`);
   }
 
   // Grand Total (Bold, Double height)
   addBytes(0x1B, 0x45, 0x01); // Bold ON
   addBytes(0x1D, 0x21, 0x01); // Double height
   addBytes(0x1B, 0x61, 0x02); // Align Right
-  addText(`TOTAL: Rs.${grandTotal}\n`);
+  addText(`TOTAL: Rs.${formatINR(grandTotal, 2)}\n`);
 
   addBytes(0x1D, 0x21, 0x00); // Normal size
   addBytes(0x1B, 0x45, 0x00); // Bold OFF
@@ -257,14 +259,14 @@ export function buildEscPosReceipt(receiptData, shopSettings = {}, options = {})
 
   if (method === 'CASH' && receiptData?.cashAmount) {
     const cashGiven = Number(receiptData.cashAmount);
-    addText(`Cash Tendered: Rs.${cashGiven.toFixed(2)}\n`);
+    addText(`Cash Tendered: Rs.${formatINR(cashGiven, 2)}\n`);
     const change = Math.max(0, cashGiven - Number(grandTotal));
     if (change > 0) {
-      addText(`Change Returned: Rs.${change.toFixed(2)}\n`);
+      addText(`Change Returned: Rs.${formatINR(change, 2)}\n`);
     }
   } else if (method === 'SPLIT') {
-    if (receiptData?.upiAmount) addText(`UPI: Rs.${Number(receiptData.upiAmount).toFixed(2)}\n`);
-    if (receiptData?.cashAmount) addText(`Cash: Rs.${Number(receiptData.cashAmount).toFixed(2)}\n`);
+    if (receiptData?.upiAmount) addText(`UPI: Rs.${formatINR(Number(receiptData.upiAmount), 2)}\n`);
+    if (receiptData?.cashAmount) addText(`Cash: Rs.${formatINR(Number(receiptData.cashAmount), 2)}\n`);
   }
 
   addText(divider);

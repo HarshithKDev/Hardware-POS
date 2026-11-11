@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatINR } from '../../utils';
 
 /**
  * Clean, professional modal for adding untracked screws/fasteners to the bill.
@@ -105,7 +106,7 @@ export default function ScrewsModal({
                       color: isSelected ? '#ffffff' : 'var(--text-primary)'
                     }}
                   >
-                    ₹{val}
+                    ₹{formatINR(val, 0)}
                   </button>
                 );
               })}

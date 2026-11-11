@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatINR } from './utils';
 import Barcode from 'react-barcode';
 import { supabase } from './supabaseClient';
 import BarcodeLabelSheet, { MAX_LABELS_PER_PRINT, clampLabelQty } from './components/print/BarcodeLabelSheet';
@@ -44,7 +45,7 @@ export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }
                 lineColor="#000000" 
                 background="#ffffff" 
               />
-              <p className="text-xs font-bold text-black mt-1">₹{Number(selectedBatch.selling_price || 0).toFixed(2)}</p>
+              <p className="text-xs font-bold text-black mt-1">₹{formatINR(Number(selectedBatch.selling_price || 0), 2)}</p>
             </div>
 
             <div>
@@ -60,7 +61,7 @@ export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }
             </div>
 
             <div className="mt-2 text-xs text-[var(--text-secondary)] bg-[var(--bg-tertiary)] p-3 rounded-md border border-[var(--border-light)]">
-              <p><strong>Batch {batchNumberStr}:</strong> Labels will be printed with MRP ₹{Number(selectedBatch.selling_price || 0).toFixed(2)}.</p>
+              <p><strong>Batch {batchNumberStr}:</strong> Labels will be printed with MRP ₹{formatINR(Number(selectedBatch.selling_price || 0), 2)}.</p>
             </div>
           </div>
 

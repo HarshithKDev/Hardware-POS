@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { formatINR } from './utils';
 import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
@@ -270,7 +271,7 @@ export default function InventoryRow({
             <div className="py-2.5 text-center">
               <div className="text-xs text-[var(--text-tertiary)]">No batches initialized yet</div>
               <div className="text-xs mt-1 font-medium text-[var(--text-secondary)]">
-                Default MRP: <span className="font-bold text-[var(--color-success)]">₹{Number(item.price || 0).toFixed(2)}</span>
+                Default MRP: <span className="font-bold text-[var(--color-success)]">₹{formatINR(Number(item.price || 0), 2)}</span>
               </div>
             </div>
           ) : (
@@ -329,7 +330,7 @@ export default function InventoryRow({
                           MRP
                         </div>
                         <div className="text-xs font-extrabold text-[var(--color-success)]">
-                          ₹{mrpVal.toFixed(2)}
+                          ₹{formatINR(mrpVal, 2)}
                           {item.is_loose_item && item.unit?.toUpperCase() === 'KG' ? '/kg' : ''}
                         </div>
                       </div>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatINR } from '../../utils';
 
 /** Mobile cart view */
 import { useCart } from '../../contexts/CartContext';
@@ -97,7 +98,7 @@ const CartMobileView = React.memo(function CartMobileView({
             <div className="flex-1">
               <span className="text-xs font-bold uppercase tracking-wider block mb-1" style={{ color: 'var(--text-secondary)' }}>MRP</span>
               <div className="w-full h-12 flex items-center justify-center text-lg font-semibold text-center rounded-md bg-[var(--bg-tertiary)]" style={{ border: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}>
-                ₹{Number(item.selling_price !== undefined ? item.selling_price : item.price || 0).toFixed(2)}
+                ₹{formatINR(Number(item.selling_price !== undefined ? item.selling_price : item.price || 0), 2)}
               </div>
             </div>
           </div>
@@ -125,12 +126,12 @@ const CartMobileView = React.memo(function CartMobileView({
             <p className="text-xs mt-1 mb-1" style={{ color: 'var(--color-accent)' }}>#{item.scanned_barcode || item.barcode}</p>
             {activeTab === 'checkout' && !item.is_screw && item.barcode !== 'SCREWS' && (
               <p className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-tertiary)' }}>
-                MRP: ₹{Number(item.price || 0).toFixed(2)}{item.is_loose_item && item.unit?.toUpperCase() === 'KG' ? '/kg' : ''} • <span className="group/msp cursor-help">MSP: {userRole === 'owner' ? `₹${Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}${item.is_loose_item && item.unit?.toUpperCase() === 'KG' ? '/kg' : ''}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}{item.is_loose_item && item.unit?.toUpperCase() === 'KG' ? '/kg' : ''}</span></span>}</span>
+                MRP: ₹{formatINR(Number(item.price || 0), 2)}{item.is_loose_item && item.unit?.toUpperCase() === 'KG' ? '/kg' : ''} • <span className="group/msp cursor-help">MSP: {userRole === 'owner' ? `₹${formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}${item.is_loose_item && item.unit?.toUpperCase() === 'KG' ? '/kg' : ''}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}{item.is_loose_item && item.unit?.toUpperCase() === 'KG' ? '/kg' : ''}</span></span>}</span>
               </p>
             )}
           </div>
           {activeTab === 'checkout' && (
-            <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>₹{(sellPrice * safeQty).toFixed(2)}</p>
+            <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>₹{formatINR((sellPrice * safeQty), 2)}</p>
           )}
         </div>
         <div className="flex justify-between items-center mt-1 pt-3" style={{ borderTop: '1px solid var(--border-light)' }}>

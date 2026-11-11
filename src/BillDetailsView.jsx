@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
-import { formatDateTime } from './utils';
+import { formatDateTime, formatINR } from './utils';
 import { PageLoader } from './SharedUI';
 import { useApp } from './AppContext';
 import {
@@ -180,11 +180,11 @@ export default function BillDetailsView({
             Total Billed
           </span>
           <span className={`text-xl sm:text-2xl font-bold tabular-nums ${isVoided ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--text-primary)]'}`}>
-            ₹{Number(currentBill.total_amount || 0).toFixed(2)}
+            ₹{formatINR(Number(currentBill.total_amount || 0), 2)}
           </span>
           {currentBill.payment_method === 'SPLIT' && (
             <span className="text-xs text-[var(--text-secondary)] block mt-1">
-              Cash: ₹{Number(currentBill.cash_amount || 0).toFixed(2)} • UPI: ₹{Number(currentBill.upi_amount || 0).toFixed(2)}
+              Cash: ₹{formatINR(Number(currentBill.cash_amount || 0), 2)} • UPI: ₹{formatINR(Number(currentBill.upi_amount || 0), 2)}
             </span>
           )}
         </div>
@@ -214,7 +214,7 @@ export default function BillDetailsView({
           </span>
           <div className="mt-1">
             <span className="text-base sm:text-xl font-bold text-[var(--text-primary)] tabular-nums">
-              {totalDiscount > 0 ? `₹${totalDiscount.toFixed(2)}` : '₹0.00'}
+              {totalDiscount > 0 ? `₹${formatINR(totalDiscount, 2)}` : '₹0.00'}
             </span>
           </div>
         </div>
@@ -226,7 +226,7 @@ export default function BillDetailsView({
             </span>
             <div className="mt-1">
               <span className={`text-base sm:text-xl font-bold tabular-nums ${isVoided ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--color-success)]'}`}>
-                ₹{isVoided ? '0.00' : totalProfit.toFixed(2)}
+                ₹{formatINR(isVoided ? '0.00' : totalProfit, 2)}
               </span>
             </div>
           </div>
@@ -287,7 +287,7 @@ export default function BillDetailsView({
                       <div className="text-right shrink-0">
                         <span className="text-xs text-[var(--text-tertiary)] block">Total</span>
                         <span className="font-bold text-sm text-[var(--text-primary)] tabular-nums">
-                          ₹{lineTotal.toFixed(2)}
+                          ₹{formatINR(lineTotal, 2)}
                         </span>
                       </div>
                     </div>
@@ -304,11 +304,11 @@ export default function BillDetailsView({
                       <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
                         <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Rate</span>
                         <span className="font-semibold text-[var(--text-primary)] tabular-nums">
-                          {it.barcode === 'SCREWS' || it.is_screw ? '—' : `₹${soldPrice.toFixed(2)}`}
+                          {it.barcode === 'SCREWS' || it.is_screw ? '—' : `₹${formatINR(soldPrice, 2)}`}
                         </span>
                         {mrp > soldPrice && it.barcode !== 'SCREWS' && !it.is_screw && (
                           <span className="text-[9px] line-through text-[var(--text-tertiary)] block">
-                            ₹{mrp.toFixed(2)}
+                            ₹{formatINR(mrp, 2)}
                           </span>
                         )}
                       </div>
@@ -319,7 +319,7 @@ export default function BillDetailsView({
                             Profit
                           </span>
                           <span className="font-bold tabular-nums" style={{ color: isVoided ? 'var(--text-tertiary)' : 'var(--color-success)' }}>
-                            {isVoided ? '₹0.00' : `₹${profit.toFixed(2)}`}
+                            {isVoided ? '₹0.00' : `₹${formatINR(profit, 2)}`}
                           </span>
                         </div>
                       )}
@@ -396,11 +396,11 @@ export default function BillDetailsView({
                         </td>
 
                         <td className="py-3 px-3 text-center font-medium text-sm text-[var(--text-secondary)] tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                          {it.barcode === 'SCREWS' || it.is_screw ? '—' : `₹${mrp.toFixed(2)}`}
+                          {it.barcode === 'SCREWS' || it.is_screw ? '—' : `₹${formatINR(mrp, 2)}`}
                         </td>
 
                         <td className="py-3 px-3 text-center font-semibold text-sm text-[var(--text-primary)] tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                          {it.barcode === 'SCREWS' || it.is_screw ? '—' : `₹${soldPrice.toFixed(2)}`}
+                          {it.barcode === 'SCREWS' || it.is_screw ? '—' : `₹${formatINR(soldPrice, 2)}`}
                         </td>
 
                         <td className="py-3 px-3 text-center text-xs tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
@@ -412,12 +412,12 @@ export default function BillDetailsView({
                         </td>
 
                         <td className="py-3 px-3 text-center font-bold text-sm text-[var(--text-primary)] tabular-nums" style={showProfit ? { borderRight: '1px solid var(--border-medium)' } : {}}>
-                          ₹{lineTotal.toFixed(2)}
+                          ₹{formatINR(lineTotal, 2)}
                         </td>
 
                         {showProfit && (
                           <td className="py-3 px-3 text-center font-bold text-sm tabular-nums" style={{ color: isVoided ? 'var(--text-secondary)' : 'var(--color-success)' }}>
-                            {isVoided ? '₹0.00' : `₹${profit.toFixed(2)}`}
+                            {isVoided ? '₹0.00' : `₹${formatINR(profit, 2)}`}
                           </td>
                         )}
                       </tr>

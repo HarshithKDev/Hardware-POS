@@ -1,6 +1,9 @@
 import { supabase } from '../supabaseClient';
 import { formatDateTime } from '../utils';
 
+// Indian digit grouping in Excel: ₹1,00,000.00 / ₹12,34,56,789.00
+const INR_EXCEL_FORMAT = '[>=10000000]"₹"##\\,##\\,##\\,##0.00;[>=100000]"₹"##\\,##\\,##0.00;"₹"#,##0.00';
+
 // Supabase returns at most 1000 rows per request by default, so large tables were
 // silently cut off in exports. Page through until a short page is returned.
 const EXPORT_PAGE_SIZE = 1000;
@@ -467,7 +470,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
     row.getCell(4).value = context;
 
     if (type === 'Currency') {
-      row.getCell(2).numFmt = '₹#,##0.00';
+      row.getCell(2).numFmt = INR_EXCEL_FORMAT;
     } else if (type === 'Units' || type === 'Invoices' || type === 'SKU Items' || type === 'Batches') {
       row.getCell(2).numFmt = '#,##0.00';
     }
@@ -565,7 +568,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
         });
 
         ['cost_price', 'msp', 'price', 'margin', 'val_cost', 'val_retail'].forEach(k => {
-          row.getCell(k).numFmt = '₹#,##0.00';
+          row.getCell(k).numFmt = INR_EXCEL_FORMAT;
         });
         ['stock_store', 'stock_warehouse', 'total_stock', 'min_store', 'min_whse'].forEach(k => {
           row.getCell(k).numFmt = '#,##0.00';
@@ -627,7 +630,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
       });
 
       ['cost_price', 'msp', 'price', 'margin', 'val_cost', 'val_retail'].forEach(k => {
-        row.getCell(k).numFmt = '₹#,##0.00';
+        row.getCell(k).numFmt = INR_EXCEL_FORMAT;
       });
       ['stock_store', 'stock_warehouse', 'total_stock', 'min_store', 'min_whse'].forEach(k => {
         row.getCell(k).numFmt = '#,##0.00';
@@ -674,7 +677,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   });
 
   ['cost_price', 'msp', 'price', 'margin', 'val_cost', 'val_retail'].forEach(k => {
-    prodTotalRow.getCell(k).numFmt = '₹#,##0.00';
+    prodTotalRow.getCell(k).numFmt = INR_EXCEL_FORMAT;
   });
   ['stock_store', 'stock_warehouse', 'total_stock', 'min_store', 'min_whse'].forEach(k => {
     prodTotalRow.getCell(k).numFmt = '#,##0.00';
@@ -779,7 +782,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
     });
 
     ['cost_price', 'msp', 'price', 'margin', 'val_cost', 'val_retail'].forEach(k => {
-      row.getCell(k).numFmt = '₹#,##0.00';
+      row.getCell(k).numFmt = INR_EXCEL_FORMAT;
     });
     ['quantity_store', 'quantity_warehouse', 'total_qty'].forEach(k => {
       row.getCell(k).numFmt = '#,##0.00';
@@ -807,7 +810,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   });
 
   ['cost_price', 'msp', 'price', 'margin', 'val_cost', 'val_retail'].forEach(k => {
-    batchTotalRow.getCell(k).numFmt = '₹#,##0.00';
+    batchTotalRow.getCell(k).numFmt = INR_EXCEL_FORMAT;
   });
   ['quantity_store', 'quantity_warehouse', 'total_qty'].forEach(k => {
     batchTotalRow.getCell(k).numFmt = '#,##0.00';
@@ -877,7 +880,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
       });
 
       ['subtotal', 'discount', 'total'].forEach(k => {
-        row.getCell(k).numFmt = '₹#,##0.00';
+        row.getCell(k).numFmt = INR_EXCEL_FORMAT;
       });
 
       applyRowStyle(row, idx % 2 === 0);
@@ -912,7 +915,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   });
 
   ['subtotal', 'discount', 'total'].forEach(k => {
-    salesTotalRow.getCell(k).numFmt = '₹#,##0.00';
+    salesTotalRow.getCell(k).numFmt = INR_EXCEL_FORMAT;
   });
 
   applyTotalRowStyle(salesTotalRow, 'FFE0E7FF');
@@ -997,7 +1000,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
       });
 
       ['cost_price', 'price', 'total_price', 'profit'].forEach(k => {
-        row.getCell(k).numFmt = '₹#,##0.00';
+        row.getCell(k).numFmt = INR_EXCEL_FORMAT;
       });
       row.getCell('quantity').numFmt = '#,##0.00';
 
@@ -1030,7 +1033,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
 
   itemsTotalRow.getCell('quantity').numFmt = '#,##0.00';
   ['cost_price', 'price', 'total_price', 'profit'].forEach(k => {
-    itemsTotalRow.getCell(k).numFmt = '₹#,##0.00';
+    itemsTotalRow.getCell(k).numFmt = INR_EXCEL_FORMAT;
   });
 
   applyTotalRowStyle(itemsTotalRow, 'FFE0E7FF');
@@ -1074,7 +1077,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
         recorded_by: e.recorded_by || 'Owner'
       });
 
-      row.getCell('amount').numFmt = '₹#,##0.00';
+      row.getCell('amount').numFmt = INR_EXCEL_FORMAT;
       applyRowStyle(row, idx % 2 === 0);
     });
   }
@@ -1089,7 +1092,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
     recorded_by: shopSettings?.owner_name || 'Store Administration'
   });
 
-  expTotalRow.getCell('amount').numFmt = '₹#,##0.00';
+  expTotalRow.getCell('amount').numFmt = INR_EXCEL_FORMAT;
   applyTotalRowStyle(expTotalRow, 'FFFEE2E2');
   autoFitColumns(expSheet, 14, 40);
 

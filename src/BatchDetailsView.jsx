@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { getPerformedBy, priceInputValue } from './utils';
+import { getPerformedBy, priceInputValue, formatINR } from './utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import { casUpdateRow, scrapBatchStock } from './services/atomicStock';
@@ -389,9 +389,9 @@ export default function BatchDetailsView({
         if (wholesaler !== undefined && (oldBatch.supplier || '') !== (wholesaler?.trim() || '')) {
           changes.push(`Wholesaler: ${oldBatch.supplier || 'None'} -> ${wholesaler?.trim() || 'None'}`);
         }
-        if (Number(oldBatch.purchase_cost ?? 0) !== Number(cost)) changes.push(`Cost: ₹${oldBatch.purchase_cost ?? 0} -> ₹${cost}`);
-        if (Number(oldBatch.msp) !== Number(msp)) changes.push(`MSP: ₹${oldBatch.msp} -> ₹${msp}`);
-        if (Number(oldBatch.selling_price ?? 0) !== Number(mrp)) changes.push(`MRP: ₹${oldBatch.selling_price ?? 0} -> ₹${mrp}`);
+        if (Number(oldBatch.purchase_cost ?? 0) !== Number(cost)) changes.push(`Cost: ₹${formatINR(oldBatch.purchase_cost ?? 0, 2)} -> ₹${formatINR(cost, 2)}`);
+        if (Number(oldBatch.msp) !== Number(msp)) changes.push(`MSP: ₹${formatINR(oldBatch.msp, 2)} -> ₹${formatINR(msp, 2)}`);
+        if (Number(oldBatch.selling_price ?? 0) !== Number(mrp)) changes.push(`MRP: ₹${formatINR(oldBatch.selling_price ?? 0, 2)} -> ₹${formatINR(mrp, 2)}`);
         if (stock_store !== undefined && Number(oldBatch.stock_store) !== Number(stock_store)) {
           changes.push(`Store Stock: ${oldBatch.stock_store} -> ${stock_store}`);
         }
@@ -454,7 +454,7 @@ export default function BatchDetailsView({
       if (batchBefore && Math.abs(newMrp - oldMrp) >= 0.005) {
         // Labels already on the shelf still show the old MRP; offer to print new ones now
         showConfirm(
-          `Batch updated. The MRP changed from ₹${oldMrp.toFixed(2)} to ₹${newMrp.toFixed(2)}, so labels already on the products still show the old price.\n\nPrint new labels for this batch now?`,
+          `Batch updated. The MRP changed from ₹${formatINR(oldMrp, 2)} to ₹${formatINR(newMrp, 2)}, so labels already on the products still show the old price.\n\nPrint new labels for this batch now?`,
           () => setPrintBatchModal({ isOpen: true, batch: { ...batchBefore, selling_price: newMrp } }),
           'Price Changed',
           'Print Labels',
@@ -1207,11 +1207,11 @@ export default function BatchDetailsView({
                                 return;
                               }
                               if (numMsp < numCost) {
-                                showAlert(`MSP (₹${numMsp.toFixed(2)}) cannot be lower than the purchase cost (₹${numCost.toFixed(2)}).`, "Validation Error");
+                                showAlert(`MSP (₹${formatINR(numMsp, 2)}) cannot be lower than the purchase cost (₹${formatINR(numCost, 2)}).`, "Validation Error");
                                 return;
                               }
                               if (numMrp < numMsp) {
-                                showAlert(`Selling Price / MRP (₹${numMrp.toFixed(2)}) cannot be lower than MSP (₹${numMsp.toFixed(2)}).`, "Validation Error");
+                                showAlert(`Selling Price / MRP (₹${formatINR(numMrp, 2)}) cannot be lower than MSP (₹${formatINR(numMsp, 2)}).`, "Validation Error");
                                 return;
                               }
                               updateBatchMutation.mutate({
@@ -1347,7 +1347,7 @@ export default function BatchDetailsView({
                     />
                   ) : (
                     <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
-                      ₹{Number(activeBatch.purchase_cost ?? item.cost_price ?? 0).toFixed(2)}
+                      ₹{formatINR(Number(activeBatch.purchase_cost ?? item.cost_price ?? 0), 2)}
                     </span>
                   )}
                 </div>
@@ -1369,7 +1369,7 @@ export default function BatchDetailsView({
                     />
                   ) : (
                     <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
-                      ₹{Number(activeBatch.msp ?? item.msp ?? item.cost_price ?? 0).toFixed(2)}
+                      ₹{formatINR(Number(activeBatch.msp ?? item.msp ?? item.cost_price ?? 0), 2)}
                     </span>
                   )}
                 </div>
@@ -1391,7 +1391,7 @@ export default function BatchDetailsView({
                     />
                   ) : (
                     <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
-                      ₹{Number(activeBatch.selling_price ?? item.price ?? 0).toFixed(2)}
+                      ₹{formatINR(Number(activeBatch.selling_price ?? item.price ?? 0), 2)}
                     </span>
                   )}
                 </div>

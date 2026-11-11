@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from './AppContext';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import { TableVirtuoso } from 'react-virtuoso';
-import { escapeIlike, debounce, useSessionState } from './utils';
+import { escapeIlike, debounce, useSessionState, formatINR } from './utils';
 import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD, INV_PER_PAGE, STALE_TIME_5MIN } from './constants';
 import { 
   getInventoryByQuery, 
@@ -652,7 +652,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
                   <td className="p-1.5 md:p-3 font-medium leading-tight break-words align-middle text-center" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>
                     {item.name}
                   </td>
-                  <td className="p-1.5 md:p-3 align-middle font-semibold" style={{ borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>₹{mrp.toFixed(2)}</td>
+                  <td className="p-1.5 md:p-3 align-middle font-semibold" style={{ borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>₹{formatINR(mrp, 2)}</td>
                   {!isWarehouseDisabled && (
                     <td className="p-1.5 md:p-3 font-bold align-middle" style={{ color: stockWarehouse < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-primary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>{stockWarehouse}</td>
                   )}

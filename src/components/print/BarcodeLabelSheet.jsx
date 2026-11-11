@@ -1,4 +1,5 @@
 import { createPortal } from 'react-dom';
+import { formatINR } from '../../utils';
 import Barcode from 'react-barcode';
 
 // One print job is capped so a typo (e.g. 1000 instead of 10) can't freeze the counter
@@ -73,7 +74,7 @@ export default function BarcodeLabelSheet({ name, barcodeValue, mrp, count }) {
             background="#ffffff"
           />
           <div style={{ fontSize: '9px', fontWeight: 'bold', color: '#000000', marginTop: '1px' }}>
-            MRP: ₹{Number(mrp || 0).toFixed(2)}
+            MRP: ₹{formatINR(Number(mrp || 0), 2)}
           </div>
         </div>
       ))}

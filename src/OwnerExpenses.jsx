@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
-import { generateId, formatDateTime } from './utils';
+import { generateId, formatDateTime, formatINR } from './utils';
 import { 
   Receipt, 
   Plus, 
@@ -246,7 +246,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
           action_type: 'EXPENSE',
           barcode: 'CASH',
           item_name: finalWorkerName,
-          changes: `Expense: ₹${numAmount} (${paymentMode}, ${finalCategory}) for "${reason.trim()}" (${finalWorkerName})`,
+          changes: `Expense: ₹${formatINR(numAmount, 2)} (${paymentMode}, ${finalCategory}) for "${reason.trim()}" (${finalWorkerName})`,
           performed_by: currentCashier
         }]);
       } catch (auditErr) {
@@ -259,9 +259,9 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
       if (savedRemotely) {
         const cached = (() => { try { return JSON.parse(localStorage.getItem(getLocalStorageKey(shopId)) || '[]'); } catch { return []; } })();
         localStorage.setItem(getLocalStorageKey(shopId), JSON.stringify([newExpense, ...cached]));
-        showAlert(`Recorded ₹${numAmount.toFixed(2)} for ${reason.trim()}.`, 'Recorded');
+        showAlert(`Recorded ₹${formatINR(numAmount, 2)} for ${reason.trim()}.`, 'Recorded');
       } else {
-        showAlert(`Could not reach the server. ₹${numAmount.toFixed(2)} for ${reason.trim()} is saved on THIS device only and will upload automatically when the connection is back (shown as "Not synced"). Do not enter it again.`, 'Saved Offline');
+        showAlert(`Could not reach the server. ₹${formatINR(numAmount, 2)} for ${reason.trim()} is saved on THIS device only and will upload automatically when the connection is back (shown as "Not synced"). Do not enter it again.`, 'Saved Offline');
       }
 
       // Reset form
@@ -280,7 +280,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
 
   const handleDeleteExpense = (exp) => {
     showConfirm(
-      `Delete the expense of ₹${Number(exp.amount || 0).toFixed(2)} for "${exp.reason}"? This cannot be undone.`,
+      `Delete the expense of ₹${formatINR(Number(exp.amount || 0), 2)} for "${exp.reason}"? This cannot be undone.`,
       async () => {
         try {
           if (exp._pending) {
@@ -294,7 +294,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
                 action_type: 'EXPENSE_DELETED',
                 barcode: 'CASH',
                 item_name: exp.worker_name || 'General Shop',
-                changes: `Deleted expense: ₹${exp.amount} for "${exp.reason}" (recorded by ${exp.recorded_by || 'Staff'})`,
+                changes: `Deleted expense: ₹${formatINR(exp.amount, 2)} for "${exp.reason}" (recorded by ${exp.recorded_by || 'Staff'})`,
                 performed_by: currentCashier
               }]);
             } catch (auditErr) { console.warn('Audit log write error:', auditErr); }
@@ -330,7 +330,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
               style={{ backgroundColor: 'var(--color-accent-bg)', borderColor: 'rgba(59, 130, 246, 0.3)' }}
             >
               <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider leading-none" style={{ color: 'var(--color-accent)' }}>Total Expenses</span>
-              <span className="text-xs sm:text-sm font-bold leading-tight mt-0.5" style={{ color: 'var(--color-accent)' }}>₹{totalExpenses.toFixed(2)}</span>
+              <span className="text-xs sm:text-sm font-bold leading-tight mt-0.5" style={{ color: 'var(--color-accent)' }}>₹{formatINR(totalExpenses, 2)}</span>
             </div>
           )}
           <button
@@ -380,7 +380,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
                         {exp.reason || 'Expense'}
                       </span>
                       <span className="text-base font-bold" style={{ color: 'var(--color-accent)' }}>
-                        ₹{totalAmt.toFixed(2)}
+                        ₹{formatINR(totalAmt, 2)}
                       </span>
                     </div>
 
@@ -437,7 +437,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
                         </td>
 
                         <td className="p-3.5 text-center align-middle whitespace-nowrap font-bold text-sm" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--color-accent)' }}>
-                          ₹{totalAmt.toFixed(2)}
+                          ₹{formatINR(totalAmt, 2)}
                           {exp._pending && <span className="block text-[10px] font-bold uppercase" style={{ color: 'var(--color-warning)' }}>Not synced</span>}
                         </td>
 

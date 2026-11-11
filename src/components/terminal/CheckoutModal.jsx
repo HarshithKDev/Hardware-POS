@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatINR } from '../../utils';
 import { Spinner } from '../../SharedUI';
 
 export default function CheckoutModal({
@@ -52,7 +53,7 @@ export default function CheckoutModal({
         <div className="p-4 sm:p-5 overflow-y-auto flex-1">
           <div className="flex justify-between items-end mb-4 pb-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
             <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Total Due</span>
-            <span className="text-3xl sm:text-4xl font-light" style={{ color: 'var(--color-accent)' }} aria-live="polite">₹{activeTotal.toFixed(2)}</span>
+            <span className="text-3xl sm:text-4xl font-light" style={{ color: 'var(--color-accent)' }} aria-live="polite">₹{formatINR(activeTotal, 2)}</span>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3.5">
@@ -92,7 +93,7 @@ export default function CheckoutModal({
             <label htmlFor="negotiated-total" className="block text-xs font-bold uppercase tracking-wider mb-1.5 flex justify-between items-center" style={{ color: 'var(--text-secondary)' }}>
               <span>Final Negotiated Amount (₹)</span>
               <span className="opacity-70 font-normal text-[11px]">
-                System Total: ₹{cartTotal.toFixed(2)}{minPossibleTotal > 0 ? ` | Min Allowed: ₹${minPossibleTotal.toFixed(2)}` : ''}
+                System Total: ₹{formatINR(cartTotal, 2)}{minPossibleTotal > 0 ? ` | Min Allowed: ₹${formatINR(minPossibleTotal, 2)}` : ''}
               </span>
             </label>
             <input 
@@ -119,18 +120,18 @@ export default function CheckoutModal({
             />
             {screwPrice > 0 && (
               <div className="mt-1.5 flex items-center justify-between text-[11px] font-semibold px-2.5 py-1 rounded bg-[var(--bg-tertiary)] border border-[var(--border-light)]" style={{ color: 'var(--text-secondary)' }}>
-                <span>Screws: ₹{screwPrice.toFixed(2)} (Fixed price)</span>
+                <span>Screws: ₹{formatINR(screwPrice, 2)} (Fixed price)</span>
                 <span className="text-[10px] text-[var(--text-tertiary)] font-normal">Discount applies to other items only</span>
               </div>
             )}
             {checkoutModal.negotiatedTotal !== '' && Number(checkoutModal.negotiatedTotal) < screwPrice && (
               <p className="text-[11px] font-bold mt-1 leading-tight" style={{ color: 'var(--color-error)' }}>
-                Warning: Negotiated amount cannot be less than ₹{screwPrice.toFixed(2)} (Screws price is fixed at ₹{screwPrice.toFixed(2)}).
+                Warning: Negotiated amount cannot be less than ₹{formatINR(screwPrice, 2)} (Screws price is fixed at ₹{formatINR(screwPrice, 2)}).
               </p>
             )}
             {checkoutModal.negotiatedTotal !== '' && Number(checkoutModal.negotiatedTotal) < minPossibleTotal && Number(checkoutModal.negotiatedTotal) >= screwPrice && (
               <p className="text-[11px] font-bold mt-1 leading-tight" style={{ color: 'var(--color-error)' }}>
-                Warning: Cannot discount below minimum selling limit (₹{minPossibleTotal.toFixed(2)}{screwPrice > 0 ? ` including ₹${screwPrice.toFixed(2)} for screws` : ''}). Products cannot be sold below MSP.
+                Warning: Cannot discount below minimum selling limit (₹{formatINR(minPossibleTotal, 2)}{screwPrice > 0 ? ` including ₹${formatINR(screwPrice, 2)} for screws` : ''}). Products cannot be sold below MSP.
               </p>
             )}
           </div>
@@ -244,7 +245,7 @@ export default function CheckoutModal({
                     <div className="mt-3 p-3 rounded-md flex items-center justify-between animate-fade-in" style={{ backgroundColor: 'var(--color-success-bg)', border: '1px solid var(--color-success)' }}>
                       <div className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-success)' }}>Change to Return:</div>
                       <div className="text-2xl font-bold" style={{ color: 'var(--color-success)' }}>
-                        ₹{(numCashGiven - activeTotal).toFixed(2)}
+                        ₹{formatINR((numCashGiven - activeTotal), 2)}
                       </div>
                     </div>
                   )}
@@ -253,7 +254,7 @@ export default function CheckoutModal({
                     <div className="mt-3 p-3 rounded-md flex items-center justify-between animate-fade-in" style={{ backgroundColor: 'var(--color-error-bg)', border: '1px solid var(--color-error)' }}>
                       <div className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-error)' }}>Shortfall (Remaining Due):</div>
                       <div className="text-xl font-bold" style={{ color: 'var(--color-error)' }}>
-                        ₹{(activeTotal - numCashGiven).toFixed(2)}
+                        ₹{formatINR((activeTotal - numCashGiven), 2)}
                       </div>
                     </div>
                   )}
@@ -335,7 +336,7 @@ export default function CheckoutModal({
             type="button"
             onClick={onCompleteTransaction} 
             disabled={isCheckingOut || isInvalidNegotiatedTotal} 
-            title={isInvalidNegotiatedTotal ? `Cannot complete sale: Negotiated amount is below minimum allowed total (₹${minPossibleTotal.toFixed(2)})` : undefined}
+            title={isInvalidNegotiatedTotal ? `Cannot complete sale: Negotiated amount is below minimum allowed total (₹${formatINR(minPossibleTotal, 2)})` : undefined}
             className={`flex-1 sm:flex-initial min-h-[44px] md:min-h-0 md:h-10 px-4 sm:px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 flex justify-center items-center gap-2 min-w-[140px] ${isCheckingOut || isInvalidNegotiatedTotal ? 'cursor-not-allowed' : 'cursor-pointer'}`} 
             style={{ backgroundColor: checkoutModal.paymentMethod === 'SHOWROOM' ? 'var(--color-warning)' : 'var(--color-accent)' }}
           >

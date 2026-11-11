@@ -758,7 +758,7 @@ describe('WorkerScanner Integration', () => {
 
     await waitFor(() => {
       expect(showAlertMock).toHaveBeenCalledWith(
-        expect.stringContaining('Cannot sell 13 x 11 Laxmi Vendi below MSP (₹1900.00)'),
+        expect.stringContaining('Cannot sell 13 x 11 Laxmi Vendi below MSP (₹1,900.00)'),
         'Price Error'
       );
       expect(mrpInput.value).toBe('1900.00');

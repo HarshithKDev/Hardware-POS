@@ -1,5 +1,5 @@
 import { useCallback, useState, useEffect, useRef } from 'react';
-import { localToUtcIso } from './utils';
+import { localToUtcIso, formatINR } from './utils';
 import { createPortal } from 'react-dom';
 import { supabase } from './supabaseClient';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
@@ -49,6 +49,9 @@ function AnimatedNumber({ valueStr, duration = 250 }) {
       prefix = '₹';
       numStr = numStr.substring(1);
     }
+    // Amounts are shown with Indian commas (1,00,000.00); remove them before parsing
+    const hasGrouping = numStr.includes(',');
+    numStr = numStr.replace(/,/g, '');
     
     const target = parseFloat(numStr);
     if (isNaN(target)) {
@@ -60,7 +63,7 @@ function AnimatedNumber({ valueStr, duration = 250 }) {
     if (prevValueStr && prevValueStr !== valueStr) {
       let pStr = String(prevValueStr);
       if (pStr.startsWith('₹')) pStr = pStr.substring(1);
-      const parsed = parseFloat(pStr);
+      const parsed = parseFloat(pStr.replace(/,/g, ''));
       if (!isNaN(parsed)) prevNum = parsed;
     }
     
@@ -77,7 +80,7 @@ function AnimatedNumber({ valueStr, duration = 250 }) {
       const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
       const currentVal = prevNum + (target - prevNum) * easeProgress;
       
-      setDisplayValue(`${prefix}${currentVal.toFixed(decimals)}`);
+      setDisplayValue(`${prefix}${(prefix || hasGrouping) ? formatINR(currentVal, decimals) : currentVal.toFixed(decimals)}`);
       
       if (progress < 1) {
         animationFrameId = window.requestAnimationFrame(step);
@@ -183,7 +186,7 @@ function SalesTrendChart({ trend, isLoading }) {
               }}
             >
               <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm flex items-center gap-1 pointer-events-none" style={{ color: 'var(--text-primary)', backgroundColor: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-light)' }}>
-                ₹{point.rev.toFixed(0)} <span className="font-medium text-[9px]" style={{ color: 'var(--text-tertiary)' }}>({point.label})</span>
+                ₹{formatINR(point.rev, 0)} <span className="font-medium text-[9px]" style={{ color: 'var(--text-tertiary)' }}>({point.label})</span>
               </span>
             </div>
             <span className={`absolute -bottom-4 left-1/2 -translate-x-1/2 text-[6px] sm:text-[7px] md:text-[8px] font-bold uppercase whitespace-nowrap text-center`} style={{ color: 'var(--text-tertiary)' }}>
@@ -217,7 +220,7 @@ function TopProductsList({ products }) {
               <span className="text-xs sm:text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }} title={p.name}>{p.name}</span>
             </div>
             <span className="text-xs sm:text-sm font-bold shrink-0 tabular-nums ml-2" style={{ color: 'var(--color-success)' }}>
-              <AnimatedNumber valueStr={`₹${p.profit.toFixed(0)}`} duration={250} />
+              <AnimatedNumber valueStr={`₹${formatINR(p.profit, 0)}`} duration={250} />
             </span>
           </li>
         ))}
@@ -1239,10 +1242,10 @@ export default function OwnerStats({ isActive }) {
 
       {/* ROW 1: TODAY'S VITALS */}
       <div className={`grid grid-cols-2 md:grid-cols-3 ${isWarehouseDisabled ? '2xl:grid-cols-5' : '2xl:grid-cols-6'} gap-3 lg:gap-4 mb-4 shrink-0`}>
-        <StatCard title="Revenue" value={`₹${tfTrueRevenue.toFixed(2)}`} borderColor="var(--color-success)" />
+        <StatCard title="Revenue" value={`₹${formatINR(tfTrueRevenue, 2)}`} borderColor="var(--color-success)" />
         <StatCard
           title="Profit"
-          value={`₹${tfGrossProfit.toFixed(2)}`}
+          value={`₹${formatINR(tfGrossProfit, 2)}`}
           accentColor="var(--color-success)"
           borderColor="var(--color-success)"
           onClick={() => setActiveModal('profit')}
@@ -1250,7 +1253,7 @@ export default function OwnerStats({ isActive }) {
         />
         <StatCard
           title="Discount Given"
-          value={`₹${(tfTotalDiscount || 0).toFixed(2)}`}
+          value={`₹${formatINR((tfTotalDiscount || 0), 2)}`}
           borderColor="var(--color-warning)"
         />
         <StatCard
@@ -1273,7 +1276,7 @@ export default function OwnerStats({ isActive }) {
         )}
         <StatCard
           title="Dead Stock Value"
-          value={`₹${deadStockValue.toFixed(0)}`}
+          value={`₹${formatINR(deadStockValue, 0)}`}
           accentColor={deadStockValue > DEAD_STOCK_ALARM_VALUE ? 'var(--color-error)' : 'var(--color-warning)'}
           borderColor={deadStockValue > DEAD_STOCK_ALARM_VALUE ? 'var(--color-error)' : 'var(--color-warning)'}
           onClick={() => setActiveModal('dead-stock')}
@@ -1292,12 +1295,12 @@ export default function OwnerStats({ isActive }) {
 
       {/* ROW 3: CAPITAL */}
       <div className={`grid ${isWarehouseDisabled ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-3'} gap-3 lg:gap-4 shrink-0`}>
-        <StatCard title="Total Asset Value" value={`₹${totalInventoryValue.toFixed(2)}`} borderColor="var(--text-tertiary)" />
+        <StatCard title="Total Asset Value" value={`₹${formatINR(totalInventoryValue, 2)}`} borderColor="var(--text-tertiary)" />
         {!isWarehouseDisabled && (
-          <StatCard title="Warehouse Capital" value={`₹${warehouseCapital.toFixed(2)}`} borderColor="var(--color-accent)" />
+          <StatCard title="Warehouse Capital" value={`₹${formatINR(warehouseCapital, 2)}`} borderColor="var(--color-accent)" />
         )}
         <div className={isWarehouseDisabled ? '' : 'col-span-2 md:col-span-1'}>
-          <StatCard title={isWarehouseDisabled ? "Stock Capital" : "Store Capital"} value={`₹${storeCapital.toFixed(2)}`} borderColor="var(--color-accent)" />
+          <StatCard title={isWarehouseDisabled ? "Stock Capital" : "Store Capital"} value={`₹${formatINR(storeCapital, 2)}`} borderColor="var(--color-accent)" />
         </div>
       </div>
 
@@ -1343,20 +1346,20 @@ export default function OwnerStats({ isActive }) {
                   <div className="grid grid-cols-3 p-3 sm:p-4 shrink-0 text-center" style={{ backgroundColor: 'var(--color-success-bg)', borderBottom: '1px solid var(--border-medium)' }}>
                     <div className="pr-1 sm:pr-2" style={{ borderRight: '1px solid var(--border-medium)' }}>
                       <p className="text-[10px] sm:text-xs font-bold uppercase mb-0.5 sm:mb-1 truncate" style={{ color: 'var(--text-secondary)' }}>Total Cost</p>
-                      <p className="text-sm sm:text-xl font-medium tabular-nums" style={{ color: 'var(--text-primary)' }}>₹{tfTotalCost.toFixed(2)}</p>
+                      <p className="text-sm sm:text-xl font-medium tabular-nums" style={{ color: 'var(--text-primary)' }}>₹{formatINR(tfTotalCost, 2)}</p>
                     </div>
                     <div className="px-1 sm:px-2" style={{ borderRight: '1px solid var(--border-medium)' }}>
                       <p className="text-[10px] sm:text-xs font-bold uppercase mb-0.5 sm:mb-1 truncate" style={{ color: 'var(--text-secondary)' }}>Total Sold</p>
-                      <p className="text-sm sm:text-xl font-medium tabular-nums" style={{ color: 'var(--text-primary)' }}>₹{tfTrueRevenue.toFixed(2)}</p>
+                      <p className="text-sm sm:text-xl font-medium tabular-nums" style={{ color: 'var(--text-primary)' }}>₹{formatINR(tfTrueRevenue, 2)}</p>
                     </div>
                     <div className="pl-1 sm:pl-2">
                       <p className="text-[10px] sm:text-xs font-bold uppercase mb-0.5 sm:mb-1 truncate" style={{ color: 'var(--color-success)' }}>Gross Profit</p>
-                      <p className="text-sm sm:text-xl font-bold tabular-nums" style={{ color: 'var(--color-success)' }}>₹{tfGrossProfit.toFixed(2)}</p>
+                      <p className="text-sm sm:text-xl font-bold tabular-nums" style={{ color: 'var(--color-success)' }}>₹{formatINR(tfGrossProfit, 2)}</p>
                     </div>
                   </div>
                   <div className="flex justify-between items-center px-3 sm:px-4 py-2 text-xs sm:text-sm shrink-0" style={{ borderBottom: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}>
-                    <span>Expenses in this period: <strong className="tabular-nums" style={{ color: 'var(--text-primary)' }}>₹{tfExpenses.toFixed(2)}</strong></span>
-                    <span>Profit after expenses: <strong className="tabular-nums" style={{ color: (tfGrossProfit - tfExpenses) >= 0 ? 'var(--color-success)' : 'var(--color-error)' }}>₹{(tfGrossProfit - tfExpenses).toFixed(2)}</strong></span>
+                    <span>Expenses in this period: <strong className="tabular-nums" style={{ color: 'var(--text-primary)' }}>₹{formatINR(tfExpenses, 2)}</strong></span>
+                    <span>Profit after expenses: <strong className="tabular-nums" style={{ color: (tfGrossProfit - tfExpenses) >= 0 ? 'var(--color-success)' : 'var(--color-error)' }}>₹{formatINR((tfGrossProfit - tfExpenses), 2)}</strong></span>
                   </div>
                   <div className="flex-1 min-h-0 overflow-y-auto w-full modal-scroll">
                     {/* MOBILE PROFIT CARD LIST */}
@@ -1371,7 +1374,7 @@ export default function OwnerStats({ isActive }) {
                             <div className="flex items-start justify-between gap-2">
                               <span className="font-semibold text-sm text-[var(--text-primary)] leading-tight">{item.name}</span>
                               <span className="text-xs font-bold text-[var(--color-success)] tabular-nums bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                                +₹{item.lineProfit.toFixed(2)}
+                                +₹{formatINR(item.lineProfit, 2)}
                               </span>
                             </div>
                             <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[var(--border-medium)] text-center text-xs">
@@ -1381,11 +1384,11 @@ export default function OwnerStats({ isActive }) {
                               </div>
                               <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
                                 <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Cost</span>
-                                <span className="font-semibold text-[var(--text-secondary)] tabular-nums">₹{item.lineCost.toFixed(2)}</span>
+                                <span className="font-semibold text-[var(--text-secondary)] tabular-nums">₹{formatINR(item.lineCost, 2)}</span>
                               </div>
                               <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
                                 <span className="text-[10px] text-[var(--text-secondary)] uppercase block">Sold For</span>
-                                <span className="font-semibold text-[var(--text-primary)] tabular-nums">₹{item.lineRev.toFixed(2)}</span>
+                                <span className="font-semibold text-[var(--text-primary)] tabular-nums">₹{formatINR(item.lineRev, 2)}</span>
                               </div>
                             </div>
                           </div>
@@ -1415,9 +1418,9 @@ export default function OwnerStats({ isActive }) {
                           <tr key={idx} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                             <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.name}</td>
                             <td className="p-3 text-sm text-left" style={{ borderRight: '1px solid var(--border-medium)' }}>{item.qty} {item.unit}</td>
-                            <td className="p-3 text-sm text-left" style={{ borderRight: '1px solid var(--border-medium)' }}>₹{item.lineCost.toFixed(2)}</td>
-                            <td className="p-3 text-sm text-left" style={{ borderRight: '1px solid var(--border-medium)' }}>₹{item.lineRev.toFixed(2)}</td>
-                            <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-success)' }}>₹{item.lineProfit.toFixed(2)}</td>
+                            <td className="p-3 text-sm text-left" style={{ borderRight: '1px solid var(--border-medium)' }}>₹{formatINR(item.lineCost, 2)}</td>
+                            <td className="p-3 text-sm text-left" style={{ borderRight: '1px solid var(--border-medium)' }}>₹{formatINR(item.lineRev, 2)}</td>
+                            <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-success)' }}>₹{formatINR(item.lineProfit, 2)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1502,7 +1505,7 @@ export default function OwnerStats({ isActive }) {
                           </div>
                           <div className="bg-red-500/10 border border-red-500/20 p-1.5 rounded">
                             <span className="text-[10px] text-red-400 uppercase block font-semibold">Capital Tied Up</span>
-                            <span className="font-bold text-red-400 tabular-nums">₹{item.deadValue.toFixed(2)}</span>
+                            <span className="font-bold text-red-400 tabular-nums">₹{formatINR(item.deadValue, 2)}</span>
                           </div>
                         </div>
                       </div>
@@ -1571,7 +1574,7 @@ export default function OwnerStats({ isActive }) {
                           <td className="p-3 text-sm font-semibold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-medium)' }}>{item.barcode}</td>
                           <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.name}</td>
                           <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-warning)', borderRight: '1px solid var(--border-medium)' }}>{item.totalQty}</td>
-                          <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-error)' }}>₹{item.deadValue.toFixed(2)}</td>
+                          <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-error)' }}>₹{formatINR(item.deadValue, 2)}</td>
                         </tr>
                       ))}
                     </tbody>

@@ -3,7 +3,7 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { getInventoryItemByBarcode } from './services/db';
 import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
-import { calculateMSP } from './utils';
+import { calculateMSP, formatINR } from './utils';
 import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD } from './constants';
 import { AlertTriangle, Camera, RefreshCw, Eye } from 'lucide-react';
 
@@ -289,7 +289,7 @@ export default function WorkerPriceCheck() {
                     </span>
                     <div className="flex items-baseline gap-2">
                       <span className="text-4xl md:text-5xl font-black text-[var(--color-success)] tracking-tight">
-                        ₹{Number(price).toFixed(2)}
+                        ₹{formatINR(Number(price), 2)}
                       </span>
                       <span className="text-sm text-[var(--text-tertiary)] font-semibold">
                         {displayUnit ? `/ ${displayUnit}` : ''}
@@ -308,7 +308,7 @@ export default function WorkerPriceCheck() {
                       <Eye className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
                     </span>
                     <span className="text-base font-bold text-[var(--text-primary)] font-mono mt-0.5 block">
-                      {(revealedMsp || userRole === 'owner') ? `₹${Number(msp).toFixed(2)}` : '••••••'}
+                      {(revealedMsp || userRole === 'owner') ? `₹${formatINR(Number(msp), 2)}` : '••••••'}
                     </span>
                   </div>
                 </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, Fragment, useCallback } from 'react';
-import { localToUtcIso } from './utils';
+import { localToUtcIso, formatINR } from './utils';
 import { getPerformedBy } from './utils';
 import { supabase } from './supabaseClient';
 import { casUpdateRow } from './services/atomicStock';
@@ -789,7 +789,7 @@ export default function OwnerLedger({ isActive }) {
                         )}
                       </div>
                       <div className="text-right">
-                        <div className={`text-base font-bold ${bill.status === 'voided' ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--color-accent)]'}`}>₹{Number(bill.total_amount).toFixed(2)}</div>
+                        <div className={`text-base font-bold ${bill.status === 'voided' ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--color-accent)]'}`}>₹{formatINR(Number(bill.total_amount), 2)}</div>
                         {bill.payment_method && (
                           <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded inline-block mt-0.5" style={{ backgroundColor: bill.payment_method === 'CASH' ? 'rgba(16, 185, 129, 0.15)' : bill.payment_method === 'UPI' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(234, 179, 8, 0.15)', color: bill.payment_method === 'CASH' ? 'var(--color-success)' : bill.payment_method === 'UPI' ? 'var(--color-accent)' : 'var(--color-warning)' }}>{bill.payment_method}</span>
                         )}
@@ -860,7 +860,7 @@ export default function OwnerLedger({ isActive }) {
                   </td>
 
                   <td className="hidden md:table-cell py-4 px-3 w-[14%] text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-medium)', color: bill.status === 'voided' ? 'var(--text-tertiary)' : 'var(--text-primary)', textDecoration: bill.status === 'voided' ? 'line-through' : 'none' }}>
-                    ₹{Number(bill.total_amount).toFixed(2)}
+                    ₹{formatINR(Number(bill.total_amount), 2)}
                   </td>
 
                   {/* Dedicated Return Button on ALL Rows */}
@@ -1097,7 +1097,7 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
                     />
                     <div>
                       <div className="text-sm font-semibold text-[var(--text-primary)]">{item.name}</div>
-                      <div className="text-xs text-[var(--text-secondary)]">Sold at: ₹{Number(item.price_at_sale).toFixed(2)}/{item.unit || 'pc'}</div>
+                      <div className="text-xs text-[var(--text-secondary)]">Sold at: ₹{formatINR(Number(item.price_at_sale), 2)}/{item.unit || 'pc'}</div>
                     </div>
                   </label>
 
@@ -1149,7 +1149,7 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
                 <div className="flex justify-between items-center text-xs pt-2 border-t border-[var(--border-light)]">
                   <span className="text-[var(--text-secondary)]">Purchased: {maxQty} {item.unit}</span>
                   {!isCuttable && (
-                    <span className="font-bold text-[var(--text-primary)]">Item Refund: ₹{(Number(item.price_at_sale) * returnQty).toFixed(2)}</span>
+                    <span className="font-bold text-[var(--text-primary)]">Item Refund: ₹{formatINR((Number(item.price_at_sale) * returnQty), 2)}</span>
                   )}
                 </div>
               </div>
@@ -1161,7 +1161,7 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
       <div className="px-6 py-4 border-t border-[var(--border-light)] bg-[var(--bg-tertiary)] flex flex-col gap-4">
         <div className="flex justify-between items-center">
           <span className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Total Refund Amount:</span>
-          <span className="text-2xl font-bold" style={{ color: 'var(--color-error)' }}>₹{refundAmount.toFixed(2)}</span>
+          <span className="text-2xl font-bold" style={{ color: 'var(--color-error)' }}>₹{formatINR(refundAmount, 2)}</span>
         </div>
         <div className="flex justify-end gap-2">
           <button

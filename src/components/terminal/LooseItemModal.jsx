@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatINR } from '../../utils';
 
 export default function LooseItemModal({
   isOpen,
@@ -124,11 +125,11 @@ export default function LooseItemModal({
                 </div>
                 <div className="flex justify-between font-medium text-[var(--text-secondary)]">
                   <span>Rate:</span>
-                  <span>₹{ratePerKg.toFixed(2)} / kg</span>
+                  <span>₹{formatINR(ratePerKg, 2)} / kg</span>
                 </div>
                 <div className="flex justify-between text-sm font-bold pt-1.5 border-t border-[var(--border-light)]" style={{ color: 'var(--color-accent)' }}>
                   <span>Total Price:</span>
-                  <span>₹{((Number(looseItemModal.qty) / 1000) * ratePerKg).toFixed(2)}</span>
+                  <span>₹{formatINR(((Number(looseItemModal.qty) / 1000) * ratePerKg), 2)}</span>
                 </div>
               </div>
             )}

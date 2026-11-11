@@ -3,7 +3,7 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { getInventoryItemByBarcode } from './services/db';
 import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
-import { generateId, calculateMSP } from './utils';
+import { generateId, calculateMSP, formatINR } from './utils';
 import { playScanSuccessSound, playScanErrorSound } from './services/audio';
 
 export default function WorkerScanner({ cashierName }) {
@@ -382,10 +382,10 @@ export default function WorkerScanner({ cashierName }) {
                   {item.instance_barcode && <span className="font-mono text-sm mt-1" style={{ color: 'var(--color-accent)' }}>Piece #{item.instance_barcode}</span>}
                   <div className="flex gap-2 mt-2">
                     <span className="text-[12px] font-semibold px-2 py-1 uppercase tracking-wider rounded-md" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border-medium)' }}>
-                      MRP: ₹{Number(item.price || 0).toFixed(2)}
+                      MRP: ₹{formatINR(Number(item.price || 0), 2)}
                     </span>
                     <span className="text-[12px] font-semibold px-2 py-1 uppercase tracking-wider rounded-md group/msp cursor-help" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border-medium)' }}>
-                      MSP: {userRole === 'owner' ? `₹${Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0).toFixed(2)}</span></span>}
+                      MSP: {userRole === 'owner' ? `₹${formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}</span></span>}
                     </span>
                   </div>
                 </div>

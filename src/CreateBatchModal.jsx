@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getPerformedBy } from './utils';
+import { getPerformedBy, formatINR } from './utils';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import { generateId, priceInputValue } from './utils';
@@ -77,7 +77,7 @@ export default function CreateBatchModal({ item, onClose, onBatchCreated }) {
           action_type: 'CREATE',
           barcode: item.barcode,
           item_name: item.name,
-          changes: `Created Batch #${nextBatchNum}${insertPayload.supplier ? ` | Wholesaler: ${insertPayload.supplier}` : ''} | Cost: ₹${insertPayload.purchase_cost} | MSP: ₹${insertPayload.msp} | MRP: ₹${insertPayload.selling_price}`,
+          changes: `Created Batch #${nextBatchNum}${insertPayload.supplier ? ` | Wholesaler: ${insertPayload.supplier}` : ''} | Cost: ₹${formatINR(insertPayload.purchase_cost, 2)} | MSP: ₹${formatINR(insertPayload.msp, 2)} | MRP: ₹${formatINR(insertPayload.selling_price, 2)}`,
           performed_by: getPerformedBy()
         }]);
       } catch (err) {

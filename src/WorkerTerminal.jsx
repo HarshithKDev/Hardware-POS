@@ -14,7 +14,7 @@ import { beginCriticalWork } from './services/busyGuard';
 import { buildTransactionItems } from './services/transactionPayload';
 import { isNetworkishError } from './services/roleGuard';
 import { useApp } from './AppContext';
-import { generateId, formatDateTime, calculateMSP } from './utils';
+import { generateId, formatDateTime, calculateMSP, formatINR } from './utils';
 import { SCAN_TIMEOUT_MS } from './constants';
 
 import InlineContinuousScanner from './components/scanner/InlineContinuousScanner';
@@ -42,19 +42,19 @@ function getQuickTenderOptions(total) {
   if (ceilTotal < 500 && ceilTotal % 50 !== 0) {
     const next50 = Math.ceil(ceilTotal / 50) * 50;
     if (next50 > ceilTotal && !standardNotes.includes(next50)) {
-      pills.push({ label: `₹${next50}`, value: next50 });
+      pills.push({ label: `₹${formatINR(next50, 0)}`, value: next50 });
     }
   } else if (ceilTotal >= 500 && ceilTotal < 2000 && ceilTotal % 100 !== 0) {
     const next100 = Math.ceil(ceilTotal / 100) * 100;
     if (next100 > ceilTotal && !standardNotes.includes(next100)) {
-      pills.push({ label: `₹${next100}`, value: next100 });
+      pills.push({ label: `₹${formatINR(next100, 0)}`, value: next100 });
     }
   }
 
   // Next standard currency notes above total
   standardNotes.filter(n => n > ceilTotal).slice(0, 3).forEach(note => {
     if (!pills.some(p => p.value === note)) {
-      pills.push({ label: `₹${note}`, value: note });
+      pills.push({ label: `₹${formatINR(note, 0)}`, value: note });
     }
   });
 
@@ -62,11 +62,11 @@ function getQuickTenderOptions(total) {
   if (ceilTotal >= 2000) {
     const next500 = Math.ceil(ceilTotal / 500) * 500;
     if (next500 > ceilTotal && !pills.some(p => p.value === next500)) {
-      pills.push({ label: `₹${next500}`, value: next500 });
+      pills.push({ label: `₹${formatINR(next500, 0)}`, value: next500 });
     }
     const next1000 = Math.ceil(ceilTotal / 1000) * 1000;
     if (next1000 > next500 && !pills.some(p => p.value === next1000)) {
-      pills.push({ label: `₹${next1000}`, value: next1000 });
+      pills.push({ label: `₹${formatINR(next1000, 0)}`, value: next1000 });
     }
   }
 
@@ -906,7 +906,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       const msp = Number(i.msp_price) || Number(i.msp) || Number(i.cost_price) || 0;
       const mrp = Number(i.price || 0);
       if (val < msp && msp > 0) {
-        setTimeout(() => showAlertRef.current(`Cannot sell ${i.name} below MSP (₹${msp.toFixed(2)})`, "Price Error"), 0);
+        setTimeout(() => showAlertRef.current(`Cannot sell ${i.name} below MSP (₹${formatINR(msp, 2)})`, "Price Error"), 0);
         val = msp;
       }
       const disc = (mrp > 0 && val < mrp) ? ((mrp - val) / mrp) * 100 : 0;
@@ -924,7 +924,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           let val = Number(i.customPriceInput);
           if (isNaN(val) || val <= 0) val = Number(i.price);
           if (val < msp && msp > 0) {
-            setTimeout(() => showAlertRef.current(`Cannot sell ${i.name} below MSP (₹${msp.toFixed(2)})`, "Price Error"), 0);
+            setTimeout(() => showAlertRef.current(`Cannot sell ${i.name} below MSP (₹${formatINR(msp, 2)})`, "Price Error"), 0);
             val = msp;
           }
           let newDisc = 0;
@@ -1164,7 +1164,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       if (subMspItem) {
         const msp = Number(subMspItem.msp_price) || Number(subMspItem.msp) || Number(subMspItem.cost_price) || 0;
         const price = subMspItem.customPriceInput !== undefined && subMspItem.customPriceInput !== '' ? Number(subMspItem.customPriceInput) : Number(subMspItem.price || 0);
-        const errMsg = `Cannot sell ${subMspItem.name} below MSP (Price: ₹${price.toFixed(2)}, MSP: ₹${msp.toFixed(2)}).`;
+        const errMsg = `Cannot sell ${subMspItem.name} below MSP (Price: ₹${formatINR(price, 2)}, MSP: ₹${formatINR(msp, 2)}).`;
         setCheckoutModal(prev => ({ ...prev, error: errMsg }));
         showAlert(errMsg, "Price Below MSP");
         return;
@@ -1216,7 +1216,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         const otherItems = finalCart.filter(item => !item.is_screw && item.barcode !== 'SCREWS');
 
         if (otherItems.length === 0) {
-          const errMsg = `Screws price (₹${screwPrice.toFixed(2)}) is fixed and cannot be discounted. Discount is only applicable to other items.`;
+          const errMsg = `Screws price (₹${formatINR(screwPrice, 2)}) is fixed and cannot be discounted. Discount is only applicable to other items.`;
           setCheckoutModal(prev => ({ ...prev, error: errMsg }));
           showAlert(errMsg, "Screws Price Fixed");
           setIsCheckingOut(false);
@@ -1224,7 +1224,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         }
 
         if (targetTotal < screwPrice) {
-          const errMsg = `Negotiated amount cannot be less than ₹${screwPrice.toFixed(2)} (Screws price is fixed at ₹${screwPrice.toFixed(2)}).`;
+          const errMsg = `Negotiated amount cannot be less than ₹${formatINR(screwPrice, 2)} (Screws price is fixed at ₹${formatINR(screwPrice, 2)}).`;
           setCheckoutModal(prev => ({ ...prev, error: errMsg }));
           showAlert(errMsg, "Invalid Total");
           setIsCheckingOut(false);
@@ -1259,7 +1259,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         const minAllowedTotal = Math.round((otherItemsMspTotal + screwPrice) * 100) / 100;
 
         if (targetTotal < minAllowedTotal || totalDiscountToGive > maxTotalDiscountable) {
-          const errMsg = `Cannot sell for ₹${targetTotal.toFixed(2)}. Absolute minimum allowed total is ₹${minAllowedTotal.toFixed(2)}${screwPrice > 0 ? ` (including ₹${screwPrice.toFixed(2)} for screws)` : ''}. Products cannot be sold below MSP.`;
+          const errMsg = `Cannot sell for ₹${formatINR(targetTotal, 2)}. Absolute minimum allowed total is ₹${formatINR(minAllowedTotal, 2)}${screwPrice > 0 ? ` (including ₹${formatINR(screwPrice, 2)} for screws)` : ''}. Products cannot be sold below MSP.`;
           setCheckoutModal(prev => ({ ...prev, error: errMsg }));
           showAlert(errMsg, "Minimum Price Error");
           setIsCheckingOut(false);
@@ -2494,7 +2494,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                         </svg>
-                        <span>Screws: ₹{Number(cart.find(i => i.is_screw || i.barcode === 'SCREWS')?.customPriceInput !== undefined ? cart.find(i => i.is_screw || i.barcode === 'SCREWS')?.customPriceInput : (cart.find(i => i.is_screw || i.barcode === 'SCREWS')?.price || 0)).toFixed(2)}</span>
+                        <span>Screws: ₹{formatINR(Number(cart.find(i => i.is_screw || i.barcode === 'SCREWS')?.customPriceInput !== undefined ? cart.find(i => i.is_screw || i.barcode === 'SCREWS')?.customPriceInput : (cart.find(i => i.is_screw || i.barcode === 'SCREWS')?.price || 0)), 2)}</span>
                       </button>
                       <span className="opacity-30">|</span>
                       <button
@@ -2541,7 +2541,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           <div className="text-left md:text-right flex flex-col justify-end pt-2 md:pt-0 border-t border-[var(--border-light)] md:border-t-0 shrink-0">
             <span className="text-xs uppercase font-semibold tracking-wider block mb-1" style={{ color: 'var(--text-tertiary)' }}>{activeTab === 'checkout' ? 'Total Price' : 'Total Units'}</span>
             <span className="text-3xl md:text-4xl font-light" style={{ color: 'var(--color-accent)' }} aria-live="polite">
-              {activeTab === 'checkout' ? `₹${cartTotal.toFixed(2)}` : cartUnits}
+              {activeTab === 'checkout' ? `₹${formatINR(cartTotal, 2)}` : cartUnits}
             </span>
           </div>
         </div>

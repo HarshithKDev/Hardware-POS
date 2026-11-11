@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { formatINR } from '../../utils';
 
 /**
  * Cut-length items (pipes, mesh, wire…) are tracked only as a TOTAL quantity in their unit
@@ -84,7 +85,7 @@ export default function CuttableQuantityModal({
           <p className="text-xs mt-0.5 text-[var(--text-secondary)]">
             {batch?.batch_number ? `Batch ${String(batch.batch_number).padStart(2, '0')} · ` : ''}
             {available !== null ? `${available} ${unitLabel} in stock` : `Measured in ${unitLabel}`}
-            {action === 'checkout' && price > 0 ? ` · ₹${price.toFixed(2)}/${unitLabel}` : ''}
+            {action === 'checkout' && price > 0 ? ` · ₹${formatINR(price, 2)}/${unitLabel}` : ''}
           </p>
         </div>
 
@@ -115,7 +116,7 @@ export default function CuttableQuantityModal({
           )}
           {action === 'checkout' && qty > 0 && !exceeds && price > 0 && (
             <p className="text-sm font-semibold text-[var(--text-primary)]">
-              Amount: ₹{(Math.round(qty * price * 100) / 100).toFixed(2)}
+              Amount: ₹{formatINR((Math.round(qty * price * 100) / 100), 2)}
             </p>
           )}
         </div>

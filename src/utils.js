@@ -165,3 +165,14 @@ export function priceInputValue(...candidates) {
   }
   return '';
 }
+
+/**
+ * Indian-style number formatting for money: 1,00,000.00 / 30,000.00 / 999.50
+ * @param {number|string} value
+ * @param {number} [decimals=2]
+ */
+export function formatINR(value, decimals = 2) {
+  const n = Number(value);
+  const safe = Number.isFinite(n) ? n : 0;
+  return safe.toLocaleString('en-IN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
