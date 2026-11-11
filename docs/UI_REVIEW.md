@@ -167,7 +167,8 @@ print/product popups and failed-sync list use the shared buttons and table heade
 - Print preview, product info and mobile scanner popups on the shared `Modal`.
 - L1: top bar with shop logo/name, user name and role, Online / Offline / Sending status
   and a "waiting to send" count; calm amber offline bar (S4).
-- L4: owner sidebar grouped into Sales / Stock / Money / Admin.
+- L4: sidebar grouping was tried and reverted at the owner's request (11 items are easy
+  to scan as one list; headings added clutter).
 - T5: click-to-sort (`useSort`, `SortTh`) on Sales History, Expenses, Profit breakdown and
   Dead stock (sorts the loaded rows only; ▲/▼ shows the direction).
 - S2: skeleton rows (`TableSkeleton`) instead of spinners on Sales, Inventory, Expenses,
