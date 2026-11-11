@@ -237,4 +237,22 @@ describe('Delta / Incremental Sync System', () => {
     const deltaCalls = prodQuery.gt.mock.calls.length;
     expect(deltaCalls).toBe(2);
   });
+
+  it('a staff sync makes the owner\'s next sync on this device re-download cost prices', async () => {
+    vi.mocked(db.getSyncStatus).mockImplementation(async (key) => (
+      key.endsWith('_owner')
+        ? { key, last_sync: new Date().toISOString(), last_full_sync: new Date().toISOString(), synced_with_cost: true }
+        : { key, last_sync: new Date().toISOString(), last_full_sync: new Date().toISOString() }
+    ));
+    vi.mocked(db.getLocalInventoryCount).mockResolvedValue(150);
+    const q = createChainableQuery([]);
+    vi.mocked(supabase.from).mockImplementation(() => q);
+
+    await syncInventoryToLocal('worker');
+
+    expect(db.setSyncStatus).toHaveBeenCalledWith(
+      'inventory_sync_test-shop-123_owner',
+      expect.objectContaining({ synced_with_cost: false })
+    );
+  });
 });

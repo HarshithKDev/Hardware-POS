@@ -989,42 +989,45 @@ export default function OwnerStats({ isActive }) {
     }
     const dsBillsPromise = dsBillsQuery;
 
-    // Local-first: Fetch inventory from IndexedDB for 0 ms lag computation
+    // Capital and dead stock need real batch costs. This device's local catalog can be
+    // missing them (a staff login on the same device downloads it without costs, and owner
+    // logout strips them), which made the dashboard fall back to "70% of MRP" estimates.
+    // So when online, read stock + costs straight from the database; local copy only offline.
     let allStats = [];
-    try {
-      const localResult = await getInventoryByQuery({ limit: 1000000, status: 'active' });
-      allStats = localResult?.items || [];
-    } catch (localErr) {
-      console.warn('[Stats] Local inventory query note:', localErr?.message);
+    const fetchRemoteStats = async () => {
+      const rows = [];
+      const pageSize = 1000;
+      for (let from = 0; ; from += pageSize) {
+        let pageQuery = supabase.from('product_master')
+          .select('barcode, name, unit, price, cost_price, is_cuttable, stock_warehouse, stock_store, min_quantity_warehouse, min_quantity_store, inventory_batches(stock_warehouse, stock_store, purchase_cost, is_active)')
+          .eq('is_active', true);
+        if (shopId) {
+          pageQuery = pageQuery.eq('shop_id', shopId);
+        }
+        const { data, error } = await pageQuery.order('barcode').range(from, from + pageSize - 1);
+        if (error) throw error;
+        rows.push(...(data || []));
+        if (!data || data.length < pageSize) break;
+      }
+      return rows;
+    };
+
+    if (typeof navigator === 'undefined' || navigator.onLine) {
+      try {
+        allStats = await fetchRemoteStats();
+      } catch (remoteErr) {
+        console.warn('[Stats] Could not load inventory costs from the server, using this device copy:', remoteErr?.message);
+        allStats = [];
+      }
     }
 
-    // Fallback to remote Supabase only if local database is empty or not yet synced
     if (!allStats || allStats.length === 0) {
-      let totalCountQuery = supabase
-        .from('product_master')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_active', true);
-      if (shopId) {
-        totalCountQuery = totalCountQuery.eq('shop_id', shopId);
+      try {
+        const localResult = await getInventoryByQuery({ limit: 1000000, status: 'active' });
+        allStats = localResult?.items || [];
+      } catch (localErr) {
+        console.warn('[Stats] Local inventory query note:', localErr?.message);
       }
-      const { count: totalCount } = await totalCountQuery;
-
-      const pageSize = 1000;
-      const pageCount = Math.ceil((totalCount || 0) / pageSize);
-      const invPromises = [];
-      for (let i = 0; i < pageCount; i++) {
-         let pageQuery = supabase.from('product_master')
-           .select('barcode, name, unit, price, cost_price, is_cuttable, stock_warehouse, stock_store, min_quantity_warehouse, min_quantity_store, inventory_batches(stock_warehouse, stock_store, purchase_cost, is_active)')
-           .eq('is_active', true);
-         if (shopId) {
-           pageQuery = pageQuery.eq('shop_id', shopId);
-         }
-         invPromises.push(
-           pageQuery.range(i * pageSize, (i + 1) * pageSize - 1)
-         );
-      }
-      const invPages = await Promise.all(invPromises);
-      allStats = invPages.flatMap(r => r.data || []);
     }
 
     const { data: dsBillsData } = await dsBillsPromise;

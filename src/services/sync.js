@@ -145,6 +145,20 @@ const runInventorySync = async (userRole = 'worker', options = {}) => {
       error: null 
     });
 
+    // A staff sync writes the catalog WITHOUT cost prices into this device's shared local
+    // database. Make the owner's next sync on this device a full one so costs come back.
+    if (!isOwner) {
+      try {
+        const ownerKey = `inventory_sync_${currentShopId || 'global'}_owner`;
+        const ownerStatus = await getSyncStatus(ownerKey);
+        if (ownerStatus?.synced_with_cost) {
+          await setSyncStatus(ownerKey, { ...ownerStatus, synced_with_cost: false });
+        }
+      } catch (e) {
+        console.warn('[Sync] Could not flag owner cost refresh:', e?.message);
+      }
+    }
+
     window.dispatchEvent(new CustomEvent('inventory_sync_complete', { 
       detail: { mode: isDelta ? 'delta' : 'full', timestamp: completedAt } 
     }));
