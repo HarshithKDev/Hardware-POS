@@ -177,3 +177,9 @@ print/product popups and failed-sync list use the shared buttons and table heade
 **Not done (by choice):** light theme (C5) — many screens still have hard-coded dark
 colours, so it would look patchy until those are moved to tokens. z-index values are kept
 per popup (each keeps its existing stacking order).
+
+**Later additions (same day):**
+- K1/K3 counter: bigger total with item count, green flash on the scanned row, Complete
+  as the main button with F4 shown; bigger "Change to return".
+- T6 Audit Logs: one readable line per entry ("Sold 3 pcs at ₹450.00 each", "Created
+  Batch #2", "Added to catalog"); "+N details" expands a labelled breakdown under the row.

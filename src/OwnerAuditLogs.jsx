@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, Fragment } from 'react';
 import { localToUtcIso, formatINR } from './utils';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
@@ -9,52 +9,92 @@ import { X, Calendar } from 'lucide-react';
 import PageTitleReset from './components/PageTitleReset';
 import { buttonClass, DateField, TableSkeleton } from './components/ui';
 
-const formatChanges = (changes) => {
-  if (!changes || changes === '—') return <span style={{ color: 'var(--text-tertiary)' }}>—</span>;
-  
-  const renderPill = (text, i) => {
-    if (text.includes(': ')) {
-      const [key, ...rest] = text.split(': ');
+/** The full breakdown shown when a log row is expanded: one "Label: value" per line. */
+const LogDetails = ({ details }) => (
+  <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-1.5 text-left">
+    {details.map((part, i) => {
+      const idx = part.indexOf(': ');
+      const label = idx > 0 ? part.slice(0, idx) : '';
+      const value = idx > 0 ? part.slice(idx + 2) : part;
       return (
-        <span key={i} className="inline-flex items-center px-2 py-1 rounded text-xs whitespace-nowrap" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
-          <span className="font-bold mr-1 uppercase text-[11px] tracking-wider" style={{ color: 'var(--text-secondary)' }}>{key}:</span>
-          <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{rest.join(': ')}</span>
-        </span>
+        <div key={i} className="flex gap-2 min-w-0 text-sm">
+          {label && <dt className="shrink-0 text-[var(--text-secondary)]">{label}:</dt>}
+          <dd className="min-w-0 break-words text-[var(--text-primary)]">{value}</dd>
+        </div>
       );
-    }
-    return (
-      <span key={i} className="inline-flex items-center px-2 py-1 rounded text-xs font-medium whitespace-nowrap" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
-        {text}
-      </span>
-    );
-  };
+    })}
+  </dl>
+);
 
-  if (changes.includes(' | ')) {
-    return (
-      <div className="flex flex-wrap items-center justify-start md:justify-center gap-1.5 md:gap-2">
-        {changes.split(' | ').map((part, i) => renderPill(part, i))}
-      </div>
-    );
+const DetailsToggle = ({ count, open, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-expanded={open}
+    className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-accent)] hover:underline cursor-pointer"
+  >
+    {open ? 'Hide details' : `+${count} detail${count === 1 ? '' : 's'}`}
+    <span aria-hidden="true">{open ? '▴' : '▾'}</span>
+  </button>
+);
+
+/**
+ * One short, readable line per log entry, plus the remaining details (shown when the row
+ * is expanded). Works with the three formats stored in audit_logs.changes:
+ *  - JSON from stock actions: {"quantity":3,"location":"Store","price":450,...}
+ *  - "Part A | Part B | Part C" (catalog, batches)
+ *  - a plain sentence (expenses, staff, categories…) → shown as is, no details.
+ */
+export function describeLogChange(actionType, rawChanges, unit) {
+  const u = unit ? ` ${String(unit).toLowerCase()}` : '';
+  const raw = typeof rawChanges === 'string' ? rawChanges.trim() : '';
+  if (!raw || raw === '—') return { summary: '—', details: [] };
+
+  if (raw.startsWith('{')) {
+    try {
+      const o = JSON.parse(raw);
+      const qty = o.quantity !== undefined ? `${o.quantity}${u}` : '';
+      const price = o.price !== undefined ? ` at ₹${formatINR(o.price, 2)} each` : '';
+      const disc = Number(o.discountPct) > 0 ? ` (${o.discountPct}% off)` : '';
+      const loc = o.location ? String(o.location) : '';
+      let summary = '';
+      if (actionType === 'SALE' && qty) summary = `Sold ${qty}${price}${disc}`;
+      else if (actionType === 'STOCK IN' && qty) summary = `Received ${qty}${loc ? ` into ${loc}` : ''}`;
+      else if (actionType === 'TRANSFER' && qty) summary = `Moved ${qty}${loc ? ` (${loc})` : ''}`;
+      const LABELS = { quantity: 'Quantity', location: 'Location', price: 'Price', discountPct: 'Discount', instance: 'Piece' };
+      const details = Object.entries(o)
+        .filter(([k, v]) => v !== null && v !== undefined && v !== '' && !(k === 'discountPct' && !(Number(v) > 0)))
+        .map(([k, v]) => {
+          const label = LABELS[k] || k.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
+          const value = k === 'price' ? `₹${formatINR(v, 2)}`
+            : k === 'discountPct' ? `${v}%`
+            : k === 'quantity' ? `${v}${u}`
+            : (typeof v === 'object' ? JSON.stringify(v) : v);
+          return `${label}: ${value}`;
+        });
+      if (!summary) summary = [qty && `Qty ${qty}`, loc, o.price !== undefined && `₹${formatINR(o.price, 2)}`].filter(Boolean).join(' · ') || details[0] || '—';
+      return { summary, details: details.length > 1 ? details : [] };
+    } catch { /* not JSON: fall through */ }
   }
 
-  if (changes.includes('(') && changes.includes(')')) {
-    const mainText = changes.split('(')[0].trim();
-    const innerText = changes.split('(')[1].split(')')[0].trim(); 
-    
-    return (
-      <div className="flex flex-wrap items-center justify-start md:justify-center gap-1.5 md:gap-2">
-        {renderPill(mainText, 'main')}
-        {innerText.split(', ').map((part, i) => renderPill(part, `inner_${i}`))}
-      </div>
-    );
+  if (raw.startsWith('[')) {
+    try {
+      const arr = JSON.parse(raw).map(String);
+      if (arr.length === 0) return { summary: '—', details: [] };
+      return { summary: arr.length === 1 ? arr[0] : `${arr[0]} (+${arr.length - 1} more)`, details: arr.length > 1 ? arr : [] };
+    } catch { /* fall through */ }
   }
 
-  return (
-    <div className="flex flex-wrap items-center justify-start md:justify-center gap-1.5 md:gap-2">
-      {renderPill(changes, 'single')}
-    </div>
-  );
-};
+  if (raw.includes(' | ')) {
+    const parts = raw.split(' | ').map(p => p.trim()).filter(Boolean);
+    let summary = parts[0];
+    if (/^Bulk Imported CSV Item:/i.test(summary)) summary = 'Imported from CSV';
+    else if (/^Item:/i.test(summary)) summary = 'Added to catalog';
+    return { summary, details: parts.slice(1) };
+  }
+
+  return { summary: raw, details: [] };
+}
 
 export default function OwnerAuditLogs() {
   const { shopSettings } = useApp();
@@ -67,6 +107,15 @@ export default function OwnerAuditLogs() {
   const [selectedUser, setSelectedUser] = useSessionState(`pos_audit_user_${shopId}`, 'ALL');
   const [sortOrder, setSortOrder] = useSessionState(`pos_audit_sort_${shopId}`, 'newest');
   const [showAdvanced, setShowAdvanced] = useSessionState(`pos_audit_adv_${shopId}`, false);
+  // Rows whose full details are open
+  const [expandedIds, setExpandedIds] = useState(() => new Set());
+  const toggleExpanded = useCallback((id) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
   
   const [datePageIndex, setDatePageIndex] = useSessionState(`pos_audit_date_idx_${shopId}`, 0);
   const [customDate, setCustomDate] = useSessionState(`pos_audit_date_${shopId}`, '');
@@ -238,6 +287,10 @@ export default function OwnerAuditLogs() {
           barcode: log.barcode,
           item_name: log.item_name ? log.item_name.split(' (Cut from ')[0] : log.item_name,
           changes: formatChangesText(log.changes, unitMap[log.barcode]),
+          ...(() => {
+            const d = describeLogChange(actionType, log.changes, unitMap[log.barcode]);
+            return { summary: d.summary, details: d.details };
+          })(),
           performed_by: (log.performed_by === 'Owner' || log.performed_by === 'owner' || log.performed_by === 'Administrator') ? ownerName : (log.performed_by || 'System'),
           source: 'audit'
         };
@@ -453,8 +506,11 @@ export default function OwnerAuditLogs() {
           <tbody className="block md:table-row-group p-2 md:p-0">
             {filteredLogs.map(log => {
               const styles = getActionStyles(log.action_type);
+              const details = log.details || [];
+              const isOpen = expandedIds.has(log.id);
               return (
-                <tr key={log.id} className="transition-colors hover:bg-[var(--bg-hover)] group block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none mb-3 md:mb-0 border border-[var(--border-medium)] md:border-b md:border-t-0 md:border-l-0 md:border-r-0 md:border-[var(--border-medium)] relative md:static" style={{ borderBottom: '1px solid var(--border-medium)' }}>
+                <Fragment key={log.id}>
+                <tr className="transition-colors hover:bg-[var(--bg-hover)] group block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none mb-3 md:mb-0 border border-[var(--border-medium)] md:border-b md:border-t-0 md:border-l-0 md:border-r-0 md:border-[var(--border-medium)] relative md:static" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                   <td className="md:hidden block p-4 border-none w-full">
                     <div className="flex justify-between items-start mb-2 gap-2">
                       <div className="flex-1 min-w-0">
@@ -473,9 +529,11 @@ export default function OwnerAuditLogs() {
                         </div>
                       </div>
                     </div>
-                    {log.changes && log.changes !== '—' && (
-                      <div className="mt-3 pt-3 border-t border-[var(--border-medium)] w-full">
-                        {formatChanges(log.changes)}
+                    {log.summary && log.summary !== '—' && (
+                      <div className="mt-3 pt-3 border-t border-[var(--border-medium)] w-full flex flex-col gap-2">
+                        <p className="text-sm text-[var(--text-primary)] whitespace-normal break-words">{log.summary}</p>
+                        {details.length > 0 && <DetailsToggle count={details.length} open={isOpen} onClick={() => toggleExpanded(log.id)} />}
+                        {isOpen && details.length > 0 && <LogDetails details={details} />}
                       </div>
                     )}
                   </td>
@@ -497,15 +555,24 @@ export default function OwnerAuditLogs() {
                   <td className="hidden md:table-cell p-3 w-64 text-sm font-medium text-center" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
                     <div className="max-w-[220px] overflow-hidden text-ellipsis mx-auto">{log.item_name}</div>
                   </td>
-                  <td className="hidden md:table-cell p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
-                    <div className="w-full mx-auto">
-                      {formatChanges(log.changes)}
+                  <td className="hidden md:table-cell p-3 text-sm text-center whitespace-normal" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
+                    <div className="flex flex-col items-center gap-1 max-w-[560px] mx-auto">
+                      <span className={`break-words ${log.summary === '—' ? 'text-[var(--text-tertiary)]' : ''}`}>{log.summary}</span>
+                      {details.length > 0 && <DetailsToggle count={details.length} open={isOpen} onClick={() => toggleExpanded(log.id)} />}
                     </div>
                   </td>
-                  <td className="hidden md:table-cell p-3 w-24 text-xs text-center font-bold capitalize" style={{ color: 'var(--text-tertiary)' }}>
+                  <td className="hidden md:table-cell p-3 w-24 text-xs text-center font-semibold capitalize" style={{ color: 'var(--text-secondary)' }}>
                     {log.performed_by}
                   </td>
                 </tr>
+                {isOpen && details.length > 0 && (
+                  <tr className="hidden md:table-row" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
+                    <td colSpan={6} className="px-6 py-3 whitespace-normal">
+                      <LogDetails details={details} />
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               );
             })}
           </tbody>
