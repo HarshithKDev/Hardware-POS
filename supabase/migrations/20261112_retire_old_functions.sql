@@ -7,6 +7,17 @@
 -- =====================================================================
 begin;
 
+-- 0. Stop with a clear message if the earlier scripts have not been run yet
+do $$
+begin
+  if not exists (select 1 from pg_proc where proname = 'pos_process_sale' and pronamespace = 'public'::regnamespace) then
+    raise exception 'Run 20261111_atomic_actions.sql first (then 20261111_bill_numbers.sql), and this script the next day. Nothing was changed.';
+  end if;
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'bills' and column_name = 'bill_no') then
+    raise exception 'Run 20261111_bill_numbers.sql first, and this script the next day. Nothing was changed.';
+  end if;
+end $$;
+
 -- 1. Nobody can call the old sale function directly any more, so its checks
 --    (billable staff, MSP, one-bill-per-checkout) can't be bypassed.
 --    pos_process_sale still uses it internally (it runs as the database owner).
