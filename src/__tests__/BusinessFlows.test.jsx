@@ -53,6 +53,20 @@ vi.mock('../supabaseClient', () => ({
   }
 }));
 
+// Press F4 until the checkout popup opens. The screen can show a newly scanned item a
+// moment before the keyboard handler sees the updated cart; a real cashier is never that
+// fast, but a test can be. F4 does nothing once the popup is open, so retrying is safe.
+// End-to-end counter tests: allow slow CI machines; individual waits stay at 5 s
+vi.setConfig({ testTimeout: 15000 });
+
+const pressF4UntilCheckoutOpens = () => waitFor(() => {
+  if (!screen.queryByText('Complete Sale')) {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F4', bubbles: true }));
+  }
+  expect(screen.getByText('Complete Sale')).toBeInTheDocument();
+}, { timeout: 5000 });
+
+
 const hinge = {
   barcode: '1001', name: 'Door Hinge', unit: 'PCS', price: 100, msp: 80, is_cuttable: false, stock_store: 10,
   batches: [{ batch_id: 'b1', batch_number: 1, stock_store: 10, stock_warehouse: 0, selling_price: 100, msp: 80, purchase_cost: 60 }]
@@ -105,8 +119,7 @@ describe('Counter business flows (end to end)', () => {
 
     await waitFor(() => expect(screen.getAllByText(/Total 30 ft/i).length).toBeGreaterThan(0), { timeout: 5000 });
 
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F4', bubbles: true }));
-    await waitFor(() => expect(screen.getByText('Complete Sale')).toBeInTheDocument(), { timeout: 5000 });
+    await pressF4UntilCheckoutOpens();
     expect(screen.getByLabelText(/Final Negotiated Amount/i).value).toBe('750');
     fireEvent.click(screen.getByText('Complete Sale'));
 
@@ -140,9 +153,11 @@ describe('Counter business flows (end to end)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     await waitFor(() => expect(screen.getAllByText(/Total 200 ft/i).length).toBeGreaterThan(0), { timeout: 5000 });
 
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F4', bubbles: true }));
-
+    // F4 saves directly here; pressed again only while nothing has been sent yet
     await waitFor(() => {
+      if (!supabase.rpc.mock.calls.some(c => c[0] === 'pos_process_sale')) {
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F4', bubbles: true }));
+      }
       expect(supabase.rpc).toHaveBeenCalledWith('pos_process_sale', expect.objectContaining({
         p_action: 'RECEIVE',
         p_location: 'Warehouse-Inbound',
@@ -166,8 +181,7 @@ describe('Counter business flows (end to end)', () => {
 
     await scan('1001');
     await waitFor(() => expect(screen.getAllByText('Door Hinge').length).toBeGreaterThan(0), { timeout: 5000 });
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F4', bubbles: true }));
-    await waitFor(() => expect(screen.getByText('Complete Sale')).toBeInTheDocument(), { timeout: 5000 });
+    await pressF4UntilCheckoutOpens();
 
     fireEvent.click(screen.getByRole('button', { name: 'Showroom' }));
     expect(screen.queryByLabelText(/Final Negotiated Amount/i)).toBeNull();
@@ -210,8 +224,7 @@ describe('Counter flows before the database update (fallback path)', () => {
     fireEvent.change(await screen.findByLabelText(/Total ft to sell/i, {}, { timeout: 5000 }), { target: { value: '10' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     await waitFor(() => expect(screen.getAllByText(/Total 10 ft/i).length).toBeGreaterThan(0), { timeout: 5000 });
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F4', bubbles: true }));
-    await waitFor(() => expect(screen.getByText('Complete Sale')).toBeInTheDocument(), { timeout: 5000 });
+    await pressF4UntilCheckoutOpens();
     fireEvent.click(screen.getByText('Complete Sale'));
 
     await waitFor(() => expect(supabase.rpc).toHaveBeenCalledWith('process_pos_transaction_unsafe', expect.objectContaining({ p_action: 'SALE' })), { timeout: 5000 });

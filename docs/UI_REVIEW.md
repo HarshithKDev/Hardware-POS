@@ -183,3 +183,8 @@ per popup (each keeps its existing stacking order).
   as the main button with F4 shown; bigger "Change to return".
 - T6 Audit Logs: one readable line per entry ("Sold 3 pcs at ₹450.00 each", "Created
   Batch #2", "Added to catalog"); "+N details" expands a labelled breakdown under the row.
+- T7: hover tooltips with the full text on names that get cut off ("…").
+- B2: every icon-only button has a label for screen readers and a hover tooltip.
+- TY2: one set of words: Store / Warehouse / Showroom ("Main Storage" → "Inventory",
+  "Shop Low Stock" → "Store Low Stock", "Store Floor" → "Store", "Whse" → "Warehouse",
+  "Move to Shop" → "Move to Store").

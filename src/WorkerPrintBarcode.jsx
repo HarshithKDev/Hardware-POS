@@ -242,7 +242,7 @@ export default function WorkerPrintBarcode() {
                         <span className="font-mono text-xs font-bold text-[var(--color-accent)] bg-[var(--color-accent-solid)]/10 px-1.5 py-0.5 rounded border border-[var(--color-accent)]/20">
                           #{prod.barcode}
                         </span>
-                        <span className="font-semibold text-xs sm:text-sm text-[var(--text-primary)] truncate">
+                        <span title={String(prod.name ?? '')} className="font-semibold text-xs sm:text-sm text-[var(--text-primary)] truncate">
                           {prod.name}
                         </span>
                       </div>
@@ -300,7 +300,7 @@ export default function WorkerPrintBarcode() {
                       </span>
                     )}
                   </div>
-                  <h2 className="text-base font-semibold text-[var(--text-primary)] truncate mt-1">
+                  <h2 title={String(selectedProduct.name ?? '')} className="text-base font-semibold text-[var(--text-primary)] truncate mt-1">
                     {selectedProduct.name}
                   </h2>
                 </div>
@@ -376,7 +376,7 @@ export default function WorkerPrintBarcode() {
                       onClick={() => setLabelQty(q => Math.max(1, q - 1))}
                       className="w-8 h-full flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors border-r border-[var(--border-medium)] select-none cursor-pointer"
                       style={{ borderRadius: 0 }}
-                      aria-label="Decrease quantity"
+                      aria-label="Decrease quantity" title="Decrease quantity"
                     >
                       -
                     </button>
@@ -396,7 +396,7 @@ export default function WorkerPrintBarcode() {
                       onClick={() => setLabelQty(q => clampLabelQty(q + 1))}
                       className="w-8 h-full flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors border-l border-[var(--border-medium)] select-none cursor-pointer"
                       style={{ borderRadius: 0 }}
-                      aria-label="Increase quantity"
+                      aria-label="Increase quantity" title="Increase quantity"
                     >
                       +
                     </button>
@@ -413,7 +413,7 @@ export default function WorkerPrintBarcode() {
                   className="bg-white border border-gray-300 rounded-lg shadow-md p-3.5 flex flex-col items-center justify-between select-none max-w-full"
                   style={{ width: '340px', height: '170px' }}
                 >
-                  <div className="text-xs sm:text-sm font-bold text-black text-center truncate w-full px-2">
+                  <div title={String(selectedProduct.name ?? '')} className="text-xs sm:text-sm font-bold text-black text-center truncate w-full px-2">
                     {selectedProduct.name}
                   </div>
                   <div className="my-auto flex items-center justify-center w-full">

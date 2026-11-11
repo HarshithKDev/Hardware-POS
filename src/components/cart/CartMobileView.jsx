@@ -72,6 +72,8 @@ const CartMobileView = React.memo(function CartMobileView({
           </div>
           <button 
             onClick={() => onRemoveItem(item.id)} 
+            aria-label={`Remove ${item.name}`}
+            title={`Remove ${item.name}`}
             className="w-12 h-12 flex items-center justify-center rounded-md font-bold text-2xl flex-shrink-0 transition-all active:scale-95" 
             style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
           >
@@ -118,7 +120,7 @@ const CartMobileView = React.memo(function CartMobileView({
           <div className="pr-2 flex-1">
             <div className="flex justify-between items-start w-full">
               <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name || (item.is_screw || item.barcode === 'SCREWS' ? 'Screws' : 'Item')}</p>
-              <button type="button" onClick={() => onRemoveItem(item.id)} className=" text-[var(--text-secondary)] hover:bg-red-500/10 hover:text-[var(--color-error)]" aria-label={`Remove ${item.name}`}>
+              <button type="button" onClick={() => onRemoveItem(item.id)} className=" text-[var(--text-secondary)] hover:bg-red-500/10 hover:text-[var(--color-error)]" aria-label={`Remove ${item.name}`} title={`Remove ${item.name}`}>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
               </button>
             </div>
@@ -147,7 +149,7 @@ const CartMobileView = React.memo(function CartMobileView({
                     onClick={() => onUpdateQuantity(item.id, Math.max(Math.min(1, safeQty), safeQty - 1))} 
                     className="w-10 h-10 flex items-center justify-center text-lg font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors border-r border-[var(--border-medium)] select-none"
                     style={{ borderRadius: 0 }}
-                    aria-label="Decrease quantity"
+                    aria-label="Decrease quantity" title="Decrease quantity"
                   >
                     -
                   </button>
@@ -167,7 +169,7 @@ const CartMobileView = React.memo(function CartMobileView({
                     onClick={() => onUpdateQuantity(item.id, safeQty + 1)} 
                     className="w-10 h-10 flex items-center justify-center text-lg font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors border-l border-[var(--border-medium)] select-none"
                     style={{ borderRadius: 0 }}
-                    aria-label="Increase quantity"
+                    aria-label="Increase quantity" title="Increase quantity"
                   >
                     +
                   </button>
@@ -264,9 +266,9 @@ const CartMobileView = React.memo(function CartMobileView({
                   return (
                     <div className="flex flex-col items-center">
                       <div className="inline-flex items-center rounded-lg border border-[var(--border-medium)] bg-[var(--bg-tertiary)] overflow-hidden shadow-sm">
-                        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-8 h-8 flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-r border-[var(--border-medium)] select-none" style={{ borderRadius: 0 }} aria-label={`Decrease ${item.name} quantity`}>-</button>
+                        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-8 h-8 flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-r border-[var(--border-medium)] select-none" style={{ borderRadius: 0 }} aria-label={`Decrease ${item.name} quantity`} title={`Decrease ${item.name} quantity`}>-</button>
                         <input type="number" step="any" min="0" value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-14 h-8 text-sm font-bold text-center bg-transparent text-[var(--text-primary)] rounded-none !border-none !shadow-none !outline-none focus:!outline-none focus:!border-none focus:!shadow-none focus:bg-[var(--bg-secondary)] transition-colors p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" style={{ borderRadius: 0, border: 'none', boxShadow: 'none', outline: 'none' }} aria-label={`${item.name} quantity`} />
-                        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-8 h-8 flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-l border-[var(--border-medium)] select-none" style={{ borderRadius: 0 }} aria-label={`Increase ${item.name} quantity`}>+</button>
+                        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-8 h-8 flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-l border-[var(--border-medium)] select-none" style={{ borderRadius: 0 }} aria-label={`Increase ${item.name} quantity`} title={`Increase ${item.name} quantity`}>+</button>
                       </div>
                       <span className="text-xs text-[var(--text-tertiary)] font-medium mt-0.5">
                         {safeQty} {formatUnitBadge(item.unit === 'SQFT' && activeTab !== 'checkout' ? 'ROLLS' : item.unit)}

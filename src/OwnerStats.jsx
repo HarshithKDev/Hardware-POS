@@ -1284,7 +1284,7 @@ export default function OwnerStats({ isActive }) {
           borderColor="var(--color-warning)"
         />
         <StatCard
-          title={isWarehouseDisabled ? "Low Stock" : "Shop Low Stock"}
+          title={isWarehouseDisabled ? "Low Stock" : "Store Low Stock"}
           value={lowStoreItems.length}
           borderColor={lowStoreItems.length > 0 ? 'var(--color-error)' : 'var(--color-accent)'}
           onClick={() => setActiveModal('low-store')}
@@ -1354,7 +1354,7 @@ export default function OwnerStats({ isActive }) {
               <div className="flex items-center gap-3 flex-wrap">
                 <span id="stats-modal-title" className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
                   {activeModal === 'profit' && 'Profit & Sales Breakdown'}
-                  {activeModal === 'low-store' && (isWarehouseDisabled ? 'Items Running Low in Stock' : 'Items Running Low in Store Front')}
+                  {activeModal === 'low-store' && (isWarehouseDisabled ? 'Items Running Low in Stock' : 'Items Running Low in Store')}
                   {activeModal === 'low-warehouse' && `Items Running Low in Warehouse`}
                   {activeModal === 'dead-stock' && `Dead Stock`}
                   {activeModal === 'failed-syncs' && 'Failed Offline Transactions'}

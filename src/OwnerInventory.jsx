@@ -214,7 +214,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
             action_type: 'DELETE',
             barcode: barcode,
             item_name: itemToDelete.name,
-            changes: `${itemToDelete.name} was moved to Recycle Bin (Whse Stock: ${itemToDelete.stock_warehouse}, Store Stock: ${itemToDelete.stock_store})`,
+            changes: `${itemToDelete.name} was moved to Recycle Bin (Warehouse Stock: ${itemToDelete.stock_warehouse}, Store Stock: ${itemToDelete.stock_store})`,
             performed_by: getPerformedBy()
           }]);
         }
@@ -614,7 +614,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
           onClick={() => handleSortClick('whsestock')}
         >
           <div className="flex items-center justify-center gap-1 group-hover:text-[var(--color-accent)] transition-colors">
-            Whse Qty
+            Warehouse Qty
             {renderSortIcon('whsestock')}
           </div>
         </th>

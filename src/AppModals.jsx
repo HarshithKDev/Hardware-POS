@@ -114,7 +114,7 @@ export function ProductInfoModal({ product, onClose }) {
           </div>
         )}
         <div className="flex-1 p-4 text-center rounded-[10px]" style={{ backgroundColor: 'var(--color-accent-bg)', border: '1px solid var(--color-accent)' }}>
-          <p className="text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--color-accent)' }}>{isWarehouseDisabled ? 'Current Stock' : 'Store Floor'}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--color-accent)' }}>{isWarehouseDisabled ? 'Current Stock' : 'Store'}</p>
           <p className="text-3xl font-semibold tabular-nums" style={{ color: 'var(--color-accent)' }}>{product.stock_store || 0}</p>
         </div>
       </div>

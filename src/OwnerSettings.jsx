@@ -140,7 +140,7 @@ export default function OwnerSettings() {
         showAlert(
           checked 
             ? "Warehouse bypassed: Incoming stock deposits directly into Store stock." 
-            : "Warehouse mode enabled: Main Storage and Move to Shop active.",
+            : "Warehouse mode enabled: Inventory has Warehouse and Store stock, and Move to Store is active.",
           "success"
         );
       } catch (err) {
@@ -539,7 +539,7 @@ export default function OwnerSettings() {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-sm truncate" style={{ color: 'var(--text-primary)' }}>
+                  <h3 title={formData.shop_name || 'Your Shop'} className="font-bold text-sm truncate" style={{ color: 'var(--text-primary)' }}>
                     {formData.shop_name || 'Your Shop'}
                   </h3>
                   <p className="text-xs truncate text-[var(--text-secondary)] mt-0.5">

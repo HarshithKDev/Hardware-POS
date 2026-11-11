@@ -553,7 +553,7 @@ export default function OwnerAuditLogs() {
                     {log.barcode === 'CATEGORY' || log.barcode === 'SUB-CATEGORY' || log.barcode === '---' ? <span style={{ color: 'var(--text-tertiary)' }}>—</span> : log.barcode}
                   </td>
                   <td className="hidden md:table-cell p-3 w-64 text-sm font-medium text-center" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
-                    <div className="max-w-[220px] overflow-hidden text-ellipsis mx-auto">{log.item_name}</div>
+                    <div title={String(log.item_name ?? '')} className="max-w-[220px] overflow-hidden text-ellipsis mx-auto">{log.item_name}</div>
                   </td>
                   <td className="hidden md:table-cell p-3 text-sm text-center whitespace-normal" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
                     <div className="flex flex-col items-center gap-1 max-w-[560px] mx-auto">

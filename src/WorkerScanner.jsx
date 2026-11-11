@@ -391,6 +391,8 @@ export default function WorkerScanner({ cashierName }) {
                 </div>
                 <button 
                   onClick={() => updateQuantity(item.id, 0)} 
+                  aria-label={`Remove ${item.name}`}
+                  title={`Remove ${item.name}`}
                   className="w-12 h-12 flex items-center justify-center rounded-md font-bold text-2xl flex-shrink-0" 
                   style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
                 >

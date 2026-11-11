@@ -21,7 +21,7 @@ export default function PageHeader({ title, subtitle, actions, onBack, backLabel
             </button>
           )}
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-semibold text-[var(--text-primary)] truncate">{title}</h1>
+            <h1 title={typeof title === 'string' ? title : undefined} className="text-xl sm:text-2xl font-semibold text-[var(--text-primary)] truncate">{title}</h1>
             {subtitle && <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{subtitle}</p>}
           </div>
         </div>

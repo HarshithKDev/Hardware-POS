@@ -2487,7 +2487,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                           processScan(targetBarcode);
                         }}
                       >
-                        <span className="truncate pr-2 font-medium" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
+                        <span title={String(item.name ?? '')} className="truncate pr-2 font-medium" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
                         <span className="text-xs  whitespace-nowrap self-center px-1.5 py-0.5 rounded-sm" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--color-accent)' }}>#{item.barcode}</span>
                       </li>
                     ))}

@@ -63,7 +63,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
       list.push({
         key: 'transfer',
         path: '/terminal/transfer',
-        title: 'Sending Stock\nWarehouse to Shop',
+        title: 'Sending Stock\nWarehouse to Store',
         bg: '#f59e0b',
         icon: (
           <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
@@ -548,7 +548,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
       <div className={`grid ${isWarehouseDisabled ? 'grid-cols-1' : 'grid-cols-2'} gap-3 md:gap-4 mb-3 md:mb-4`}>
         <button onClick={() => setLowStockModal({ isOpen: true, type: 'store' })} className="p-3 md:p-4 rounded-lg border border-[var(--border-light)] text-left cursor-pointer flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
           <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full" style={{ backgroundColor: storeAlerts > 0 ? 'var(--color-error)' : 'var(--color-accent)' }} />
-          <p className="text-[11px] md:text-xs font-semibold uppercase tracking-wider mb-1 ml-3" style={{ color: 'var(--text-secondary)' }}>{isWarehouseDisabled ? 'Low Stock Alerts' : 'Low Store Stock'}</p>
+          <p className="text-[11px] md:text-xs font-semibold uppercase tracking-wider mb-1 ml-3" style={{ color: 'var(--text-secondary)' }}>{isWarehouseDisabled ? 'Low Stock Alerts' : 'Store Low Stock'}</p>
           <p className="text-xl md:text-2xl font-semibold ml-3" style={{ color: storeAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{storeAlerts} Items</p>
         </button>
         {!isWarehouseDisabled && (
@@ -683,7 +683,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
               style={{ backgroundColor: 'var(--bg-tertiary)' }}
             >
               <span id="low-stock-modal-title" className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
-                {isWarehouseDisabled ? 'Low Stock Items' : (lowStockModal.type === 'store' ? 'Low Store Stock Items' : 'Low Warehouse Stock Items')}
+                {isWarehouseDisabled ? 'Low Stock Items' : (lowStockModal.type === 'store' ? 'Store Low Stock Items' : 'Low Warehouse Stock Items')}
               </span>
               <button
                 onClick={() => setLowStockModal({ isOpen: false, type: null })}

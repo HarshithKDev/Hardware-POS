@@ -101,7 +101,7 @@ export default function ScrewBoxesView() {
               return (
                 <div key={item.barcode} className="flex items-center justify-between gap-3 p-3 rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-secondary)]">
                   <div className="min-w-0">
-                    <p className="font-semibold text-sm text-[var(--text-primary)] truncate">{item.name}</p>
+                    <p title={String(item.name ?? '')} className="font-semibold text-sm text-[var(--text-primary)] truncate">{item.name}</p>
                     <p className="text-xs text-[var(--text-secondary)]">
                       #{item.barcode} · <span className={count < 1 ? 'text-[var(--color-error)] font-semibold' : ''}>{count} {count === 1 ? 'box' : 'boxes'} in store</span>
                     </p>

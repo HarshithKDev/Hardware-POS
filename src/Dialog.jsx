@@ -187,7 +187,7 @@ export function AlertDialog({ isOpen, title, message, onClose }) {
             onClose();
           }}
           className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] p-1 rounded-md transition-colors shrink-0 -mr-1 -mt-1 cursor-pointer"
-          aria-label="Close notification"
+          aria-label="Close notification" title="Close notification"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

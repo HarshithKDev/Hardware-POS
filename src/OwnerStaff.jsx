@@ -233,7 +233,7 @@ export default function OwnerStaff() {
           ) : staffList.map(staff => (
             <div key={staff.id} className="p-4 flex items-center justify-between gap-3">
               <div className="flex flex-col gap-1 min-w-0">
-                <span className="font-bold text-base truncate" style={{ color: 'var(--text-primary)' }}>{staff.name}</span>
+                <span title={String(staff.name ?? '')} className="font-bold text-base truncate" style={{ color: 'var(--text-primary)' }}>{staff.name}</span>
                 <div>
                   {staff.password?.includes('NON_BILLABLE') ? (
                     <span className="px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider rounded-sm inline-block" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-error)' }}>

@@ -937,7 +937,7 @@ export default function BatchDetailsView({
                 <>
                   <span className="text-[var(--text-tertiary)] opacity-30">•</span>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-[var(--text-secondary)]">Whse</span>
+                    <span className="text-xs text-[var(--text-secondary)]">Warehouse</span>
                     <input
                       type="number"
                       min="0"
@@ -990,7 +990,7 @@ export default function BatchDetailsView({
               {!isWarehouseDisabled && (
                 <>
                   <span className="text-[var(--text-tertiary)] opacity-30">•</span>
-                  <span className="text-[var(--text-primary)] font-medium">Whse <strong className="text-[var(--text-primary)] font-bold">{item.min_quantity_warehouse ?? 0} {displayUnit}</strong></span>
+                  <span className="text-[var(--text-primary)] font-medium">Warehouse <strong className="text-[var(--text-primary)] font-bold">{item.min_quantity_warehouse ?? 0} {displayUnit}</strong></span>
                 </>
               )}
               
@@ -1027,7 +1027,7 @@ export default function BatchDetailsView({
           <button
             onClick={() => scrollTabs('left')}
             className="flex items-center justify-center px-2 shrink-0 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/5 transition-colors z-10"
-            aria-label="Scroll tabs left"
+            aria-label="Scroll tabs left" title="Scroll tabs left"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -1107,7 +1107,7 @@ export default function BatchDetailsView({
           <button
             onClick={() => scrollTabs('right')}
             className="flex items-center justify-center px-2 shrink-0 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/5 transition-colors z-10"
-            aria-label="Scroll tabs right"
+            aria-label="Scroll tabs right" title="Scroll tabs right"
           >
             <ChevronRight className="w-4 h-4" />
           </button>

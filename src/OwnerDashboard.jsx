@@ -81,7 +81,7 @@ export default function OwnerDashboard() {
     { key: 'dashboard', label: 'Overview', icon: LayoutDashboard },
     { key: 'register', label: 'Add Items', icon: Plus },
     { key: 'categories', label: 'Categories', icon: Tags },
-    { key: 'warehouse', label: isWarehouseDisabled ? 'Store Inventory' : 'Main Storage', icon: isWarehouseDisabled ? Boxes : Warehouse },
+    { key: 'warehouse', label: isWarehouseDisabled ? 'Store Inventory' : 'Inventory', icon: isWarehouseDisabled ? Boxes : Warehouse },
     { key: 'checkout', label: 'Checkout', icon: ShoppingCart },
     { key: 'sales', label: 'Sales & Returns', icon: History },
     { key: 'showroom', label: 'Showroom', icon: Store },
@@ -137,7 +137,7 @@ export default function OwnerDashboard() {
           <button
             onClick={() => setIsSidebarOpen(false)}
             className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-white hover:bg-[var(--bg-hover)] transition-colors"
-            aria-label="Close navigation drawer"
+            aria-label="Close navigation drawer" title="Close navigation drawer"
           >
             <X size={18} />
           </button>
@@ -161,7 +161,7 @@ export default function OwnerDashboard() {
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-[var(--color-accent-solid)]" />
                 )}
                 <Icon size={18} className={isActive ? 'text-[var(--color-accent)]' : 'text-[var(--text-tertiary)]'} />
-                <span className="truncate">{label}</span>
+                <span title={String(label ?? '')} className="truncate">{label}</span>
               </button>
             );
           })}
@@ -192,7 +192,7 @@ export default function OwnerDashboard() {
           ) : (
             <div className="flex flex-col flex-1 h-full min-h-0 animate-fade-in">
               <PageTitleReset
-                title={isWarehouseDisabled ? 'Store Inventory Actions' : 'Main Storage Actions'}
+                title={isWarehouseDisabled ? 'Store Inventory Actions' : 'Inventory Actions'}
                 onReset={handleResetWarehouse}
                 className="mb-6"
                 tooltip="Click title to reset inventory filters, search, and tabs to default"
@@ -206,7 +206,7 @@ export default function OwnerDashboard() {
                 {[
                   { key: 'inventory', label: 'All Items' },
                   { key: 'receive', label: 'Receive Stock' },
-                  ...(!isWarehouseDisabled ? [{ key: 'transfer', label: 'Move to Shop' }] : []),
+                  ...(!isWarehouseDisabled ? [{ key: 'transfer', label: 'Move to Store' }] : []),
                   { key: 'recycle', label: 'Recycle Bin' },
                 ].map(({ key, label }) => {
                   const isActive = warehouseSubTab === key;

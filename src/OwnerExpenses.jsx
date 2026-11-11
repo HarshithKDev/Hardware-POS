@@ -392,7 +392,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
                     style={{ backgroundColor: 'var(--bg-tertiary)' }}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>
+                      <span title={exp.reason || 'Expense'} className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>
                         {exp.reason || 'Expense'}
                       </span>
                       <span className="text-base font-bold tabular-nums" style={{ color: 'var(--color-accent)' }}>
