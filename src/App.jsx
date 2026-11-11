@@ -627,7 +627,7 @@ function App() {
           <div className="flex-1 min-w-0 flex items-center justify-end gap-1.5 md:gap-3 h-full pl-2 pr-2.5 md:pr-4 overflow-x-hidden md:overflow-x-auto hide-scrollbar" style={{ scrollbarWidth: 'none' }}>
             {pendingCount > 0 && (
               <span
-                className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-semibold whitespace-nowrap shrink-0 border"
+                className="inline-flex items-center gap-1.5 h-8 md:h-9 px-2.5 rounded-md text-xs font-semibold whitespace-nowrap shrink-0 border"
                 style={{ color: 'var(--color-warning)', backgroundColor: 'var(--color-warning-bg)', borderColor: 'var(--color-warning-border)' }}
                 title="Sales saved on this device that have not reached the server yet"
               >
@@ -637,7 +637,7 @@ function App() {
             )}
             <span
               role="status"
-              className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-semibold whitespace-nowrap shrink-0 border"
+              className="inline-flex items-center justify-center gap-2 h-8 w-8 md:h-9 md:w-28 px-0 rounded-md text-xs font-semibold whitespace-nowrap shrink-0 border"
               style={!isOnline
                 ? { color: 'var(--color-warning)', backgroundColor: 'var(--color-warning-bg)', borderColor: 'var(--color-warning-border)' }
                 : isSyncing
@@ -645,8 +645,8 @@ function App() {
                   : { color: 'var(--color-success)', backgroundColor: 'var(--color-success-bg)', borderColor: 'var(--color-success-border)' }}
               title={!isOnline ? 'No internet: sales are saved on this device' : isSyncing ? 'Sending saved sales' : 'Connected'}
             >
-              {!isOnline ? <WifiOff size={14} aria-hidden="true" /> : isSyncing ? <RefreshCw size={14} className="animate-spin" aria-hidden="true" /> : <Wifi size={14} aria-hidden="true" />}
-              <span className="hidden sm:inline">{!isOnline ? 'Offline' : isSyncing ? 'Sending…' : 'Online'}</span>
+              {!isOnline ? <WifiOff size={15} aria-hidden="true" /> : isSyncing ? <RefreshCw size={15} className="animate-spin" aria-hidden="true" /> : <Wifi size={15} aria-hidden="true" />}
+              <span className="hidden md:inline">{!isOnline ? 'Offline' : isSyncing ? 'Sending…' : 'Online'}</span>
             </span>
 
 
@@ -654,7 +654,7 @@ function App() {
             <button
               type="button"
               onClick={toggleDarkMode}
-              className="h-8 w-8 md:h-9 md:w-auto rounded-md px-0 md:px-3 text-xs font-semibold transition-colors shrink-0 flex items-center justify-center gap-2 border border-[var(--border-medium)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-heavy)] cursor-pointer"
+              className="h-8 w-8 md:h-9 md:w-28 rounded-md px-0 text-xs font-semibold transition-colors shrink-0 flex items-center justify-center gap-2 border border-[var(--border-medium)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-heavy)] cursor-pointer"
               aria-label={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}
               title={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}
             >
@@ -663,12 +663,12 @@ function App() {
             </button>
             <button
               onClick={() => setShowLogoutConfirm(true)}
-              className="h-8 w-8 md:h-9 md:w-auto rounded-md px-0 md:px-4 text-xs font-semibold transition-colors shrink-0 flex items-center justify-center gap-2 border border-[var(--border-medium)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-heavy)] cursor-pointer"
+              className="h-8 w-8 md:h-9 md:w-28 rounded-md px-0 text-xs font-semibold transition-colors shrink-0 flex items-center justify-center gap-2 border border-[var(--border-medium)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-heavy)] cursor-pointer"
               aria-label="Sign Out"
               title="Sign Out"
             >
               <span className="hidden md:inline">Sign Out</span>
-              <LogOut size={15} strokeWidth={2.5} />
+              <LogOut size={15} strokeWidth={2.25} />
             </button>
           </div>
         </div>
