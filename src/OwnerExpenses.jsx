@@ -11,7 +11,8 @@ import {
   Copy,
   X
 } from 'lucide-react';
-import { Spinner, PageLoader } from './SharedUI';
+import { PageLoader } from './SharedUI';
+import { Modal, Button, buttonClass } from './components/ui';
 import PageTitleReset from './components/PageTitleReset';
 
 const getLocalStorageKey = (shopId) => `hardware_pos_expenses_${shopId || 'default'}`;
@@ -338,13 +339,12 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
               style={{ backgroundColor: 'var(--color-accent-bg)', borderColor: 'rgba(59, 130, 246, 0.3)' }}
             >
               <span className="text-[11px] sm:text-[11px] font-bold uppercase tracking-wider leading-none" style={{ color: 'var(--color-accent)' }}>Total Expenses</span>
-              <span className="text-xs sm:text-sm font-bold leading-tight mt-0.5" style={{ color: 'var(--color-accent)' }}>₹{formatINR(totalExpenses, 2)}</span>
+              <span className="text-xs sm:text-sm font-bold leading-tight mt-0.5 tabular-nums" style={{ color: 'var(--color-accent)' }}>₹{formatINR(totalExpenses, 2)}</span>
             </div>
           )}
           <button
             onClick={() => setIsModalOpen(true)}
-            className="h-10 px-4 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 text-white shadow-sm transition-all active:scale-95 shrink-0 cursor-pointer flex-1 sm:flex-initial"
-            style={{ backgroundColor: 'var(--color-accent-solid)' }}
+            className={buttonClass({ variant: 'primary', size: 'md', className: 'flex-1 sm:flex-initial' })}
           >
             <Plus size={16} strokeWidth={2.5} />
             <span>Add Expense</span>
@@ -353,7 +353,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
       </div>
 
       {/* Main Container */}
-      <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] shadow-sm p-4">
+      <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-secondary)] rounded-[10px] border border-[var(--border-light)] shadow-sm p-4">
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center p-8">
             <PageLoader text="Loading expenses..." />
@@ -363,12 +363,13 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
             <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3 bg-[var(--color-accent-bg)] text-[var(--color-accent)]">
               <Receipt size={24} />
             </div>
-            <h3 className="text-base font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-primary)' }}>
+            <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
               No Expenses Recorded
             </h3>
             <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
               No expenses recorded yet.
             </p>
+            <Button variant="primary" className="mt-4" onClick={() => setIsModalOpen(true)}>Add Expense</Button>
           </div>
         ) : (
           <>
@@ -387,7 +388,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
                       <span className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>
                         {exp.reason || 'Expense'}
                       </span>
-                      <span className="text-base font-bold" style={{ color: 'var(--color-accent)' }}>
+                      <span className="text-base font-bold tabular-nums" style={{ color: 'var(--color-accent)' }}>
                         ₹{formatINR(totalAmt, 2)}
                       </span>
                     </div>
@@ -400,7 +401,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
                       <div className="flex items-center justify-between text-xs">
                         {exp._pending ? <span className="font-bold" style={{ color: 'var(--color-warning)' }}>Not synced</span> : <span />}
                         {canDelete && (
-                          <button type="button" onClick={() => handleDeleteExpense(exp)} className="font-semibold" style={{ color: 'var(--color-error)' }}>Delete</button>
+                          <button type="button" onClick={() => handleDeleteExpense(exp)} className={buttonClass({ variant: 'danger-outline', size: 'sm' })}>Delete</button>
                         )}
                       </div>
                     )}
@@ -413,12 +414,12 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
             <div className="hidden md:block flex-1 overflow-x-hidden overflow-y-auto shadow-sm min-h-[300px] md:rounded-lg border border-[var(--border-medium)]" style={{ backgroundColor: 'transparent', overscrollBehavior: 'none' }}>
               <table className="w-full text-center border-collapse">
                 <thead className="sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
-                  <tr className="text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>
-                    <th className="p-3.5 text-center w-[25%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Date &amp; Time</th>
-                    <th className="p-3.5 text-center w-[30%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Description</th>
-                    <th className="p-3.5 text-center w-[20%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Staff / Category</th>
-                    <th className="p-3.5 text-center w-[15%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Amount</th>
-                    <th className="p-3.5 text-center w-[10%]">By</th>
+                  <tr className="h-10 text-[11px] font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>
+                    <th className="px-3.5 text-center w-[25%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Date &amp; Time</th>
+                    <th className="px-3.5 text-center w-[30%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Description</th>
+                    <th className="px-3.5 text-center w-[20%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Staff / Category</th>
+                    <th className="px-3.5 text-center w-[15%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Amount</th>
+                    <th className="px-3.5 text-center w-[10%]">By</th>
                   </tr>
                 </thead>
                 <tbody className="text-sm font-medium">
@@ -444,7 +445,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
                           {exp.category && <span className="block text-xs normal-case opacity-80">{exp.category}{exp.payment_mode ? ` · ${exp.payment_mode}` : ''}</span>}
                         </td>
 
-                        <td className="p-3.5 text-center align-middle whitespace-nowrap font-bold text-sm" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--color-accent)' }}>
+                        <td className="p-3.5 text-center align-middle whitespace-nowrap font-bold text-sm tabular-nums" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--color-accent)' }}>
                           ₹{formatINR(totalAmt, 2)}
                           {exp._pending && <span className="block text-[11px] font-bold uppercase" style={{ color: 'var(--color-warning)' }}>Not synced</span>}
                         </td>
@@ -452,13 +453,24 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
                         <td className="p-3.5 text-center align-middle whitespace-nowrap text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
                           {exp.recorded_by || 'Staff'}
                           {canDelete && (
-                            <button type="button" onClick={() => handleDeleteExpense(exp)} className="block mx-auto mt-1 text-xs font-semibold hover:underline" style={{ color: 'var(--color-error)' }}>Delete</button>
+                            <button type="button" onClick={() => handleDeleteExpense(exp)} aria-label={`Delete expense ${exp.reason || ''}`} className="block mx-auto mt-1 px-2 py-0.5 rounded-md text-xs font-semibold text-[var(--color-error)] hover:bg-[var(--color-error-bg)] transition-colors cursor-pointer">Delete</button>
                           )}
                         </td>
                       </tr>
                     );
                   })}
                 </tbody>
+                <tfoot className="sticky bottom-0 z-10" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-medium)' }}>
+                  <tr className="h-11">
+                    <td colSpan={3} className="px-3.5 text-right text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)', borderRight: '1px solid var(--border-medium)' }}>
+                      Total ({expenses.length} {expenses.length === 1 ? 'expense' : 'expenses'})
+                    </td>
+                    <td className="px-3.5 text-center text-sm font-bold tabular-nums whitespace-nowrap" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-medium)' }}>
+                      ₹{formatINR(totalExpenses, 2)}
+                    </td>
+                    <td />
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </>
@@ -467,29 +479,29 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
 
       {/* Add Expense Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-sm rounded-xl border border-[var(--border-light)] shadow-2xl overflow-hidden flex flex-col bg-[var(--bg-primary)]">
-            {/* Header */}
-            <div className="p-4 border-b border-[var(--border-light)] flex justify-between items-center bg-[var(--bg-tertiary)]">
-              <div className="flex items-center gap-2">
-                <Receipt size={18} className="text-[var(--color-accent)]" />
-                <h2 className="text-base font-bold text-[var(--text-primary)]">Add Expense</h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Form */}
-            <form onSubmit={handleSaveExpense} className="p-5 flex flex-col gap-4">
+        <Modal
+          as="form"
+          onSubmit={handleSaveExpense}
+          onClose={() => { if (!isSaving) setIsModalOpen(false); }}
+          title="Add Expense"
+          titleId="add-expense-title"
+          size="sm"
+          zIndex={50}
+          footer={(
+            <>
+              <Button variant="secondary" onClick={() => setIsModalOpen(false)} disabled={isSaving}>Cancel</Button>
+              <Button type="submit" variant="primary" loading={isSaving} className="min-w-[140px]">
+                <CheckCircle size={14} />
+                <span>Save Expense</span>
+              </Button>
+            </>
+          )}
+        >
+            <div className="flex flex-col gap-4">
               {/* Description */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-secondary)]">
-                  Description <span className="text-[var(--color-accent)]">*</span>
+                  Description <span className="text-[var(--color-error)]">*</span>
                 </label>
                 <input
                   type="text"
@@ -505,7 +517,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
               {/* Amount Input */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-secondary)]">
-                  Amount (₹) <span className="text-[var(--color-accent)]">*</span>
+                  Amount (₹) <span className="text-[var(--color-error)]">*</span>
                 </label>
                 <div className="flex items-center rounded-md bg-[var(--bg-input)] border border-[var(--border-input)] focus-within:border-[var(--color-accent)] transition-colors px-3 h-10">
                   <span className="text-base font-bold text-[var(--color-accent)] mr-2 select-none shrink-0">₹</span>
@@ -567,34 +579,8 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
                 </div>
               </div>
 
-              {/* Submit Buttons */}
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[var(--border-light)] mt-1">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="h-9 px-4 text-xs font-semibold rounded-md border border-[var(--border-medium)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="h-9 px-4 text-xs font-bold rounded-md text-white shadow-sm transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
-                  style={{ backgroundColor: 'var(--color-accent-solid)' }}
-                >
-                  {isSaving ? (
-                    <Spinner className="w-3.5 h-3.5 text-white" />
-                  ) : (
-                    <>
-                      <CheckCircle size={14} />
-                      <span>Save Expense</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+            </div>
+        </Modal>
       )}
     </div>
   );

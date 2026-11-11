@@ -21,6 +21,7 @@ import { escapeIlike, debounce, useSessionState } from './utils';
 import { STALE_TIME_5MIN } from './constants';
 import InventoryRow from './InventoryRow';
 import BatchDetailsModal from './BatchDetailsModal';
+import { buttonClass } from './components/ui';
 
 export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
   const { showAlert, showConfirm, shopSettings, isWarehouseDisabled } = useApp();
@@ -559,7 +560,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
   }), []);
 
   const fixedHeaderContent = useCallback(() => (
-    <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+    <tr className="h-10 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
       {isSelectionMode && (
         <th className="p-3 w-12 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
           <input type="checkbox" checked={items.length > 0 && selectedBarcodes.length === items.length} onChange={toggleSelectAll} className="w-4 h-4 rounded text-accent focus:ring-accent cursor-pointer" />
@@ -635,28 +636,28 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
   return (
     <div className="flex flex-col flex-1 h-full animate-fade-in w-full relative">
       {selectedBarcodes.length > 0 ? (
-        <div className="flex items-center justify-between p-3 mb-4 rounded-lg shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--color-accent)' }}>
+        <div className="flex flex-wrap items-center justify-between gap-2 p-3 mb-4 rounded-[10px]" style={{ backgroundColor: 'var(--bg-tertiary)', border: '1px solid var(--color-accent)' }}>
           <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
             {selectedBarcodes.length} item(s) selected
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {isGlobalEditMode ? (
               <>
-                <button onClick={saveBulkEdits} className="h-8 px-4 text-xs font-bold text-white rounded-lg focus:outline-none transition-colors hover:opacity-90" style={{ backgroundColor: 'var(--color-success-solid)' }}>
+                <button onClick={saveBulkEdits} className={buttonClass({ variant: 'primary', size: 'sm' })}>
                   Save Changes
                 </button>
-                <button onClick={cancelBulkEdit} className="h-8 px-4 text-xs font-bold rounded-lg focus:outline-none transition-colors hover:opacity-90" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}>
+                <button onClick={cancelBulkEdit} className={buttonClass({ variant: 'secondary', size: 'sm' })}>
                   Cancel
                 </button>
               </>
             ) : (
               <>
                 {viewType === 'warehouse' && (
-                  <button onClick={startBulkEdit} className="h-8 px-4 text-xs font-bold rounded-lg focus:outline-none transition-colors hover:opacity-90" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--color-accent)', border: '1px solid var(--color-accent)' }}>
+                  <button onClick={startBulkEdit} className={buttonClass({ variant: 'secondary', size: 'sm' })}>
                     Edit Selected
                   </button>
                 )}
-                <button onClick={bulkDelete} className="h-8 px-4 text-xs font-bold rounded-lg focus:outline-none transition-colors hover:opacity-90 text-white" style={{ backgroundColor: viewType === 'recycle' ? 'var(--color-success)' : 'var(--color-error)' }}>
+                <button onClick={bulkDelete} className={buttonClass({ variant: viewType === 'recycle' ? 'success' : 'danger', size: 'sm' })}>
                   {viewType === 'recycle' ? 'Restore Selected' : 'Delete Selected'}
                 </button>
                 <button
@@ -665,8 +666,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
                     setSelectedBarcodes([]);
                     setIsSelectionMode(false);
                   }}
-                  className="h-8 px-3 text-xs font-bold rounded-lg focus:outline-none transition-colors hover:opacity-90 md:hidden cursor-pointer"
-                  style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border-medium)' }}
+                  className={buttonClass({ variant: 'secondary', size: 'sm', className: 'md:hidden' })}
                 >
                   Cancel
                 </button>
@@ -751,7 +751,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
         </div>
       )}
 
-            <div className="flex-1 min-h-[300px] md:shadow-sm md:rounded-lg overflow-hidden flex flex-col md:border border-[var(--border-light)]" style={{ backgroundColor: 'transparent' }}>
+            <div className="flex-1 min-h-[300px] md:rounded-[10px] overflow-hidden flex flex-col md:border border-[var(--border-light)]" style={{ backgroundColor: 'transparent' }}>
         {isLoading ? (
           <div className="flex items-center justify-center h-full min-h-[350px]">
             <PageLoader text="Loading inventory..." />

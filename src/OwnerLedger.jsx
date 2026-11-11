@@ -5,7 +5,7 @@ import { supabase } from './supabaseClient';
 import { casUpdateRow } from './services/atomicStock';
 import { beginCriticalWork } from './services/busyGuard';
 import { returnItemsAtomic } from './services/posRpc';
-import { Spinner, PageLoader, EmptyState } from './SharedUI';
+import { PageLoader, EmptyState } from './SharedUI';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { formatDateTime, escapeIlike, formatDayHeader, useSessionState } from './utils';
@@ -15,6 +15,9 @@ import { Search, Undo2, X, Phone, User, Calendar } from 'lucide-react';
 import BillDetailsView from './BillDetailsView';
 import { getInventoryItemByBarcode } from './services/db';
 import PageTitleReset from './components/PageTitleReset';
+import { Badge, Button, buttonClass } from './components/ui';
+
+const paymentTone = (method) => (method === 'CASH' ? 'success' : method === 'UPI' ? 'accent' : 'warning');
 
 // Searching by bill number is switched on once bills loaded from the database include
 // the bill_no column (after the bill-number SQL update); before that the query would fail.
@@ -746,8 +749,7 @@ export default function OwnerLedger({ isActive }) {
                       setCustomDate('');
                       setDatePageIndex(0);
                     }}
-                    className="h-10 md:h-9 px-2.5 text-[11px] font-bold rounded-md transition-colors hover:bg-[var(--bg-hover)]"
-                    style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--color-accent)' }}
+                    className={buttonClass({ variant: 'secondary', size: 'md', className: 'md:h-9' })}
                     title="Return to latest active day"
                   >
                     Latest Day
@@ -775,13 +777,13 @@ export default function OwnerLedger({ isActive }) {
               <col style={{ width: '14%' }} />
             </colgroup>
             <thead className="hidden md:table-header-group sticky top-0 z-20 glass-header" style={{ borderBottom: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}>
-              <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                <th className="py-4 px-3 w-[20%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Date &amp; Time</th>
-                <th className="py-4 px-3 w-[24%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Customer</th>
-                <th className="py-4 px-3 w-[16%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Cashier</th>
-                <th className="py-4 px-3 w-[12%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Payment</th>
-                <th className="py-4 px-3 w-[14%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Total (₹)</th>
-                <th className="py-4 px-3 w-[14%] text-center">Action</th>
+              <tr className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+                <th className="h-10 px-3 w-[20%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Date &amp; Time</th>
+                <th className="h-10 px-3 w-[24%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Customer</th>
+                <th className="h-10 px-3 w-[16%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Cashier</th>
+                <th className="h-10 px-3 w-[12%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Payment</th>
+                <th className="h-10 px-3 w-[14%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Total (₹)</th>
+                <th className="h-10 px-3 w-[14%] text-center">Action</th>
               </tr>
             </thead>
             <tbody className="block md:table-row-group p-2 md:p-0">
@@ -824,9 +826,9 @@ export default function OwnerLedger({ isActive }) {
                         )}
                       </div>
                       <div className="text-right">
-                        <div className={`text-base font-bold ${bill.status === 'voided' ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--color-accent)]'}`}>₹{formatINR(Number(bill.total_amount), 2)}</div>
+                        <div className={`text-base font-bold tabular-nums ${bill.status === 'voided' ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--color-accent)]'}`}>₹{formatINR(Number(bill.total_amount), 2)}</div>
                         {bill.payment_method && (
-                          <span className="px-1.5 py-0.5 text-[11px] font-bold uppercase rounded inline-block mt-0.5" style={{ backgroundColor: bill.payment_method === 'CASH' ? 'rgba(16, 185, 129, 0.15)' : bill.payment_method === 'UPI' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(234, 179, 8, 0.15)', color: bill.payment_method === 'CASH' ? 'var(--color-success)' : bill.payment_method === 'UPI' ? 'var(--color-accent)' : 'var(--color-warning)' }}>{bill.payment_method}</span>
+                          <Badge tone={paymentTone(bill.payment_method)} className="mt-0.5">{bill.payment_method}</Badge>
                         )}
                       </div>
                     </div>
@@ -834,7 +836,7 @@ export default function OwnerLedger({ isActive }) {
                       <div className="text-xs font-medium capitalize" style={{ color: 'var(--text-secondary)' }}>Cashier: {bill.cashier_name}</div>
                       <div className="flex items-center gap-2">
                         {bill.status === 'voided' ? (
-                          <span className="px-2 py-0.5 text-[11px] font-bold uppercase rounded bg-red-500/15 text-red-500">RETURNED</span>
+                          <Badge tone="error">RETURNED</Badge>
                         ) : (
                           <button
                             type="button"
@@ -842,7 +844,7 @@ export default function OwnerLedger({ isActive }) {
                               e.stopPropagation();
                               handleOpenReturnModal(bill);
                             }}
-                            className="px-2.5 py-1 text-xs font-semibold rounded-md flex items-center gap-1 shadow-sm text-red-600 bg-red-50 border border-red-200 dark:bg-red-950/40 dark:border-red-900/50 dark:text-red-400 active:scale-95 transition-all"
+                            className={buttonClass({ variant: 'danger-outline', size: 'sm', className: 'gap-1' })}
                           >
                             <Undo2 className="w-3.5 h-3.5" />
                             <span>Return</span>
@@ -886,24 +888,22 @@ export default function OwnerLedger({ isActive }) {
 
                   <td className="hidden md:table-cell py-4 px-3 w-[12%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
                     {bill.status === 'voided' ? (
-                      <span className="px-2 py-0.5 text-[11px] font-bold uppercase rounded bg-red-500/15 text-red-500 inline-block">VOIDED</span>
+                      <Badge tone="error">VOIDED</Badge>
                     ) : bill.payment_method ? (
-                      <span className="px-2 py-0.5 text-[11px] font-bold uppercase rounded inline-block" style={{ backgroundColor: bill.payment_method === 'CASH' ? 'rgba(16, 185, 129, 0.15)' : bill.payment_method === 'UPI' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(234, 179, 8, 0.15)', color: bill.payment_method === 'CASH' ? 'var(--color-success)' : bill.payment_method === 'UPI' ? 'var(--color-accent)' : 'var(--color-warning)' }}>{bill.payment_method}</span>
+                      <Badge tone={paymentTone(bill.payment_method)}>{bill.payment_method}</Badge>
                     ) : (
                       <span className="text-xs text-[var(--text-tertiary)]">--</span>
                     )}
                   </td>
 
-                  <td className="hidden md:table-cell py-4 px-3 w-[14%] text-center text-sm font-bold" style={{ borderRight: '1px solid var(--border-medium)', color: bill.status === 'voided' ? 'var(--text-tertiary)' : 'var(--text-primary)', textDecoration: bill.status === 'voided' ? 'line-through' : 'none' }}>
+                  <td className="hidden md:table-cell py-4 px-3 w-[14%] text-center text-sm font-bold tabular-nums" style={{ borderRight: '1px solid var(--border-medium)', color: bill.status === 'voided' ? 'var(--text-tertiary)' : 'var(--text-primary)', textDecoration: bill.status === 'voided' ? 'line-through' : 'none' }}>
                     ₹{formatINR(Number(bill.total_amount), 2)}
                   </td>
 
                   {/* Dedicated Return Button on ALL Rows */}
                   <td className="hidden md:table-cell py-4 px-3 w-[14%] text-center">
                     {bill.status === 'voided' ? (
-                      <span className="px-2.5 py-1 text-[11px] font-bold uppercase rounded bg-red-500/15 text-red-500 inline-block">
-                        RETURNED
-                      </span>
+                      <Badge tone="error">RETURNED</Badge>
                     ) : (
                       <button
                         type="button"
@@ -911,7 +911,7 @@ export default function OwnerLedger({ isActive }) {
                           e.stopPropagation();
                           handleOpenReturnModal(bill);
                         }}
-                        className="px-3 py-1.5 text-xs font-semibold rounded-md inline-flex items-center justify-center gap-1.5 transition-all shadow-sm text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 dark:bg-red-950/40 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/60 active:scale-95 cursor-pointer"
+                        className={buttonClass({ variant: 'danger-outline', size: 'sm' })}
                         title="Process Return for this Bill"
                       >
                         <Undo2 className="w-3.5 h-3.5" />
@@ -935,8 +935,7 @@ export default function OwnerLedger({ isActive }) {
                   setDatePageIndex(p => Math.max(0, p - 1));
                 }} 
                 disabled={datePageIndex === 0 && (!customDate || customDate === availableDates[0])} 
-                className="h-8 px-2.5 sm:px-4 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] flex items-center justify-center gap-1 shrink-0"
-                style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+                className={buttonClass({ variant: 'secondary', size: 'sm', className: 'sm:px-4' })}
                 title="Previous Day"
               >
                 <span>&larr;<span className="hidden sm:inline"> Previous</span></span>
@@ -965,8 +964,7 @@ export default function OwnerLedger({ isActive }) {
                   setDatePageIndex(p => Math.min(Math.max(0, availableDates.length - 1), p + 1));
                 }} 
                 disabled={availableDates.length === 0 || (datePageIndex >= availableDates.length - 1 && (!customDate || customDate === availableDates[availableDates.length - 1]))} 
-                className="h-8 px-2.5 sm:px-4 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] flex items-center justify-center gap-1 shrink-0"
-                style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+                className={buttonClass({ variant: 'secondary', size: 'sm', className: 'sm:px-4' })}
                 title="Next Day"
               >
                 <span><span className="hidden sm:inline">Next </span>&rarr;</span>
@@ -977,8 +975,7 @@ export default function OwnerLedger({ isActive }) {
               <button 
                 onClick={() => setSalesPage(p => Math.max(0, p - 1))} 
                 disabled={salesPage === 0} 
-                className="h-8 px-2.5 sm:px-5 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] shrink-0 flex items-center justify-center"
-                style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+                className={buttonClass({ variant: 'secondary', size: 'sm', className: 'sm:px-5' })}
                 title="Previous Page"
               >
                 <span>&larr;<span className="hidden sm:inline"> Prev</span></span>
@@ -991,8 +988,7 @@ export default function OwnerLedger({ isActive }) {
               <button 
                 onClick={() => setSalesPage(p => p + 1)} 
                 disabled={bills.length < SALES_PER_PAGE} 
-                className="h-8 px-2.5 sm:px-5 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] shrink-0 flex items-center justify-center"
-                style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+                className={buttonClass({ variant: 'secondary', size: 'sm', className: 'sm:px-5' })}
                 title="Next Page"
               >
                 <span><span className="hidden sm:inline">Next </span>&rarr;</span>
@@ -1084,7 +1080,7 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
     <DialogOverlay isOpen={isOpen} onClose={onClose} labelId="return-items-title" maxWidth="520px">
       <div className="flex justify-between items-center px-6 pt-6 pb-4 border-b border-[var(--border-light)]">
         <div>
-          <span id="return-items-title" className="text-lg font-semibold text-[var(--text-primary)]">
+          <span id="return-items-title" className="text-base font-semibold text-[var(--text-primary)]">
             Process Return &amp; Refund
           </span>
           <div className="text-xs text-[var(--text-secondary)] mt-0.5">
@@ -1092,8 +1088,8 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
             {bill.customer_phone && ` • Phone: ${bill.customer_phone}`}
           </div>
         </div>
-        <button onClick={onClose} className="p-2 hover:bg-[var(--bg-hover)] rounded-full transition-colors text-[var(--text-secondary)]">
-          <X className="w-5 h-5" />
+        <button type="button" onClick={onClose} aria-label="Close" title="Close (Esc)" className="p-1.5 hover:bg-[var(--bg-hover)] rounded-md transition-colors text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
+          <X className="w-4 h-4" />
         </button>
       </div>
 
@@ -1196,27 +1192,15 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
       <div className="px-6 py-4 border-t border-[var(--border-light)] bg-[var(--bg-tertiary)] flex flex-col gap-4">
         <div className="flex justify-between items-center">
           <span className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Total Refund Amount:</span>
-          <span className="text-2xl font-bold" style={{ color: 'var(--color-error)' }}>₹{formatINR(refundAmount, 2)}</span>
+          <span className="text-2xl font-bold tabular-nums" style={{ color: 'var(--color-error)' }}>₹{formatINR(refundAmount, 2)}</span>
         </div>
         <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isReturning}
-            className="h-10 px-5 text-sm font-medium rounded-md border border-[var(--border-light)] hover:bg-[var(--bg-hover)] transition-colors disabled:opacity-50 text-[var(--text-primary)]"
-            style={{ backgroundColor: 'transparent' }}
-          >
+          <Button variant="secondary" onClick={onClose} disabled={isReturning}>
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={itemsToReturn.length === 0 || isReturning}
-            className="h-10 px-6 text-sm font-semibold rounded-md transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[130px] shadow-sm"
-            style={{ backgroundColor: 'var(--color-error-solid)', color: '#fff' }}
-          >
-            {isReturning ? <Spinner className="w-5 h-5 text-white" /> : (isAll ? 'Void Full Bill' : 'Confirm Return')}
-          </button>
+          </Button>
+          <Button variant="danger" onClick={handleConfirm} disabled={itemsToReturn.length === 0} loading={isReturning} className="min-w-[140px]">
+            {isAll ? 'Void Full Bill' : 'Confirm Return'}
+          </Button>
         </div>
       </div>
     </DialogOverlay>

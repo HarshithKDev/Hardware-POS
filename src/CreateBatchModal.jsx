@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Modal, Button, Input } from './components/ui';
 import { getPerformedBy, formatINR } from './utils';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
@@ -168,46 +169,33 @@ export default function CreateBatchModal({ item, onClose, onBatchCreated }) {
     createBatchMutation.mutate(form);
   };
 
+  const closeIfIdle = () => { if (!createBatchMutation.isPending) onClose(); };
+  const perUnit = item.unit ? `per ${String(item.unit).toLowerCase()}` : undefined;
+
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in" onClick={() => { if (!createBatchMutation.isPending) onClose(); }}>
-      <div className="bg-[var(--bg-primary)] rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
-        <div className="p-4 md:p-6 border-b border-[var(--border-light)] flex justify-between items-center glass-header sticky top-0 z-10">
-          <div>
-            <h2 className="text-lg font-bold text-[var(--text-primary)] leading-tight">Create New Batch</h2>
-            <p className="text-xs text-[var(--text-tertiary)] font-medium mt-1 uppercase tracking-wider">{item.name} ({item.barcode})</p>
-          </div>
-        </div>
-
-        <div className="p-4 md:p-6 overflow-y-auto custom-scrollbar">
-          <form id="createBatchForm" onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="batch-wholesaler">Wholesaler / Supplier Name (Optional)</label>
-              <input id="batch-wholesaler" type="text" value={form.wholesaler} onChange={(e) => setForm({ ...form, wholesaler: e.target.value })} placeholder="e.g. Acme Hardware Wholesale" className="w-full h-11 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="batch-cost">Cost Price (₹){item.unit ? ` PER ${item.unit.toUpperCase()}` : ''}</label>
-              <input id="batch-cost" type="number" step="any" min="0" required autoFocus value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} placeholder="0.00" className="w-full h-11 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="batch-msp">Min Selling Price (₹){item.unit ? ` PER ${item.unit.toUpperCase()}` : ''}</label>
-              <input id="batch-msp" type="number" step="any" min="0" required value={form.msp} onChange={(e) => setForm({ ...form, msp: e.target.value })} placeholder="0.00" className="w-full h-11 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="batch-mrp">Max Retail Price (₹){item.unit ? ` PER ${item.unit.toUpperCase()}` : ''}</label>
-              <input id="batch-mrp" type="number" step="any" min="0" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0.00" className="w-full h-11 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-            </div>
-          </form>
-        </div>
-
-        <div className="p-4 md:p-6 border-t border-[var(--border-light)] bg-[var(--bg-secondary)] flex justify-end gap-3 sticky bottom-0 z-10">
-          <button type="button" onClick={onClose} className="px-5 py-2 text-sm font-bold rounded-md transition-colors" style={{ color: 'var(--color-error)', border: '1px solid var(--color-error)', backgroundColor: 'transparent' }}>
-            Cancel
-          </button>
-          <button type="submit" form="createBatchForm" disabled={createBatchMutation.isPending} className="px-6 py-2 text-sm font-bold rounded-md text-white transition-colors disabled:opacity-50 flex items-center gap-2" style={{ backgroundColor: 'var(--color-accent-solid)' }}>
-            {createBatchMutation.isPending ? 'Creating...' : 'Create Batch'}
-          </button>
-        </div>
+    <Modal
+      as="form"
+      onSubmit={handleSubmit}
+      onClose={closeIfIdle}
+      closeOnBackdrop
+      title="Create New Batch"
+      subtitle={`${item.name} (${item.barcode})`}
+      titleId="create-batch-title"
+      size="md"
+      zIndex={50}
+      footer={(
+        <>
+          <Button variant="secondary" onClick={closeIfIdle} disabled={createBatchMutation.isPending}>Cancel</Button>
+          <Button type="submit" variant="primary" loading={createBatchMutation.isPending} className="min-w-[132px]">Create Batch</Button>
+        </>
+      )}
+    >
+      <div className="flex flex-col gap-4">
+        <Input id="batch-wholesaler" label="Wholesaler / Supplier Name (Optional)" type="text" value={form.wholesaler} onChange={(e) => setForm({ ...form, wholesaler: e.target.value })} placeholder="e.g. Acme Hardware Wholesale" />
+        <Input id="batch-cost" label="Cost Price" hint={perUnit} prefix="₹" type="number" step="any" min="0" required autoFocus value={form.cost_price} onChange={(e) => setForm({ ...form, cost_price: e.target.value })} placeholder="0.00" />
+        <Input id="batch-msp" label="Min Selling Price (MSP)" hint={perUnit} prefix="₹" type="number" step="any" min="0" required value={form.msp} onChange={(e) => setForm({ ...form, msp: e.target.value })} placeholder="0.00" />
+        <Input id="batch-mrp" label="Max Retail Price (MRP)" hint={perUnit} prefix="₹" type="number" step="any" min="0" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0.00" />
       </div>
-    </div>
+    </Modal>
   );
 }

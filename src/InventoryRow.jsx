@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
+import { buttonClass } from './components/ui';
 
 export default function InventoryRow({ 
   item, 
@@ -581,9 +582,8 @@ export default function InventoryRow({
                   e.stopPropagation();
                   onRestore && onRestore(item.barcode);
                 }}
-                className="py-1 px-3 rounded-md transition-all active:scale-95 text-white font-bold text-[11px] flex items-center justify-center gap-1 shadow-sm hover:opacity-90 cursor-pointer"
+                className={buttonClass({ variant: 'secondary', size: 'sm', className: 'gap-1' })}
                 title="Restore Item"
-                style={{ backgroundColor: 'var(--color-success-solid)' }}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
                 <span>Restore</span>
@@ -597,11 +597,10 @@ export default function InventoryRow({
                   e.stopPropagation();
                   window.dispatchEvent(new CustomEvent('openCreateBatchModal', { detail: item }));
                 }}
-                className="py-1 px-3 rounded-md transition-all active:scale-95 text-white font-bold text-[11px] flex items-center justify-center gap-1 shadow-sm hover:opacity-90 cursor-pointer"
+                className={buttonClass({ variant: 'secondary', size: 'sm', className: 'gap-1' })}
                 title="Create New Batch"
-                style={{ backgroundColor: 'var(--color-accent-solid)' }}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 text-[var(--color-accent)]"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                 <span>Batch</span>
               </button>
             )}
@@ -650,11 +649,11 @@ export default function InventoryRow({
       </td>
       {/* Pricing removed from parent row */}
       {!isWarehouseDisabled && (
-        <td className="hidden md:table-cell p-3 w-24 lg:w-28 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
+        <td className="hidden md:table-cell p-3 w-24 lg:w-28 text-sm text-center font-bold tabular-nums" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
           {totalWhse} <span className="text-xs font-normal" style={{ color: 'var(--text-secondary)' }}>{displayUnit}</span>
         </td>
       )}
-      <td className="hidden md:table-cell p-3 w-24 lg:w-28 text-sm text-center font-bold" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
+      <td className="hidden md:table-cell p-3 w-24 lg:w-28 text-sm text-center font-bold tabular-nums" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
         {totalStore} <span className="text-xs font-normal" style={{ color: 'var(--text-secondary)' }}>{displayUnit}</span>
       </td>
       <td className="hidden md:table-cell p-3 w-28 lg:w-32 text-center">
@@ -664,9 +663,8 @@ export default function InventoryRow({
               e.stopPropagation();
               onRestore && onRestore(item.barcode);
             }}
-            className="px-3 py-1.5 rounded-md transition-all active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1 mx-auto shadow-sm hover:opacity-90"
+            className={buttonClass({ variant: 'secondary', size: 'sm', className: 'gap-1 mx-auto' })}
             title="Restore Item"
-            style={{ backgroundColor: 'var(--color-success-solid)' }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
             Restore
@@ -677,11 +675,10 @@ export default function InventoryRow({
               e.stopPropagation();
               window.dispatchEvent(new CustomEvent('openCreateBatchModal', { detail: item }));
             }}
-            className="px-3 py-1.5 rounded-md transition-all active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1 mx-auto shadow-sm hover:opacity-90"
+            className={buttonClass({ variant: 'secondary', size: 'sm', className: 'gap-1 mx-auto' })}
             title="Create New Batch"
-            style={{ backgroundColor: 'var(--color-accent-solid)' }}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3.5 h-3.5 text-[var(--color-accent)]"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
             Batch
           </button>
         )}

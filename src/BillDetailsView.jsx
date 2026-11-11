@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import { formatDateTime, formatINR, billLabel } from './utils';
 import { PageLoader } from './SharedUI';
+import { buttonClass } from './components/ui';
 import { useApp } from './AppContext';
 import {
   ArrowLeft,
@@ -97,20 +98,21 @@ export default function BillDetailsView({
           type="button"
           onClick={onBack}
           aria-label="Back to Sales History"
-          className="flex items-center justify-center w-9 h-9 rounded-lg text-[var(--text-secondary)] hover:text-white bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] border border-[var(--border-medium)] transition-all cursor-pointer shadow-sm hover:border-[var(--color-accent)] active:scale-95"
+          className={buttonClass({ variant: 'secondary', size: 'sm', className: 'gap-1.5' })}
           title="Back to Sales History"
         >
-          <ArrowLeft className="w-5 h-5 text-[var(--color-accent)]" />
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back</span>
         </button>
 
         {!isVoided && onProcessReturn && (
           <button
             type="button"
             onClick={() => onProcessReturn(currentBill)}
-            className="flex items-center gap-1.5 h-9 px-3.5 rounded-lg text-xs font-bold text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 transition-all cursor-pointer shadow-sm hover:border-red-500 active:scale-95"
+            className={buttonClass({ variant: 'danger-outline', size: 'sm' })}
             title="Process Return for this Bill"
           >
-            <Undo2 className="w-4 h-4 text-red-400" />
+            <Undo2 className="w-4 h-4" />
             <span>Return</span>
           </button>
         )}
@@ -340,16 +342,16 @@ export default function BillDetailsView({
             <div className="hidden md:block overflow-x-auto w-full flex-1">
               <table className="w-full text-center border-collapse table-auto md:table-fixed">
                 <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
-                  <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                    <th className="py-3 px-2 text-center w-12" style={{ borderRight: '1px solid var(--border-medium)' }}>#</th>
-                    <th className={`py-3 px-3 text-center ${showProfit ? 'md:w-[28%]' : 'md:w-[35%]'}`} style={{ borderRight: '1px solid var(--border-medium)' }}>Item Details</th>
-                    <th className="py-3 px-3 text-center md:w-[12%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Quantity</th>
-                    <th className="py-3 px-3 text-center md:w-[11%]" style={{ borderRight: '1px solid var(--border-medium)' }}>MRP</th>
-                    <th className="py-3 px-3 text-center md:w-[11%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Sold At</th>
-                    <th className="py-3 px-3 text-center md:w-[10%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Discount</th>
-                    <th className={`py-3 px-3 text-center ${showProfit ? 'md:w-[13%]' : 'md:w-[16%]'}`} style={showProfit ? { borderRight: '1px solid var(--border-medium)' } : {}}>Total</th>
+                  <tr className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+                    <th className="h-10 px-2 text-center w-12" style={{ borderRight: '1px solid var(--border-medium)' }}>#</th>
+                    <th className={`h-10 px-3 text-center ${showProfit ? 'md:w-[28%]' : 'md:w-[35%]'}`} style={{ borderRight: '1px solid var(--border-medium)' }}>Item Details</th>
+                    <th className="h-10 px-3 text-center md:w-[12%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Quantity</th>
+                    <th className="h-10 px-3 text-center md:w-[11%]" style={{ borderRight: '1px solid var(--border-medium)' }}>MRP</th>
+                    <th className="h-10 px-3 text-center md:w-[11%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Sold At</th>
+                    <th className="h-10 px-3 text-center md:w-[10%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Discount</th>
+                    <th className={`h-10 px-3 text-center ${showProfit ? 'md:w-[13%]' : 'md:w-[16%]'}`} style={showProfit ? { borderRight: '1px solid var(--border-medium)' } : {}}>Total</th>
                     {showProfit && (
-                      <th className="py-3 px-3 text-center md:w-[13%]" style={{ color: 'var(--color-success)' }}>Profit</th>
+                      <th className="h-10 px-3 text-center md:w-[13%]" style={{ color: 'var(--color-success)' }}>Profit</th>
                     )}
                   </tr>
                 </thead>

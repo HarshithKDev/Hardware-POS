@@ -140,6 +140,17 @@ control heights / type scale / z-layers.
   Printed labels and receipts unchanged.
 - Buttons no longer forced to UPPERCASE with wide letter-spacing (DS5).
 
-**Still open:** migrate the big screens (Inventory/Batch, Sales & Returns, Dashboard,
-Expenses) to the shared components; z-index layers (needs all modals on `Modal` first,
-since stacking order depends on it); step 3 behaviour items.
+**Step 2b — big screens done:**
+- Batch details: one primary action (Add batch / Save), Edit / Print labels / Open 1 box /
+  Scrap as neutral outlines, only Delete in red (C4, B1). Create Batch uses `Modal` + `Input`.
+- Inventory: bulk-action bar and row actions on shared buttons (row "+ Batch"/"Restore" no
+  longer solid in every row), standard header height, aligned digits.
+- Sales & Returns: shared payment/returned badges, Return as red outline, neutral paging
+  buttons, Return dialog buttons on `Button`, bill details Back/Return buttons.
+- Overview: date picker and modal buttons on shared styles; modal Close no longer red;
+  Dead stock values no longer all red (C3); low stock quantities in amber.
+- Expenses: Add Expense on `Modal`, totals footer row (T4), empty state with an action (S3).
+
+**Still open:** z-index layers (needs every modal on `Modal` first, since stacking order
+depends on it); remaining smaller screens (Settings, Staff, Catalog, Audit logs, Showroom);
+step 3 behaviour items.

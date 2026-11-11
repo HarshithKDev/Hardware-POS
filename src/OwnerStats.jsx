@@ -16,6 +16,7 @@ import {
 import { AlertTriangle, Calendar, ArrowUpRight } from 'lucide-react';
 import { useSessionState } from './hooks/useSessionState';
 import PageTitleReset from './components/PageTitleReset';
+import { buttonClass } from './components/ui';
 
 function formatDateLabel(dStr, includeYear = false) {
   if (!dStr) return '';
@@ -396,16 +397,11 @@ function DashboardDateFilter({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-md transition-all cursor-pointer shadow-sm hover:border-[var(--text-secondary)] focus:outline-none"
-        style={{
-          border: '1px solid var(--border-medium)',
-          backgroundColor: 'var(--bg-secondary)',
-          color: 'var(--text-primary)',
-        }}
+        className={buttonClass({ variant: 'secondary', size: 'md', className: 'bg-[var(--bg-secondary)]' })}
         aria-expanded={isOpen}
       >
         <Calendar className="w-3.5 h-3.5 text-[var(--color-accent)] shrink-0" />
-        <span className="tracking-wide">{getTriggerLabel()}</span>
+        <span>{getTriggerLabel()}</span>
         <svg
           className={`w-3.5 h-3.5 text-[var(--text-tertiary)] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
           fill="none"
@@ -429,7 +425,7 @@ function DashboardDateFilter({
         >
           {/* Top 3 Options */}
           <div
-            className="grid grid-cols-3 p-1 rounded-lg gap-1 text-[11px] font-bold uppercase tracking-wider"
+            className="grid grid-cols-3 p-1 rounded-lg gap-1 text-xs font-semibold"
             style={{ backgroundColor: 'var(--bg-tertiary)' }}
           >
             <button
@@ -437,7 +433,7 @@ function DashboardDateFilter({
               onClick={handleSelectToday}
               className={`py-1.5 px-2 rounded-md transition-all cursor-pointer text-center ${activeTab === 'today' ? 'shadow-sm text-white' : 'hover:text-[var(--text-primary)]'}`}
               style={{
-                backgroundColor: activeTab === 'today' ? 'var(--color-accent)' : 'transparent',
+                backgroundColor: activeTab === 'today' ? 'var(--color-accent-solid)' : 'transparent',
                 color: activeTab === 'today' ? '#ffffff' : 'var(--text-secondary)',
               }}
             >
@@ -448,7 +444,7 @@ function DashboardDateFilter({
               onClick={() => setActiveTab('date')}
               className={`py-1.5 px-2 rounded-md transition-all cursor-pointer text-center ${activeTab === 'date' ? 'shadow-sm text-white' : 'hover:text-[var(--text-primary)]'}`}
               style={{
-                backgroundColor: activeTab === 'date' ? 'var(--color-accent)' : 'transparent',
+                backgroundColor: activeTab === 'date' ? 'var(--color-accent-solid)' : 'transparent',
                 color: activeTab === 'date' ? '#ffffff' : 'var(--text-secondary)',
               }}
             >
@@ -459,7 +455,7 @@ function DashboardDateFilter({
               onClick={() => setActiveTab('range')}
               className={`py-1.5 px-2 rounded-md transition-all cursor-pointer text-center ${activeTab === 'range' ? 'shadow-sm text-white' : 'hover:text-[var(--text-primary)]'}`}
               style={{
-                backgroundColor: activeTab === 'range' ? 'var(--color-accent)' : 'transparent',
+                backgroundColor: activeTab === 'range' ? 'var(--color-accent-solid)' : 'transparent',
                 color: activeTab === 'range' ? '#ffffff' : 'var(--text-secondary)',
               }}
             >
@@ -606,16 +602,14 @@ function DashboardDateFilter({
                     <button
                       type="button"
                       onClick={() => setIsOpen(false)}
-                      className="px-2.5 py-1 text-xs font-semibold rounded hover:bg-[var(--bg-tertiary)] cursor-pointer transition-colors"
-                      style={{ color: 'var(--text-tertiary)' }}
+                      className={buttonClass({ variant: 'ghost', size: 'sm' })}
                     >
                       Cancel
                     </button>
                     <button
                       type="button"
                       onClick={handleApplyRange}
-                      className="px-3 py-1 text-[11px] font-bold rounded text-white shadow-sm hover:opacity-90 cursor-pointer transition-opacity"
-                      style={{ backgroundColor: 'var(--color-accent-solid)' }}
+                      className={buttonClass({ variant: 'primary', size: 'sm' })}
                     >
                       Apply
                     </button>
@@ -1226,7 +1220,7 @@ export default function OwnerStats({ isActive }) {
       </div>
 
       {failedSyncs && failedSyncs.length > 0 && (
-        <div className="mb-6 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm" style={{ backgroundColor: 'rgba(239, 68, 68, 0.05)', border: '1px solid var(--color-error)' }}>
+        <div className="mb-6 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-[10px]" style={{ backgroundColor: 'var(--color-error-bg)', border: '1px solid var(--color-error)' }}>
           <div className="flex items-center gap-4">
             <AlertTriangle className="w-8 h-8 text-[var(--color-error)] shrink-0" />
             <div>
@@ -1234,7 +1228,7 @@ export default function OwnerStats({ isActive }) {
               <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>These transactions encountered errors when uploading to the cloud and require manual review to resolve.</p>
             </div>
           </div>
-          <button onClick={() => setActiveModal('failed-syncs')} className="px-5 py-2.5 text-xs font-bold text-white shrink-0 shadow-sm hover:opacity-90 transition-opacity" style={{ backgroundColor: 'var(--color-error-solid)' }}>
+          <button onClick={() => setActiveModal('failed-syncs')} className={buttonClass({ variant: 'danger', size: 'md' })}>
             Review Issues
           </button>
         </div>
@@ -1314,7 +1308,7 @@ export default function OwnerStats({ isActive }) {
           aria-labelledby="stats-modal-title"
         >
           <div
-            className="w-full max-w-4xl flex flex-col h-[70vh] max-h-[620px] rounded-2xl overflow-hidden shadow-2xl border border-[var(--border-light)] animate-scale-in my-auto"
+            className="w-full max-w-4xl flex flex-col h-[70vh] max-h-[620px] rounded-[14px] overflow-hidden shadow-2xl border border-[var(--border-light)] animate-scale-in my-auto"
             style={{ backgroundColor: 'var(--bg-secondary)' }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1323,7 +1317,7 @@ export default function OwnerStats({ isActive }) {
               style={{ backgroundColor: 'var(--bg-tertiary)' }}
             >
               <div className="flex items-center gap-3 flex-wrap">
-                <span id="stats-modal-title" className="text-xs sm:text-sm font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
+                <span id="stats-modal-title" className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
                   {activeModal === 'profit' && 'Profit & Sales Breakdown'}
                   {activeModal === 'low-store' && (isWarehouseDisabled ? 'Items Running Low in Stock' : 'Items Running Low in Store Front')}
                   {activeModal === 'low-warehouse' && `Items Running Low in Warehouse`}
@@ -1333,8 +1327,8 @@ export default function OwnerStats({ isActive }) {
               </div>
               <button
                 onClick={() => setActiveModal(null)}
-                className="px-3.5 py-1.5 text-white rounded-lg text-xs font-bold focus:outline-none transition-all hover:opacity-90 active:scale-95 cursor-pointer shadow-sm"
-                style={{ backgroundColor: 'var(--color-error-solid)' }}
+                className={buttonClass({ variant: 'secondary', size: 'sm' })}
+                title="Close (Esc)"
               >
                 Close
               </button>
@@ -1399,7 +1393,7 @@ export default function OwnerStats({ isActive }) {
                     {/* DESKTOP PROFIT TABLE */}
                     <table className="hidden md:table w-full text-center border-collapse">
                       <thead className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
-                        <tr className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                        <tr className="h-10 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                           <th className="p-3" style={{ borderRight: '1px solid var(--border-medium)' }}>Item Sold</th>
                           <th className="p-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Total Qty</th>
                           <th className="p-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Total Cost</th>
@@ -1515,7 +1509,7 @@ export default function OwnerStats({ isActive }) {
                   {/* DESKTOP STOCK TABLE */}
                   <table className="hidden md:table w-full text-center border-collapse">
                     <thead className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
-                      <tr className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                      <tr className="h-10 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                         <th className="p-3 w-32" style={{ borderRight: '1px solid var(--border-medium)' }}>Barcode</th>
                         <th className="p-3" style={{ borderRight: '1px solid var(--border-medium)' }}>Item Name</th>
                         {activeModal === 'dead-stock' ? (
@@ -1543,8 +1537,8 @@ export default function OwnerStats({ isActive }) {
                         <tr key={item.barcode} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                           <td className="p-3 text-sm font-semibold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-medium)' }}>{item.barcode}</td>
                           <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.name}</td>
-                          <td className="p-3 text-sm text-center font-bold" style={{ color: 'var(--text-tertiary)', borderRight: '1px solid var(--border-medium)' }}>{item.min_quantity_store ?? 10} {item.unit || 'PCS'}</td>
-                          <td className="p-3 text-sm text-center font-bold" style={{ color: 'var(--color-error)' }}>{item.stock_store} {item.unit || 'PCS'}</td>
+                          <td className="p-3 text-sm text-center font-bold tabular-nums" style={{ color: 'var(--text-tertiary)', borderRight: '1px solid var(--border-medium)' }}>{item.min_quantity_store ?? 10} {item.unit || 'PCS'}</td>
+                          <td className="p-3 text-sm text-center font-bold tabular-nums" style={{ color: 'var(--color-warning)' }}>{item.stock_store} {item.unit || 'PCS'}</td>
                         </tr>
                       ))}
                       {activeModal === 'low-warehouse' && lowWarehouseItems.length === 0 && (
@@ -1558,8 +1552,8 @@ export default function OwnerStats({ isActive }) {
                         <tr key={item.barcode} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                           <td className="p-3 text-sm font-semibold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-medium)' }}>{item.barcode}</td>
                           <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.name}</td>
-                          <td className="p-3 text-sm text-center font-bold" style={{ color: 'var(--text-tertiary)', borderRight: '1px solid var(--border-medium)' }}>{item.min_quantity_warehouse ?? 50} {item.unit || 'PCS'}</td>
-                          <td className="p-3 text-sm text-center font-bold" style={{ color: 'var(--color-error)' }}>{item.stock_warehouse} {item.unit || 'PCS'}</td>
+                          <td className="p-3 text-sm text-center font-bold tabular-nums" style={{ color: 'var(--text-tertiary)', borderRight: '1px solid var(--border-medium)' }}>{item.min_quantity_warehouse ?? 50} {item.unit || 'PCS'}</td>
+                          <td className="p-3 text-sm text-center font-bold tabular-nums" style={{ color: 'var(--color-warning)' }}>{item.stock_warehouse} {item.unit || 'PCS'}</td>
                         </tr>
                       ))}
                       {activeModal === 'dead-stock' && deadStockItems.length === 0 && (
@@ -1573,8 +1567,8 @@ export default function OwnerStats({ isActive }) {
                         <tr key={item.barcode} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                           <td className="p-3 text-sm font-semibold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-medium)' }}>{item.barcode}</td>
                           <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.name}</td>
-                          <td className="p-3 text-sm text-center font-bold" style={{ color: 'var(--color-warning)', borderRight: '1px solid var(--border-medium)' }}>{item.totalQty}</td>
-                          <td className="p-3 text-sm text-center font-bold" style={{ color: 'var(--color-error)' }}>₹{formatINR(item.deadValue, 2)}</td>
+                          <td className="p-3 text-sm text-center font-semibold tabular-nums" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.totalQty}</td>
+                          <td className="p-3 text-sm text-center font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>₹{formatINR(item.deadValue, 2)}</td>
                         </tr>
                       ))}
                     </tbody>

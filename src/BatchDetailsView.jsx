@@ -12,6 +12,7 @@ import { getInventoryItemByBarcode, saveInventoryBatch } from './services/db';
 import PrintBatchModal from './PrintBatchModal';
 import CreateBatchModal from './CreateBatchModal';
 import { ConfirmDialog } from './Dialog';
+import { buttonClass } from './components/ui';
 import { useSessionState } from './hooks/useSessionState';
 import { 
   ArrowLeft,
@@ -729,7 +730,7 @@ export default function BatchDetailsView({
         <p className="text-sm text-[var(--text-secondary)] mb-4">Item not found.</p>
         <button
           onClick={onBack}
-          className="px-4 py-2 rounded-lg bg-[var(--color-accent-solid)] text-white text-xs font-bold "
+          className={buttonClass({ variant: 'primary', size: 'md' })}
         >
           Back to {isWarehouseDisabled ? 'Inventory' : 'Warehouse'}
         </button>
@@ -745,10 +746,10 @@ export default function BatchDetailsView({
       <div className="flex items-center pb-3 mb-2 shrink-0">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold text-[var(--text-secondary)] hover:text-white bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] border border-[var(--border-medium)] transition-all cursor-pointer shadow-sm hover:border-[var(--color-accent)]"
+          className={buttonClass({ variant: 'secondary', size: 'sm' })}
           title={isWarehouseDisabled ? "Back to Items" : "Back to Warehouse Items"}
         >
-          <ArrowLeft className="w-4 h-4 text-[var(--color-accent)]" />
+          <ArrowLeft className="w-4 h-4" />
           <span>Back</span>
         </button>
       </div>
@@ -781,7 +782,7 @@ export default function BatchDetailsView({
                 type="button"
                 onClick={() => updateProductNameMutation.mutate(nameEditValue)}
                 disabled={updateProductNameMutation.isPending || !nameEditValue.trim()}
-                className="h-8 px-3 rounded-lg bg-[var(--color-success-solid)] text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm hover:brightness-110 disabled:opacity-50 cursor-pointer"
+                className={buttonClass({ variant: 'primary', size: 'sm' })}
                 title="Save Name (Enter)"
               >
                 <Check className="w-3.5 h-3.5" />
@@ -793,7 +794,7 @@ export default function BatchDetailsView({
                   setIsEditingName(false);
                   setNameEditValue(item.name || '');
                 }}
-                className="h-8 px-3 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                className={buttonClass({ variant: 'secondary', size: 'sm' })}
                 title="Cancel (Esc)"
               >
                 <X className="w-3.5 h-3.5" />
@@ -813,16 +814,16 @@ export default function BatchDetailsView({
                     setNameEditValue(item.name || '');
                     setIsEditingName(true);
                   }}
-                  className="p-1.5 rounded-lg border border-[var(--border-medium)] hover:border-[var(--color-accent)] text-[var(--text-secondary)] hover:text-[var(--color-accent)] hover:bg-white/5 transition-all cursor-pointer shadow-sm active:scale-95"
+                  className="p-1.5 rounded-md border border-[var(--border-medium)] hover:border-[var(--color-accent)] text-[var(--text-secondary)] hover:text-[var(--color-accent)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
                   title="Edit Product Name"
+                  aria-label="Edit product name"
                 >
                   <Edit3 className="w-3.5 h-3.5" />
                 </button>
               )}
 
               <span 
-                className="px-2.5 py-0.5 text-xs font-bold rounded tracking-wider shrink-0"
-                style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', border: '1px solid rgba(59, 130, 246, 0.3)' }}
+                className="px-2 py-0.5 text-xs font-mono font-semibold rounded-md shrink-0 text-[var(--color-accent)] bg-[var(--color-accent-bg)] border border-[var(--color-accent)]/30"
               >
                 #{item.barcode}
               </span>
@@ -854,7 +855,7 @@ export default function BatchDetailsView({
                   type="button"
                   onClick={() => updateProductDescriptionMutation.mutate(descriptionEditValue)}
                   disabled={updateProductDescriptionMutation.isPending}
-                  className="h-6 px-2.5 rounded bg-[var(--color-success-solid)] text-white text-xs font-bold cursor-pointer hover:brightness-110 flex items-center gap-1 disabled:opacity-50"
+                  className={buttonClass({ variant: 'primary', size: 'sm' })}
                   title="Save Description"
                 >
                   <Check className="w-3 h-3" />
@@ -866,7 +867,7 @@ export default function BatchDetailsView({
                     setDescriptionEditValue(item?.description || '');
                     setIsEditingDescription(false);
                   }}
-                  className="h-6 px-2.5 rounded border border-red-500/40 text-red-400 text-xs font-bold cursor-pointer hover:bg-red-500/10 flex items-center gap-1"
+                  className={buttonClass({ variant: 'secondary', size: 'sm' })}
                   title="Cancel"
                 >
                   <X className="w-3 h-3" />
@@ -886,8 +887,9 @@ export default function BatchDetailsView({
                     setDescriptionEditValue(item?.description || '');
                     setIsEditingDescription(true);
                   }}
-                  className="p-1 rounded opacity-60 hover:opacity-100 hover:bg-white/5 text-[var(--text-secondary)] hover:text-[var(--color-accent)] cursor-pointer shrink-0 transition-opacity"
+                  className="p-1.5 rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--color-accent)] cursor-pointer shrink-0 transition-colors"
                   title="Edit Description"
+                  aria-label="Edit description"
                 >
                   <Edit3 className="w-3 h-3" />
                 </button>
@@ -926,7 +928,7 @@ export default function BatchDetailsView({
                   step="any"
                   value={minQtyForm.store}
                   onChange={e => setMinQtyForm(prev => ({ ...prev, store: e.target.value }))}
-                  className="w-14 h-7 px-2 text-xs font-bold rounded bg-[var(--bg-input)] border border-[var(--border-medium)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] text-center"
+                  className="w-16 h-8 px-2 text-sm font-semibold rounded-md bg-[var(--bg-input)] border border-[var(--border-medium)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] text-center"
                   placeholder="0"
                   autoFocus
                 />
@@ -942,7 +944,7 @@ export default function BatchDetailsView({
                       step="any"
                       value={minQtyForm.warehouse}
                       onChange={e => setMinQtyForm(prev => ({ ...prev, warehouse: e.target.value }))}
-                      className="w-14 h-7 px-2 text-xs font-bold rounded bg-[var(--bg-input)] border border-[var(--border-medium)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] text-center"
+                      className="w-16 h-8 px-2 text-sm font-semibold rounded-md bg-[var(--bg-input)] border border-[var(--border-medium)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-accent)] text-center"
                       placeholder="0"
                     />
                   </div>
@@ -959,7 +961,7 @@ export default function BatchDetailsView({
                     });
                   }}
                   disabled={updateMinQtyMutation.isPending}
-                  className="h-7 px-2.5 rounded bg-[var(--color-success-solid)] text-white text-[11px] font-bold flex items-center gap-1 transition-all shadow-sm hover:brightness-110 disabled:opacity-50 cursor-pointer"
+                  className={buttonClass({ variant: 'primary', size: 'sm' })}
                   title="Save Minimum Quantities"
                 >
                   <Check className="w-3.5 h-3.5" />
@@ -973,8 +975,9 @@ export default function BatchDetailsView({
                       warehouse: item.min_quantity_warehouse ?? 0
                     });
                   }}
-                  className="h-7 px-2 rounded border border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs font-bold flex items-center justify-center transition-all cursor-pointer"
+                  className={buttonClass({ variant: 'secondary', size: 'sm', className: 'px-2' })}
                   title="Cancel"
+                  aria-label="Cancel editing minimum quantities"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -995,7 +998,7 @@ export default function BatchDetailsView({
               
               <button
                 onClick={() => setIsEditingMinQty(true)}
-                className="flex items-center gap-1 text-[11px] font-bold text-[var(--text-secondary)] hover:text-[var(--color-accent)] transition-colors cursor-pointer"
+                className="flex items-center gap-1 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--color-accent)] transition-colors cursor-pointer"
                 title={isWarehouseDisabled ? "Edit Minimum Stock Alert" : "Edit Minimum Quantities for Store and Warehouse"}
               >
                 <Edit3 className="w-3 h-3 text-[var(--color-accent)]" />
@@ -1007,7 +1010,7 @@ export default function BatchDetailsView({
           {viewType !== 'recycle' && batches.length > 0 && (
             <button
               onClick={() => setCreateBatchModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--color-accent-solid)] text-white text-xs font-bold hover:brightness-110 active:scale-95 shadow-sm transition-all cursor-pointer"
+              className={buttonClass({ variant: 'primary', size: 'md' })}
               title="Create New Batch for this item"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -1125,7 +1128,7 @@ export default function BatchDetailsView({
             </p>
             <button
               onClick={() => setCreateBatchModalOpen(true)}
-              className="mt-5 px-4 py-2 rounded-lg bg-[var(--color-accent-solid)] text-white font-bold text-xs flex items-center gap-1.5 shadow-md hover:brightness-110 cursor-pointer"
+              className={buttonClass({ variant: 'primary', size: 'md', className: 'mt-5' })}
             >
               <Plus className="w-4 h-4" />
               Create Batch
@@ -1144,8 +1147,8 @@ export default function BatchDetailsView({
                       {item.barcode}-{String(activeBatch.batch_number || 1).padStart(2, '0')}
                     </span>
                   </div>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider text-[var(--color-success)] bg-[var(--color-success-bg)] border border-[var(--color-success)]/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)]"></span>
                     Active
                   </span>
 
@@ -1209,7 +1212,7 @@ export default function BatchDetailsView({
                               });
                             }}
                             disabled={updateBatchMutation.isPending}
-                            className="h-8 px-3 rounded-lg bg-[var(--color-success-solid)] text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm hover:brightness-110 disabled:opacity-50 cursor-pointer"
+                            className={buttonClass({ variant: 'primary', size: 'sm' })}
                           >
                             <Check className="w-3.5 h-3.5" />
                             {updateBatchMutation.isPending ? 'Saving...' : 'Save'}
@@ -1224,7 +1227,7 @@ export default function BatchDetailsView({
                                 mrp: priceInputValue(activeBatch.selling_price, item?.price)
                               });
                             }}
-                            className="h-8 px-3 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                            className={buttonClass({ variant: 'secondary', size: 'sm' })}
                           >
                             <X className="w-3.5 h-3.5" />
                             Cancel
@@ -1235,7 +1238,7 @@ export default function BatchDetailsView({
                           {viewType !== 'recycle' && (
                             <button
                               onClick={() => setIsEditingBatch(true)}
-                              className="h-8 px-3 rounded-lg border border-[var(--border-medium)] hover:border-[var(--color-accent)] text-[var(--text-primary)] hover:bg-white/5 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                              className={buttonClass({ variant: 'secondary', size: 'sm' })}
                               title="Edit Batch Cost, MSP, MRP and Wholesaler"
                             >
                               <Edit3 className="w-3.5 h-3.5 text-[var(--color-accent)]" />
@@ -1244,10 +1247,10 @@ export default function BatchDetailsView({
                           )}
                           <button
                             onClick={() => setPrintBatchModal({ isOpen: true, batch: activeBatch })}
-                            className="h-8 px-3 rounded-lg border border-[var(--color-accent)] text-[var(--color-accent)] hover:bg-[var(--color-accent-bg)] text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                            className={buttonClass({ variant: 'secondary', size: 'sm' })}
                             title="Print Barcode Labels for this batch"
                           >
-                            <Printer className="w-3.5 h-3.5" />
+                            <Printer className="w-3.5 h-3.5 text-[var(--color-accent)]" />
                             Print Labels
                           </button>
                           {viewType !== 'recycle' && (
@@ -1278,7 +1281,7 @@ export default function BatchDetailsView({
                                     'Cancel'
                                   );
                                 }}
-                                className="h-8 px-3 rounded-lg border border-emerald-500/50 text-emerald-500 hover:bg-emerald-500/10 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                                className={buttonClass({ variant: 'secondary', size: 'sm' })}
                                 title="Remove 1 box from store stock to sell its screws loose (not a sale)"
                               >
                                 Open 1 Box
@@ -1288,7 +1291,7 @@ export default function BatchDetailsView({
                             {item.is_cuttable && (
                             <button
                               onClick={() => setScrapBatch(activeBatch)}
-                              className="h-8 px-3 rounded-lg border border-amber-500/50 text-amber-500 hover:bg-amber-500/10 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                              className={buttonClass({ variant: 'secondary', size: 'sm' })}
                               title="Write off offcuts / scrap length from this batch"
                             >
                               Scrap
@@ -1301,7 +1304,7 @@ export default function BatchDetailsView({
                               onClick={() => {
                                 setBatchToDelete(activeBatch.batch_id);
                               }}
-                              className="h-8 px-3 rounded-lg border border-red-500/50 text-red-400 hover:bg-red-500/10 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                              className={buttonClass({ variant: 'danger-outline', size: 'sm' })}
                               title="Delete batch and remove its stock"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -1316,7 +1319,7 @@ export default function BatchDetailsView({
               {/* Metrics Grid */}
               <div className={`grid grid-cols-2 sm:grid-cols-3 ${isWarehouseDisabled ? 'lg:grid-cols-4' : 'lg:grid-cols-5'} gap-3`}>
                 {/* Cost Price */}
-                <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)]">
+                <div className="p-3 rounded-[10px] bg-[var(--bg-secondary)] border border-[var(--border-light)]">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1">
                     Cost
                   </span>
@@ -1327,19 +1330,19 @@ export default function BatchDetailsView({
                       min="0"
                       value={batchEditForm.cost}
                       onChange={e => setBatchEditForm(prev => ({ ...prev, cost: e.target.value }))}
-                      className="w-full h-7 px-2 text-sm font-bold rounded bg-[var(--bg-input)] border border-[var(--color-accent)] text-[var(--text-primary)] focus:outline-none"
+                      className="w-full h-8 px-2 text-sm font-semibold tabular-nums rounded-md bg-[var(--bg-input)] border border-[var(--color-accent)] text-[var(--text-primary)] focus:outline-none"
                       placeholder="0.00"
                       autoFocus
                     />
                   ) : (
-                    <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                    <span className="text-sm sm:text-base font-bold tabular-nums text-[var(--text-primary)]">
                       ₹{formatINR(Number(activeBatch.purchase_cost ?? item.cost_price ?? 0), 2)}
                     </span>
                   )}
                 </div>
 
                 {/* MSP */}
-                <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)]">
+                <div className="p-3 rounded-[10px] bg-[var(--bg-secondary)] border border-[var(--border-light)]">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1">
                     MSP
                   </span>
@@ -1350,18 +1353,18 @@ export default function BatchDetailsView({
                       min="0"
                       value={batchEditForm.msp}
                       onChange={e => setBatchEditForm(prev => ({ ...prev, msp: e.target.value }))}
-                      className="w-full h-7 px-2 text-sm font-bold rounded bg-[var(--bg-input)] border border-[var(--color-accent)] text-[var(--text-primary)] focus:outline-none"
+                      className="w-full h-8 px-2 text-sm font-semibold tabular-nums rounded-md bg-[var(--bg-input)] border border-[var(--color-accent)] text-[var(--text-primary)] focus:outline-none"
                       placeholder="0.00"
                     />
                   ) : (
-                    <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                    <span className="text-sm sm:text-base font-bold tabular-nums text-[var(--text-primary)]">
                       ₹{formatINR(Number(activeBatch.msp ?? item.msp ?? item.cost_price ?? 0), 2)}
                     </span>
                   )}
                 </div>
 
                 {/* MRP */}
-                <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)]">
+                <div className="p-3 rounded-[10px] bg-[var(--bg-secondary)] border border-[var(--border-light)]">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1">
                     MRP
                   </span>
@@ -1372,11 +1375,11 @@ export default function BatchDetailsView({
                       min="0"
                       value={batchEditForm.mrp}
                       onChange={e => setBatchEditForm(prev => ({ ...prev, mrp: e.target.value }))}
-                      className="w-full h-7 px-2 text-sm font-bold rounded bg-[var(--bg-input)] border border-[var(--color-accent)] text-[var(--text-primary)] focus:outline-none"
+                      className="w-full h-8 px-2 text-sm font-semibold tabular-nums rounded-md bg-[var(--bg-input)] border border-[var(--color-accent)] text-[var(--text-primary)] focus:outline-none"
                       placeholder="0.00"
                     />
                   ) : (
-                    <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
+                    <span className="text-sm sm:text-base font-bold tabular-nums text-[var(--text-primary)]">
                       ₹{formatINR(Number(activeBatch.selling_price ?? item.price ?? 0), 2)}
                     </span>
                   )}
@@ -1384,11 +1387,11 @@ export default function BatchDetailsView({
 
                 {/* Warehouse Stock */}
                 {!isWarehouseDisabled && (
-                  <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)]">
+                  <div className="p-3 rounded-[10px] bg-[var(--bg-secondary)] border border-[var(--border-light)]">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1">
                       Warehouse Stock
                     </span>
-                    <span className="text-sm sm:text-base font-bold text-[var(--color-accent)]">
+                    <span className="text-sm sm:text-base font-bold tabular-nums text-[var(--color-accent)]">
                       {activeBatch.stock_warehouse ?? 0}
                       <span className="text-xs font-normal text-[var(--text-secondary)] ml-1">
                         {displayUnit}
@@ -1398,11 +1401,11 @@ export default function BatchDetailsView({
                 )}
 
                 {/* Store Stock */}
-                <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)]">
+                <div className="p-3 rounded-[10px] bg-[var(--bg-secondary)] border border-[var(--border-light)]">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1">
                     {isWarehouseDisabled ? 'Current Stock' : 'Store Stock'}
                   </span>
-                  <span className="text-sm sm:text-base font-bold text-[var(--color-success)]">
+                  <span className="text-sm sm:text-base font-bold tabular-nums text-[var(--color-success)]">
                     {isWarehouseDisabled ? (Number(activeBatch?.stock_store || 0) + Number(activeBatch?.stock_warehouse || 0)) : (activeBatch?.stock_store ?? 0)}
                     <span className="text-xs font-normal text-[var(--text-secondary)] ml-1">
                       {displayUnit}
