@@ -7,7 +7,7 @@ import { debounce, formatDateTime, formatDayHeader, escapeIlike, useSessionState
 import { useApp } from './AppContext';
 import { X, Calendar } from 'lucide-react';
 import PageTitleReset from './components/PageTitleReset';
-import { DateField } from './components/ui';
+import { buttonClass, DateField } from './components/ui';
 
 const formatChanges = (changes) => {
   if (!changes || changes === '—') return <span style={{ color: 'var(--text-tertiary)' }}>—</span>;
@@ -299,10 +299,10 @@ export default function OwnerAuditLogs() {
           {/* Advanced Filter Toggle */}
           <button
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className="h-10 px-4 text-xs font-bold focus:outline-none shadow-sm rounded-md flex items-center gap-2 transition-colors shrink-0"
+            className="h-10 px-4 text-sm font-semibold rounded-md flex items-center gap-2 transition-colors shrink-0 cursor-pointer" aria-pressed={showAdvanced}
             style={{
-              backgroundColor: showAdvanced ? 'var(--color-accent)' : 'var(--bg-input)',
-              border: showAdvanced ? '1px solid var(--color-accent)' : '1px solid var(--border-medium)',
+              backgroundColor: showAdvanced ? 'var(--color-accent-solid)' : 'var(--bg-input)',
+              border: showAdvanced ? '1px solid var(--color-accent-solid)' : '1px solid var(--border-medium)',
               color: showAdvanced ? '#fff' : 'var(--text-primary)'
             }}
           >
@@ -374,8 +374,7 @@ export default function OwnerAuditLogs() {
                     setCustomDate('');
                     setDatePageIndex(0);
                   }}
-                  className="h-10 px-2.5 text-[11px] font-bold rounded-md transition-colors hover:bg-[var(--bg-hover)]"
-                  style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--color-accent)' }}
+                  className={buttonClass({ variant: 'secondary', size: 'md' })}
                   title="Return to latest active day"
                 >
                   Latest Day
@@ -444,7 +443,7 @@ export default function OwnerAuditLogs() {
         <div className="w-full">
           <table className="block md:table w-full text-left md:text-center md:whitespace-nowrap border-collapse min-w-full">
           <thead className="hidden md:table-header-group sticky top-0 z-20 glass-header" style={{ borderBottom: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}>
-            <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+            <tr className="h-10 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
               <th className="p-3 w-40 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Date &amp; Time</th>
               <th className="p-3 w-24 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Action</th>
               <th className="p-3 w-24 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Barcode</th>
@@ -527,8 +526,7 @@ export default function OwnerAuditLogs() {
                 setDatePageIndex(p => Math.max(0, p - 1));
               }} 
               disabled={datePageIndex === 0 && (!customDate || customDate === availableDates[0])} 
-              className="h-8 px-2.5 sm:px-4 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] flex items-center justify-center gap-1 shrink-0"
-              style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+              className={buttonClass({ variant: 'secondary', size: 'sm', className: 'sm:px-4' })}
               title="Previous Day"
             >
               <span>&larr;<span className="hidden sm:inline"> Previous</span></span>
@@ -557,8 +555,7 @@ export default function OwnerAuditLogs() {
                 setDatePageIndex(p => Math.min(Math.max(0, availableDates.length - 1), p + 1));
               }} 
               disabled={availableDates.length === 0 || (datePageIndex >= availableDates.length - 1 && (!customDate || customDate === availableDates[availableDates.length - 1]))} 
-              className="h-8 px-2.5 sm:px-4 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] flex items-center justify-center gap-1 shrink-0"
-              style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+              className={buttonClass({ variant: 'secondary', size: 'sm', className: 'sm:px-4' })}
               title="Next Day"
             >
               <span><span className="hidden sm:inline">Next </span>&rarr;</span>
@@ -569,8 +566,7 @@ export default function OwnerAuditLogs() {
             <button 
               onClick={() => setSearchPage(p => Math.max(0, p - 1))} 
               disabled={searchPage === 0} 
-              className="h-8 px-2.5 sm:px-5 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] shrink-0 flex items-center justify-center"
-              style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+              className={buttonClass({ variant: 'secondary', size: 'sm', className: 'sm:px-5' })}
               title="Previous Page"
             >
               <span>&larr;<span className="hidden sm:inline"> Prev</span></span>
@@ -583,8 +579,7 @@ export default function OwnerAuditLogs() {
             <button 
               onClick={() => setSearchPage(p => p + 1)} 
               disabled={rawLogs.length < AUDIT_SEARCH_PER_PAGE} 
-              className="h-8 px-2.5 sm:px-5 text-xs font-semibold disabled:opacity-40 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] shrink-0 flex items-center justify-center"
-              style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+              className={buttonClass({ variant: 'secondary', size: 'sm', className: 'sm:px-5' })}
               title="Next Page"
             >
               <span><span className="hidden sm:inline">Next </span>&rarr;</span>

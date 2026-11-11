@@ -5,6 +5,7 @@ import { Save, Upload, Eye, EyeOff, Edit2, Trash2, Volume2, VolumeX, SlidersHori
 import { isAudioEnabled, setAudioEnabled, playScanSuccessSound } from './services/audio';
 import { Spinner } from './SharedUI';
 import PageTitleReset from './components/PageTitleReset';
+import { buttonClass } from './components/ui';
 
 export default function OwnerSettings() {
   const { shopSettings, setShopSettings, showAlert, setWarehouseDisabled } = useApp();
@@ -392,8 +393,7 @@ export default function OwnerSettings() {
                   type="button"
                   onClick={handleSave}
                   disabled={isLoading}
-                  className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-white text-xs font-bold shadow-sm transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                  style={{ backgroundColor: 'var(--color-accent-solid)' }}
+                  className={buttonClass({ variant: 'primary', size: 'sm' })}
                 >
                   {isLoading ? (
                     <>Saving...</>
@@ -472,7 +472,7 @@ export default function OwnerSettings() {
                           <button
                             type="button"
                             onClick={() => playScanSuccessSound()}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded border border-[var(--border-medium)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all active:scale-95 cursor-pointer shrink-0"
+                            className={buttonClass({ variant: 'secondary', size: 'sm', className: 'shrink-0' })}
                             title="Test scan sound"
                           >
                             <Volume2 size={11} className="text-[var(--color-accent)]" />
@@ -870,8 +870,7 @@ export default function OwnerSettings() {
                 type="button"
                 onClick={handleDownloadCompleteData}
                 disabled={isExporting}
-                className="w-full mt-1 py-2.5 px-4 rounded-lg font-bold text-xs text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 active:scale-98 hover:brightness-110"
-                style={{ backgroundColor: 'var(--color-accent-solid)' }}
+                className={buttonClass({ variant: 'primary', size: 'md', className: 'w-full mt-1' })}
               >
                 {isExporting ? (
                   <>

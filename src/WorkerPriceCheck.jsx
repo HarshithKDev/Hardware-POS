@@ -6,6 +6,7 @@ import { useApp } from './AppContext';
 import { calculateMSP, formatINR } from './utils';
 import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD } from './constants';
 import { AlertTriangle, Camera, RefreshCw, Eye } from 'lucide-react';
+import { buttonClass } from './components/ui';
 
 export default function WorkerPriceCheck() {
   const { showAlert, userRole, isWarehouseDisabled } = useApp();
@@ -370,7 +371,7 @@ export default function WorkerPriceCheck() {
               <button
                 type="button"
                 onClick={handleScanAnother}
-                className="w-full py-4 md:py-5 rounded-xl font-bold text-base text-white bg-[var(--color-accent-solid)] hover:opacity-90 active:scale-98 transition-all shadow-md flex items-center justify-center gap-2 mt-2"
+                className={buttonClass({ variant: 'primary', size: 'md', className: 'w-full mt-2' })}
               >
                 <Camera className="w-5 h-5" />
                 Scan Another Item
@@ -427,7 +428,7 @@ export default function WorkerPriceCheck() {
                     unlockAudio();
                     setIsScanning(true);
                   }}
-                  className="px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-[var(--color-accent-solid)] hover:opacity-90 active:scale-95 transition-all shadow-sm flex items-center gap-2"
+                  className={buttonClass({ variant: 'primary', size: 'md' })}
                 >
                   <RefreshCw className="w-4 h-4" />
                   Start Camera Scanner

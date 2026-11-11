@@ -16,6 +16,7 @@ import {
   setLocalSubcategories 
 } from './services/db';
 import PageTitleReset from './components/PageTitleReset';
+import { buttonClass } from './components/ui';
 
 export default function WorkerDashboardView({ isBillable = true }) {
   const { isWarehouseDisabled } = useApp();
@@ -501,7 +502,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
   }), [isFetchingNextPage, isWarehouseDisabled]);
 
   const fixedHeaderContent = useCallback(() => (
-    <tr className="text-xs font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>
+    <tr className="h-10 text-[11px] font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>
       <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Barcode</th>
       <th className="p-2 md:p-3 w-[12%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Batch</th>
       <th className={`p-2 md:p-3 ${isWarehouseDisabled ? 'w-[45%]' : 'w-[35%]'} md:w-auto align-middle`} style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Name</th>
@@ -685,8 +686,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
               </span>
               <button
                 onClick={() => setLowStockModal({ isOpen: false, type: null })}
-                className="px-3.5 py-1.5 text-white rounded-lg text-xs font-bold focus:outline-none transition-all hover:opacity-90 active:scale-95 cursor-pointer shadow-sm flex items-center gap-1.5"
-                style={{ backgroundColor: 'var(--color-error-solid)' }}
+                className={buttonClass({ variant: 'secondary', size: 'sm' })}
               >
                 <span>Close</span>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>

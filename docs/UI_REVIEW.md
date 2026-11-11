@@ -151,6 +151,18 @@ control heights / type scale / z-layers.
   Dead stock values no longer all red (C3); low stock quantities in amber.
 - Expenses: Add Expense on `Modal`, totals footer row (T4), empty state with an action (S3).
 
-**Still open:** z-index layers (needs every modal on `Modal` first, since stacking order
-depends on it); remaining smaller screens (Settings, Staff, Catalog, Audit logs, Showroom);
-step 3 behaviour items.
+**Step 3 — done:**
+- S1: success messages ("Success", "Box Opened", "Stock Updated", "Recorded",
+  "Item Restored"…) are small auto-closing notices (bottom-right) instead of the alert box;
+  errors/warnings still use the alert box. Counter shortcuts are no longer blocked by them.
+- F2: Sales History and Audit Logs date pickers show "10 Nov 2026" (`DateField`).
+- T4: day total on Sales History; totals row in Dead stock and Expenses.
+- C3: Sign Out is a neutral button; red Close/Cancel buttons are now neutral everywhere.
+
+**Smaller screens — done:** Settings, Staff (password prompt on `Modal`), Catalog, Audit
+logs, Showroom, Categories, Price check, Print labels, staff dashboard, login/registration,
+print/product popups and failed-sync list use the shared buttons and table headers.
+
+**Still open (step 4 / later):** z-index layers (a few older popups — print preview,
+product info, staff low-stock list — still use their own shells); T5 click-to-sort on
+more tables; top bar & sidebar grouping (L1, L4); skeleton loaders; optional light theme.

@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { STALE_TIME_5MIN } from './constants';
 import PageTitleReset from './components/PageTitleReset';
+import { buttonClass } from './components/ui';
 
 export default function OwnerCategories() {
   const { showAlert, showConfirm } = useApp();
@@ -202,7 +203,7 @@ export default function OwnerCategories() {
           <form onSubmit={handleAddCategory} className="flex gap-2">
             <label htmlFor="new-cat" className="sr-only">Category Name</label>
             <input id="new-cat" type="text" placeholder="Category Name" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} className="flex-1 h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-            <button type="submit" disabled={addCategoryMutation.isPending} className="h-10 px-6 text-white text-sm font-semibold focus:outline-none" style={{ backgroundColor: 'var(--color-accent-solid)' }}>Save</button>
+            <button type="submit" disabled={addCategoryMutation.isPending} className={buttonClass({ variant: 'primary', size: 'md' })}>Save</button>
           </form>
         </div>
 
@@ -223,7 +224,7 @@ export default function OwnerCategories() {
             <div className="flex gap-2">
               <label htmlFor="new-subcat" className="sr-only">Sub-category Name</label>
               <input id="new-subcat" type="text" placeholder="Sub-category Name" value={newSubcategory} onChange={(e) => setNewSubcategory(e.target.value)} className="flex-1 h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-              <button type="submit" disabled={addSubcategoryMutation.isPending} className="h-10 px-6 text-white text-sm font-semibold focus:outline-none" style={{ backgroundColor: 'var(--color-accent-solid)' }}>Save</button>
+              <button type="submit" disabled={addSubcategoryMutation.isPending} className={buttonClass({ variant: 'primary', size: 'md' })}>Save</button>
             </div>
           </form>
         </div>
@@ -251,8 +252,7 @@ export default function OwnerCategories() {
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.name, cat.name); }}
-                      className="h-8 px-3 text-xs font-semibold focus:outline-none transition-colors rounded-md"
-                      style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
+                      className={buttonClass({ variant: 'danger-outline', size: 'sm' })}
                       aria-label={`Delete category ${cat.name}`}
                     >
                       Remove
@@ -296,7 +296,7 @@ export default function OwnerCategories() {
         {/* Laptop / Desktop View: Exact Table */}
         <table className={`hidden md:table w-full text-center border-collapse ${categories.length === 0 ? 'h-full' : ''}`}>
           <thead className="sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
-              <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+              <tr className="h-10 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                 <th className="p-4" style={{ borderRight: '1px solid var(--border-medium)' }}>Category Name</th>
                 <th className="p-4 w-32 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Actions</th>
                 <th className="p-4 text-center w-16">Details</th>
@@ -325,16 +325,7 @@ export default function OwnerCategories() {
                       <td className="p-2 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.name, cat.name); }}
-                          className="h-8 px-4 text-xs font-semibold focus:outline-none transition-colors"
-                          style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
-                          onMouseEnter={(e) => {
-                            e.target.style.backgroundColor = 'var(--color-error)';
-                            e.target.style.color = '#ffffff';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.target.style.backgroundColor = 'var(--bg-secondary)';
-                            e.target.style.color = 'var(--color-error)';
-                          }}
+                          className={buttonClass({ variant: 'danger-outline', size: 'sm' })}
                           aria-label={`Delete category ${cat.name}`}
                         >
                           Remove

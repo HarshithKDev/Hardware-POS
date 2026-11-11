@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Phone
 } from 'lucide-react';
+import { buttonClass } from './components/ui';
 
 export default function ShowroomDetailsView({
   bill,
@@ -49,7 +50,7 @@ export default function ShowroomDetailsView({
           type="button"
           onClick={onBack}
           aria-label="Back to Showroom Dispatches"
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-[var(--text-secondary)] hover:text-white bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] border border-[var(--border-medium)] transition-all cursor-pointer shadow-sm hover:border-[var(--color-accent)] active:scale-95"
+          className={buttonClass({ variant: 'secondary', size: 'md' })}
           title="Back to Showroom Dispatches"
         >
           <ArrowLeft className="w-4 h-4 text-[var(--color-accent)]" />
@@ -152,7 +153,7 @@ export default function ShowroomDetailsView({
             <div className="hidden md:block overflow-x-auto w-full flex-1">
               <table className="w-full text-center border-collapse table-auto md:table-fixed">
                 <thead className="sticky top-0 z-10" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
-                  <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+                  <tr className="h-10 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                     <th className="py-3 px-4 text-center md:w-[40%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Deducted Product</th>
                     <th className="py-3 px-4 text-center md:w-[20%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Qty Deducted</th>
                     <th className="py-3 px-4 text-center md:w-[20%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Unit Value</th>

@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { deleteOfflineTransaction, requeueTransaction } from './services/db';
 import { formatDateTime } from './utils';
+import { buttonClass } from './components/ui';
 
 export default function OwnerFailedSyncsModal({ failedSyncs, onClose }) {
   const { showAlert, showConfirm } = useApp();
@@ -48,7 +49,7 @@ export default function OwnerFailedSyncsModal({ failedSyncs, onClose }) {
     <div className="w-full overflow-x-auto">
       <table className="w-full text-center border-collapse">
         <thead className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
-          <tr className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+          <tr className="h-10 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
             <th className="p-3 w-40" style={{ borderRight: '1px solid var(--border-medium)' }}>Timestamp</th>
             <th className="p-3" style={{ borderRight: '1px solid var(--border-medium)' }}>Transaction Details</th>
             <th className="p-3" style={{ borderRight: '1px solid var(--border-medium)' }}>Error Reason</th>
@@ -79,7 +80,7 @@ export default function OwnerFailedSyncsModal({ failedSyncs, onClose }) {
                     <button onClick={() => handleRetry(tx.id)} className="px-2 py-1 text-[11px] font-bold text-white bg-blue-500 hover:bg-blue-600 transition-colors">
                       Retry
                     </button>
-                    <button onClick={() => handleDiscard(tx.id)} className="px-2 py-1 text-[11px] font-bold transition-colors" style={{ color: 'var(--color-error)', border: '1px solid var(--color-error)' }}>
+                    <button onClick={() => handleDiscard(tx.id)} className={buttonClass({ variant: 'danger-outline', size: 'sm' })}>
                       Discard
                     </button>
                   </div>

@@ -5,6 +5,7 @@ import { getInventoryByQuery } from './services/db';
 import { useApp } from './AppContext';
 import { debounce, formatINR } from './utils';
 import BarcodeLabelSheet, { MAX_LABELS_PER_PRINT, clampLabelQty } from './components/print/BarcodeLabelSheet';
+import { buttonClass } from './components/ui';
 
 export default function WorkerPrintBarcode() {
   const { showAlert } = useApp();
@@ -439,7 +440,7 @@ export default function WorkerPrintBarcode() {
                   type="button"
                   onClick={handlePrint}
                   disabled={isPrinting}
-                  className="w-full h-10 rounded-lg bg-[var(--color-accent-solid)] text-white font-semibold text-xs sm:text-sm shadow-sm hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className={buttonClass({ variant: 'primary', size: 'md', className: 'w-full' })}
                 >
                   <Printer className="w-4 h-4" />
                   <span>

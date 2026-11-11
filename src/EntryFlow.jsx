@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { Spinner, EyeIcon, EyeSlashIcon } from './SharedUI';
 import { getWorkerEmail, getLegacyWorkerEmail } from './constants';
+import { buttonClass } from './components/ui';
 
 export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComplete, shopSettings }) {
   const [step, setStep] = useState(1);
@@ -315,7 +316,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
                 </div>
               </div>
               {error && <p className="text-sm font-semibold" style={{ color: 'var(--color-error)' }}>{error}</p>}
-              <button type="submit" disabled={isSettingUp} className="w-full h-12 text-sm font-bold disabled:opacity-50 flex justify-center items-center rounded-lg" style={{ backgroundColor: 'var(--color-accent-solid)', color: 'var(--color-accent-fg)' }}>
+              <button type="submit" disabled={isSettingUp} className={buttonClass({ variant: 'primary', size: 'lg', className: 'w-full' })}>
                 {isSettingUp ? <Spinner className="w-5 h-5 text-white" /> : 'Log In'}
               </button>
               <div className="text-center pt-2">
@@ -417,8 +418,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
             <button
               type="submit"
               disabled={isSettingUp}
-              className="w-full h-12 text-sm font-bold disabled:opacity-50 flex justify-center items-center rounded-lg"
-              style={{ backgroundColor: 'var(--color-accent-solid)', color: 'var(--color-accent-fg)' }}
+              className={buttonClass({ variant: 'primary', size: 'lg', className: 'w-full' })}
             >
               {isSettingUp ? <Spinner className="w-5 h-5 text-white" /> : 'Register My Shop'}
             </button>
@@ -465,15 +465,13 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
             <div className="space-y-3">
               <button
                 onClick={() => handleRoleSelect('worker')}
-                className="w-full py-3 text-sm text-center font-medium rounded-md border border-[var(--border-light)] transition-colors hover:bg-[var(--bg-hover)]"
-                style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
+                className={buttonClass({ variant: 'secondary', size: 'lg', className: 'w-full' })}
               >
                 Staff Login
               </button>
               <button
                 onClick={() => handleRoleSelect('owner')}
-                className="w-full py-3 text-sm text-center font-medium rounded-md transition-colors"
-                style={{ backgroundColor: 'var(--color-accent-solid)', color: 'var(--color-accent-fg)' }}
+                className={buttonClass({ variant: 'primary', size: 'lg', className: 'w-full' })}
               >
                 Owner Login
               </button>
@@ -571,8 +569,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
               <button
                 type="submit"
                 disabled={isAuthenticating}
-                className="w-full h-11 mt-4 text-sm font-medium disabled:opacity-50 flex justify-center items-center rounded-md transition-all"
-                style={{ backgroundColor: 'var(--color-accent-solid)', color: 'var(--color-accent-fg)' }}
+                className={buttonClass({ variant: 'primary', size: 'lg', className: 'w-full mt-4' })}
               >
                 {isAuthenticating ? <Spinner className="w-5 h-5 text-white" /> : 'Login'}
               </button>

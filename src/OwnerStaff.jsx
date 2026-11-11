@@ -7,6 +7,7 @@ import { generateId } from './utils';
 import { getWorkerEmail, getAdminEmail } from './constants';
 import { Spinner, PageLoader } from './SharedUI';
 import PageTitleReset from './components/PageTitleReset';
+import { buttonClass, Modal, Button, Input } from './components/ui';
 
 export default function OwnerStaff() {
   const { showAlert, showConfirm } = useApp();
@@ -214,8 +215,7 @@ export default function OwnerStaff() {
             <button
               type="submit"
               disabled={addStaffMutation.isPending}
-              className="w-full md:w-auto h-10 px-8 text-white text-sm font-semibold disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-1 flex justify-center items-center min-w-[150px] rounded-md transition-opacity hover:opacity-90"
-              style={{ backgroundColor: 'var(--color-accent-solid)' }}
+              className={buttonClass({ variant: 'primary', size: 'md', className: 'w-full md:w-auto min-w-[150px]' })}
             >
               {addStaffMutation.isPending ? <Spinner className="w-5 h-5 text-white" /> : 'Create Account'}
             </button>
@@ -249,8 +249,7 @@ export default function OwnerStaff() {
               <button
                 onClick={() => handleRemove(staff.id, staff.name)}
                 disabled={removeStaffMutation.isPending}
-                className="h-8 px-4 text-xs font-semibold focus:outline-none transition-colors disabled:opacity-50 rounded-md shrink-0"
-                style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
+                className={buttonClass({ variant: 'danger-outline', size: 'sm', className: 'shrink-0' })}
                 aria-label={`Remove ${staff.name}`}
               >
                 Remove
@@ -262,7 +261,7 @@ export default function OwnerStaff() {
         {/* Laptop / Desktop View: Exact Table */}
         <table className={`hidden md:table w-full min-w-[480px] text-center border-collapse ${(isLoading || staffList.length === 0) ? 'h-full' : ''}`}>
           <thead className="sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
-            <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+            <tr className="h-10 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
               <th className="p-4 w-5/12 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Staff Name</th>
               <th className="p-4 w-4/12 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Account Type</th>
               <th className="p-4 text-center w-3/12">Actions</th>
@@ -317,43 +316,33 @@ export default function OwnerStaff() {
       </div>
       {/* Owner Password Prompt Modal */}
       {showPromptModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md p-6 rounded-xl shadow-2xl border border-[var(--border-light)] transform scale-100 transition-all" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-            <h3 className="text-lg font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Confirm Staff Addition</h3>
-            <p className="text-sm mb-5" style={{ color: 'var(--text-secondary)' }}>
-              Enter Owner Password to confirm adding this staff member:
-            </p>
-            <form onSubmit={confirmAddStaff} className="space-y-4">
-              <input
-                type="password"
-                autoFocus
-                value={promptPassword}
-                onChange={(e) => setPromptPassword(e.target.value)}
-                className="w-full h-11 px-3 text-sm focus:outline-none rounded-md"
-                style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
-                placeholder="Owner Password"
-              />
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowPromptModal(false)}
-                  className="px-5 py-2 text-sm font-semibold rounded-md transition-colors"
-                  style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isVerifying || !promptPassword}
-                  className="px-5 py-2 text-white text-sm font-semibold rounded-md transition-opacity disabled:opacity-50 flex items-center justify-center min-w-[80px]"
-                  style={{ backgroundColor: 'var(--color-accent-solid)' }}
-                >
-                  {isVerifying ? <Spinner className="w-4 h-4 text-white" /> : 'Confirm'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <Modal
+          as="form"
+          onSubmit={confirmAddStaff}
+          onClose={() => { if (!isVerifying) setShowPromptModal(false); }}
+          title="Confirm Staff Addition"
+          subtitle="Enter the owner password to confirm adding this staff member."
+          titleId="confirm-staff-title"
+          size="sm"
+          zIndex={50}
+          footer={(
+            <>
+              <Button variant="secondary" onClick={() => setShowPromptModal(false)} disabled={isVerifying}>Cancel</Button>
+              <Button type="submit" variant="primary" disabled={!promptPassword} loading={isVerifying} className="min-w-[96px]">Confirm</Button>
+            </>
+          )}
+        >
+          <Input
+            id="owner-password-confirm"
+            label="Owner Password"
+            type="password"
+            autoFocus
+            autoComplete="current-password"
+            value={promptPassword}
+            onChange={(e) => setPromptPassword(e.target.value)}
+            placeholder="Owner Password"
+          />
+        </Modal>
       )}
     </div>
   );

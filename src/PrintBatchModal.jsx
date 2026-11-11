@@ -3,6 +3,7 @@ import { formatINR } from './utils';
 import Barcode from 'react-barcode';
 import { supabase } from './supabaseClient';
 import BarcodeLabelSheet, { MAX_LABELS_PER_PRINT, clampLabelQty } from './components/print/BarcodeLabelSheet';
+import { buttonClass } from './components/ui';
 
 export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }) {
   const [qty, setQty] = useState(10);
@@ -68,16 +69,14 @@ export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }
           <div className="px-5 py-4 border-t border-[var(--border-light)] bg-[var(--bg-tertiary)] flex justify-end gap-3">
             <button 
               onClick={onClose}
-              className="px-4 py-2 text-sm font-semibold rounded-md transition-colors"
-              style={{ color: 'var(--color-error)', border: '1px solid var(--color-error)', backgroundColor: 'transparent' }}
+              className={buttonClass({ variant: 'secondary', size: 'md' })}
             >
               Cancel
             </button>
             <button 
               onClick={handlePrint}
               disabled={isPrinting}
-              className="px-6 py-2 text-sm font-bold rounded-md text-white shadow-sm flex items-center gap-2 transition-all hover:opacity-90 disabled:opacity-50"
-              style={{ backgroundColor: 'var(--color-accent-solid)' }}
+              className={buttonClass({ variant: 'primary', size: 'md' })}
             >
               {isPrinting ? 'Printing...' : 'Print Labels'}
             </button>

@@ -6,6 +6,7 @@ import { formatDateTime, useSessionState, formatINR } from './utils';
 import { ChevronRight, Phone } from 'lucide-react';
 import ShowroomDetailsView from './ShowroomDetailsView';
 import PageTitleReset from './components/PageTitleReset';
+import { buttonClass } from './components/ui';
 
 const SHOWROOM_PAGE_SIZE = 20;
 
@@ -114,7 +115,7 @@ export default function OwnerShowroom() {
           ) : (
             <table className="block md:table w-full text-center border-collapse">
               <thead className="hidden md:table-header-group sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
-                <tr className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+                <tr className="h-10 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                   <th className="py-3.5 px-5 text-center md:w-[28%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Date &amp; Time</th>
                   <th className="py-3.5 px-5 text-center md:w-[32%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Customer / Recipient</th>
                   <th className="py-3.5 px-4 text-center md:w-[22%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Phone Number</th>
@@ -207,8 +208,7 @@ export default function OwnerShowroom() {
             <button
               onClick={() => setPage(p => Math.max(0, p - 1))}
               disabled={page === 0}
-              className="h-8 px-3 sm:px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] btn-press flex items-center justify-center"
-              style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+              className={buttonClass({ variant: 'secondary', size: 'sm', className: 'sm:px-6' })}
               title="Previous Page"
             >
               <span>&larr;<span className="hidden sm:inline"> Previous</span></span>
@@ -216,8 +216,7 @@ export default function OwnerShowroom() {
             <button
               onClick={() => setPage(p => p + 1)}
               disabled={!hasMore}
-              className="h-8 px-3 sm:px-6 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md transition-colors hover:bg-[var(--bg-hover)] btn-press flex items-center justify-center"
-              style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}
+              className={buttonClass({ variant: 'secondary', size: 'sm', className: 'sm:px-6' })}
               title="Next Page"
             >
               <span><span className="hidden sm:inline">Next </span>&rarr;</span>
