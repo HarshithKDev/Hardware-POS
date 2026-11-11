@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, Fragment } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { localToUtcIso, formatINR } from './utils';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
@@ -9,6 +9,7 @@ import { X, Calendar } from 'lucide-react';
 import PageTitleReset from './components/PageTitleReset';
 import { buttonClass, DateField, TableSkeleton } from './components/ui';
 import { groupTransactionLogs } from './services/auditGrouping';
+import AuditLogDetailsModal from './components/audit/AuditLogDetailsModal';
 
 /** Every action that is written to the audit log, with a plain name for the filter. */
 const ACTION_LABELS = {
@@ -44,34 +45,8 @@ const ACTION_TONE = {
   LOGIN: 'neutral', LOGOUT: 'neutral', EXPORT: 'neutral', SYNC_FAILED: 'error',
 };
 
-/** The full breakdown shown when a log row is expanded: one "Label: value" per line. */
-const LogDetails = ({ details }) => (
-  <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-1.5 text-left">
-    {details.map((part, i) => {
-      const idx = part.indexOf(': ');
-      const label = idx > 0 ? part.slice(0, idx) : '';
-      const value = idx > 0 ? part.slice(idx + 2) : part;
-      return (
-        <div key={i} className="flex gap-2 min-w-0 text-sm">
-          {label && <dt className="shrink-0 text-[var(--text-secondary)]">{label}:</dt>}
-          <dd className="min-w-0 break-words text-[var(--text-primary)]">{value}</dd>
-        </div>
-      );
-    })}
-  </dl>
-);
-
-const DetailsToggle = ({ count, open, onClick }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    aria-expanded={open}
-    className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-accent)] hover:underline cursor-pointer"
-  >
-    {open ? 'Hide details' : `+${count} detail${count === 1 ? '' : 's'}`}
-    <span aria-hidden="true">{open ? '▴' : '▾'}</span>
-  </button>
-);
+/** Popup title for each action type. */
+const ACTION_TITLE = { SALE: 'Sale', BILL: 'Bill', SHOWROOM: 'Showroom dispatch', 'STOCK IN': 'Stock received', TRANSFER: 'Moved to store', RETURN: 'Return', VOID: 'Bill fully returned', SCRAP: 'Scrap', BOX_OPENED: 'Screw box opened', CREATE: 'Created', UPDATE: 'Updated', DELETE: 'Deleted', RESTORE: 'Restored', EXPENSE: 'Expense', EXPENSE_DELETED: 'Expense deleted', 'CART CLEARED': 'Cart cleared without billing', PRINT: 'Labels printed', 'DAY CLOSING': 'Day closing', SETTINGS: 'Settings changed', LOGIN: 'Signed in', LOGOUT: 'Signed out', EXPORT: 'Data download', SYNC_FAILED: 'Failed sync' };
 
 /**
  * One short, readable line per log entry, plus the remaining details (shown when the row
@@ -144,15 +119,9 @@ export default function OwnerAuditLogs() {
   const [sortOrder, setSortOrder] = useSessionState(`pos_audit_sort_${shopId}`, 'newest');
   const [showAdvanced, setShowAdvanced] = useSessionState(`pos_audit_adv_${shopId}`, false);
   // Rows whose full details are open
-  const [expandedIds, setExpandedIds] = useState(() => new Set());
-  const toggleExpanded = useCallback((id) => {
-    setExpandedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }, []);
-  
+  // the row whose full details are open in the popup
+  const [selectedLog, setSelectedLog] = useState(null);
+
   const [datePageIndex, setDatePageIndex] = useSessionState(`pos_audit_date_idx_${shopId}`, 0);
   const [customDate, setCustomDate] = useSessionState(`pos_audit_date_${shopId}`, '');
   const [searchPage, setSearchPage] = useSessionState(`pos_audit_page_${shopId}`, 0);
@@ -546,11 +515,15 @@ export default function OwnerAuditLogs() {
           <tbody className="block md:table-row-group p-2 md:p-0">
             {filteredLogs.map(log => {
               const styles = getActionStyles(log.action_type);
-              const details = log.details || [];
-              const isOpen = expandedIds.has(log.id);
+              const openDetails = () => setSelectedLog(log);
               return (
-                <Fragment key={log.id}>
-                <tr className="transition-colors hover:bg-[var(--bg-hover)] group block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none mb-3 md:mb-0 border border-[var(--border-medium)] md:border-b md:border-t-0 md:border-l-0 md:border-r-0 md:border-[var(--border-medium)] relative md:static" style={{ borderBottom: '1px solid var(--border-medium)' }}>
+                <tr
+                  key={log.id}
+                  tabIndex={0}
+                  onClick={openDetails}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetails(); } }}
+                  aria-label={`Open details: ${ACTION_TITLE[log.action_type] || log.action_type}, ${log.item_name || ''}, ${log.date}`}
+                  className="cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-accent)] transition-colors hover:bg-[var(--bg-hover)] group block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none mb-3 md:mb-0 border border-[var(--border-medium)] md:border-b md:border-t-0 md:border-l-0 md:border-r-0 md:border-[var(--border-medium)] relative md:static" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                   <td className="md:hidden block p-4 border-none w-full">
                     <div className="flex justify-between items-start mb-2 gap-2">
                       <div className="flex-1 min-w-0">
@@ -572,8 +545,6 @@ export default function OwnerAuditLogs() {
                     {log.summary && log.summary !== '—' && (
                       <div className="mt-3 pt-3 border-t border-[var(--border-medium)] w-full flex flex-col gap-2">
                         <p className="text-sm text-[var(--text-primary)] whitespace-normal break-words">{log.summary}</p>
-                        {details.length > 0 && <DetailsToggle count={details.length} open={isOpen} onClick={() => toggleExpanded(log.id)} />}
-                        {isOpen && details.length > 0 && <LogDetails details={details} />}
                       </div>
                     )}
                   </td>
@@ -598,21 +569,12 @@ export default function OwnerAuditLogs() {
                   <td className="hidden md:table-cell p-3 text-sm text-center whitespace-normal" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
                     <div className="flex flex-col items-center gap-1 max-w-[560px] mx-auto">
                       <span className={`break-words ${log.summary === '—' ? 'text-[var(--text-tertiary)]' : ''}`}>{log.summary}</span>
-                      {details.length > 0 && <DetailsToggle count={details.length} open={isOpen} onClick={() => toggleExpanded(log.id)} />}
                     </div>
                   </td>
                   <td className="hidden md:table-cell p-3 w-24 text-xs text-center font-semibold capitalize" style={{ color: 'var(--text-secondary)' }}>
                     {log.performed_by}
                   </td>
                 </tr>
-                {isOpen && details.length > 0 && (
-                  <tr className="hidden md:table-row" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
-                    <td colSpan={6} className="px-6 py-3 whitespace-normal">
-                      <LogDetails details={details} />
-                    </td>
-                  </tr>
-                )}
-                </Fragment>
               );
             })}
           </tbody>
@@ -692,6 +654,15 @@ export default function OwnerAuditLogs() {
           </>
         )}
       </div>
+
+      {selectedLog && (
+        <AuditLogDetailsModal
+          log={selectedLog}
+          badgeStyle={getActionStyles(selectedLog.action_type)}
+          actionLabel={ACTION_TITLE[selectedLog.action_type] || String(selectedLog.action_type || 'Log entry').replace(/_/g, ' ')}
+          onClose={() => setSelectedLog(null)}
+        />
+      )}
     </div>
   );
 }

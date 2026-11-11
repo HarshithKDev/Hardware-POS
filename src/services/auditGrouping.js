@@ -39,6 +39,19 @@ function mergeGroup(members) {
 
   let total = 0;
   let totalKnown = items.length > 0;
+  // structured rows for the details popup's item table
+  const itemRows = items.map((m) => {
+    const line = parseLine(m);
+    return {
+      name: m.item_name || m.barcode || 'Item',
+      barcode: m.barcode && m.barcode !== '---' ? m.barcode : '',
+      unit: m.unit || '',
+      qty: line ? line.qty : null,
+      price: line ? line.price : null,
+      total: line ? line.qty * line.price : null,
+      note: line ? '' : (m.summary || ''),
+    };
+  });
   const details = items.map((m) => {
     const line = parseLine(m);
     const name = String(m.item_name || m.barcode || 'Item').replace(/: /g, ' - ');
@@ -69,6 +82,9 @@ function mergeGroup(members) {
     // a single item has nothing more to show than the line above
     details: n > 1 ? details : (n === 1 && summaryRow ? details : []),
     grouped: true,
+    items: itemRows,
+    itemsTotal: totalKnown ? total : null,
+    reference: summaryRow?.item_name || '',
   };
 }
 
