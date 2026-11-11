@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
-import { formatDateTime, formatINR } from './utils';
+import { formatDateTime, formatINR, billLabel } from './utils';
 import { PageLoader } from './SharedUI';
 import { useApp } from './AppContext';
 import {
@@ -121,7 +121,7 @@ export default function BillDetailsView({
         <div>
           {/* Metadata chips row */}
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] mb-2 flex-wrap">
-            <span>Bill #{currentBill.id.split('-')[0]}</span>
+            <span>Bill #{billLabel(currentBill)}</span>
             <span>•</span>
             <span>{datePart} at {timePart}</span>
             <span>•</span>

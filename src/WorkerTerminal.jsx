@@ -1716,7 +1716,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       const roundOff = Math.round((finalTotalAmount - linesTotal) * 100) / 100;
 
       setLastReceipt({
-        id: successData.bill_id.split('-')[0],
+        // sequential bill number from the database when available, else the short id
+        id: successData.bill_no ? String(successData.bill_no) : successData.bill_id.split('-')[0],
         items: finalItemsList,
         total: finalTotalAmount,
         roundOff: Math.abs(roundOff) >= 0.01 ? roundOff : 0,

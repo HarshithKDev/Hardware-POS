@@ -508,3 +508,12 @@ describe('One-call database functions (after the SQL update)', () => {
     expect(queue.get(22).status).toBe('failed');
   });
 });
+
+import { billLabel } from '../utils';
+describe('Bill numbers', () => {
+  it('shows the sequential number when the bill has one, else the short id', () => {
+    expect(billLabel({ id: '71de4b03-aaaa-bbbb', bill_no: 1234 })).toBe('1234');
+    expect(billLabel({ id: '71de4b03-aaaa-bbbb', bill_no: null })).toBe('71de4b03');
+    expect(billLabel({ id: '71de4b03-aaaa-bbbb' })).toBe('71de4b03');
+  });
+});

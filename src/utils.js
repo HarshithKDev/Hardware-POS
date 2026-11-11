@@ -176,3 +176,10 @@ export function formatINR(value, decimals = 2) {
   const safe = Number.isFinite(n) ? n : 0;
   return safe.toLocaleString('en-IN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
+
+/** Bill reference shown to people: the sequential bill number, or (old/unnumbered bills) the short id. */
+export function billLabel(bill) {
+  if (!bill) return '';
+  if (bill.bill_no !== undefined && bill.bill_no !== null && bill.bill_no !== '') return String(bill.bill_no);
+  return String(bill.id || '').split('-')[0];
+}

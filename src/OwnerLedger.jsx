@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, Fragment, useCallback } from 'react';
-import { localToUtcIso, formatINR } from './utils';
+import { localToUtcIso, formatINR, billLabel } from './utils';
 import { getPerformedBy } from './utils';
 import { supabase } from './supabaseClient';
 import { casUpdateRow } from './services/atomicStock';
@@ -15,6 +15,15 @@ import { Search, Undo2, X, Phone, User, Calendar } from 'lucide-react';
 import BillDetailsView from './BillDetailsView';
 import { getInventoryItemByBarcode } from './services/db';
 import PageTitleReset from './components/PageTitleReset';
+
+// Searching by bill number is switched on once bills loaded from the database include
+// the bill_no column (after the bill-number SQL update); before that the query would fail.
+let billNoSearchEnabled = false;
+const noteBillNoColumn = (rows) => {
+  if (!billNoSearchEnabled && (rows || []).some(r => r && Object.prototype.hasOwnProperty.call(r, 'bill_no'))) {
+    billNoSearchEnabled = true;
+  }
+};
 
 const isItemCuttable = (item) => {
   return Boolean(
@@ -228,7 +237,7 @@ export default function OwnerLedger({ isActive }) {
       const raw = searchQuery.trim().replace(/^#/, '').replace(/[,()]/g, '');
       if (raw) {
         const cleanQ = escapeIlike(raw);
-        query = query.or(`customer_phone.ilike.%${cleanQ}%,customer_name.ilike.%${cleanQ}%,id.ilike.%${cleanQ}%`);
+        query = query.or(`customer_phone.ilike.%${cleanQ}%,customer_name.ilike.%${cleanQ}%,id.ilike.%${cleanQ}%${billNoSearchEnabled && /^\d{1,12}$/.test(raw) ? `,bill_no.eq.${raw}` : ''}`);
       }
       const from = salesPage * SALES_PER_PAGE;
       query = query
@@ -246,6 +255,7 @@ export default function OwnerLedger({ isActive }) {
 
     const { data, error } = await query;
     if (error) throw error;
+    noteBillNoColumn(data);
     
     // Stock receipts are now tagged 'Warehouse-Inbound' when saved (and old ones are fixed by the
     // SQL migration), so the ledger no longer writes to the database while loading.
@@ -280,7 +290,7 @@ export default function OwnerLedger({ isActive }) {
         const raw = searchQuery.trim().replace(/^#/, '').replace(/[,()]/g, '');
         if (raw) {
           const cleanQ = escapeIlike(raw);
-          query = query.or(`customer_phone.ilike.%${cleanQ}%,customer_name.ilike.%${cleanQ}%,id.ilike.%${cleanQ}%`);
+          query = query.or(`customer_phone.ilike.%${cleanQ}%,customer_name.ilike.%${cleanQ}%,id.ilike.%${cleanQ}%${billNoSearchEnabled && /^\d{1,12}$/.test(raw) ? `,bill_no.eq.${raw}` : ''}`);
         }
       } else {
         const start = localToUtcIso(`${currentDay}T00:00:00`);
@@ -517,8 +527,8 @@ export default function OwnerLedger({ isActive }) {
             barcode: item.barcode,
             action_type: isAll ? 'VOID' : 'RETURN',
             changes: isAll 
-              ? `Restored ${qtyToRestore} ${item.unit} (Bill #${bill.id.split('-')[0]})` 
-              : `Returned ${qtyToRestore} ${item.unit} of ${item.name} from Bill #${bill.id.split('-')[0]}`,
+              ? `Restored ${qtyToRestore} ${item.unit} (Bill #${billLabel(bill)})` 
+              : `Returned ${qtyToRestore} ${item.unit} of ${item.name} from Bill #${billLabel(bill)}`,
             performed_by: performedBy
           }]);
 
@@ -1078,7 +1088,7 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
             Process Return &amp; Refund
           </span>
           <div className="text-xs text-[var(--text-secondary)] mt-0.5">
-            Bill #{bill.id.split('-')[0]} • {formatDateTime(bill.created_at).datePart}
+            Bill #{billLabel(bill)} • {formatDateTime(bill.created_at).datePart}
             {bill.customer_phone && ` • Phone: ${bill.customer_phone}`}
           </div>
         </div>

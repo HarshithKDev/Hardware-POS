@@ -826,7 +826,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   const salesSheet = workbook.addWorksheet('Sales Transactions', { views: [{ showGridLines: true }] });
 
   salesSheet.columns = [
-    { header: 'Receipt # / Bill ID', key: 'id', width: 20 },
+    { header: 'Bill No. / ID', key: 'id', width: 20 },
     { header: 'Date & Time', key: 'date', width: 20 },
     { header: 'Customer Name', key: 'customer_name', width: 22 },
     { header: 'Customer Phone', key: 'customer_phone', width: 16 },
@@ -866,7 +866,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
       const status = isShowroomBill ? 'SHOWROOM DEDUCTION' : (b.status || 'completed').toUpperCase();
 
       const row = salesSheet.addRow({
-        id: b.id,
+        id: (b.bill_no !== undefined && b.bill_no !== null) ? String(b.bill_no) : b.id,
         date: formattedDate,
         customer_name: b.customer_name || (isShowroomBill ? 'Showroom Internal' : 'Walk-in Customer'),
         customer_phone: b.customer_phone || '--',
