@@ -24,12 +24,25 @@ export default [
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       'no-unused-vars': ['warn', { varsIgnorePattern: '^_', argsIgnorePattern: '^_' }],
+      // Catches names that are used but never defined (e.g. a missing constant or import),
+      // which otherwise only shows up as a crash in the browser.
+      'no-undef': 'error',
       'react-hooks/exhaustive-deps': 'warn',
       // New strict rule in eslint-plugin-react-hooks v7. The existing hits are intentional
       // "reset state when a modal opens / key changes" effects with loop guards; rewriting them
       // would risk regressions in the live cart/checkout. Kept visible as a warning.
       'react-hooks/set-state-in-effect': 'warn',
       'react/prop-types': 'off',
+    },
+  },
+  {
+    // Test files may use the test runner's built-in names without importing them
+    files: ['src/__tests__/**/*.{js,jsx}', 'vitest.setup.js'],
+    languageOptions: {
+      globals: {
+        describe: 'readonly', it: 'readonly', test: 'readonly', expect: 'readonly', vi: 'readonly',
+        beforeEach: 'readonly', afterEach: 'readonly', beforeAll: 'readonly', afterAll: 'readonly',
+      },
     },
   },
 ]

@@ -9,6 +9,40 @@ import { X, Calendar } from 'lucide-react';
 import PageTitleReset from './components/PageTitleReset';
 import { buttonClass, DateField, TableSkeleton } from './components/ui';
 
+/** Every action that is written to the audit log, with a plain name for the filter. */
+const ACTION_LABELS = {
+  BILL: 'Bills (totals, payment, discount)',
+  SALE: 'Sale items',
+  SHOWROOM: 'Showroom dispatches',
+  'STOCK IN': 'Stock received',
+  TRANSFER: 'Moved to store',
+  RETURN: 'Returns',
+  VOID: 'Bills fully returned',
+  SCRAP: 'Scrap',
+  BOX_OPENED: 'Screw box opened',
+  CREATE: 'Created',
+  UPDATE: 'Updated',
+  DELETE: 'Deleted',
+  RESTORE: 'Restored',
+  EXPENSE: 'Expenses',
+  EXPENSE_DELETED: 'Expenses deleted',
+  'CART CLEARED': 'Carts cleared without billing',
+  PRINT: 'Labels printed',
+  'DAY CLOSING': 'Day closing',
+  SETTINGS: 'Settings changed',
+  LOGIN: 'Sign in',
+  LOGOUT: 'Sign out',
+  EXPORT: 'Data downloads',
+  SYNC_FAILED: 'Failed syncs',
+};
+const ACTION_TONE = {
+  BILL: 'purple', SALE: 'purple', SHOWROOM: 'warning', 'STOCK IN': 'success', TRANSFER: 'accent',
+  RETURN: 'error', VOID: 'error', SCRAP: 'warning', BOX_OPENED: 'accent', CREATE: 'accent',
+  UPDATE: 'warning', DELETE: 'error', RESTORE: 'success', EXPENSE: 'warning', EXPENSE_DELETED: 'error',
+  'CART CLEARED': 'error', PRINT: 'neutral', 'DAY CLOSING': 'success', SETTINGS: 'accent',
+  LOGIN: 'neutral', LOGOUT: 'neutral', EXPORT: 'neutral', SYNC_FAILED: 'error',
+};
+
 /** The full breakdown shown when a log row is expanded: one "Label: value" per line. */
 const LogDetails = ({ details }) => (
   <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-1.5 text-left">
