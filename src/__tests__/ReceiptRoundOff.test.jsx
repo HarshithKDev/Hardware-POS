@@ -19,7 +19,7 @@ describe('A7: receipt shows the amount actually charged', () => {
     render(<ReceiptTemplate lastReceipt={{ ...baseReceipt, total: 100, roundOff: 0.01 }} shopSettings={{ shop_name: 'Test' }} />);
     expect(screen.getByText('Round Off')).toBeInTheDocument();
     expect(screen.getByText('+₹0.01')).toBeInTheDocument();
-    expect(screen.getByText(/NET DUE/).nextSibling.textContent).toContain('100.00');
+    expect(screen.getByText(/NET DUE/).nextSibling.textContent).toBe('₹100');
   });
 
   it('omits the Round Off line when there is no difference', () => {

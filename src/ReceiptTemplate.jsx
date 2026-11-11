@@ -8,6 +8,20 @@ const formatGramRate = (ratePerKg) => {
   return threeDec.endsWith('0') ? perGram.toFixed(2) : threeDec;
 };
 
+/** Rupee amount without needless zeros: 1300 → "1,300", 33.33 → "33.33", 12.5 → "12.50". */
+export const receiptAmount = (n) => {
+  const v = Math.round(Number(n || 0) * 100) / 100;
+  return Number.isInteger(v) ? formatINR(v, 0) : formatINR(v, 2);
+};
+
+/** Quantity without needless zeros: 2.50 → "2.5", 3 → "3". */
+const receiptQty = (q) => {
+  const v = Math.round(Number(q || 0) * 1000) / 1000;
+  return String(v);
+};
+
+const LOOSE_KG_UNITS = ['KG', 'KGS', 'GRAMS', 'GRAM', 'G', 'GM'];
+
 export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateTime, isPreview = false }) {
   if (!lastReceipt || lastReceipt.type !== 'checkout') return null;
   const totalSavings = lastReceipt.items?.reduce((acc, item) => {
@@ -21,7 +35,7 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
     <div 
       id={isPreview ? undefined : "printable-receipt"} 
       className={`${isPreview ? 'mx-auto shadow-md border border-gray-300 w-full p-4 md:p-6 bg-white box-border' : 'hidden print:block'} thermal-receipt font-bold`} 
-      style={{ fontFamily: "'Courier New', Courier, monospace", color: '#000000', backgroundColor: '#ffffff', lineHeight: 1.2, fontWeight: 'bold' }}
+      style={{ fontFamily: "'Courier New', Courier, monospace", color: '#000000', backgroundColor: '#ffffff', lineHeight: 1.2, fontWeight: 'bold', containerType: 'inline-size' }}
     >
       <style>{`
         .thermal-receipt, .thermal-receipt * {
@@ -83,89 +97,94 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
         )}
       </div>
       
-      <div className="mb-3 flex justify-between border-b border-black border-dashed pb-2 text-black" style={{ color: '#000', fontSize: '12px' }}>
+      <div className="mb-2 flex justify-between gap-3 border-b border-black border-dashed pb-2 text-black" style={{ color: '#000', fontSize: 'min(11px, 4.9cqw)' }}>
         <div>
-          <p>Date: {datePart}</p>
+          {lastReceipt.id && <p>Bill No: {lastReceipt.id}</p>}
+          <p className="whitespace-nowrap">Date: {datePart}</p>
           {lastReceipt.customerName && <p>Customer: {lastReceipt.customerName}</p>}
         </div>
         <div className="text-right">
-          <p>Time: {timePart}</p>
+          {lastReceipt.id && <p>&nbsp;</p>}
+          <p className="whitespace-nowrap">Time: {timePart}</p>
           {lastReceipt.customerPhone && <p>Phone: {lastReceipt.customerPhone}</p>}
         </div>
       </div>
-      
-      <table className="w-full table-fixed mb-3 text-black" style={{ color: '#000', fontSize: '10px', backgroundColor: 'transparent' }}>
+
+      {/* Items: the name gets its own line, the numbers go in spaced columns below it */}
+      <table className="w-full table-fixed mb-1 text-black" style={{ color: '#000', fontSize: 'min(11px, 4.9cqw)', backgroundColor: 'transparent', borderCollapse: 'collapse' }}>
+        <colgroup>
+          <col style={{ width: '22%' }} />
+          <col style={{ width: '24%' }} />
+          <col style={{ width: '24%' }} />
+          <col style={{ width: '30%' }} />
+        </colgroup>
         <thead style={{ backgroundColor: 'transparent', position: 'static' }}>
           <tr className="border-b border-black border-dashed" style={{ backgroundColor: 'transparent' }}>
-            <th className="text-left font-semibold pb-1 w-4/12 text-black" style={{ color: '#000', backgroundColor: 'transparent', boxShadow: 'none', position: 'static' }}>Item</th>
-            <th className="text-center font-semibold pb-1 w-2/12 text-black" style={{ color: '#000', backgroundColor: 'transparent', boxShadow: 'none', position: 'static' }}>Qty</th>
-            <th className="text-right font-semibold pb-1 w-2/12 pr-1 text-black" style={{ color: '#000', backgroundColor: 'transparent', boxShadow: 'none', position: 'static' }}>MRP</th>
-            <th className="text-right font-semibold pb-1 w-2/12 pr-1 text-black" style={{ color: '#000', backgroundColor: 'transparent', boxShadow: 'none', position: 'static' }}>Rate</th>
-            <th className="text-right font-semibold pb-1 w-2/12 text-black" style={{ color: '#000', backgroundColor: 'transparent', boxShadow: 'none', position: 'static' }}>Amt</th>
+            <th className="text-left pb-1 text-black" style={{ color: '#000' }}>Qty</th>
+            <th className="text-right pb-1 pl-2 text-black" style={{ color: '#000' }}>MRP</th>
+            <th className="text-right pb-1 pl-2 text-black" style={{ color: '#000' }}>Rate</th>
+            <th className="text-right pb-1 pl-2 text-black" style={{ color: '#000' }}>Amount</th>
           </tr>
         </thead>
-        <tbody className="align-top" style={{ backgroundColor: 'transparent' }}>
+        <tbody style={{ backgroundColor: 'transparent' }}>
           {(lastReceipt.items || []).map((item, i) => {
-            const isLooseKg = Boolean(
-              item.is_loose_item && (
-                item.unit?.toUpperCase() === 'KG' || 
-                item.unit?.toUpperCase() === 'KGS' || 
-                item.unit?.toUpperCase() === 'GRAMS' || 
-                item.unit?.toUpperCase() === 'GRAM' || 
-                item.unit?.toUpperCase() === 'G' || 
-                item.unit?.toUpperCase() === 'GM'
-              )
-            );
-            const displayQty = isLooseKg 
-              ? `${item.grams !== undefined ? item.grams : Math.round(Number(item.quantity) * 1000)} g` 
-              : `${item.quantity} ${item.unit}`;
+            const isLooseKg = Boolean(item.is_loose_item && LOOSE_KG_UNITS.includes(String(item.unit || '').toUpperCase()));
+            const displayQty = isLooseKg
+              ? `${item.grams !== undefined ? item.grams : Math.round(Number(item.quantity) * 1000)} g`
+              : `${receiptQty(item.quantity)} ${String(item.unit || '').toLowerCase()}`.trim();
             const isScrew = Boolean(item.is_screw || item.barcode === 'SCREWS');
-            const displayMrp = isScrew ? '—' : (isLooseKg ? formatGramRate(item.mrp) : formatINR(item.mrp, 2));
-            const displayRate = isScrew ? '—' : (isLooseKg ? formatGramRate(item.finalRate) : formatINR(item.finalRate, 2));
-
-            return (
-              <tr key={i} className="hover:!bg-transparent" style={{ backgroundColor: 'transparent' }}>
-                <td className="py-1 pr-1 text-black break-words" style={{ color: '#000', backgroundColor: 'transparent' }}>
-                  {item.name}
+            const displayMrp = isScrew ? '-' : (isLooseKg ? `${formatGramRate(item.mrp)}/g` : receiptAmount(item.mrp));
+            const displayRate = isScrew ? '-' : (isLooseKg ? `${formatGramRate(item.finalRate)}/g` : receiptAmount(item.finalRate));
+            const last = i === (lastReceipt.items || []).length - 1;
+            return [
+              <tr key={`${i}-name`} style={{ backgroundColor: 'transparent' }}>
+                <td colSpan={4} className="pt-1.5 text-left text-black break-words" style={{ color: '#000' }}>
+                  {i + 1}. {item.name}
                 </td>
-                <td className="py-1 text-center text-black" style={{ color: '#000', backgroundColor: 'transparent' }}>{displayQty}</td>
-                <td className="py-1 text-right pr-1 text-black" style={{ color: '#000', backgroundColor: 'transparent' }}>{displayMrp}</td>
-                <td className="py-1 text-right pr-1 text-black" style={{ color: '#000', backgroundColor: 'transparent' }}>{displayRate}</td>
-                <td className="py-1 text-right text-black" style={{ color: '#000', backgroundColor: 'transparent' }}>{formatINR(item.lineTotal, 2)}</td>
-              </tr>
-            );
+              </tr>,
+              <tr key={`${i}-nums`} className={last ? '' : 'border-b border-black border-dotted'} style={{ backgroundColor: 'transparent' }}>
+                <td className="pb-1.5 pl-2 text-left text-black whitespace-nowrap" style={{ color: '#000' }}>{displayQty}</td>
+                <td className="pb-1.5 pl-2 text-right text-black whitespace-nowrap" style={{ color: '#000' }}>{displayMrp}</td>
+                <td className="pb-1.5 pl-2 text-right text-black whitespace-nowrap" style={{ color: '#000' }}>{displayRate}</td>
+                <td className="pb-1.5 pl-2 text-right text-black whitespace-nowrap" style={{ color: '#000' }}>{receiptAmount(item.lineTotal)}</td>
+              </tr>,
+            ];
           })}
         </tbody>
       </table>
-      
+
+      <div className="border-t border-black border-dashed pt-1 mb-1 flex justify-between text-black" style={{ color: '#000', fontSize: '11px' }}>
+        <span>Items: {(lastReceipt.items || []).length}</span>
+      </div>
+
       {Number(lastReceipt.roundOff || 0) !== 0 && (
-        <div className="border-t border-black pt-1 flex justify-between items-center text-black" style={{ color: '#000', fontSize: '12px' }}>
+        <div className="flex justify-between items-center text-black" style={{ color: '#000', fontSize: '12px' }}>
           <span>Round Off</span>
           <span>{lastReceipt.roundOff > 0 ? '+' : '-'}₹{formatINR(Math.abs(lastReceipt.roundOff), 2)}</span>
         </div>
       )}
-      <div className="border-t border-black pt-2 flex justify-between items-center mb-2 text-black" style={{ color: '#000' }}>
-        <span className="font-bold" style={{ fontSize: '14px' }}>{lastReceipt.paymentMethod === 'SHOWROOM' ? 'SHOWROOM DISPATCH (NOT A SALE)' : 'NET DUE'}</span>
-        <span className="font-bold" style={{ fontSize: '16px' }}>₹{formatINR(lastReceipt.total, 2)}</span>
+      <div className="border-t border-black pt-2 flex justify-between items-center gap-3 mb-2 text-black" style={{ color: '#000' }}>
+        <span className={`font-bold ${lastReceipt.paymentMethod === 'SHOWROOM' ? '' : 'whitespace-nowrap'}`} style={{ fontSize: 'min(14px, 6.2cqw)' }}>{lastReceipt.paymentMethod === 'SHOWROOM' ? 'SHOWROOM DISPATCH (NOT A SALE)' : 'NET DUE'}</span>
+        <span className="font-bold whitespace-nowrap" style={{ fontSize: 'min(16px, 7cqw)' }}>₹{receiptAmount(lastReceipt.total)}</span>
       </div>
 
       {lastReceipt.paymentMethod && (
-        <div className="flex justify-between items-center mb-2 text-black" style={{ color: '#000', fontSize: '12px' }}>
-          <span className="font-semibold">PAID VIA</span>
-          <span className="font-bold">
-            {lastReceipt.paymentMethod === 'SPLIT' 
-              ? `Cash: ₹${formatINR(Number(lastReceipt.cashAmount || 0), 2)} + UPI: ₹${formatINR(Number(lastReceipt.upiAmount || 0), 2)}`
+        <div className="flex justify-between items-start gap-3 mb-2 text-black" style={{ color: '#000', fontSize: 'min(12px, 5.3cqw)' }}>
+          <span className="font-semibold whitespace-nowrap">PAID VIA</span>
+          <span className="font-bold text-right">
+            {lastReceipt.paymentMethod === 'SPLIT'
+              ? `Cash ₹${receiptAmount(lastReceipt.cashAmount)} + UPI ₹${receiptAmount(lastReceipt.upiAmount)}`
               : lastReceipt.paymentMethod}
           </span>
         </div>
       )}
-      
+
       {totalSavings > 0 && (
         <div className="text-center mt-2 pb-2 border-b border-black border-dashed text-black" style={{ color: '#000' }}>
-          <p className="font-bold" style={{ fontSize: '12px' }}>You saved {totalSavings.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} Rs</p>
+          <p className="font-bold" style={{ fontSize: 'min(12px, 5.3cqw)' }}>You saved ₹{receiptAmount(totalSavings)} on MRP</p>
         </div>
       )}
-      
+
       {shopSettings?.upi_id && !shopSettings.upi_id.startsWith('HIDDEN::') && lastReceipt.paymentMethod !== 'CASH' && lastReceipt.paymentMethod !== 'SHOWROOM' && (
         <div className="flex flex-col items-center justify-center mt-3 pb-3 border-b border-black border-dashed text-black" style={{ color: '#000' }}>
           <p className="font-bold mb-1" style={{ fontSize: '10px' }}>Scan to Pay via UPI</p>
