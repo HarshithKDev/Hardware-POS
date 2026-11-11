@@ -1397,14 +1397,14 @@ export default function OwnerStats({ isActive }) {
                     </div>
 
                     {/* DESKTOP PROFIT TABLE */}
-                    <table className="hidden md:table w-full text-left border-collapse">
+                    <table className="hidden md:table w-full text-center border-collapse">
                       <thead className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                         <tr className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                           <th className="p-3" style={{ borderRight: '1px solid var(--border-medium)' }}>Item Sold</th>
-                          <th className="p-3 text-left" style={{ borderRight: '1px solid var(--border-medium)' }}>Total Qty</th>
-                          <th className="p-3 text-left" style={{ borderRight: '1px solid var(--border-medium)' }}>Total Cost</th>
-                          <th className="p-3 text-left" style={{ borderRight: '1px solid var(--border-medium)' }}>Total Sold For</th>
-                          <th className="p-3 text-left">Profit Generated</th>
+                          <th className="p-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Total Qty</th>
+                          <th className="p-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Total Cost</th>
+                          <th className="p-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Total Sold For</th>
+                          <th className="p-3 text-center">Profit Generated</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1417,10 +1417,10 @@ export default function OwnerStats({ isActive }) {
                         ) : tfSalesDetails.map((item, idx) => (
                           <tr key={idx} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                             <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.name}</td>
-                            <td className="p-3 text-sm text-left" style={{ borderRight: '1px solid var(--border-medium)' }}>{item.qty} {item.unit}</td>
-                            <td className="p-3 text-sm text-left" style={{ borderRight: '1px solid var(--border-medium)' }}>₹{formatINR(item.lineCost, 2)}</td>
-                            <td className="p-3 text-sm text-left" style={{ borderRight: '1px solid var(--border-medium)' }}>₹{formatINR(item.lineRev, 2)}</td>
-                            <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-success)' }}>₹{formatINR(item.lineProfit, 2)}</td>
+                            <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>{item.qty} {item.unit}</td>
+                            <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>₹{formatINR(item.lineCost, 2)}</td>
+                            <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>₹{formatINR(item.lineRev, 2)}</td>
+                            <td className="p-3 text-sm text-center font-bold" style={{ color: 'var(--color-success)' }}>₹{formatINR(item.lineProfit, 2)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1513,20 +1513,20 @@ export default function OwnerStats({ isActive }) {
                   </div>
 
                   {/* DESKTOP STOCK TABLE */}
-                  <table className="hidden md:table w-full text-left border-collapse">
+                  <table className="hidden md:table w-full text-center border-collapse">
                     <thead className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                       <tr className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
                         <th className="p-3 w-32" style={{ borderRight: '1px solid var(--border-medium)' }}>Barcode</th>
                         <th className="p-3" style={{ borderRight: '1px solid var(--border-medium)' }}>Item Name</th>
                         {activeModal === 'dead-stock' ? (
                           <>
-                            <th className="p-3 text-left w-32" style={{ borderRight: '1px solid var(--border-medium)' }}>Locked Qty</th>
-                            <th className="p-3 text-left whitespace-nowrap">Capital Tied Up</th>
+                            <th className="p-3 text-center w-32" style={{ borderRight: '1px solid var(--border-medium)' }}>Locked Qty</th>
+                            <th className="p-3 text-center whitespace-nowrap">Capital Tied Up</th>
                           </>
                         ) : (
                           <>
-                            <th className="p-3 text-left w-32" style={{ borderRight: '1px solid var(--border-medium)' }}>Min Qty</th>
-                            <th className="p-3 text-left w-32">Current Qty</th>
+                            <th className="p-3 text-center w-32" style={{ borderRight: '1px solid var(--border-medium)' }}>Min Qty</th>
+                            <th className="p-3 text-center w-32">Current Qty</th>
                           </>
                         )}
                       </tr>
@@ -1543,8 +1543,8 @@ export default function OwnerStats({ isActive }) {
                         <tr key={item.barcode} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                           <td className="p-3 text-sm font-semibold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-medium)' }}>{item.barcode}</td>
                           <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.name}</td>
-                          <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--text-tertiary)', borderRight: '1px solid var(--border-medium)' }}>{item.min_quantity_store ?? 10} {item.unit || 'PCS'}</td>
-                          <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-error)' }}>{item.stock_store} {item.unit || 'PCS'}</td>
+                          <td className="p-3 text-sm text-center font-bold" style={{ color: 'var(--text-tertiary)', borderRight: '1px solid var(--border-medium)' }}>{item.min_quantity_store ?? 10} {item.unit || 'PCS'}</td>
+                          <td className="p-3 text-sm text-center font-bold" style={{ color: 'var(--color-error)' }}>{item.stock_store} {item.unit || 'PCS'}</td>
                         </tr>
                       ))}
                       {activeModal === 'low-warehouse' && lowWarehouseItems.length === 0 && (
@@ -1558,8 +1558,8 @@ export default function OwnerStats({ isActive }) {
                         <tr key={item.barcode} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                           <td className="p-3 text-sm font-semibold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-medium)' }}>{item.barcode}</td>
                           <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.name}</td>
-                          <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--text-tertiary)', borderRight: '1px solid var(--border-medium)' }}>{item.min_quantity_warehouse ?? 50} {item.unit || 'PCS'}</td>
-                          <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-error)' }}>{item.stock_warehouse} {item.unit || 'PCS'}</td>
+                          <td className="p-3 text-sm text-center font-bold" style={{ color: 'var(--text-tertiary)', borderRight: '1px solid var(--border-medium)' }}>{item.min_quantity_warehouse ?? 50} {item.unit || 'PCS'}</td>
+                          <td className="p-3 text-sm text-center font-bold" style={{ color: 'var(--color-error)' }}>{item.stock_warehouse} {item.unit || 'PCS'}</td>
                         </tr>
                       ))}
                       {activeModal === 'dead-stock' && deadStockItems.length === 0 && (
@@ -1573,8 +1573,8 @@ export default function OwnerStats({ isActive }) {
                         <tr key={item.barcode} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                           <td className="p-3 text-sm font-semibold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-medium)' }}>{item.barcode}</td>
                           <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.name}</td>
-                          <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-warning)', borderRight: '1px solid var(--border-medium)' }}>{item.totalQty}</td>
-                          <td className="p-3 text-sm text-left font-bold" style={{ color: 'var(--color-error)' }}>₹{formatINR(item.deadValue, 2)}</td>
+                          <td className="p-3 text-sm text-center font-bold" style={{ color: 'var(--color-warning)', borderRight: '1px solid var(--border-medium)' }}>{item.totalQty}</td>
+                          <td className="p-3 text-sm text-center font-bold" style={{ color: 'var(--color-error)' }}>₹{formatINR(item.deadValue, 2)}</td>
                         </tr>
                       ))}
                     </tbody>

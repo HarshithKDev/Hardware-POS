@@ -260,7 +260,7 @@ export default function OwnerStaff() {
         </div>
 
         {/* Laptop / Desktop View: Exact Table */}
-        <table className={`hidden md:table w-full min-w-[480px] text-left border-collapse ${(isLoading || staffList.length === 0) ? 'h-full' : ''}`}>
+        <table className={`hidden md:table w-full min-w-[480px] text-center border-collapse ${(isLoading || staffList.length === 0) ? 'h-full' : ''}`}>
           <thead className="sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
               <th className="p-4 w-5/12 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Staff Name</th>

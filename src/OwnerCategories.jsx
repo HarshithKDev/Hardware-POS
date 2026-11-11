@@ -294,7 +294,7 @@ export default function OwnerCategories() {
         </div>
 
         {/* Laptop / Desktop View: Exact Table */}
-        <table className={`hidden md:table w-full text-left border-collapse ${categories.length === 0 ? 'h-full' : ''}`}>
+        <table className={`hidden md:table w-full text-center border-collapse ${categories.length === 0 ? 'h-full' : ''}`}>
           <thead className="sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
               <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                 <th className="p-4" style={{ borderRight: '1px solid var(--border-medium)' }}>Category Name</th>
@@ -317,7 +317,7 @@ export default function OwnerCategories() {
                       style={{ backgroundColor: isExpanded ? 'var(--color-accent-bg)' : 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}
                     >
                       <td className="p-4 text-sm" style={{ borderRight: '1px solid var(--border-medium)' }}>
-                        <div className="flex items-center justify-start w-full text-left">
+                        <div className="flex items-center justify-center w-full text-center">
                           <span className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>{cat.name}</span>
                           <span className="ml-2 text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>({catSubcategories.length} sub-categories)</span>
                         </div>

@@ -443,7 +443,7 @@ export default function OwnerAuditLogs() {
           </div>
         ) : (
         <div className="w-full">
-          <table className="block md:table w-full text-left md:whitespace-nowrap border-collapse min-w-full">
+          <table className="block md:table w-full text-left md:text-center md:whitespace-nowrap border-collapse min-w-full">
           <thead className="hidden md:table-header-group sticky top-0 z-20 glass-header" style={{ borderBottom: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}>
             <tr className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
               <th className="p-3 w-40 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Date &amp; Time</th>
