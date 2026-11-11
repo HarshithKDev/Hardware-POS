@@ -148,7 +148,7 @@ export default function LooseItemModal({
               type="submit"
               disabled={!looseItemModal.qty || Number(looseItemModal.qty) <= 0}
               className="h-9 px-8 text-white text-sm font-semibold focus:outline-none rounded-md disabled:opacity-50 transition-transform active:scale-95 cursor-pointer"
-              style={{ backgroundColor: 'var(--color-accent)' }}
+              style={{ backgroundColor: 'var(--color-accent-solid)' }}
             >
               Add to Cart
             </button>

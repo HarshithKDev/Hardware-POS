@@ -77,7 +77,7 @@ export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }
               onClick={handlePrint}
               disabled={isPrinting}
               className="px-6 py-2 text-sm font-bold rounded-md text-white shadow-sm flex items-center gap-2 transition-all hover:opacity-90 disabled:opacity-50"
-              style={{ backgroundColor: 'var(--color-accent)' }}
+              style={{ backgroundColor: 'var(--color-accent-solid)' }}
             >
               {isPrinting ? 'Printing...' : 'Print Labels'}
             </button>

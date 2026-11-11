@@ -88,7 +88,7 @@ export default function ScrapStockModal({ isOpen, item, batch, isWarehouseDisabl
           <button type="button" onClick={onClose} disabled={isSaving} className="h-9 px-4 text-xs font-semibold rounded-md border border-[var(--border-medium)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">
             Cancel
           </button>
-          <button type="submit" disabled={isSaving} className="h-9 px-4 text-xs font-bold uppercase tracking-wider rounded-md text-white flex items-center gap-2 disabled:opacity-50" style={{ backgroundColor: 'var(--color-error)' }}>
+          <button type="submit" disabled={isSaving} className="h-9 px-4 text-xs font-bold uppercase tracking-wider rounded-md text-white flex items-center gap-2 disabled:opacity-50" style={{ backgroundColor: 'var(--color-error-solid)' }}>
             {isSaving ? <Spinner className="w-3.5 h-3.5 text-white" /> : 'Scrap'}
           </button>
         </div>

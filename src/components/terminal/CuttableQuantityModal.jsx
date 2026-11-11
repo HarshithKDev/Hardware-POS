@@ -125,7 +125,7 @@ export default function CuttableQuantityModal({
           <button type="button" onClick={onClose} className="h-9 px-4 text-xs font-semibold rounded-md border border-[var(--border-medium)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">
             Cancel
           </button>
-          <button type="submit" disabled={!canSubmit} className="h-9 px-5 text-xs font-bold uppercase tracking-wider rounded-md text-white disabled:opacity-50" style={{ backgroundColor: 'var(--color-accent)' }}>
+          <button type="submit" disabled={!canSubmit} className="h-9 px-5 text-xs font-bold uppercase tracking-wider rounded-md text-white disabled:opacity-50" style={{ backgroundColor: 'var(--color-accent-solid)' }}>
             {cartItemId ? 'Update' : 'Add'}
           </button>
         </div>

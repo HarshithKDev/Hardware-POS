@@ -111,7 +111,7 @@ export default function ScrewBoxesView() {
                     onClick={() => handleOpen(item)}
                     disabled={isOpening || count < 1}
                     className="h-9 px-4 shrink-0 rounded-lg text-xs font-bold uppercase tracking-wider text-white disabled:opacity-40 flex items-center gap-2"
-                    style={{ backgroundColor: 'var(--color-success)' }}
+                    style={{ backgroundColor: 'var(--color-success-solid)' }}
                   >
                     {isOpening ? <Spinner className="w-3.5 h-3.5 text-white" /> : 'Open 1 Box'}
                   </button>

@@ -170,7 +170,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }) {
           <button
             onClick={onClose}
             className="px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md text-white transition-opacity hover:opacity-90"
-            style={{ backgroundColor: 'var(--color-accent)' }}
+            style={{ backgroundColor: 'var(--color-accent-solid)' }}
           >
             Got it (Esc)
           </button>

@@ -686,7 +686,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
               <button
                 onClick={() => setLowStockModal({ isOpen: false, type: null })}
                 className="px-3.5 py-1.5 text-white rounded-lg text-xs font-bold focus:outline-none transition-all hover:opacity-90 active:scale-95 cursor-pointer shadow-sm flex items-center gap-1.5"
-                style={{ backgroundColor: 'var(--color-error)' }}
+                style={{ backgroundColor: 'var(--color-error-solid)' }}
               >
                 <span>Close</span>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>

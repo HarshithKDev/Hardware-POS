@@ -220,7 +220,7 @@ export default function CheckoutModal({
                             onClick={() => setCheckoutModal(prev => ({ ...prev, cashGiven: String(pill.value), error: '' }))}
                             className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all border cursor-pointer active:scale-95 ${
                               isSelected
-                                ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)] shadow-sm'
+                                ? 'bg-[var(--color-accent-solid)] text-white border-[var(--color-accent)] shadow-sm'
                                 : 'bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border-[var(--border-medium)]'
                             }`}
                           >
@@ -328,7 +328,7 @@ export default function CheckoutModal({
             type="button"
             onClick={onClose} 
             disabled={isCheckingOut} 
-            className="flex-1 sm:flex-initial min-h-[44px] md:min-h-0 md:h-10 px-4 sm:px-8 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md text-white transition-colors bg-[var(--color-error)] hover:bg-red-600 flex items-center justify-center gap-2 cursor-pointer"
+            className="flex-1 sm:flex-initial min-h-[44px] md:min-h-0 md:h-10 px-4 sm:px-8 text-sm font-semibold disabled:opacity-50 focus:outline-none rounded-md text-white transition-colors bg-[var(--color-error-solid)] hover:bg-red-600 flex items-center justify-center gap-2 cursor-pointer"
           >
             <span>Cancel</span>
           </button>

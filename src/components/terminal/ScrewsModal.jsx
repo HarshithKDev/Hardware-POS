@@ -127,7 +127,7 @@ export default function ScrewsModal({
               type="submit"
               disabled={!price || Number(price) <= 0}
               className="px-5 h-9 rounded-md text-xs font-bold uppercase tracking-wider text-white transition-colors cursor-pointer disabled:opacity-50"
-              style={{ backgroundColor: 'var(--color-accent)' }}
+              style={{ backgroundColor: 'var(--color-accent-solid)' }}
             >
               {isUpdate ? 'Update Screws' : 'Add to Bill'}
             </button>

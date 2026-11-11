@@ -370,7 +370,7 @@ export default function WorkerPriceCheck() {
               <button
                 type="button"
                 onClick={handleScanAnother}
-                className="w-full py-4 md:py-5 rounded-xl font-bold text-base uppercase tracking-wider text-white bg-[var(--color-accent)] hover:opacity-90 active:scale-98 transition-all shadow-md flex items-center justify-center gap-2 mt-2"
+                className="w-full py-4 md:py-5 rounded-xl font-bold text-base uppercase tracking-wider text-white bg-[var(--color-accent-solid)] hover:opacity-90 active:scale-98 transition-all shadow-md flex items-center justify-center gap-2 mt-2"
               >
                 <Camera className="w-5 h-5" />
                 Scan Another Item
@@ -427,7 +427,7 @@ export default function WorkerPriceCheck() {
                     unlockAudio();
                     setIsScanning(true);
                   }}
-                  className="px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider text-white bg-[var(--color-accent)] hover:opacity-90 active:scale-95 transition-all shadow-sm flex items-center gap-2"
+                  className="px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider text-white bg-[var(--color-accent-solid)] hover:opacity-90 active:scale-95 transition-all shadow-sm flex items-center gap-2"
                 >
                   <RefreshCw className="w-4 h-4" />
                   Start Camera Scanner

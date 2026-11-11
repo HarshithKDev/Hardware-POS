@@ -393,7 +393,7 @@ export default function OwnerSettings() {
                   onClick={handleSave} 
                   disabled={isLoading}
                   className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-white text-xs font-bold uppercase tracking-wider shadow-sm transition-all hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                  style={{ backgroundColor: 'var(--color-accent)' }}
+                  style={{ backgroundColor: 'var(--color-accent-solid)' }}
                 >
                   {isLoading ? (
                     <>Saving...</>
@@ -453,7 +453,7 @@ export default function OwnerSettings() {
                       onChange={(e) => handleToggleWarehouse(e.target.checked)} 
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:bg-[var(--color-accent)] peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all cursor-pointer" />
+                    <div className="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:bg-[var(--color-accent-solid)] peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all cursor-pointer" />
                   </label>
                 </div>
 
@@ -493,7 +493,7 @@ export default function OwnerSettings() {
                       onChange={(e) => handleToggleSound(e.target.checked)} 
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:bg-[var(--color-accent)] peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all cursor-pointer" />
+                    <div className="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:bg-[var(--color-accent-solid)] peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all cursor-pointer" />
                   </label>
                 </div>
               </div>
@@ -601,7 +601,7 @@ export default function OwnerSettings() {
                   Shop Profile & Billing Details
                 </h2>
                 {isEditing && (
-                  <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded border bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-[var(--color-accent)]/20 animate-pulse">
+                  <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded border bg-[var(--color-accent-solid)]/10 text-[var(--color-accent)] border-[var(--color-accent)]/20 animate-pulse">
                     Editing Mode
                   </span>
                 )}
@@ -842,19 +842,19 @@ export default function OwnerSettings() {
               {/* Clean structured breakdown */}
               <div className="grid grid-cols-2 gap-2 text-[11px] text-[var(--text-tertiary)] bg-[var(--bg-tertiary)]/40 p-2.5 rounded-lg border border-[var(--border-light)]">
                 <div className="flex items-center gap-1.5 truncate">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] shrink-0" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent-solid)] shrink-0" />
                   <span>Products & Inventory</span>
                 </div>
                 <div className="flex items-center gap-1.5 truncate">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] shrink-0" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent-solid)] shrink-0" />
                   <span>Sales & Invoices</span>
                 </div>
                 <div className="flex items-center gap-1.5 truncate">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] shrink-0" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent-solid)] shrink-0" />
                   <span>Line Items Breakdown</span>
                 </div>
                 <div className="flex items-center gap-1.5 truncate">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] shrink-0" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent-solid)] shrink-0" />
                   <span>Expenses, Staff & Logs</span>
                 </div>
               </div>
@@ -871,7 +871,7 @@ export default function OwnerSettings() {
                 onClick={handleDownloadCompleteData}
                 disabled={isExporting}
                 className="w-full mt-1 py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider text-white shadow-sm flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 active:scale-98 hover:brightness-110"
-                style={{ backgroundColor: 'var(--color-accent)' }}
+                style={{ backgroundColor: 'var(--color-accent-solid)' }}
               >
                 {isExporting ? (
                   <>

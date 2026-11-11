@@ -52,7 +52,8 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // + the Latin / Latin-extended Inter font files (incl. ₹) so text looks the same offline
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}', '**/inter-latin*-normal-*.woff2'],
         globIgnores: ['**/exceljs*'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,

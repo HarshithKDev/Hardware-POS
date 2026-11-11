@@ -81,7 +81,7 @@ export function MobileScannerModal({ onClose, setScannedProduct, onScan }) {
           <p className="mt-4 text-xs" style={{ color: 'var(--text-secondary)' }}>Position the barcode within the frame.</p>
         </div>
         <div className="p-4 flex justify-end" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-          <button onClick={onClose} className="px-4 py-1.5 rounded text-xs font-semibold w-full md:w-auto focus:outline-none transition-colors hover:opacity-90 text-white" style={{ backgroundColor: 'var(--color-error)' }}>Close</button>
+          <button onClick={onClose} className="px-4 py-1.5 rounded text-xs font-semibold w-full md:w-auto focus:outline-none transition-colors hover:opacity-90 text-white" style={{ backgroundColor: 'var(--color-error-solid)' }}>Close</button>
         </div>
       </div>
     </div>
@@ -115,7 +115,7 @@ export function ProductInfoModal({ product, onClose }) {
           </div>
         </div>
         <div className="p-4 flex justify-end" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-light)' }}>
-          <button onClick={onClose} className="px-4 py-1.5 rounded text-white text-xs font-semibold border border-transparent focus:outline-none transition-opacity hover:opacity-90" style={{ backgroundColor: 'var(--color-error)' }}>Close</button>
+          <button onClick={onClose} className="px-4 py-1.5 rounded text-white text-xs font-semibold border border-transparent focus:outline-none transition-opacity hover:opacity-90" style={{ backgroundColor: 'var(--color-error-solid)' }}>Close</button>
         </div>
       </div>
     </div>
@@ -259,7 +259,7 @@ export function PrintPreviewModal({
               type="button"
               onClick={onClose} 
               className="px-3.5 py-1.5 rounded text-xs font-semibold focus:outline-none transition-colors hover:opacity-90 text-white cursor-pointer" 
-              style={{ backgroundColor: 'var(--color-error)' }}
+              style={{ backgroundColor: 'var(--color-error-solid)' }}
             >
               Close
             </button>
@@ -269,7 +269,7 @@ export function PrintPreviewModal({
               onClick={handleUnifiedPrint} 
               disabled={isThermalPrinting}
               className="px-4 py-1.5 rounded text-white text-xs font-bold border border-transparent focus:outline-none transition-all hover:opacity-90 flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
-              style={{ backgroundColor: 'var(--color-accent)' }}
+              style={{ backgroundColor: 'var(--color-accent-solid)' }}
               title={type === 'receipt' ? 'Print receipt directly to thermal printer (with browser print fallback)' : 'Print labels'}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">

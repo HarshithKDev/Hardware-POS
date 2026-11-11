@@ -339,7 +339,7 @@ export default function WorkerScanner({ cashierName }) {
             onClick={handleSend}
             disabled={isSending}
             className="w-full py-6 text-white font-black uppercase tracking-widest text-xl shadow-lg rounded-lg transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
-            style={{ backgroundColor: 'var(--color-accent)' }}
+            style={{ backgroundColor: 'var(--color-accent-solid)' }}
           >
             {isSending ? 'SENDING...' : (
               <>

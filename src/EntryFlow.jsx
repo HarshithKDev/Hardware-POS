@@ -315,7 +315,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
                 </div>
               </div>
               {error && <p className="text-sm font-semibold" style={{ color: 'var(--color-error)' }}>{error}</p>}
-              <button type="submit" disabled={isSettingUp} className="w-full h-12 text-sm font-bold uppercase tracking-wider disabled:opacity-50 flex justify-center items-center rounded-lg" style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-accent-fg)' }}>
+              <button type="submit" disabled={isSettingUp} className="w-full h-12 text-sm font-bold uppercase tracking-wider disabled:opacity-50 flex justify-center items-center rounded-lg" style={{ backgroundColor: 'var(--color-accent-solid)', color: 'var(--color-accent-fg)' }}>
                 {isSettingUp ? <Spinner className="w-5 h-5 text-white" /> : 'Log In'}
               </button>
               <div className="text-center pt-2">
@@ -418,7 +418,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
               type="submit"
               disabled={isSettingUp}
               className="w-full h-12 text-sm font-bold uppercase tracking-wider disabled:opacity-50 flex justify-center items-center rounded-lg"
-              style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-accent-fg)' }}
+              style={{ backgroundColor: 'var(--color-accent-solid)', color: 'var(--color-accent-fg)' }}
             >
               {isSettingUp ? <Spinner className="w-5 h-5 text-white" /> : 'Register My Shop'}
             </button>
@@ -473,7 +473,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
               <button
                 onClick={() => handleRoleSelect('owner')}
                 className="w-full py-3 text-sm text-center font-medium rounded-md transition-colors"
-                style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-accent-fg)' }}
+                style={{ backgroundColor: 'var(--color-accent-solid)', color: 'var(--color-accent-fg)' }}
               >
                 Owner Login
               </button>
@@ -572,7 +572,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
                 type="submit"
                 disabled={isAuthenticating}
                 className="w-full h-11 mt-4 text-sm font-medium disabled:opacity-50 flex justify-center items-center rounded-md transition-all"
-                style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-accent-fg)' }}
+                style={{ backgroundColor: 'var(--color-accent-solid)', color: 'var(--color-accent-fg)' }}
               >
                 {isAuthenticating ? <Spinner className="w-5 h-5 text-white" /> : 'Login'}
               </button>

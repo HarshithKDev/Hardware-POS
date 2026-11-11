@@ -232,13 +232,13 @@ export default function WorkerPrintBarcode() {
                     onClick={() => handleSelectProduct(prod)}
                     className={`w-full text-left p-2.5 rounded-lg border transition-all flex items-center justify-between gap-2 cursor-pointer ${
                       isSelected
-                        ? 'bg-[var(--color-accent)]/10 border-[var(--color-accent)] shadow-sm'
+                        ? 'bg-[var(--color-accent-solid)]/10 border-[var(--color-accent)] shadow-sm'
                         : 'bg-[var(--bg-primary)] border-[var(--border-light)] hover:border-[var(--border-medium)] hover:bg-[var(--bg-hover)]'
                     }`}
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-mono text-[11px] font-bold text-[var(--color-accent)] bg-[var(--color-accent)]/10 px-1.5 py-0.5 rounded border border-[var(--color-accent)]/20">
+                        <span className="font-mono text-[11px] font-bold text-[var(--color-accent)] bg-[var(--color-accent-solid)]/10 px-1.5 py-0.5 rounded border border-[var(--color-accent)]/20">
                           #{prod.barcode}
                         </span>
                         <span className="font-semibold text-xs sm:text-sm text-[var(--text-primary)] truncate">
@@ -258,7 +258,7 @@ export default function WorkerPrintBarcode() {
                       </div>
                       {isSelected && (
                         <div className="mt-1 flex justify-end">
-                          <span className="w-4 h-4 rounded-full bg-[var(--color-accent)] text-white flex items-center justify-center">
+                          <span className="w-4 h-4 rounded-full bg-[var(--color-accent-solid)] text-white flex items-center justify-center">
                             <Check className="w-2.5 h-2.5" strokeWidth={3} />
                           </span>
                         </div>
@@ -287,7 +287,7 @@ export default function WorkerPrintBarcode() {
               <div className="pb-3 border-b border-[var(--border-light)] flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-semibold px-1.5 py-0.5 rounded bg-[var(--color-accent)]/10 text-[var(--color-accent)] border border-[var(--color-accent)]/20">
+                    <span className="font-mono text-xs font-semibold px-1.5 py-0.5 rounded bg-[var(--color-accent-solid)]/10 text-[var(--color-accent)] border border-[var(--color-accent)]/20">
                       #{selectedProduct.barcode}
                     </span>
                     <span className="text-xs text-[var(--text-secondary)] truncate">
@@ -332,7 +332,7 @@ export default function WorkerPrintBarcode() {
                           onClick={() => setSelectedBatch(b)}
                           className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
                             isBSelected
-                              ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)]'
+                              ? 'bg-[var(--color-accent-solid)] text-white border-[var(--color-accent)]'
                               : 'bg-[var(--bg-tertiary)] border-[var(--border-medium)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
                           }`}
                         >
@@ -359,7 +359,7 @@ export default function WorkerPrintBarcode() {
                         onClick={() => setLabelQty(count)}
                         className={`h-8 px-2.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
                           labelQty === count
-                            ? 'bg-[var(--color-accent)] text-white border-[var(--color-accent)]'
+                            ? 'bg-[var(--color-accent-solid)] text-white border-[var(--color-accent)]'
                             : 'bg-[var(--bg-tertiary)] border-[var(--border-medium)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
                         }`}
                       >
@@ -439,7 +439,7 @@ export default function WorkerPrintBarcode() {
                   type="button"
                   onClick={handlePrint}
                   disabled={isPrinting}
-                  className="w-full h-10 rounded-lg bg-[var(--color-accent)] text-white font-semibold text-xs sm:text-sm tracking-wide shadow-sm hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="w-full h-10 rounded-lg bg-[var(--color-accent-solid)] text-white font-semibold text-xs sm:text-sm tracking-wide shadow-sm hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   <Printer className="w-4 h-4" />
                   <span>

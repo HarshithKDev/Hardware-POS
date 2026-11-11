@@ -2257,11 +2257,11 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   }
                 }} 
                 className="w-1/3 py-4 text-white font-black uppercase tracking-widest text-xs md:text-sm shadow-lg rounded-lg transition-all active:scale-95 flex items-center justify-center text-center" 
-                style={{ backgroundColor: 'var(--color-error)' }}
+                style={{ backgroundColor: 'var(--color-error-solid)' }}
               >
                 {activeCartTab.startsWith('held_') ? 'CANCEL HELD' : 'CLEAR'}
               </button>
-              <button onClick={handleCompleteTransaction} className="w-2/3 py-4 text-white font-black uppercase tracking-widest text-lg shadow-lg rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2" style={{ backgroundColor: 'var(--color-accent)' }}>
+              <button onClick={handleCompleteTransaction} className="w-2/3 py-4 text-white font-black uppercase tracking-widest text-lg shadow-lg rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2" style={{ backgroundColor: 'var(--color-accent-solid)' }}>
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                 COMPLETE {cart.length}
               </button>
@@ -2288,7 +2288,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                       type="button"
                       onClick={() => handleCancelHeldCart(activeCartTab)}
                       className="w-full py-3.5 text-white font-bold uppercase tracking-wider text-xs shadow-md rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2"
-                      style={{ backgroundColor: 'var(--color-error)' }}
+                      style={{ backgroundColor: 'var(--color-error-solid)' }}
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                       Cancel & Delete Held Cart
@@ -2347,7 +2347,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           
           {/* Offline Banner */}
           {!isOnline && (
-            <div className="w-full bg-[var(--color-error)] text-white text-xs font-bold uppercase tracking-wider text-center py-1 flex items-center justify-center gap-2 relative z-10 shadow-sm">
+            <div className="w-full bg-[var(--color-error-solid)] text-white text-xs font-bold uppercase tracking-wider text-center py-1 flex items-center justify-center gap-2 relative z-10 shadow-sm">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
               Offline Mode - Changes will sync when internet returns
             </div>
@@ -2682,7 +2682,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             <button
               onClick={() => activeTab === 'checkout' ? handleOpenCheckoutModal() : handleCompleteTransaction()}
               className="w-full sm:w-auto min-h-[40px] md:h-10 px-6 md:px-8 text-white text-sm font-semibold uppercase tracking-wider focus:outline-none rounded-md focus:ring-2 focus:ring-offset-1 flex justify-center items-center gap-2"
-              style={{ backgroundColor: 'var(--color-accent)', border: '1px solid transparent' }}
+              style={{ backgroundColor: 'var(--color-accent-solid)', border: '1px solid transparent' }}
             >
               <span>{isCheckingOut ? 'Saving...' : 'Complete'}</span>
             </button>

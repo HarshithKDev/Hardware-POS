@@ -182,7 +182,7 @@ function SalesTrendChart({ trend, isLoading }) {
               style={{
                 height: isAnimated ? `${point.heightPct}%` : '0%',
                 minHeight: (isAnimated && point.rev > 0) ? '4px' : '0px',
-                backgroundColor: 'var(--color-accent)',
+                backgroundColor: 'var(--color-accent-solid)',
               }}
             >
               <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm flex items-center gap-1 pointer-events-none" style={{ color: 'var(--text-primary)', backgroundColor: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-light)' }}>
@@ -577,7 +577,7 @@ function DashboardDateFilter({
                       {isToday && !isSelected && (
                         <span
                           className="absolute bottom-1 w-1 h-1 rounded-full"
-                          style={{ backgroundColor: 'var(--color-accent)' }}
+                          style={{ backgroundColor: 'var(--color-accent-solid)' }}
                         />
                       )}
                     </button>
@@ -615,7 +615,7 @@ function DashboardDateFilter({
                       type="button"
                       onClick={handleApplyRange}
                       className="px-3 py-1 text-[11px] font-bold uppercase rounded text-white shadow-sm hover:opacity-90 cursor-pointer transition-opacity"
-                      style={{ backgroundColor: 'var(--color-accent)' }}
+                      style={{ backgroundColor: 'var(--color-accent-solid)' }}
                     >
                       Apply
                     </button>
@@ -1234,7 +1234,7 @@ export default function OwnerStats({ isActive }) {
               <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>These transactions encountered errors when uploading to the cloud and require manual review to resolve.</p>
             </div>
           </div>
-          <button onClick={() => setActiveModal('failed-syncs')} className="px-5 py-2.5 text-xs font-bold text-white uppercase tracking-wider shrink-0 shadow-sm hover:opacity-90 transition-opacity" style={{ backgroundColor: 'var(--color-error)' }}>
+          <button onClick={() => setActiveModal('failed-syncs')} className="px-5 py-2.5 text-xs font-bold text-white uppercase tracking-wider shrink-0 shadow-sm hover:opacity-90 transition-opacity" style={{ backgroundColor: 'var(--color-error-solid)' }}>
             Review Issues
           </button>
         </div>
@@ -1334,7 +1334,7 @@ export default function OwnerStats({ isActive }) {
               <button
                 onClick={() => setActiveModal(null)}
                 className="px-3.5 py-1.5 text-white rounded-lg text-xs font-bold focus:outline-none transition-all hover:opacity-90 active:scale-95 cursor-pointer shadow-sm"
-                style={{ backgroundColor: 'var(--color-error)' }}
+                style={{ backgroundColor: 'var(--color-error-solid)' }}
               >
                 Close
               </button>

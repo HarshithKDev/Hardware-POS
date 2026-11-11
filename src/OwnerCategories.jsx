@@ -202,7 +202,7 @@ export default function OwnerCategories() {
           <form onSubmit={handleAddCategory} className="flex gap-2">
             <label htmlFor="new-cat" className="sr-only">Category Name</label>
             <input id="new-cat" type="text" placeholder="Category Name" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} className="flex-1 h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-            <button type="submit" disabled={addCategoryMutation.isPending} className="h-10 px-6 text-white text-sm font-semibold focus:outline-none" style={{ backgroundColor: 'var(--color-accent)' }}>Save</button>
+            <button type="submit" disabled={addCategoryMutation.isPending} className="h-10 px-6 text-white text-sm font-semibold focus:outline-none" style={{ backgroundColor: 'var(--color-accent-solid)' }}>Save</button>
           </form>
         </div>
 
@@ -223,7 +223,7 @@ export default function OwnerCategories() {
             <div className="flex gap-2">
               <label htmlFor="new-subcat" className="sr-only">Sub-category Name</label>
               <input id="new-subcat" type="text" placeholder="Sub-category Name" value={newSubcategory} onChange={(e) => setNewSubcategory(e.target.value)} className="flex-1 h-10 px-3 text-sm focus:outline-none rounded-md" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
-              <button type="submit" disabled={addSubcategoryMutation.isPending} className="h-10 px-6 text-white text-sm font-semibold focus:outline-none" style={{ backgroundColor: 'var(--color-accent)' }}>Save</button>
+              <button type="submit" disabled={addSubcategoryMutation.isPending} className="h-10 px-6 text-white text-sm font-semibold focus:outline-none" style={{ backgroundColor: 'var(--color-accent-solid)' }}>Save</button>
             </div>
           </form>
         </div>

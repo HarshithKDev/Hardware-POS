@@ -2,6 +2,28 @@
 @tailwind utilities;
 
 /* ---------------------------------------------------------------
+   DESIGN SYSTEM — step 1 (see docs/UI_REVIEW.md)
+   Corner radii: 3 sizes only. Tailwind's rounded-* classes map onto them,
+   so every existing screen picks this up without changes.
+     6px  controls (buttons, inputs, badges)   rounded / -sm / -md
+     10px cards, panels, tables                rounded-lg / -xl
+     14px modals                               rounded-2xl / -3xl
+   --------------------------------------------------------------- */
+@theme {
+  --radius-xs: 6px;
+  --radius-sm: 6px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 10px;
+  --radius-2xl: 14px;
+  --radius-3xl: 14px;
+}
+
+@layer utilities {
+  .rounded { border-radius: 6px; }
+}
+
+/* ---------------------------------------------------------------
    LINEAR / MODERN SAAS AESTHETIC — DESIGN TOKENS
    Minimalist, sharp, high-contrast dark mode
    --------------------------------------------------------------- */
@@ -19,7 +41,8 @@
 
   --linear-text: #FAFAFA;
   --linear-text-muted: #A1A1AA;
-  --linear-text-dim: #52525B;
+  /* was #52525B (2.4:1 contrast, too faint); now readable at ~5:1 */
+  --linear-text-dim: #8B8B95;
 
   --linear-accent: #3B82F6;
   /* Blue 500 */
@@ -64,6 +87,33 @@
   --color-error: var(--linear-error);
   --color-error-bg: var(--linear-error-bg);
   --color-warning: #EAB308;
+
+  /* Solid fills for buttons/badges with white text (WCAG AA ≥ 4.5:1).
+     The brighter --color-accent / -success / -error stay for text and icons on dark. */
+  --color-accent-solid: #2563EB;
+  --color-accent-solid-hover: #1D4ED8;
+  --color-success-solid: #15803D;
+  --color-success-solid-hover: #166534;
+  --color-error-solid: #DC2626;
+  --color-error-solid-hover: #B91C1C;
+  --color-warning-bg: rgba(234, 179, 8, 0.1);
+
+  /* Tokens used by the shared components (step 2) */
+  --control-h-sm: 32px;
+  --control-h-md: 40px;
+  --control-h-lg: 48px;
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 20px;
+  --font-size-xl: 24px;
+  --font-size-2xl: 32px;
+  --z-sticky: 10;
+  --z-dropdown: 20;
+  --z-navbar: 30;
+  --z-modal: 40;
+  --z-toast: 50;
+  --focus-ring: 0 0 0 2px var(--linear-bg), 0 0 0 4px var(--linear-accent);
 
   --pos-receive-bg: rgba(34, 197, 94, 0.05);
   --pos-transfer-bg: rgba(234, 179, 8, 0.05);
@@ -792,4 +842,24 @@ tr.hover-row:hover > td {
 
 .animate-fade-in-down {
   animation: fadeInDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+
+/* ---------------------------------------------------------------
+   Keyboard focus — visible on every button, link, select, checkbox and
+   tab-stop when reached with the keyboard (Tab). Mouse clicks are not
+   affected (:focus-visible). Text inputs keep their existing focus border.
+   Uses a box-shadow ring so it is never clipped and doesn't move layout.
+   --------------------------------------------------------------- */
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible,
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible,
+[tabindex]:not(input):not(textarea):focus-visible {
+  outline: none !important;
+  box-shadow: var(--focus-ring) !important;
 }

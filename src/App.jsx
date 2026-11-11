@@ -508,7 +508,7 @@ function App() {
       style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
     >
       {!isOnline && (
-        <div className="w-full bg-[var(--color-error)] text-white font-bold text-sm text-center py-1.5 shadow-sm z-[100] animate-pulse">
+        <div className="w-full bg-[var(--color-error-solid)] text-white font-bold text-sm text-center py-1.5 shadow-sm z-[100] animate-pulse">
           Offline Mode: Queuing transactions locally
         </div>
       )}
@@ -582,7 +582,7 @@ function App() {
 
           <div className="flex-1 min-w-0 flex items-center justify-end gap-1.5 md:gap-3 h-full pl-2 pr-2.5 md:pr-4 overflow-x-hidden md:overflow-x-auto hide-scrollbar" style={{ scrollbarWidth: 'none' }}>
             {!isOnline && (
-              <div className="flex items-center gap-1 text-xs font-bold px-2 py-1 bg-[var(--color-error)] text-white mr-auto animate-pulse whitespace-nowrap shrink-0">
+              <div className="flex items-center gap-1 text-xs font-bold px-2 py-1 bg-[var(--color-error-solid)] text-white mr-auto animate-pulse whitespace-nowrap shrink-0">
                 <WifiOff size={16} />
                 <span className="hidden md:inline">OFFLINE MODE</span>
               </div>
@@ -592,7 +592,7 @@ function App() {
 
             <button
               onClick={() => setShowLogoutConfirm(true)}
-              className="h-8 w-8 md:h-9 md:w-auto rounded-md px-0 md:px-4 lg:px-5 text-white text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none shrink-0 flex items-center justify-center gap-2 border bg-[var(--color-error)] border-[var(--color-error)] hover:bg-[#c90f1f] hover:border-[#c90f1f]"
+              className="h-8 w-8 md:h-9 md:w-auto rounded-md px-0 md:px-4 lg:px-5 text-white text-xs font-bold uppercase tracking-wider transition-colors focus:outline-none shrink-0 flex items-center justify-center gap-2 border bg-[var(--color-error-solid)] border-[var(--color-error-solid)] hover:bg-[var(--color-error-solid-hover)] hover:border-[var(--color-error-solid-hover)]"
               title="Sign Out"
             >
               <span className="hidden md:inline">Sign Out</span>

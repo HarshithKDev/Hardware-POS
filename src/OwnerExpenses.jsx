@@ -344,7 +344,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
           <button
             onClick={() => setIsModalOpen(true)}
             className="h-10 px-4 rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 text-white shadow-sm transition-all active:scale-95 shrink-0 cursor-pointer flex-1 sm:flex-initial"
-            style={{ backgroundColor: 'var(--color-accent)' }}
+            style={{ backgroundColor: 'var(--color-accent-solid)' }}
           >
             <Plus size={16} strokeWidth={2.5} />
             <span>Add Expense</span>
@@ -580,7 +580,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
                   type="submit"
                   disabled={isSaving}
                   className="h-9 px-4 text-xs font-bold uppercase tracking-wider rounded-md text-white shadow-sm transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
-                  style={{ backgroundColor: 'var(--color-accent)' }}
+                  style={{ backgroundColor: 'var(--color-accent-solid)' }}
                 >
                   {isSaving ? (
                     <Spinner className="w-3.5 h-3.5 text-white" />

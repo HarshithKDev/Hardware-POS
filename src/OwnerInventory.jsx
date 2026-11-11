@@ -642,7 +642,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
           <div className="flex gap-2">
             {isGlobalEditMode ? (
               <>
-                <button onClick={saveBulkEdits} className="h-8 px-4 text-xs font-bold text-white rounded-lg focus:outline-none transition-colors hover:opacity-90" style={{ backgroundColor: 'var(--color-success)' }}>
+                <button onClick={saveBulkEdits} className="h-8 px-4 text-xs font-bold text-white rounded-lg focus:outline-none transition-colors hover:opacity-90" style={{ backgroundColor: 'var(--color-success-solid)' }}>
                   Save Changes
                 </button>
                 <button onClick={cancelBulkEdit} className="h-8 px-4 text-xs font-bold rounded-lg focus:outline-none transition-colors hover:opacity-90" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}>

@@ -729,7 +729,7 @@ export default function BatchDetailsView({
         <p className="text-sm text-[var(--text-secondary)] mb-4">Item not found.</p>
         <button
           onClick={onBack}
-          className="px-4 py-2 rounded-lg bg-[var(--color-accent)] text-white text-xs font-bold uppercase"
+          className="px-4 py-2 rounded-lg bg-[var(--color-accent-solid)] text-white text-xs font-bold uppercase"
         >
           Back to {isWarehouseDisabled ? 'Inventory' : 'Warehouse'}
         </button>
@@ -781,7 +781,7 @@ export default function BatchDetailsView({
                 type="button"
                 onClick={() => updateProductNameMutation.mutate(nameEditValue)}
                 disabled={updateProductNameMutation.isPending || !nameEditValue.trim()}
-                className="h-8 px-3 rounded-lg bg-[var(--color-success)] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm hover:brightness-110 disabled:opacity-50 cursor-pointer"
+                className="h-8 px-3 rounded-lg bg-[var(--color-success-solid)] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm hover:brightness-110 disabled:opacity-50 cursor-pointer"
                 title="Save Name (Enter)"
               >
                 <Check className="w-3.5 h-3.5" />
@@ -854,7 +854,7 @@ export default function BatchDetailsView({
                   type="button"
                   onClick={() => updateProductDescriptionMutation.mutate(descriptionEditValue)}
                   disabled={updateProductDescriptionMutation.isPending}
-                  className="h-6 px-2.5 rounded bg-[var(--color-success)] text-white text-[11px] font-bold cursor-pointer hover:brightness-110 flex items-center gap-1 disabled:opacity-50"
+                  className="h-6 px-2.5 rounded bg-[var(--color-success-solid)] text-white text-[11px] font-bold cursor-pointer hover:brightness-110 flex items-center gap-1 disabled:opacity-50"
                   title="Save Description"
                 >
                   <Check className="w-3 h-3" />
@@ -959,7 +959,7 @@ export default function BatchDetailsView({
                     });
                   }}
                   disabled={updateMinQtyMutation.isPending}
-                  className="h-7 px-2.5 rounded bg-[var(--color-success)] text-white text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 transition-all shadow-sm hover:brightness-110 disabled:opacity-50 cursor-pointer"
+                  className="h-7 px-2.5 rounded bg-[var(--color-success-solid)] text-white text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 transition-all shadow-sm hover:brightness-110 disabled:opacity-50 cursor-pointer"
                   title="Save Minimum Quantities"
                 >
                   <Check className="w-3.5 h-3.5" />
@@ -1007,7 +1007,7 @@ export default function BatchDetailsView({
           {viewType !== 'recycle' && batches.length > 0 && (
             <button
               onClick={() => setCreateBatchModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-white text-xs font-bold tracking-wide hover:brightness-110 active:scale-95 shadow-sm transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--color-accent-solid)] text-white text-xs font-bold tracking-wide hover:brightness-110 active:scale-95 shadow-sm transition-all cursor-pointer"
               title="Create New Batch for this item"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -1125,7 +1125,7 @@ export default function BatchDetailsView({
             </p>
             <button
               onClick={() => setCreateBatchModalOpen(true)}
-              className="mt-5 px-4 py-2 rounded-lg bg-[var(--color-accent)] text-white font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md hover:brightness-110 cursor-pointer"
+              className="mt-5 px-4 py-2 rounded-lg bg-[var(--color-accent-solid)] text-white font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md hover:brightness-110 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               Create Batch
@@ -1209,7 +1209,7 @@ export default function BatchDetailsView({
                               });
                             }}
                             disabled={updateBatchMutation.isPending}
-                            className="h-8 px-3 rounded-lg bg-[var(--color-success)] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm hover:brightness-110 disabled:opacity-50 cursor-pointer"
+                            className="h-8 px-3 rounded-lg bg-[var(--color-success-solid)] text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm hover:brightness-110 disabled:opacity-50 cursor-pointer"
                           >
                             <Check className="w-3.5 h-3.5" />
                             {updateBatchMutation.isPending ? 'Saving...' : 'Save'}

@@ -215,7 +215,7 @@ export default function OwnerStaff() {
               type="submit"
               disabled={addStaffMutation.isPending}
               className="w-full md:w-auto h-10 px-8 text-white text-sm font-semibold uppercase tracking-wider disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-1 flex justify-center items-center min-w-[150px] rounded-md transition-opacity hover:opacity-90"
-              style={{ backgroundColor: 'var(--color-accent)' }}
+              style={{ backgroundColor: 'var(--color-accent-solid)' }}
             >
               {addStaffMutation.isPending ? <Spinner className="w-5 h-5 text-white" /> : 'Create Account'}
             </button>
@@ -346,7 +346,7 @@ export default function OwnerStaff() {
                   type="submit"
                   disabled={isVerifying || !promptPassword}
                   className="px-5 py-2 text-white text-sm font-semibold rounded-md transition-opacity disabled:opacity-50 flex items-center justify-center min-w-[80px]"
-                  style={{ backgroundColor: 'var(--color-accent)' }}
+                  style={{ backgroundColor: 'var(--color-accent-solid)' }}
                 >
                   {isVerifying ? <Spinner className="w-4 h-4 text-white" /> : 'Confirm'}
                 </button>

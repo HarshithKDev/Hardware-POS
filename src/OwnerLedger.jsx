@@ -1213,7 +1213,7 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
             onClick={handleConfirm}
             disabled={itemsToReturn.length === 0 || isReturning}
             className="h-10 px-6 text-sm font-semibold rounded-md transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[130px] shadow-sm"
-            style={{ backgroundColor: 'var(--color-error)', color: '#fff' }}
+            style={{ backgroundColor: 'var(--color-error-solid)', color: '#fff' }}
           >
             {isReturning ? <Spinner className="w-5 h-5 text-white" /> : (isAll ? 'Void Full Bill' : 'Confirm Return')}
           </button>

@@ -158,7 +158,7 @@ export default function OwnerDashboard() {
                 aria-current={isActive ? 'page' : undefined}
               >
                 {isActive && (
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-[var(--color-accent)]" />
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-[var(--color-accent-solid)]" />
                 )}
                 <Icon size={18} className={isActive ? 'text-[var(--color-accent)]' : 'text-[var(--text-tertiary)]'} />
                 <span className="truncate">{label}</span>
@@ -227,7 +227,7 @@ export default function OwnerDashboard() {
                     >
                       {label}
                       {isActive && (
-                        <div className="hidden sm:block absolute bottom-0 left-0 w-full h-[2px] bg-[var(--color-accent)]" />
+                        <div className="hidden sm:block absolute bottom-0 left-0 w-full h-[2px] bg-[var(--color-accent-solid)]" />
                       )}
                     </button>
                   );

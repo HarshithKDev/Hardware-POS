@@ -61,7 +61,7 @@ export default class ErrorBoundary extends Component {
             <button
               onClick={this.handleReload}
               className="w-full h-10 text-white text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1"
-              style={{ backgroundColor: 'var(--color-accent)', focusRingColor: 'var(--color-accent)' }}
+              style={{ backgroundColor: 'var(--color-accent-solid)', focusRingColor: 'var(--color-accent)' }}
               onMouseEnter={(e) => (e.target.style.backgroundColor = 'var(--color-accent-hover)')}
               onMouseLeave={(e) => (e.target.style.backgroundColor = 'var(--color-accent)')}
             >

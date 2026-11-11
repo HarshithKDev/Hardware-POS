@@ -461,7 +461,7 @@ export default function InventoryRow({
         <td 
           className={`md:hidden block p-2.5 sm:p-3 text-left w-full border-none select-none transition-all duration-150 ${
             isSelected 
-              ? 'bg-[var(--color-accent)]/15 ring-2 ring-[var(--color-accent)] rounded-lg' 
+              ? 'bg-[var(--color-accent-solid)]/15 ring-2 ring-[var(--color-accent)] rounded-lg' 
               : isPressing 
                 ? 'scale-[0.99] bg-[var(--bg-tertiary)] opacity-90 rounded-lg' 
                 : ''
@@ -583,7 +583,7 @@ export default function InventoryRow({
                 }}
                 className="py-1 px-3 rounded-md transition-all active:scale-95 text-white font-bold text-[11px] uppercase tracking-wider flex items-center justify-center gap-1 shadow-sm hover:opacity-90 cursor-pointer"
                 title="Restore Item"
-                style={{ backgroundColor: 'var(--color-success)' }}
+                style={{ backgroundColor: 'var(--color-success-solid)' }}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
                 <span>Restore</span>
@@ -599,7 +599,7 @@ export default function InventoryRow({
                 }}
                 className="py-1 px-3 rounded-md transition-all active:scale-95 text-white font-bold text-[11px] uppercase tracking-wider flex items-center justify-center gap-1 shadow-sm hover:opacity-90 cursor-pointer"
                 title="Create New Batch"
-                style={{ backgroundColor: 'var(--color-accent)' }}
+                style={{ backgroundColor: 'var(--color-accent-solid)' }}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                 <span>Batch</span>
@@ -666,7 +666,7 @@ export default function InventoryRow({
             }}
             className="px-3 py-1.5 rounded-md transition-all active:scale-95 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1 mx-auto shadow-sm hover:opacity-90"
             title="Restore Item"
-            style={{ backgroundColor: 'var(--color-success)' }}
+            style={{ backgroundColor: 'var(--color-success-solid)' }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>
             Restore
@@ -679,7 +679,7 @@ export default function InventoryRow({
             }}
             className="px-3 py-1.5 rounded-md transition-all active:scale-95 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1 mx-auto shadow-sm hover:opacity-90"
             title="Create New Batch"
-            style={{ backgroundColor: 'var(--color-accent)' }}
+            style={{ backgroundColor: 'var(--color-accent-solid)' }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
             Batch
