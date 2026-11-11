@@ -2,8 +2,7 @@
 -- Hardware-POS: retire old functions  (run this the DAY AFTER the others,
 -- once every counter has reloaded the app)
 -- Paste this whole file into Supabase -> SQL Editor and click Run.
--- One transaction (all or nothing); safe to run again. No business data is
--- changed except giving bill numbers to any sales saved without one.
+-- One transaction (all or nothing); safe to run again. No business data is changed.
 -- =====================================================================
 begin;
 
@@ -11,10 +10,7 @@ begin;
 do $$
 begin
   if not exists (select 1 from pg_proc where proname = 'pos_process_sale' and pronamespace = 'public'::regnamespace) then
-    raise exception 'Run 20261111_atomic_actions.sql first (then 20261111_bill_numbers.sql), and this script the next day. Nothing was changed.';
-  end if;
-  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'bills' and column_name = 'bill_no') then
-    raise exception 'Run 20261111_bill_numbers.sql first, and this script the next day. Nothing was changed.';
+    raise exception 'Run 20261111_atomic_actions.sql first, and this script the next day. Nothing was changed.';
   end if;
 end $$;
 
@@ -28,34 +24,7 @@ revoke execute on function public.process_pos_transaction_unsafe(text, text, tex
 drop function if exists public.process_pos_transaction(text, text, text, jsonb);
 drop function if exists public.process_pos_transaction(text, text, text, text, numeric, numeric, jsonb);
 
--- 2. Give a bill number to any real sale saved through the old path
---    (a counter that had not reloaded yet). Continues the series; never renumbers.
-with mx as (
-  select s.id as shop_id, coalesce(max(b.bill_no), 0) as m
-  from public.shop_settings s
-  left join public.bills b on b.shop_id = s.id
-  group by s.id
-),
-numbered as (
-  select b.id,
-         mx.m + row_number() over (partition by b.shop_id order by b.created_at, b.id) as n
-  from public.bills b
-  join mx on mx.shop_id = b.shop_id
-  where b.bill_no is null
-    and b.location = 'Store'
-    and coalesce(b.payment_method, '') <> 'SHOWROOM'
-    and coalesce(b.status, '') not in ('showroom', 'showroom_pending')
-    and (coalesce(b.total_amount, 0) > 0 or exists (select 1 from public.bill_items bi where bi.bill_id = b.id))
-)
-update public.bills b set bill_no = numbered.n
-from numbered
-where b.id = numbered.id;
-
-insert into public.bill_counters (shop_id, last_no)
-select shop_id, max(bill_no) from public.bills where bill_no is not null group by shop_id
-on conflict (shop_id) do update set last_no = greatest(public.bill_counters.last_no, excluded.last_no);
-
--- 3. Drop old functions that refer to a table that no longer exists ("inventory")
+-- 2. Drop old functions that refer to a table that no longer exists ("inventory")
 --    or are unused. Each one is only dropped if no trigger uses it; otherwise it is
 --    kept and a notice is shown.
 do $$
