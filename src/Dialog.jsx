@@ -95,7 +95,7 @@ export function DialogOverlay({ isOpen, onClose, children, labelId, maxWidth = '
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center z-[100] px-4 print:hidden animate-fade-in"
+      className="fixed inset-0 flex items-center justify-center z-[30000] px-4 print:hidden animate-fade-in"
       style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
       onClick={(e) => {
         // Close on backdrop click

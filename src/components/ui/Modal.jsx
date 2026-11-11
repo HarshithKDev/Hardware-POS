@@ -1,4 +1,8 @@
 import { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+
+// Popups sit above the app's top bar (z-index 9999) but below alerts/notices (99999).
+const MODAL_LAYER_BASE = 10000;
 
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -16,7 +20,8 @@ const WIDTHS = { sm: 'sm:max-w-sm', md: 'sm:max-w-md', lg: 'sm:max-w-[660px]', x
  *    (focusFirst={false} skips that).
  *  - restoreFocus={false}: don't move focus back on close. The checkout counter uses this so
  *    Enter/Space after closing a modal can't re-press the button that opened it.
- *  - zIndex keeps each screen's existing stacking order.
+ *  - Rendered at the top of the page (portal) and above the top bar (which uses z 9999);
+ *    zIndex keeps each screen's existing order between popups.
  */
 export default function Modal({
   isOpen = true,
@@ -74,10 +79,10 @@ export default function Modal({
 
   if (!isOpen) return null;
 
-  return (
+  const overlay = (
     <div
-      className="fixed inset-0 flex items-end sm:items-center justify-center sm:px-4 bg-black/60 print:hidden animate-fade-in"
-      style={{ zIndex }}
+      className="fixed inset-0 flex items-end sm:items-center justify-center sm:p-4 bg-black/60 print:hidden animate-fade-in"
+      style={{ zIndex: MODAL_LAYER_BASE + zIndex }}
       role="presentation"
       onMouseDown={(e) => { if (closeOnBackdrop && e.target === e.currentTarget) onClose?.(); }}
     >
@@ -122,4 +127,5 @@ export default function Modal({
       </Panel>
     </div>
   );
+  return typeof document !== 'undefined' ? createPortal(overlay, document.body) : overlay;
 }

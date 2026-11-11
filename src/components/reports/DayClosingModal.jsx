@@ -71,21 +71,21 @@ function printHtml(html) {
   }, 250);
 }
 
-const Row = ({ label, value, strong = false, tone, hint }) => (
-  <div className="flex items-baseline justify-between gap-3 py-1.5">
-    <span className={`text-sm ${strong ? 'font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
-      {label}
-      {hint && <span className="block text-xs text-[var(--text-tertiary)]">{hint}</span>}
+const Line = ({ label, value, sign, muted = false }) => (
+  <div className="flex items-baseline justify-between gap-4 py-1.5">
+    <span className={`text-sm ${muted ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-secondary)]'}`}>{label}</span>
+    <span className="text-sm font-semibold tabular-nums whitespace-nowrap text-[var(--text-primary)]">
+      {sign && <span className="mr-1 text-[var(--text-tertiary)]">{sign}</span>}{value}
     </span>
-    <span className={`tabular-nums whitespace-nowrap ${strong ? 'text-base font-bold' : 'text-sm font-semibold'}`} style={{ color: tone || 'var(--text-primary)' }}>{value}</span>
   </div>
 );
 
-const Section = ({ title, children }) => (
-  <section className="rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-primary)] p-4">
-    <h4 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)] mb-2">{title}</h4>
-    {children}
-  </section>
+const Stat = ({ label, value, sub }) => (
+  <div className="flex-1 min-w-[150px] px-4 py-3">
+    <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">{label}</p>
+    <p className="mt-1 text-2xl font-bold tabular-nums text-[var(--text-primary)]">{value}</p>
+    {sub && <p className="text-xs text-[var(--text-tertiary)] mt-0.5">{sub}</p>}
+  </div>
 );
 
 /**
@@ -137,10 +137,11 @@ export default function DayClosingModal({ isOpen, onClose, day, shopId, shopName
       title="Day Closing Report"
       subtitle={formatDayHeader(day)}
       titleId="day-closing-title"
-      size="xl"
+      size="lg"
       zIndex={100}
       footer={(
         <>
+          <span className="mr-auto text-xs text-[var(--text-tertiary)] hidden sm:inline">Amounts you type are saved on this device for this day.</span>
           <Button variant="ghost" onClick={() => refetch()} loading={isFetching && !isLoading}>Refresh</Button>
           <Button variant="secondary" onClick={onClose}>Close</Button>
           <Button variant="primary" disabled={!report} onClick={() => printHtml(buildPrintHtml(report, { shopName, day }))}>Print</Button>
@@ -154,69 +155,68 @@ export default function DayClosingModal({ isOpen, onClose, day, shopId, shopName
           Could not load the day's figures: {error.message}
         </p>
       ) : report && (
-        <div className="flex flex-col gap-4">
-          {/* Headline figures */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { label: `Sales (${report.sales.count} bills)`, value: report.sales.total },
-              { label: 'Cash sales', value: report.sales.cash },
-              { label: 'UPI sales', value: report.sales.upi },
-              { label: `Expenses (${report.expenses.count})`, value: report.expenses.total },
-            ].map((c) => (
-              <div key={c.label} className="rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-primary)] p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">{c.label}</p>
-                <p className="mt-1 text-xl font-bold tabular-nums text-[var(--text-primary)]">{rupees(c.value)}</p>
-              </div>
-            ))}
+        <div className="flex flex-col gap-5">
+          {/* 1. Sales at a glance */}
+          <div className="flex flex-wrap divide-x divide-[var(--border-light)] rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-primary)]">
+            <Stat label="Total sales" value={rupees(report.sales.total)} sub={`${report.sales.count} ${report.sales.count === 1 ? 'bill' : 'bills'}`} />
+            <Stat label="Cash" value={rupees(report.sales.cash)} />
+            <Stat label="UPI" value={rupees(report.sales.upi)} />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Drawer */}
-            <Section title="Cash drawer">
-              <div className="grid grid-cols-2 gap-3 mb-2">
-                <Input id="closing-opening" label="Opening cash" prefix="₹" type="number" min="0" step="any" inputMode="decimal" placeholder="0" value={opening} onChange={(e) => setOpening(e.target.value)} />
-                <Input id="closing-counted" label="Counted cash" prefix="₹" type="number" min="0" step="any" inputMode="decimal" placeholder="Count the drawer" value={counted} onChange={(e) => setCounted(e.target.value)} />
+          {/* 2. Cash drawer check */}
+          <section className="rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-primary)] overflow-hidden">
+            <div className="px-4 py-3 border-b border-[var(--border-light)]">
+              <h4 className="text-sm font-semibold text-[var(--text-primary)]">Cash drawer check</h4>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2">
+              <div className="p-4 flex flex-col gap-4 md:border-r border-[var(--border-light)]">
+                <Input id="closing-opening" label="Opening cash (morning)" prefix="₹" type="number" min="0" step="any" inputMode="decimal" placeholder="0" value={opening} onChange={(e) => setOpening(e.target.value)} />
+                <Input id="closing-counted" label="Cash counted now" prefix="₹" type="number" min="0" step="any" inputMode="decimal" placeholder="0" value={counted} onChange={(e) => setCounted(e.target.value)} />
               </div>
-              <Row label="Opening cash" value={rupees(report.openingCash)} />
-              <Row label="+ Cash sales" value={rupees(report.sales.cash)} hint="Already net of returns on today's bills" />
-              <Row label="− Cash refunds for earlier days' bills" value={rupees(report.returns.earlierCash)} />
-              <Row label="− Expenses paid in cash" value={rupees(report.expenses.cash + report.expenses.unspecified)} hint={report.expenses.unspecified > 0 ? `Includes ${rupees(report.expenses.unspecified)} with no payment mode recorded` : undefined} />
-              <div className="border-t border-[var(--border-light)] mt-1 pt-1">
-                <Row label="Expected cash in drawer" value={rupees(report.expectedCash)} strong />
-                {report.countedCash !== null && <Row label="Counted cash" value={rupees(report.countedCash)} />}
-                <Row label="Difference" value={diffLabel} strong tone={diffTone} />
+              <div className="p-4 flex flex-col">
+                <Line label="Opening cash" value={rupees(report.openingCash)} />
+                <Line label="Cash sales" sign="+" value={rupees(report.sales.cash)} />
+                {report.returns.earlierCash > 0 && <Line label="Cash refunds (earlier days' bills)" sign="−" value={rupees(report.returns.earlierCash)} />}
+                {(report.expenses.cash + report.expenses.unspecified) > 0 && <Line label="Expenses paid in cash" sign="−" value={rupees(report.expenses.cash + report.expenses.unspecified)} />}
+                <div className="mt-2 pt-3 border-t border-[var(--border-light)] flex items-baseline justify-between gap-4">
+                  <span className="text-sm font-semibold text-[var(--text-primary)]">Should be in drawer</span>
+                  <span className="text-2xl font-bold tabular-nums text-[var(--text-primary)]">{rupees(report.expectedCash)}</span>
+                </div>
+                <div
+                  className="mt-3 rounded-md px-3 py-2.5 text-sm font-semibold text-center"
+                  style={diff === null || diff === undefined
+                    ? { backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }
+                    : { backgroundColor: Math.abs(diff) < 0.5 ? 'var(--color-success-bg)' : 'var(--color-warning-bg)', color: diffTone }}
+                  role="status"
+                >
+                  {diff === null || diff === undefined ? 'Enter the cash counted now to check the drawer' : Math.abs(diff) < 0.5 ? '✓ Drawer matches' : diffLabel}
+                </div>
               </div>
-            </Section>
+            </div>
+          </section>
 
-            {/* UPI, returns, other */}
-            <Section title="UPI, returns and other">
-              <Row label="UPI sales" value={rupees(report.sales.upi)} />
-              <Row label="− UPI refunds for earlier days' bills" value={rupees(report.returns.earlierUpi)} />
-              <Row label="− Expenses paid by UPI / other" value={rupees(report.expenses.upi)} />
-              <div className="border-t border-[var(--border-light)] mt-1 pt-1 mb-2">
-                <Row label="Expected UPI received (net)" value={rupees(report.expectedUpi)} strong />
-              </div>
-              <Row
-                label={`Returns processed today (${report.returns.count})`}
-                value={rupees(report.returns.cash + report.returns.upi)}
-                hint={report.returnsAvailable ? 'Refunds on today\'s bills are already taken off today\'s sales' : 'Return records are not available'}
-              />
-              {report.fullyReturned.count > 0 && <Row label={`Bills fully returned (${report.fullyReturned.count})`} value={rupees(report.fullyReturned.value)} />}
-              <Row label={`Showroom dispatches (${report.showroom.count})`} value={rupees(report.showroom.value)} hint="Stock moved to the showroom, not a sale" />
-            </Section>
-          </div>
+          {/* 3. Other figures (only what happened) */}
+          {(report.returns.count > 0 || report.expenses.count > 0 || report.showroom.count > 0 || report.fullyReturned.count > 0 || report.returns.earlierUpi > 0) && (
+            <section className="rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-primary)] px-4 py-2">
+              {report.expenses.count > 0 && <Line label={`Expenses (${report.expenses.count})`} value={rupees(report.expenses.total)} />}
+              {report.returns.count > 0 && <Line label={`Returns refunded today (${report.returns.count})`} value={rupees(report.returns.cash + report.returns.upi)} />}
+              {report.fullyReturned.count > 0 && <Line label={`Bills fully returned (${report.fullyReturned.count})`} value={rupees(report.fullyReturned.value)} />}
+              {report.showroom.count > 0 && <Line label={`Sent to showroom (${report.showroom.count}) · not a sale`} value={rupees(report.showroom.value)} />}
+              {(report.returns.earlierUpi > 0 || report.expenses.upi > 0) && <Line label="UPI to check in bank (after refunds and UPI expenses)" value={rupees(report.expectedUpi)} />}
+            </section>
+          )}
 
-          {/* By cashier */}
-          {report.byCashier.length > 0 && (
+          {/* 4. By cashier */}
+          {report.byCashier.length > 1 && (
             <div className={table.wrap}>
               <table className={table.table}>
                 <thead className={table.thead}>
                   <tr>
                     <th className={table.th}>Cashier</th>
                     <th className={table.th}>Bills</th>
-                    <th className={table.th}>Total</th>
                     <th className={table.th}>Cash</th>
                     <th className={table.th}>UPI</th>
+                    <th className={table.th}>Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -224,18 +224,15 @@ export default function DayClosingModal({ isOpen, onClose, day, shopId, shopName
                     <tr key={c.name} className={table.tr}>
                       <td className={`${table.td} capitalize`}>{c.name}</td>
                       <td className={table.num}>{c.count}</td>
-                      <td className={`${table.num} font-semibold`}>{rupees(c.total)}</td>
                       <td className={table.num}>{rupees(c.cash)}</td>
                       <td className={table.num}>{rupees(c.upi)}</td>
+                      <td className={`${table.num} font-semibold`}>{rupees(c.total)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
-          <p className="text-xs text-[var(--text-tertiary)]">
-            Opening and counted cash are saved on this device for this day. Figures update when you press Refresh.
-          </p>
         </div>
       )}
     </Modal>
