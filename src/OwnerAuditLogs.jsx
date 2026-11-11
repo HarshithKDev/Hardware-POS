@@ -7,6 +7,7 @@ import { debounce, formatDateTime, formatDayHeader, escapeIlike, useSessionState
 import { useApp } from './AppContext';
 import { X, Calendar } from 'lucide-react';
 import PageTitleReset from './components/PageTitleReset';
+import { DateField } from './components/ui';
 
 const formatChanges = (changes) => {
   if (!changes || changes === '—') return <span style={{ color: 'var(--text-tertiary)' }}>—</span>;
@@ -349,8 +350,7 @@ export default function OwnerAuditLogs() {
           {!isSearching ? (
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-xs font-semibold uppercase text-[var(--text-secondary)]">Date:</span>
-              <input
-                type="date"
+              <DateField
                 value={currentDay}
                 max={new Date().toLocaleDateString('en-CA')}
                 onChange={(e) => {
@@ -364,8 +364,7 @@ export default function OwnerAuditLogs() {
                     setCustomDate(selected);
                   }
                 }}
-                className="h-10 px-2.5 text-xs font-semibold focus:outline-none rounded-md shadow-sm cursor-pointer"
-                style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
+                aria-label="Date filter"
                 title="Jump to date"
               />
               {(datePageIndex > 0 || customDate) && (

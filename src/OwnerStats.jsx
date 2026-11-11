@@ -1572,6 +1572,18 @@ export default function OwnerStats({ isActive }) {
                         </tr>
                       ))}
                     </tbody>
+                    {activeModal === 'dead-stock' && deadStockItems.length > 0 && (
+                      <tfoot className="sticky bottom-0" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-medium)' }}>
+                        <tr className="h-11">
+                          <td colSpan={3} className="px-3 text-right text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)', borderRight: '1px solid var(--border-medium)' }}>
+                            Total ({deadStockItems.length} {deadStockItems.length === 1 ? 'item' : 'items'})
+                          </td>
+                          <td className="px-3 text-center text-sm font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
+                            ₹{formatINR(deadStockItems.reduce((s, i) => s + (Number(i.deadValue) || 0), 0), 2)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    )}
                   </table>
                 </div>
               )}

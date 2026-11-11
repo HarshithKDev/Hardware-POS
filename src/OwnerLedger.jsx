@@ -15,7 +15,7 @@ import { Search, Undo2, X, Phone, User, Calendar } from 'lucide-react';
 import BillDetailsView from './BillDetailsView';
 import { getInventoryItemByBarcode } from './services/db';
 import PageTitleReset from './components/PageTitleReset';
-import { Badge, Button, buttonClass } from './components/ui';
+import { Badge, Button, buttonClass, DateField } from './components/ui';
 
 const paymentTone = (method) => (method === 'CASH' ? 'success' : method === 'UPI' ? 'accent' : 'warning');
 
@@ -722,8 +722,7 @@ export default function OwnerLedger({ isActive }) {
             {!isSearching ? (
               <>
                 <span className="text-xs font-semibold uppercase whitespace-nowrap text-[var(--text-secondary)]">Date:</span>
-                <input
-                  type="date"
+                <DateField
                   value={currentDay}
                   max={new Date().toLocaleDateString('en-CA')}
                   onChange={(e) => {
@@ -737,8 +736,6 @@ export default function OwnerLedger({ isActive }) {
                       setCustomDate(selected);
                     }
                   }}
-                  className="h-10 md:h-9 px-2 text-xs font-semibold focus:outline-none rounded-md shadow-sm cursor-pointer"
-                  style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
                   aria-label="Date filter"
                   title="Jump to date"
                 />
@@ -948,6 +945,14 @@ export default function OwnerLedger({ isActive }) {
                 </span>
                 <span>•</span>
                 <span className="shrink-0">{bills.length} {bills.length === 1 ? 'sale' : 'sales'}</span>
+                {bills.length > 0 && (
+                  <>
+                    <span>•</span>
+                    <span className="shrink-0 font-bold tabular-nums text-[var(--text-primary)]" title="Total of this day's sales (returned bills excluded)">
+                      ₹{formatINR(bills.reduce((sum, b) => sum + (b.status === 'voided' ? 0 : (Number(b.total_amount) || 0)), 0), 2)}
+                    </span>
+                  </>
+                )}
                 {availableDates.length > 0 && (
                   <>
                     <span className="hidden sm:inline">•</span>

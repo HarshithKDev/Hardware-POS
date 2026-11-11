@@ -592,7 +592,8 @@ function App() {
 
             <button
               onClick={() => setShowLogoutConfirm(true)}
-              className="h-8 w-8 md:h-9 md:w-auto rounded-md px-0 md:px-4 lg:px-5 text-white text-xs font-bold transition-colors focus:outline-none shrink-0 flex items-center justify-center gap-2 border bg-[var(--color-error-solid)] border-[var(--color-error-solid)] hover:bg-[var(--color-error-solid-hover)] hover:border-[var(--color-error-solid-hover)]"
+              className="h-8 w-8 md:h-9 md:w-auto rounded-md px-0 md:px-4 text-xs font-semibold transition-colors shrink-0 flex items-center justify-center gap-2 border border-[var(--border-medium)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-heavy)] cursor-pointer"
+              aria-label="Sign Out"
               title="Sign Out"
             >
               <span className="hidden md:inline">Sign Out</span>

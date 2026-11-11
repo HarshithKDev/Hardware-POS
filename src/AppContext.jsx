@@ -9,6 +9,9 @@ import { createContext, useContext, useState, useCallback, useRef, useEffect } f
 
 const AppContext = createContext(null);
 
+const SUCCESS_TITLES = new Set(['success', 'saved', 'box opened', 'stock updated', 'recorded', 'item restored', 'restored', 'updated', 'deleted', 'done']);
+const isSuccessTitle = (title) => SUCCESS_TITLES.has(String(title || '').trim().toLowerCase());
+
 export function useApp() {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error('useApp must be used within <AppProvider>');
@@ -74,6 +77,8 @@ export function AppProvider({ children }) {
 
   const toggleDarkMode = useCallback(() => setIsDarkMode((v) => !v), []);
 
+  const pushToastRef = useRef(null);
+
   // --- Alert Dialog ---
   const [alertConfig, setAlertConfig] = useState({
     isOpen: false,
@@ -81,7 +86,14 @@ export function AppProvider({ children }) {
     title: 'Notice',
   });
 
+  // Success confirmations ("Saved", "Box Opened"...) don't need to interrupt work:
+  // they go to a small auto-closing notice (bottom-right). Errors, warnings and
+  // anything that needs reading stay in the alert box.
   const showAlert = useCallback((message, title = 'Notice') => {
+    if (isSuccessTitle(title)) {
+      pushToastRef.current?.(message, { tone: 'success', title: String(title).toLowerCase() === 'success' ? '' : title });
+      return;
+    }
     setAlertConfig({ isOpen: true, message, title });
   }, []);
 
@@ -119,14 +131,23 @@ export function AppProvider({ children }) {
     setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
   }, []);
 
-  // --- Toast Notification ---
-  const [toast, setToast] = useState({ isOpen: false, message: '' });
-  const showToast = useCallback((message, duration = 2000) => {
-    setToast({ isOpen: true, message });
-    setTimeout(() => {
-      setToast(prev => prev.message === message ? { isOpen: false, message: '' } : prev);
-    }, duration);
-  }, []);
+  // --- Toast Notifications (non-blocking, bottom-right, stack up to 3) ---
+  const [toasts, setToasts] = useState([]);
+  const toastIdRef = useRef(0);
+  const dismissToast = useCallback((id) => setToasts(list => list.filter(t => t.id !== id)), []);
+  const pushToast = useCallback((message, { tone = 'info', title = '', duration } = {}) => {
+    const id = ++toastIdRef.current;
+    const text = typeof message === 'string' ? message : String(message ?? '');
+    const ms = duration ?? Math.min(6000, Math.max(2500, text.length * 45));
+    setToasts(list => [...list.slice(-2), { id, message: text, tone, title }]);
+    setTimeout(() => dismissToast(id), ms);
+  }, [dismissToast]);
+  useEffect(() => { pushToastRef.current = pushToast; }, [pushToast]);
+  // Old signature kept: showToast(message, durationMs)
+  const showToast = useCallback((message, durationOrOptions) => {
+    if (typeof durationOrOptions === 'number') pushToast(message, { duration: durationOrOptions });
+    else pushToast(message, durationOrOptions || {});
+  }, [pushToast]);
 
   // --- Warehouse Settings ---
   const [warehouseDisabledState, setWarehouseDisabledState] = useState(() => {
@@ -188,16 +209,31 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={value}>
       {children}
-      {toast.isOpen && (
-        <div 
-          className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[9999] bg-gray-800 text-white px-4 py-2 rounded-md shadow-lg text-sm font-medium flex items-center gap-2 animate-fade-in-down pointer-events-none"
-          style={{ 
-            backgroundColor: 'var(--color-accent, #3b82f6)',
-            animation: 'fadeInDown 0.3s ease-out'
-          }}
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          {toast.message}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-4 right-4 z-[99999] flex flex-col items-end gap-2 pointer-events-none print:hidden" role="status" aria-live="polite">
+          {toasts.map(t => (
+            <div
+              key={t.id}
+              onClick={() => dismissToast(t.id)}
+              className="pointer-events-auto cursor-pointer w-[min(92vw,360px)] flex items-start gap-2.5 px-4 py-3 rounded-[10px] shadow-2xl border animate-fade-in"
+              style={{
+                backgroundColor: 'var(--bg-secondary)',
+                borderColor: t.tone === 'success' ? 'var(--color-success)' : 'var(--border-medium)',
+                borderLeftWidth: 4,
+              }}
+              title="Click to dismiss"
+            >
+              {t.tone === 'success' ? (
+                <svg className="w-4 h-4 mt-0.5 shrink-0" style={{ color: 'var(--color-success)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+              ) : (
+                <svg className="w-4 h-4 mt-0.5 shrink-0" style={{ color: 'var(--color-accent)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              )}
+              <div className="min-w-0">
+                {t.title && <p className="text-sm font-semibold text-[var(--text-primary)]">{t.title}</p>}
+                <p className="text-sm text-[var(--text-secondary)] whitespace-pre-line break-words">{t.message}</p>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </AppContext.Provider>
