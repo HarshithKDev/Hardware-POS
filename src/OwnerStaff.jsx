@@ -7,7 +7,7 @@ import { generateId } from './utils';
 import { getWorkerEmail, getAdminEmail } from './constants';
 import { Spinner, PageLoader } from './SharedUI';
 import PageTitleReset from './components/PageTitleReset';
-import { buttonClass, Modal, Button, Input } from './components/ui';
+import { buttonClass, Modal, Button, Input, TableSkeleton } from './components/ui';
 
 export default function OwnerStaff() {
   const { showAlert, showConfirm } = useApp();
@@ -227,7 +227,7 @@ export default function OwnerStaff() {
         {/* Mobile View: Card List */}
         <div className="md:hidden flex flex-col divide-y divide-[var(--border-medium)]">
           {isLoading ? (
-            <div className="p-8 text-center"><PageLoader text="Loading staff..." /></div>
+            <TableSkeleton rows={4} cols={2} label="Loading staff…" />
           ) : staffList.length === 0 ? (
             <div className="p-8 text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No staff members added yet.</div>
           ) : staffList.map(staff => (
@@ -269,7 +269,7 @@ export default function OwnerStaff() {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan="3" className="h-full align-middle text-center"><PageLoader text="Loading staff..." /></td></tr>
+              <tr><td colSpan="3" className="p-0"><TableSkeleton rows={4} cols={3} label="Loading staff…" /></td></tr>
             ) : staffList.length === 0 ? (
               <tr><td colSpan="3" className="h-full align-middle text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No staff members added yet.</td></tr>
             ) : staffList.map(staff => (

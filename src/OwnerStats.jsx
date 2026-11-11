@@ -16,7 +16,21 @@ import {
 import { AlertTriangle, Calendar, ArrowUpRight } from 'lucide-react';
 import { useSessionState } from './hooks/useSessionState';
 import PageTitleReset from './components/PageTitleReset';
-import { buttonClass } from './components/ui';
+import { buttonClass, useSort, SortTh } from './components/ui';
+
+const PROFIT_SORT = {
+  name: { get: (i) => i.name || '', textual: true },
+  qty: (i) => Number(i.qty) || 0,
+  cost: (i) => Number(i.lineCost) || 0,
+  revenue: (i) => Number(i.lineRev) || 0,
+  profit: (i) => Number(i.lineProfit) || 0,
+};
+const DEAD_STOCK_SORT = {
+  barcode: { get: (i) => String(i.barcode || ''), textual: true },
+  name: { get: (i) => i.name || '', textual: true },
+  qty: (i) => Number(i.totalQty) || 0,
+  value: (i) => Number(i.deadValue) || 0,
+};
 
 function formatDateLabel(dStr, includeYear = false) {
   if (!dStr) return '';
@@ -1143,6 +1157,10 @@ export default function OwnerStats({ isActive }) {
     }
   }, [activeModal]);
 
+  // Click-to-sort for the Profit and Dead stock tables (must run before the early returns below)
+  const { sorted: sortedSalesDetails, sort: profitSort, toggleSort: toggleProfitSort } = useSort(salesData?.tfSalesDetails, PROFIT_SORT);
+  const { sorted: sortedDeadStock, sort: deadSort, toggleSort: toggleDeadSort } = useSort(invData?.deadStockItems, DEAD_STOCK_SORT);
+
   if ((!salesData && isSalesLoading) || (!invData && isInvLoading)) {
     return (
       <div className="h-full flex flex-col items-center justify-center min-h-[300px]">
@@ -1394,11 +1412,11 @@ export default function OwnerStats({ isActive }) {
                     <table className="hidden md:table w-full text-center border-collapse">
                       <thead className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                         <tr className="h-10 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                          <th className="p-3" style={{ borderRight: '1px solid var(--border-medium)' }}>Item Sold</th>
-                          <th className="p-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Total Qty</th>
-                          <th className="p-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Total Cost</th>
-                          <th className="p-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Total Sold For</th>
-                          <th className="p-3 text-center">Profit Generated</th>
+                          <SortTh label="Item Sold" sortKey="name" sort={profitSort} onSort={toggleProfitSort} className="p-3" style={{ borderRight: '1px solid var(--border-medium)' }} />
+                          <SortTh label="Total Qty" sortKey="qty" sort={profitSort} onSort={toggleProfitSort} className="p-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }} />
+                          <SortTh label="Total Cost" sortKey="cost" sort={profitSort} onSort={toggleProfitSort} className="p-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }} />
+                          <SortTh label="Total Sold For" sortKey="revenue" sort={profitSort} onSort={toggleProfitSort} className="p-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }} />
+                          <SortTh label="Profit Generated" sortKey="profit" sort={profitSort} onSort={toggleProfitSort} className="p-3 text-center" />
                         </tr>
                       </thead>
                       <tbody>
@@ -1408,7 +1426,7 @@ export default function OwnerStats({ isActive }) {
                               No sales recorded.
                             </td>
                           </tr>
-                        ) : tfSalesDetails.map((item, idx) => (
+                        ) : sortedSalesDetails.map((item, idx) => (
                           <tr key={idx} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                             <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.name}</td>
                             <td className="p-3 text-sm text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>{item.qty} {item.unit}</td>
@@ -1510,12 +1528,21 @@ export default function OwnerStats({ isActive }) {
                   <table className="hidden md:table w-full text-center border-collapse">
                     <thead className="sticky top-0 z-20 shadow-sm" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                       <tr className="h-10 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                        <th className="p-3 w-32" style={{ borderRight: '1px solid var(--border-medium)' }}>Barcode</th>
-                        <th className="p-3" style={{ borderRight: '1px solid var(--border-medium)' }}>Item Name</th>
                         {activeModal === 'dead-stock' ? (
                           <>
-                            <th className="p-3 text-center w-32" style={{ borderRight: '1px solid var(--border-medium)' }}>Locked Qty</th>
-                            <th className="p-3 text-center whitespace-nowrap">Capital Tied Up</th>
+                            <SortTh label="Barcode" sortKey="barcode" sort={deadSort} onSort={toggleDeadSort} className="p-3 w-32" style={{ borderRight: '1px solid var(--border-medium)' }} />
+                            <SortTh label="Item Name" sortKey="name" sort={deadSort} onSort={toggleDeadSort} className="p-3" style={{ borderRight: '1px solid var(--border-medium)' }} />
+                          </>
+                        ) : (
+                          <>
+                            <th className="p-3 w-32" style={{ borderRight: '1px solid var(--border-medium)' }}>Barcode</th>
+                            <th className="p-3" style={{ borderRight: '1px solid var(--border-medium)' }}>Item Name</th>
+                          </>
+                        )}
+                        {activeModal === 'dead-stock' ? (
+                          <>
+                            <SortTh label="Locked Qty" sortKey="qty" sort={deadSort} onSort={toggleDeadSort} className="p-3 text-center w-32" style={{ borderRight: '1px solid var(--border-medium)' }} />
+                            <SortTh label="Capital Tied Up" sortKey="value" sort={deadSort} onSort={toggleDeadSort} className="p-3 text-center whitespace-nowrap" />
                           </>
                         ) : (
                           <>
@@ -1563,7 +1590,7 @@ export default function OwnerStats({ isActive }) {
                           </td>
                         </tr>
                       )}
-                      {activeModal === 'dead-stock' && deadStockItems.map(item => (
+                      {activeModal === 'dead-stock' && sortedDeadStock.map(item => (
                         <tr key={item.barcode} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                           <td className="p-3 text-sm font-semibold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-medium)' }}>{item.barcode}</td>
                           <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.name}</td>

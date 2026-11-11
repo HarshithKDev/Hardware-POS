@@ -15,7 +15,16 @@ import { Search, Undo2, X, Phone, User, Calendar } from 'lucide-react';
 import BillDetailsView from './BillDetailsView';
 import { getInventoryItemByBarcode } from './services/db';
 import PageTitleReset from './components/PageTitleReset';
-import { Badge, Button, buttonClass, DateField } from './components/ui';
+import { Badge, Button, buttonClass, DateField, useSort, SortTh, TableSkeleton } from './components/ui';
+
+// Click-to-sort columns for the sales list (sorting happens on the loaded day/page only)
+const LEDGER_SORT = {
+  date: (b) => new Date(b.created_at).getTime() || 0,
+  customer: { get: (b) => b.customer_name || b.customer_phone || '', textual: true },
+  cashier: { get: (b) => b.cashier_name || '', textual: true },
+  payment: { get: (b) => (b.status === 'voided' ? 'VOIDED' : (b.payment_method || '')), textual: true },
+  total: (b) => Number(b.total_amount) || 0,
+};
 
 const paymentTone = (method) => (method === 'CASH' ? 'success' : method === 'UPI' ? 'accent' : 'warning');
 
@@ -273,6 +282,7 @@ export default function OwnerLedger({ isActive }) {
     enabled: isActive,
     staleTime: 1000 * 60 * 2,
   });
+  const { sorted: sortedBills, sort: billSort, toggleSort: toggleBillSort } = useSort(bills, LEDGER_SORT);
 
   const hasMoreBills = isSearching ? bills.length === SALES_PER_PAGE : (datePageIndex < availableDates.length - 1);
 
@@ -775,20 +785,20 @@ export default function OwnerLedger({ isActive }) {
             </colgroup>
             <thead className="hidden md:table-header-group sticky top-0 z-20 glass-header" style={{ borderBottom: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}>
               <tr className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
-                <th className="h-10 px-3 w-[20%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Date &amp; Time</th>
-                <th className="h-10 px-3 w-[24%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Customer</th>
-                <th className="h-10 px-3 w-[16%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Cashier</th>
-                <th className="h-10 px-3 w-[12%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Payment</th>
-                <th className="h-10 px-3 w-[14%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>Total (₹)</th>
+                <SortTh label="Date & Time" sortKey="date" sort={billSort} onSort={toggleBillSort} className="h-10 px-3 w-[20%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }} />
+                <SortTh label="Customer" sortKey="customer" sort={billSort} onSort={toggleBillSort} className="h-10 px-3 w-[24%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }} />
+                <SortTh label="Cashier" sortKey="cashier" sort={billSort} onSort={toggleBillSort} className="h-10 px-3 w-[16%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }} />
+                <SortTh label="Payment" sortKey="payment" sort={billSort} onSort={toggleBillSort} className="h-10 px-3 w-[12%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }} />
+                <SortTh label="Total (₹)" sortKey="total" sort={billSort} onSort={toggleBillSort} className="h-10 px-3 w-[14%] text-center" style={{ borderRight: '1px solid var(--border-medium)' }} />
                 <th className="h-10 px-3 w-[14%] text-center">Action</th>
               </tr>
             </thead>
             <tbody className="block md:table-row-group p-2 md:p-0">
               {isLoadingBills && bills.length === 0 ? (
-                <tr className="block md:table-row border-none" style={{ borderBottom: 'none' }}><td colSpan="6" className="block md:table-cell h-[300px] text-center p-4 border-none" style={{ borderBottom: 'none' }}><PageLoader text="Loading sales..." /></td></tr>
+                <tr className="block md:table-row border-none" style={{ borderBottom: 'none' }}><td colSpan="6" className="block md:table-cell p-0 border-none" style={{ borderBottom: 'none' }}><TableSkeleton rows={8} cols={6} label="Loading sales…" /></td></tr>
               ) : bills.length === 0 ? (
                 <tr className="block md:table-row border-none" style={{ borderBottom: 'none' }}><td colSpan="6" className="block md:table-cell h-[300px] p-0 border-none" style={{ borderBottom: 'none' }}><EmptyState message="No sales found for this period." /></td></tr>
-              ) : bills.map(bill => (
+              ) : sortedBills.map(bill => (
                 <tr
                   key={bill.id}
                   onClick={() => setSelectedBill(bill)}

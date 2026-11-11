@@ -21,7 +21,7 @@ import { escapeIlike, debounce, useSessionState } from './utils';
 import { STALE_TIME_5MIN } from './constants';
 import InventoryRow from './InventoryRow';
 import BatchDetailsModal from './BatchDetailsModal';
-import { buttonClass } from './components/ui';
+import { buttonClass, TableSkeleton } from './components/ui';
 
 export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
   const { showAlert, showConfirm, shopSettings, isWarehouseDisabled } = useApp();
@@ -753,9 +753,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
 
             <div className="flex-1 min-h-[300px] md:rounded-[10px] overflow-hidden flex flex-col md:border border-[var(--border-light)]" style={{ backgroundColor: 'transparent' }}>
         {isLoading ? (
-          <div className="flex items-center justify-center h-full min-h-[350px]">
-            <PageLoader text="Loading inventory..." />
-          </div>
+          <TableSkeleton rows={10} cols={6} label="Loading inventory…" />
         ) : items.length === 0 ? (
           <EmptyState message="No items found matching the search." icon="search" />
         ) : (

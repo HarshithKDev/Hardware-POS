@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import { formatDateTime, formatINR, billLabel } from './utils';
 import { PageLoader } from './SharedUI';
-import { buttonClass } from './components/ui';
+import { buttonClass, TableSkeleton } from './components/ui';
 import { useApp } from './AppContext';
 import {
   ArrowLeft,
@@ -238,9 +238,7 @@ export default function BillDetailsView({
       {/* ROW 4: ITEMS LIST */}
       <div className="flex-1 overflow-x-hidden overflow-y-auto rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] shadow-sm min-h-0 flex flex-col">
         {isLoadingItems ? (
-          <div className="flex-1 flex items-center justify-center p-8">
-            <PageLoader text="Loading items..." />
-          </div>
+          <TableSkeleton rows={6} cols={6} label="Loading items…" />
         ) : items.length === 0 ? (
           <div className="flex-1 flex items-center justify-center p-8 text-center text-sm text-[var(--text-tertiary)] font-medium">
             No items recorded for this bill.

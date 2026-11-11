@@ -6,7 +6,7 @@ import { formatDateTime, useSessionState, formatINR } from './utils';
 import { ChevronRight, Phone } from 'lucide-react';
 import ShowroomDetailsView from './ShowroomDetailsView';
 import PageTitleReset from './components/PageTitleReset';
-import { buttonClass } from './components/ui';
+import { buttonClass, TableSkeleton } from './components/ui';
 
 const SHOWROOM_PAGE_SIZE = 20;
 
@@ -107,9 +107,7 @@ export default function OwnerShowroom() {
       <div className="flex-1 flex flex-col min-h-0">
         <div className="flex-1 overflow-x-hidden overflow-y-auto shadow-sm min-h-[300px] rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] mb-4" style={{ overscrollBehavior: 'none' }}>
           {isLoading ? (
-            <div className="h-full flex items-center justify-center p-8">
-              <PageLoader text="Loading showroom dispatches..." />
-            </div>
+            <TableSkeleton rows={8} cols={5} label="Loading showroom dispatches…" />
           ) : bills.length === 0 ? (
             <EmptyState message="No showroom dispatches recorded. Items dispatched to showroom will appear here." />
           ) : (

@@ -12,7 +12,15 @@ import {
   X
 } from 'lucide-react';
 import { PageLoader } from './SharedUI';
-import { Modal, Button, buttonClass } from './components/ui';
+import { Modal, Button, buttonClass, useSort, SortTh, TableSkeleton } from './components/ui';
+
+const EXPENSE_SORT = {
+  date: (e) => new Date(e.created_at).getTime() || 0,
+  reason: { get: (e) => e.reason || '', textual: true },
+  staff: { get: (e) => e.worker_name || 'General', textual: true },
+  amount: (e) => Number(e.amount) || 0,
+  by: { get: (e) => e.recorded_by || '', textual: true },
+};
 import PageTitleReset from './components/PageTitleReset';
 
 const getLocalStorageKey = (shopId) => `hardware_pos_expenses_${shopId || 'default'}`;
@@ -322,6 +330,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
   };
 
   const totalExpenses = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const { sorted: sortedExpenses, sort: expSort, toggleSort: toggleExpSort } = useSort(expenses, EXPENSE_SORT);
   return (
     <div className="h-full flex flex-col relative w-full animate-fade-in">
       {/* Header */}
@@ -355,9 +364,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
       {/* Main Container */}
       <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-secondary)] rounded-[10px] border border-[var(--border-light)] shadow-sm p-4">
         {isLoading ? (
-          <div className="flex-1 flex items-center justify-center p-8">
-            <PageLoader text="Loading expenses..." />
-          </div>
+          <TableSkeleton rows={8} cols={5} label="Loading expenses…" />
         ) : expenses.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
             <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3 bg-[var(--color-accent-bg)] text-[var(--color-accent)]">
@@ -415,15 +422,15 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
               <table className="w-full text-center border-collapse">
                 <thead className="sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                   <tr className="h-10 text-[11px] font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>
-                    <th className="px-3.5 text-center w-[25%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Date &amp; Time</th>
-                    <th className="px-3.5 text-center w-[30%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Description</th>
-                    <th className="px-3.5 text-center w-[20%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Staff / Category</th>
-                    <th className="px-3.5 text-center w-[15%]" style={{ borderRight: '1px solid var(--border-medium)' }}>Amount</th>
-                    <th className="px-3.5 text-center w-[10%]">By</th>
+                    <SortTh label="Date & Time" sortKey="date" sort={expSort} onSort={toggleExpSort} className="px-3.5 text-center w-[25%]" style={{ borderRight: '1px solid var(--border-medium)' }} />
+                    <SortTh label="Description" sortKey="reason" sort={expSort} onSort={toggleExpSort} className="px-3.5 text-center w-[30%]" style={{ borderRight: '1px solid var(--border-medium)' }} />
+                    <SortTh label="Staff / Category" sortKey="staff" sort={expSort} onSort={toggleExpSort} className="px-3.5 text-center w-[20%]" style={{ borderRight: '1px solid var(--border-medium)' }} />
+                    <SortTh label="Amount" sortKey="amount" sort={expSort} onSort={toggleExpSort} className="px-3.5 text-center w-[15%]" style={{ borderRight: '1px solid var(--border-medium)' }} />
+                    <SortTh label="By" sortKey="by" sort={expSort} onSort={toggleExpSort} className="px-3.5 text-center w-[10%]" />
                   </tr>
                 </thead>
                 <tbody className="text-sm font-medium">
-                  {expenses.map((exp) => {
+                  {sortedExpenses.map((exp) => {
                     const totalAmt = Number(exp.amount) || 0;
 
                     return (

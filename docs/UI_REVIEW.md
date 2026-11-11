@@ -163,6 +163,16 @@ control heights / type scale / z-layers.
 logs, Showroom, Categories, Price check, Print labels, staff dashboard, login/registration,
 print/product popups and failed-sync list use the shared buttons and table headers.
 
-**Still open (step 4 / later):** z-index layers (a few older popups — print preview,
-product info, staff low-stock list — still use their own shells); T5 click-to-sort on
-more tables; top bar & sidebar grouping (L1, L4); skeleton loaders; optional light theme.
+**Step 4 — done:**
+- Print preview, product info and mobile scanner popups on the shared `Modal`.
+- L1: top bar with shop logo/name, user name and role, Online / Offline / Sending status
+  and a "waiting to send" count; calm amber offline bar (S4).
+- L4: owner sidebar grouped into Sales / Stock / Money / Admin.
+- T5: click-to-sort (`useSort`, `SortTh`) on Sales History, Expenses, Profit breakdown and
+  Dead stock (sorts the loaded rows only; ▲/▼ shows the direction).
+- S2: skeleton rows (`TableSkeleton`) instead of spinners on Sales, Inventory, Expenses,
+  Audit logs, Showroom, Staff and bill/showroom details.
+
+**Not done (by choice):** light theme (C5) — many screens still have hard-coded dark
+colours, so it would look patchy until those are moved to tokens. z-index values are kept
+per popup (each keeps its existing stacking order).

@@ -7,7 +7,7 @@ import { debounce, formatDateTime, formatDayHeader, escapeIlike, useSessionState
 import { useApp } from './AppContext';
 import { X, Calendar } from 'lucide-react';
 import PageTitleReset from './components/PageTitleReset';
-import { buttonClass, DateField } from './components/ui';
+import { buttonClass, DateField, TableSkeleton } from './components/ui';
 
 const formatChanges = (changes) => {
   if (!changes || changes === '—') return <span style={{ color: 'var(--text-tertiary)' }}>—</span>;
@@ -426,9 +426,7 @@ export default function OwnerAuditLogs() {
 
       <div className="flex-1 overflow-x-hidden overflow-y-auto shadow-sm md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent', overscrollBehavior: 'none' }}>
         {isLoading && rawLogs.length === 0 ? (
-          <div className="h-full min-h-[400px] flex flex-col items-center justify-center">
-            <PageLoader text="Loading logs..." />
-          </div>
+          <TableSkeleton rows={10} cols={5} label="Loading logs…" />
         ) : error ? (
           <div className="h-full min-h-[400px] flex items-center justify-center">
             <p className="text-sm font-semibold" style={{ color: 'var(--color-error)' }}>Failed to load logs: {error.message}</p>

@@ -7,7 +7,7 @@ import {
   ArrowLeft,
   Phone
 } from 'lucide-react';
-import { buttonClass } from './components/ui';
+import { buttonClass, TableSkeleton } from './components/ui';
 
 export default function ShowroomDetailsView({
   bill,
@@ -94,9 +94,7 @@ export default function ShowroomDetailsView({
       {/* ITEMS LIST */}
       <div className="flex-1 overflow-x-hidden overflow-y-auto rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] shadow-sm min-h-0 flex flex-col">
         {isLoadingItems ? (
-          <div className="flex-1 flex items-center justify-center p-8">
-            <PageLoader text="Loading showroom items..." />
-          </div>
+          <TableSkeleton rows={6} cols={5} label="Loading showroom items…" />
         ) : items.length === 0 ? (
           <div className="flex-1 flex items-center justify-center p-8 text-center text-sm text-[var(--text-tertiary)] font-medium">
             No items recorded for this showroom dispatch.
