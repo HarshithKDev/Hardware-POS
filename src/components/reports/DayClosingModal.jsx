@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Modal, Button, Input, TableSkeleton, table } from '../ui';
 import { computeDayClosing, fetchDayClosingData } from '../../services/dayClosing';
 import { formatINR, formatDayHeader, formatDateTime } from '../../utils';
+import { logActivity } from '../../services/auditLog';
 
 const rupees = (n) => `₹${formatINR(Number(n) || 0, 2)}`;
 const storageKey = (shopId, day) => `pos_day_closing_${shopId || 'shop'}_${day}`;
@@ -144,7 +145,21 @@ export default function DayClosingModal({ isOpen, onClose, day, shopId, shopName
           <span className="mr-auto text-xs text-[var(--text-tertiary)] hidden sm:inline">Amounts you type are saved on this device for this day.</span>
           <Button variant="ghost" onClick={() => refetch()} loading={isFetching && !isLoading}>Refresh</Button>
           <Button variant="secondary" onClick={onClose}>Close</Button>
-          <Button variant="primary" disabled={!report} onClick={() => printHtml(buildPrintHtml(report, { shopName, day }))}>Print</Button>
+          <Button
+            variant="primary"
+            disabled={!report}
+            onClick={() => {
+              logActivity({
+                action: 'DAY CLOSING',
+                itemName: `Day closing ${formatDayHeader(day)}`,
+                changes: `Sales ${rupees(report.sales.total)} (cash ${rupees(report.sales.cash)}, UPI ${rupees(report.sales.upi)}) | Expected cash ${rupees(report.expectedCash)}`
+                  + (report.countedCash === null ? '' : ` | Counted ${rupees(report.countedCash)} | ${Math.abs(report.difference) < 0.5 ? 'Matches' : report.difference < 0 ? `Short ${rupees(-report.difference)}` : `Excess ${rupees(report.difference)}`}`),
+              });
+              printHtml(buildPrintHtml(report, { shopName, day }));
+            }}
+          >
+            Print
+          </Button>
         </>
       )}
     >

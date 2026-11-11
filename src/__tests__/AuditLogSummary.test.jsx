@@ -16,6 +16,12 @@ describe('Audit log: one readable line per entry', () => {
     expect(describeLogChange('TRANSFER', '{"quantity":5,"location":"Store"}', 'PCS').summary).toBe('Moved 5 pcs (Store)');
   });
 
+  it('showroom dispatch lines read as dispatches, not sales', () => {
+    expect(describeLogChange('SHOWROOM', '{"quantity":3,"price":855}', 'PCS').summary).toBe('Sent 3 pcs to the showroom at ₹855.00 each');
+    const bill = 'Sent 2 item(s) to the showroom · value ₹2,565.00 · Kamakshi Studios';
+    expect(describeLogChange('SHOWROOM', bill).summary).toBe(bill);
+  });
+
   it('catalog item created: short line, rest as details', () => {
     const d = describeLogChange('CREATE', 'Item: Door Hinge | Category: Hardware | Sub-Category: Hinges | Unit: PCS');
     expect(d.summary).toBe('Added to catalog');

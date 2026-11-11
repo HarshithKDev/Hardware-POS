@@ -7,6 +7,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import { useApp } from './AppContext';
 import { startBackgroundSync, stopBackgroundSync } from './services/sync';
 import { startLiveRefresh, stopLiveRefresh } from './services/liveRefresh';
+import { logActivity } from './services/auditLog';
 import { isRoleConsistentWithEmail, isNetworkishError } from './services/roleGuard';
 import { escapeIlike } from './utils';
 import { stripOwnerOnlyDataFromLocalInventory, getOfflineQueue } from './services/db';
@@ -473,11 +474,19 @@ function App() {
       ? (shopSettings?.owner_name || 'Administrator')
       : role;
     setCashierName(displayName);
+    logActivity({
+      action: 'LOGIN',
+      itemName: role === 'owner' ? 'Owner sign-in' : 'Staff sign-in',
+      changes: `${role === 'owner' ? displayName + ' (owner)' : role} signed in${rememberMe ? ' · stay signed in' : ''}`,
+      performedBy: role === 'owner' ? displayName : role,
+    });
     if (role === 'owner') navigate('/owner/dashboard');
     else navigate('/terminal/dashboard');
   };
 
   const confirmLogout = async () => {
+    // Record the sign-out while still signed in (waits at most ~1.5 s)
+    await logActivity({ action: 'LOGOUT', itemName: 'Sign-out', changes: `${cashierName || 'User'} signed out`, timeoutMs: 1500 });
     // Stop background sync first so it can't re-download cost data while we strip it
     stopBackgroundSync();
     if (userRole === 'owner') {

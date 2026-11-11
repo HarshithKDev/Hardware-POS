@@ -5,6 +5,7 @@ import { getInventoryByQuery } from './services/db';
 import { useApp } from './AppContext';
 import { debounce, formatINR } from './utils';
 import BarcodeLabelSheet, { MAX_LABELS_PER_PRINT, clampLabelQty } from './components/print/BarcodeLabelSheet';
+import { logActivity } from './services/auditLog';
 import { buttonClass } from './components/ui';
 
 export default function WorkerPrintBarcode() {
@@ -144,6 +145,12 @@ export default function WorkerPrintBarcode() {
     }
 
     setIsPrinting(true);
+    logActivity({
+      action: 'PRINT',
+      barcode: selectedProduct.barcode,
+      itemName: selectedProduct.name,
+      changes: `Printed ${count} barcode label${count === 1 ? '' : 's'} (Batch ${String(selectedBatch.batch_number || 1).padStart(2, '0')}, ₹${activeSellingPrice})`,
+    });
     setTimeout(() => {
       window.print();
       setIsPrinting(false);

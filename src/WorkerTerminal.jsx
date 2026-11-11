@@ -32,6 +32,7 @@ import {
 import { broadcastStockUpdate, subscribeToStockUpdates } from './services/realtimeStock';
 import { buttonClass } from './components/ui';
 import { readRows } from './services/secureRead';
+import { logActivity } from './services/auditLog';
 
 // Dynamic smart denomination suggestions for rapid cash checkout
 function getQuickTenderOptions(total) {
@@ -1018,12 +1019,28 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     }
   }, [cartSessions, heldCarts, switchCartTab]);
 
+  // Audit: a cart with items that is thrown away (not billed) is recorded, with its value
+  const logClearedCart = useCallback((label, items) => {
+    const list = (items || []).filter(Boolean);
+    if (list.length === 0) return;
+    const qtyOf = (i) => Number(i.actual_quantity !== undefined && i.actual_quantity !== '' ? i.actual_quantity : i.quantity) || 0;
+    const priceOf = (i) => Number(i.customPriceInput !== undefined && i.customPriceInput !== '' ? i.customPriceInput : (i.price || 0)) || 0;
+    const value = list.reduce((s, i) => s + (i.is_screw ? priceOf(i) : priceOf(i) * qtyOf(i)), 0);
+    const names = list.slice(0, 5).map(i => `${i.name} ×${qtyOf(i)}`).join(', ') + (list.length > 5 ? ` +${list.length - 5} more` : '');
+    logActivity({
+      action: 'CART CLEARED',
+      itemName: label,
+      changes: `${label}: ${list.length} item${list.length === 1 ? '' : 's'} (₹${formatINR(value, 2)}) removed without billing — ${names}`,
+    });
+  }, []);
+
   const handleCancelHeldCart = useCallback((cartId) => {
     const targetId = cartId || activeCartTab;
     const targetCart = heldCarts.find(c => c.id === targetId);
     showConfirm(
       `Cancel "${targetCart?.name || 'this held cart'}"? All items will be discarded.`,
       () => {
+        logClearedCart(`Held cart "${targetCart?.name || targetId}" cancelled`, targetCart?.items);
         cancelHeldCart(targetId);
       },
       'Cancel Held Cart',
@@ -1031,9 +1048,11 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       'Keep Cart',
       true
     );
-  }, [activeCartTab, heldCarts, cancelHeldCart, showConfirm]);
+  }, [activeCartTab, heldCarts, cancelHeldCart, showConfirm, logClearedCart]);
 
   const handleDiscardPendingCart = useCallback((pcId) => {
+    const discarded = pendingCarts.find(pc => pc.id === pcId);
+    logClearedCart(`Worker cart${discarded?.worker_name ? ` of ${discarded.worker_name}` : ''} discarded`, cartSessions[pcId] || discarded?.items);
     const currentShopId = shopSettings?.id || localStorage.getItem('shop_id');
     let delQuery = supabase.from('pending_carts').delete().eq('id', pcId);
     if (currentShopId) {
@@ -1051,14 +1070,16 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     if (showToast) {
       showToast('Worker cart discarded');
     }
-  }, [activeCartTab, shopSettings?.id, switchCartTab, showToast]);
+  }, [activeCartTab, shopSettings?.id, switchCartTab, showToast, pendingCarts, cartSessions, logClearedCart]);
 
   const handleCancelSale = () => {
     if (activeCartTab.startsWith('held_')) {
+      logClearedCart(`Held cart "${heldCarts.find(c => c.id === activeCartTab)?.name || activeCartTab}" cancelled`, cart);
       cancelHeldCart(activeCartTab);
     } else if (activeCartTab !== 'local') {
       handleDiscardPendingCart(activeCartTab);
     } else {
+      logClearedCart(activeTab === 'checkout' ? 'Sale cancelled' : activeTab === 'receive' ? 'Stock receipt cleared' : 'Stock transfer cleared', cart);
       setCart([]);
     }
   };

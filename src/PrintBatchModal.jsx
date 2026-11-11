@@ -3,6 +3,7 @@ import { formatINR } from './utils';
 import Barcode from 'react-barcode';
 import { supabase } from './supabaseClient';
 import BarcodeLabelSheet, { MAX_LABELS_PER_PRINT, clampLabelQty } from './components/print/BarcodeLabelSheet';
+import { logActivity } from './services/auditLog';
 import { buttonClass } from './components/ui';
 
 export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }) {
@@ -24,6 +25,12 @@ export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }
 
   const handlePrint = async () => {
     setIsPrinting(true);
+    logActivity({
+      action: 'PRINT',
+      barcode: item.barcode,
+      itemName: item.name,
+      changes: `Printed ${clampLabelQty(qty)} barcode label${clampLabelQty(qty) === 1 ? '' : 's'} (Batch ${batchNumberStr})`,
+    });
     setTimeout(() => {
       window.print();
       setIsPrinting(false);

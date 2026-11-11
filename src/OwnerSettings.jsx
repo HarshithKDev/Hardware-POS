@@ -5,6 +5,7 @@ import { Save, Upload, Eye, EyeOff, Edit2, Trash2, Volume2, VolumeX, SlidersHori
 import { isAudioEnabled, setAudioEnabled, playScanSuccessSound } from './services/audio';
 import { Spinner } from './SharedUI';
 import PageTitleReset from './components/PageTitleReset';
+import { logActivity } from './services/auditLog';
 import { buttonClass } from './components/ui';
 
 export default function OwnerSettings() {
@@ -129,6 +130,7 @@ export default function OwnerSettings() {
           .from('shop_settings')
           .update({ disable_warehouse: checked })
           .eq('id', shopSettings.id);
+        logActivity({ action: 'SETTINGS', itemName: 'Warehouse', changes: checked ? 'Warehouse turned OFF (stock goes straight to the store)' : 'Warehouse turned ON' });
         if (error && error.code !== '42703' && !error.message?.includes('disable_warehouse')) {
           console.error("Failed to update remote warehouse setting:", error);
         }
@@ -161,6 +163,7 @@ export default function OwnerSettings() {
           .from('shop_settings')
           .update({ sound_enabled: checked })
           .eq('id', shopSettings.id);
+        logActivity({ action: 'SETTINGS', itemName: 'Scan sound', changes: `Scan sound turned ${checked ? 'ON' : 'OFF'}` });
         if (error && error.code !== '42703' && !error.message?.includes('sound_enabled')) {
           console.error("Failed to update remote sound setting:", error);
         }
@@ -185,6 +188,7 @@ export default function OwnerSettings() {
       await exportCompleteShopData(shopSettings, (status) => {
         setExportStatus(status);
       });
+      logActivity({ action: 'EXPORT', itemName: 'Business data', changes: 'Complete business data downloaded (Excel)' });
       showAlert(
         'All business data exported successfully to Excel.',
         'Backup Downloaded'
@@ -334,6 +338,17 @@ export default function OwnerSettings() {
         throw error;
       } else {
         savedRecord = { ...data, disable_warehouse: disableWarehouse, sound_enabled: soundEnabled };
+      }
+
+      // Audit: which shop details changed (old -> new); the password itself is never logged
+      {
+        const LABELS = { shop_name: 'Shop name', owner_name: 'Owner name', shop_address: 'Address', phone: 'Phone', upi_id: 'UPI ID', gstin: 'GSTIN', bill_footer: 'Bill footer', logo_url: 'Logo' };
+        const show = (v) => (v === null || v === undefined || v === '' ? '(empty)' : String(v).replace(/^HIDDEN::/, '(hidden on bill) ').replace(/\?t=\d+$/, ''));
+        const diffs = Object.entries(LABELS)
+          .filter(([k]) => (shopSettings?.[k] ?? null) !== (updates[k] ?? null))
+          .map(([k, label]) => (k === 'logo_url' ? 'Logo changed' : `${label}: ${show(shopSettings?.[k])} → ${show(updates[k])}`));
+        if (password) diffs.push('Owner password changed');
+        if (diffs.length) logActivity({ action: 'SETTINGS', itemName: 'Shop details', changes: diffs.join(' | ') });
       }
 
       setAudioEnabled(soundEnabled);

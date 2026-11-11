@@ -61,6 +61,7 @@ export function describeLogChange(actionType, rawChanges, unit) {
       if (actionType === 'SALE' && qty) summary = `Sold ${qty}${price}${disc}`;
       else if (actionType === 'STOCK IN' && qty) summary = `Received ${qty}${loc ? ` into ${loc}` : ''}`;
       else if (actionType === 'TRANSFER' && qty) summary = `Moved ${qty}${loc ? ` (${loc})` : ''}`;
+      else if (actionType === 'SHOWROOM' && qty) summary = `Sent ${qty} to the showroom${price}`;
       const LABELS = { quantity: 'Quantity', location: 'Location', price: 'Price', discountPct: 'Discount', instance: 'Piece' };
       const details = Object.entries(o)
         .filter(([k, v]) => v !== null && v !== undefined && v !== '' && !(k === 'discountPct' && !(Number(v) > 0)))
@@ -278,7 +279,7 @@ export default function OwnerAuditLogs() {
       };
 
       const normalizedAudit = (auditData || []).map(log => {
-        const actionType = log.action_type === 'RECEIVE' ? 'STOCK IN' : log.action_type;
+        const actionType = (log.action_type === 'RECEIVE' || log.action_type === 'STOCK_IN') ? 'STOCK IN' : log.action_type;
         return {
           id: `audit-${log.id}`,
           timestamp: new Date(log.created_at).getTime(),
@@ -324,19 +325,19 @@ export default function OwnerAuditLogs() {
   }, [rawLogs, activeFilter, selectedUser]);
 
   const getActionStyles = (action) => {
-    switch (action) {
-      case 'CREATE': return { bg: 'var(--color-accent-bg)', text: 'var(--color-accent)' }; // Sky blue
-      case 'STOCK IN': return { bg: 'var(--color-success-bg)', text: 'var(--color-success)' };
-      case 'TRANSFER': return { bg: 'var(--color-accent-bg)', text: 'var(--color-accent)' };
-      case 'SALE': return { bg: 'var(--color-purple-bg)', text: 'var(--color-purple)' };
-      case 'DELETE': return { bg: 'var(--color-error-bg)', text: 'var(--color-error)' };
-      case 'UPDATE': return { bg: 'var(--color-warning-bg)', text: 'var(--color-warning)' };
-      case 'RESTORE': return { bg: 'var(--color-success-bg)', text: 'var(--color-success)' };
-      default: return { bg: 'var(--bg-hover)', text: 'var(--text-primary)' };
-    }
+    const tone = ACTION_TONE[action] || 'neutral';
+    return {
+      accent: { bg: 'var(--color-accent-bg)', text: 'var(--color-accent)' },
+      success: { bg: 'var(--color-success-bg)', text: 'var(--color-success)' },
+      warning: { bg: 'var(--color-warning-bg)', text: 'var(--color-warning)' },
+      error: { bg: 'var(--color-error-bg)', text: 'var(--color-error)' },
+      purple: { bg: 'var(--color-purple-bg)', text: 'var(--color-purple)' },
+      neutral: { bg: 'var(--bg-hover)', text: 'var(--text-secondary)' },
+    }[tone];
   };
 
-  const FILTERS = ['ALL', 'CREATE', 'STOCK IN', 'TRANSFER', 'SALE', 'UPDATE', 'DELETE', 'RESTORE'];
+  // every action type: the known ones plus any other found in the loaded logs
+  const FILTERS = ['ALL', ...Object.keys(ACTION_LABELS), ...[...new Set(rawLogs.map(l => l.action_type))].filter(a => a && !ACTION_LABELS[a])];
 
   return (
     <div className="flex flex-col h-full animate-fade-in w-full">
@@ -449,7 +450,7 @@ export default function OwnerAuditLogs() {
               <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Action Type</label>
               <div>
                 <select value={activeFilter} onChange={e => setActiveFilter(e.target.value)} className="w-full py-2.5 pl-3 pr-8 text-sm focus:outline-none rounded-md cursor-pointer leading-normal" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}>
-                  {FILTERS.map(f => <option key={f} value={f}>{f === 'ALL' ? 'All Actions' : f}</option>)}
+                  {FILTERS.map(f => <option key={f} value={f}>{f === 'ALL' ? 'All Actions' : (ACTION_LABELS[f] || f)}</option>)}
                 </select>
               </div>
             </div>
@@ -522,7 +523,7 @@ export default function OwnerAuditLogs() {
                       </div>
                       <div className="flex flex-col items-end gap-1 flex-shrink-0">
                         <span className="px-2 py-1 text-[11px] font-bold uppercase tracking-wider rounded-sm text-right" style={{ backgroundColor: styles.bg, color: styles.text }}>
-                          {log.action_type}
+                          {String(log.action_type || '').replace(/_/g, ' ')}
                         </span>
                         <div className="text-[11px] uppercase text-[var(--text-tertiary)] font-bold mt-1">
                           By {log.performed_by}
@@ -546,7 +547,7 @@ export default function OwnerAuditLogs() {
                       backgroundColor: styles.bg,
                       color: styles.text
                     }}>
-                      {log.action_type}
+                      {String(log.action_type || '').replace(/_/g, ' ')}
                     </span>
                   </td>
                   <td className="hidden md:table-cell p-3 w-24 text-sm font-bold text-center" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--color-accent)' }}>
