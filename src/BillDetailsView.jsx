@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
 import { formatDateTime, formatINR, billLabel } from './utils';
 import { PageLoader } from './SharedUI';
+import { readRows } from './services/secureRead';
 import { buttonClass, TableSkeleton } from './components/ui';
 import { useApp } from './AppContext';
 import {
@@ -31,14 +32,12 @@ export default function BillDetailsView({
   const { data: rawItems = cachedItems || [], isLoading: isLoadingItems } = useQuery({
     queryKey: ['bill_items', shopId, currentBill.id],
     queryFn: async () => {
-      let query = supabase
-        .from('bill_items')
-        .select('*')
-        .eq('bill_id', currentBill.id);
-      if (shopId) {
-        query = query.eq('shop_id', shopId);
-      }
-      const { data, error } = await query;
+      const build = (q) => {
+        let query = q.select('*').eq('bill_id', currentBill.id);
+        if (shopId) query = query.eq('shop_id', shopId);
+        return query;
+      };
+      const { data, error } = await readRows('bill_items', build);
       if (error) throw error;
       return data || [];
     },

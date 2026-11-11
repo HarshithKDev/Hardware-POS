@@ -14,6 +14,7 @@ import { DialogOverlay } from './Dialog';
 import { Search, Undo2, X, Phone, User, Calendar } from 'lucide-react';
 import BillDetailsView from './BillDetailsView';
 import { getInventoryItemByBarcode } from './services/db';
+import { readRows } from './services/secureRead';
 import PageTitleReset from './components/PageTitleReset';
 import DayClosingModal from './components/reports/DayClosingModal';
 import { Badge, Button, buttonClass, DateField, useSort, SortTh, TableSkeleton } from './components/ui';
@@ -52,10 +53,9 @@ const enrichBillItems = async (rawItems) => {
   const productMap = {};
   if (barcodes.length > 0) {
     try {
-      const { data: prodData } = await supabase
-        .from('product_master')
+      const { data: prodData } = await readRows('product_master', (q) => q
         .select('barcode, is_cuttable')
-        .in('barcode', barcodes);
+        .in('barcode', barcodes));
       if (prodData) {
         prodData.forEach(p => {
           productMap[p.barcode] = p.is_cuttable;
@@ -134,19 +134,18 @@ export default function OwnerLedger({ isActive }) {
   const { data: availableDates = [] } = useQuery({
     queryKey: ['billAvailableDates', shopId, isActive],
     queryFn: async () => {
-      let query = supabase
-        .from('bills')
-        .select('created_at')
-        .eq('location', 'Store')
-        .neq('status', 'showroom_pending')
-        .neq('status', 'showroom')
-        .neq('payment_method', 'SHOWROOM')
-        .order('created_at', { ascending: false })
-        .limit(2000);
-      if (shopId) {
-        query = query.eq('shop_id', shopId);
-      }
-      const { data, error } = await query;
+      const { data, error } = await readRows('bills', (q) => {
+        let query = q
+          .select('created_at')
+          .eq('location', 'Store')
+          .neq('status', 'showroom_pending')
+          .neq('status', 'showroom')
+          .neq('payment_method', 'SHOWROOM')
+          .order('created_at', { ascending: false })
+          .limit(2000);
+        if (shopId) query = query.eq('shop_id', shopId);
+        return query;
+      }, { owner: isOwner });
       if (error) throw error;
       const dates = [];
       const seen = new Set();
@@ -180,16 +179,11 @@ export default function OwnerLedger({ isActive }) {
     async function fetchRecentCustomers() {
       try {
         const shopId = localStorage.getItem('shop_id');
-        let query = supabase
-          .from('bills')
-          .select('customer_name, customer_phone')
-          .eq('location', 'Store');
-        if (shopId) {
-          query = query.eq('shop_id', shopId);
-        }
-        const { data, error } = await query
-          .order('created_at', { ascending: false })
-          .limit(300);
+        const { data, error } = await readRows('bills', (q) => {
+          let query = q.select('customer_name, customer_phone').eq('location', 'Store');
+          if (shopId) query = query.eq('shop_id', shopId);
+          return query.order('created_at', { ascending: false }).limit(300);
+        });
 
         if (data && !error) {
           const map = new Map();
@@ -235,39 +229,40 @@ export default function OwnerLedger({ isActive }) {
   }, [customers, searchQuery]);
 
   const fetchBills = useCallback(async () => {
-    let query = supabase
-      .from('bills')
-      .select('*')
-      .eq('location', 'Store') // Only Sales
-      .neq('status', 'showroom_pending')
-      .neq('status', 'showroom')
-      .neq('payment_method', 'SHOWROOM'); // Showroom records are in their own section
-    if (shopId) {
-      query = query.eq('shop_id', shopId);
-    }
-
-    if (isSearching) {
-      // GLOBAL SEARCH: Search all available data across all time
-      const raw = searchQuery.trim().replace(/^#/, '').replace(/[,()]/g, '');
-      if (raw) {
-        const cleanQ = escapeIlike(raw);
-        query = query.or(`customer_phone.ilike.%${cleanQ}%,customer_name.ilike.%${cleanQ}%,id.ilike.%${cleanQ}%${billNoSearchEnabled && /^\d{1,12}$/.test(raw) ? `,bill_no.eq.${raw}` : ''}`);
+    const build = (q) => {
+      let query = q
+        .select('*')
+        .eq('location', 'Store') // Only Sales
+        .neq('status', 'showroom_pending')
+        .neq('status', 'showroom')
+        .neq('payment_method', 'SHOWROOM'); // Showroom records are in their own section
+      if (shopId) {
+        query = query.eq('shop_id', shopId);
       }
-      const from = salesPage * SALES_PER_PAGE;
-      query = query
-        .order('created_at', { ascending: false })
-        .range(from, from + SALES_PER_PAGE - 1);
-    } else {
-      // DAY-BY-DAY MODE: Load records strictly of currentDay
-      const start = localToUtcIso(`${currentDay}T00:00:00`);
-      const end = localToUtcIso(`${currentDay}T23:59:59.999`);
-      query = query
-        .gte('created_at', start)
-        .lte('created_at', end)
-        .order('created_at', { ascending: false });
-    }
 
-    const { data, error } = await query;
+      if (isSearching) {
+        // GLOBAL SEARCH: Search all available data across all time
+        const raw = searchQuery.trim().replace(/^#/, '').replace(/[,()]/g, '');
+        if (raw) {
+          const cleanQ = escapeIlike(raw);
+          query = query.or(`customer_phone.ilike.%${cleanQ}%,customer_name.ilike.%${cleanQ}%,id.ilike.%${cleanQ}%${billNoSearchEnabled && /^\d{1,12}$/.test(raw) ? `,bill_no.eq.${raw}` : ''}`);
+        }
+        const from = salesPage * SALES_PER_PAGE;
+        query = query
+          .order('created_at', { ascending: false })
+          .range(from, from + SALES_PER_PAGE - 1);
+      } else {
+        // DAY-BY-DAY MODE: Load records strictly of currentDay
+        const start = localToUtcIso(`${currentDay}T00:00:00`);
+        const end = localToUtcIso(`${currentDay}T23:59:59.999`);
+        query = query
+          .gte('created_at', start)
+          .lte('created_at', end)
+          .order('created_at', { ascending: false });
+      }
+      return query;
+    };
+    const { data, error } = await readRows('bills', build, { owner: isOwner });
     if (error) throw error;
     noteBillNoColumn(data);
     
@@ -276,7 +271,7 @@ export default function OwnerLedger({ isActive }) {
     const rawBills = data || [];
 
     return rawBills.filter(b => b.payment_method || Number(b.total_amount) > 0 || b.status === 'voided');
-  }, [shopId, isSearching, salesPage, searchQuery, currentDay]);
+  }, [shopId, isSearching, salesPage, searchQuery, currentDay, isOwner]);
 
   const { data: bills = [], isLoading: isLoadingBills } = useQuery({
     queryKey: ['bills', shopId, isSearching, salesPage, searchQuery, currentDay, isActive],
@@ -383,11 +378,11 @@ export default function OwnerLedger({ isActive }) {
       try {
         setIsLoadingItems(true);
         const shopId = bill.shop_id || localStorage.getItem('shop_id');
-        let biQuery = supabase.from('bill_items').select('*').eq('bill_id', bill.id);
-        if (shopId) {
-          biQuery = biQuery.eq('shop_id', shopId);
-        }
-        const { data, error } = await biQuery;
+        const { data, error } = await readRows('bill_items', (q) => {
+          let biQuery = q.select('*').eq('bill_id', bill.id);
+          if (shopId) biQuery = biQuery.eq('shop_id', shopId);
+          return biQuery;
+        });
         if (error) throw error;
         let rawItems = data || [];
         const hasScrew = rawItems.some(it => it.barcode === 'SCREWS' || it.is_screw);
@@ -586,11 +581,11 @@ export default function OwnerLedger({ isActive }) {
       
       if (!isAll) {
          // re-fetch bill items to update cache correctly for partial qtys
-         let refetchItems = supabase.from('bill_items').select('*').eq('bill_id', bill.id);
-         if (shopId) {
-           refetchItems = refetchItems.eq('shop_id', shopId);
-         }
-         const { data: updatedItems } = await refetchItems;
+         const { data: updatedItems } = await readRows('bill_items', (q) => {
+           let refetchItems = q.select('*').eq('bill_id', bill.id);
+           if (shopId) refetchItems = refetchItems.eq('shop_id', shopId);
+           return refetchItems;
+         });
          const enrichedUpdated = await enrichBillItems(updatedItems || []);
          setBillItemsCache(prev => ({
            ...prev,

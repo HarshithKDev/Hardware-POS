@@ -31,6 +31,7 @@ import {
 } from './components/terminal';
 import { broadcastStockUpdate, subscribeToStockUpdates } from './services/realtimeStock';
 import { buttonClass } from './components/ui';
+import { readRows } from './services/secureRead';
 
 // Dynamic smart denomination suggestions for rapid cash checkout
 function getQuickTenderOptions(total) {
@@ -1283,15 +1284,14 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         const currentShopId = shopSettings?.id || localStorage.getItem('shop_id');
         
         if (barcodes.length > 0) {
-          let batchQuery = supabase
-            .from('inventory_batches')
-            .select('barcode, batch_id, stock_store, stock_warehouse, selling_price, msp')
-            .in('barcode', barcodes)
-            .eq('is_active', true);
-          if (currentShopId) {
-            batchQuery = batchQuery.eq('shop_id', currentShopId);
-          }
-          const { data: liveBatches, error: stockError } = await batchQuery;
+          const { data: liveBatches, error: stockError } = await readRows('inventory_batches', (q) => {
+            let batchQuery = q
+              .select('barcode, batch_id, stock_store, stock_warehouse, selling_price, msp')
+              .in('barcode', barcodes)
+              .eq('is_active', true);
+            if (currentShopId) batchQuery = batchQuery.eq('shop_id', currentShopId);
+            return batchQuery;
+          }, { owner: userRole === 'owner' });
 
           if (stockError) {
             if (stockError.message !== 'Failed to fetch' && stockError.code !== '503') {

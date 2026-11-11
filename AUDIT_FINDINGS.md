@@ -277,8 +277,10 @@ reproduces the live rules: before → after for logged-out visitors, staff and o
 | S-8 | Any signed-in user could replace/delete any shop's logo | Only the uploader / shop owner |
 | S-9 | TRUNCATE/TRIGGER/REFERENCES and logged-out write grants on all tables | Removed |
 
-Still open (needs moving writes into database functions first):
-- Staff devices can read cost prices from `product_master` / `inventory_batches` directly
-  through the API (the app uses the cost-free views, but the base tables are readable for
-  the own shop), and can change prices/stock or edit bills of their own shop via the API.
+Cost protection (part 2): `supabase/migrations/20261111_cost_protection.sql` — products,
+batches, bills and bill items are owner-only; staff read cost-free views
+(`*_public`, own shop, no cost/profit columns) and change stock/bills only through the
+database functions; categories are owner-write; `pos_events` keeps staff screens live.
+App side: `src/services/secureRead.js` (falls back to the tables until the script is run).
+Still open:
 - Staff names (only names) of all shops are visible before login.

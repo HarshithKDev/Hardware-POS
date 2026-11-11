@@ -42,7 +42,9 @@ const createQueryBuilder = (resolvedData = []) => {
 
 vi.mock('../supabaseClient', () => ({
   supabase: {
-    from: vi.fn((table) => {
+    from: vi.fn((rawTable) => {
+        // staff read the cost-free *_public views; same rows here
+        const table = String(rawTable).replace(/_public$/, '');
       if (table === 'inventory_batches') {
         return createQueryBuilder([
           { barcode: '1001', batch_id: 'b1', stock_store: 10, stock_warehouse: 10, selling_price: 100, msp: 80 }

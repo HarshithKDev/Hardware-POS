@@ -91,7 +91,9 @@ const createMockBuilder = (resultData) => {
 vi.mock('../supabaseClient', () => {
   return {
     supabase: {
-      from: vi.fn((table) => {
+      from: vi.fn((rawTable) => {
+        // staff read the cost-free *_public views; same rows here
+        const table = String(rawTable).replace(/_public$/, '');
         if (table === 'bills') {
           return createMockBuilder(mockBills);
         }

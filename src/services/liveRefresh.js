@@ -16,6 +16,7 @@ const AUDIT_QUERY_KEYS = ['unifiedAuditLogs', 'auditAvailableDates'];
 export const EXPENSES_CHANGED_EVENT = 'pos_expenses_changed';
 
 let channel = null;
+let eventsChannel = null;
 let timers = {};
 
 const debounce = (key, fn, ms = 1200) => {
@@ -40,6 +41,17 @@ export function startLiveRefresh(queryClient, shopId) {
         window.dispatchEvent(new CustomEvent(EXPENSES_CHANGED_EVENT));
       }))
     .subscribe();
+
+  // Staff devices can't read the full bills table after the cost-protection update; the
+  // database also writes a cost-free "bill changed" signal to pos_events (own channel, so
+  // a missing table can't affect the listeners above).
+  eventsChannel = supabase
+    .channel(`pos_events_live_${shopId}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pos_events', filter },
+      (payload) => {
+        if (payload?.new?.kind === 'bill') debounce('bills', () => invalidate([...BILL_QUERY_KEYS, ...AUDIT_QUERY_KEYS]));
+      })
+    .subscribe();
 }
 
 export function stopLiveRefresh() {
@@ -48,5 +60,9 @@ export function stopLiveRefresh() {
   if (channel) {
     try { supabase.removeChannel(channel); } catch (e) { /* ignore */ }
     channel = null;
+  }
+  if (eventsChannel) {
+    try { supabase.removeChannel(eventsChannel); } catch (e) { /* ignore */ }
+    eventsChannel = null;
   }
 }

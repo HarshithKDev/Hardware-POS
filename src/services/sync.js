@@ -631,6 +631,7 @@ async function flushOfflineQueueUnlocked() {
 let syncInterval = null;
 let currentRole = 'worker';
 let realtimeSyncChannel = null;
+let posEventsChannel = null;
 
 export const reconcileDeletedItems = async (userRole = 'owner') => {
   try {
@@ -685,12 +686,40 @@ export const startRealtimeSync = (userRole = 'worker') => {
       }
     )
     .subscribe();
+
+  // Staff devices can't read the full product/batch tables after the cost-protection
+  // update, so they don't get the change events above. The database also writes a small
+  // cost-free "something changed" row to pos_events, which every device of the shop may
+  // read. Separate channel: if pos_events doesn't exist yet, the listener above still works.
+  if (currentShopId && !posEventsChannel) {
+    posEventsChannel = supabase.channel(`pos_events_stock_${currentShopId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'pos_events', filter: `shop_id=eq.${currentShopId}` },
+        async (payload) => {
+          const ev = payload.new || {};
+          if (ev.kind !== 'product' && ev.kind !== 'batch') return;
+          if (ev.kind === 'product' && ev.op === 'DELETE' && ev.ref) {
+            await deleteInventoryItemByBarcode(ev.ref, currentShopId);
+            await reconcileDeletedItems(userRole);
+            window.dispatchEvent(new CustomEvent('inventory_sync_complete', { detail: { event: 'DELETE', barcode: ev.ref } }));
+          } else {
+            requestInventorySync(userRole);
+          }
+        }
+      )
+      .subscribe();
+  }
 };
 
 export const stopRealtimeSync = () => {
   if (realtimeSyncChannel) {
     supabase.removeChannel(realtimeSyncChannel);
     realtimeSyncChannel = null;
+  }
+  if (posEventsChannel) {
+    supabase.removeChannel(posEventsChannel);
+    posEventsChannel = null;
   }
 };
 

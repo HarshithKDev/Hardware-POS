@@ -42,8 +42,9 @@ export function MobileScannerModal({ onClose, setScannedProduct, onScan }) {
         }
 
         const shopId = localStorage.getItem('shop_id');
+        // cost-free view: this popup only shows the name and stock
         let query = supabase
-          .from('product_master')
+          .from('product_master_public')
           .select('*')
           .eq('barcode', decodedText)
           .eq('is_active', true);

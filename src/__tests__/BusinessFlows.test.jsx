@@ -46,7 +46,7 @@ const makeBuilder = (table) => {
 };
 vi.mock('../supabaseClient', () => ({
   supabase: {
-    from: vi.fn((table) => makeBuilder(table)),
+    from: vi.fn((table) => makeBuilder(String(table).replace(/_public$/, ''))),
     channel: vi.fn(() => ({ on: vi.fn(() => ({ subscribe: vi.fn() })), subscribe: vi.fn(), send: vi.fn() })),
     removeChannel: vi.fn(),
     rpc: vi.fn().mockResolvedValue({ data: { bill_id: 'BILL-9001' }, error: null })
