@@ -31,8 +31,15 @@ if (window.location.hostname === 'localhost' || window.location.hostname === '12
   // registerType is 'autoUpdate': a new version activates by itself. By default the plugin
   // then reloads the page immediately, which could interrupt a sale being sent. Instead we
   // wait until no sale/sync/return is in progress (carts are kept in localStorage).
+  // Also wait until nobody has typed, scanned or clicked for a short while, so an update
+  // never reloads the page in the middle of someone's work at the counter.
+  const IDLE_BEFORE_RELOAD_MS = 20 * 1000;
+  let lastActivity = Date.now();
+  ['keydown', 'pointerdown', 'touchstart', 'input'].forEach((evt) =>
+    window.addEventListener(evt, () => { lastActivity = Date.now(); }, { capture: true, passive: true })
+  );
   const reloadWhenIdle = () => {
-    if (isCriticalWorkInProgress()) {
+    if (isCriticalWorkInProgress() || Date.now() - lastActivity < IDLE_BEFORE_RELOAD_MS) {
       setTimeout(reloadWhenIdle, 2000);
       return;
     }
@@ -42,12 +49,23 @@ if (window.location.hostname === 'localhost' || window.location.hostname === '12
   registerSW({
     onNeedReload: reloadWhenIdle,
     onRegisteredSW(_swUrl, registration) {
-      // Counters stay open all day: check for a new deployment every hour
-      if (registration) {
-        setInterval(() => {
-          if (navigator.onLine) registration.update().catch(() => {});
-        }, 60 * 60 * 1000);
-      }
+      if (!registration) return;
+      // Look for a new deployment: when the tab comes back into view or the window gets
+      // focus (at most once every 2 minutes), and every 15 minutes while it stays open.
+      let lastCheck = 0;
+      const checkForUpdate = () => {
+        if (!navigator.onLine) return;
+        const now = Date.now();
+        if (now - lastCheck < 2 * 60 * 1000) return;
+        lastCheck = now;
+        registration.update().catch(() => {});
+      };
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') checkForUpdate();
+      });
+      window.addEventListener('focus', checkForUpdate);
+      window.addEventListener('online', checkForUpdate);
+      setInterval(checkForUpdate, 15 * 60 * 1000);
     },
     onOfflineReady() {
       console.log('App is ready to work offline.');
