@@ -102,7 +102,7 @@ export default function OwnerDashboard() {
       {isSidebarOpen && (
         <div 
           className="md:hidden fixed inset-0 z-40 transition-opacity" 
-          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }} 
+          style={{ backgroundColor: 'var(--overlay-bg)' }} 
           onClick={() => setIsSidebarOpen(false)}
           aria-hidden="true"
         />
@@ -136,7 +136,7 @@ export default function OwnerDashboard() {
           </div>
           <button
             onClick={() => setIsSidebarOpen(false)}
-            className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-white hover:bg-[var(--bg-hover)] transition-colors"
+            className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
             aria-label="Close navigation drawer" title="Close navigation drawer"
           >
             <X size={18} />

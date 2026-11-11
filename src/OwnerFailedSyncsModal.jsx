@@ -77,7 +77,7 @@ export default function OwnerFailedSyncsModal({ failedSyncs, onClose }) {
                 </td>
                 <td className="p-3 text-center">
                   <div className="flex flex-col gap-2">
-                    <button onClick={() => handleRetry(tx.id)} className="px-2 py-1 text-[11px] font-bold text-white bg-blue-500 hover:bg-blue-600 transition-colors">
+                    <button onClick={() => handleRetry(tx.id)} className="px-2 py-1 text-[11px] font-bold text-white bg-[var(--color-accent-solid)] hover:bg-[var(--color-accent-solid-hover)] transition-colors">
                       Retry
                     </button>
                     <button onClick={() => handleDiscard(tx.id)} className={buttonClass({ variant: 'danger-outline', size: 'sm' })}>

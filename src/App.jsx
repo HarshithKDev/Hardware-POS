@@ -534,13 +534,13 @@ function App() {
       style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
     >
       {!isOnline && (
-        <div role="status" className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-center py-1.5 z-[100] print:hidden" style={{ backgroundColor: 'var(--color-warning-bg)', color: 'var(--color-warning)', borderBottom: '1px solid rgba(234, 179, 8, 0.3)' }}>
+        <div role="status" className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-center py-1.5 z-[100] print:hidden" style={{ backgroundColor: 'var(--color-warning-bg)', color: 'var(--color-warning)', borderBottom: '1px solid var(--color-warning-border)' }}>
           <WifiOff size={15} aria-hidden="true" />
           <span>Offline: sales are saved on this device and sent when the internet is back.</span>
         </div>
       )}
       {isOnline && isSyncing && (
-        <div role="status" className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-center py-1.5 z-[100] print:hidden" style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', borderBottom: '1px solid rgba(59, 130, 246, 0.3)' }}>
+        <div role="status" className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-center py-1.5 z-[100] print:hidden" style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', borderBottom: '1px solid var(--color-accent-border)' }}>
           <RefreshCw size={14} className="animate-spin" aria-hidden="true" />
           <span>Sending {syncCount} saved sale{syncCount !== 1 ? 's' : ''} to the server…</span>
         </div>
@@ -619,7 +619,7 @@ function App() {
             {pendingCount > 0 && (
               <span
                 className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-semibold whitespace-nowrap shrink-0 border"
-                style={{ color: 'var(--color-warning)', backgroundColor: 'var(--color-warning-bg)', borderColor: 'rgba(234, 179, 8, 0.3)' }}
+                style={{ color: 'var(--color-warning)', backgroundColor: 'var(--color-warning-bg)', borderColor: 'var(--color-warning-border)' }}
                 title="Sales saved on this device that have not reached the server yet"
               >
                 <CloudUpload size={14} aria-hidden="true" />
@@ -630,10 +630,10 @@ function App() {
               role="status"
               className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-semibold whitespace-nowrap shrink-0 border"
               style={!isOnline
-                ? { color: 'var(--color-warning)', backgroundColor: 'var(--color-warning-bg)', borderColor: 'rgba(234, 179, 8, 0.3)' }
+                ? { color: 'var(--color-warning)', backgroundColor: 'var(--color-warning-bg)', borderColor: 'var(--color-warning-border)' }
                 : isSyncing
-                  ? { color: 'var(--color-accent)', backgroundColor: 'var(--color-accent-bg)', borderColor: 'rgba(59, 130, 246, 0.3)' }
-                  : { color: 'var(--color-success)', backgroundColor: 'var(--color-success-bg)', borderColor: 'rgba(34, 197, 94, 0.3)' }}
+                  ? { color: 'var(--color-accent)', backgroundColor: 'var(--color-accent-bg)', borderColor: 'var(--color-accent-border)' }
+                  : { color: 'var(--color-success)', backgroundColor: 'var(--color-success-bg)', borderColor: 'var(--color-success-border)' }}
               title={!isOnline ? 'No internet: sales are saved on this device' : isSyncing ? 'Sending saved sales' : 'Connected'}
             >
               {!isOnline ? <WifiOff size={14} aria-hidden="true" /> : isSyncing ? <RefreshCw size={14} className="animate-spin" aria-hidden="true" /> : <Wifi size={14} aria-hidden="true" />}
@@ -642,6 +642,16 @@ function App() {
 
 
 
+            <button
+              type="button"
+              onClick={toggleDarkMode}
+              className="h-8 w-8 md:h-9 md:w-auto rounded-md px-0 md:px-3 text-xs font-semibold transition-colors shrink-0 flex items-center justify-center gap-2 border border-[var(--border-medium)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-heavy)] cursor-pointer"
+              aria-label={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}
+              title={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}
+            >
+              {isDarkMode ? <Sun size={15} strokeWidth={2.25} /> : <Moon size={15} strokeWidth={2.25} />}
+              <span className="hidden md:inline">{isDarkMode ? 'Light' : 'Dark'}</span>
+            </button>
             <button
               onClick={() => setShowLogoutConfirm(true)}
               className="h-8 w-8 md:h-9 md:w-auto rounded-md px-0 md:px-4 text-xs font-semibold transition-colors shrink-0 flex items-center justify-center gap-2 border border-[var(--border-medium)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-heavy)] cursor-pointer"

@@ -188,3 +188,10 @@ per popup (each keeps its existing stacking order).
 - TY2: one set of words: Store / Warehouse / Showroom ("Main Storage" → "Inventory",
   "Shop Low Stock" → "Store Low Stock", "Store Floor" → "Store", "Whse" → "Warehouse",
   "Move to Shop" → "Move to Store").
+- C5 Light theme: switch in the top bar (per device, dark by default). All colours come from
+  the tokens in `src/index.css` (`:root` = dark, `html.theme-light` = light); hard-coded
+  colours were replaced by tokens (`--color-*-bg/-border`, `--color-warning-solid`,
+  `--color-purple`, `--overlay-bg`, `--text-on-solid`…). Checked with an automated audit of
+  94 screens/popups (owner, staff, login) in both themes: no text below 3:1 contrast, no
+  dark patches in light mode, no light patches in dark mode. Printed receipts/labels stay
+  black on white.

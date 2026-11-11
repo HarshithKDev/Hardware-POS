@@ -98,6 +98,24 @@
   --color-error-solid-hover: #B91C1C;
   --color-warning-bg: rgba(234, 179, 8, 0.1);
 
+  /* Theme-aware helpers (dark values). Light values are in html.theme-light below. */
+  --text-on-solid: #FFFFFF;
+  --color-warning-solid: #EAB308;          /* amber fill (dark text on it) */
+  --color-warning-on-solid: #111111;
+  --color-accent-border: rgba(59, 130, 246, 0.3);
+  --color-success-border: rgba(34, 197, 94, 0.3);
+  --color-error-border: rgba(239, 68, 68, 0.3);
+  --color-warning-border: rgba(234, 179, 8, 0.3);
+  --color-purple: #C084FC;
+  --color-purple-bg: rgba(168, 85, 247, 0.12);
+  --color-purple-border: rgba(168, 85, 247, 0.3);
+  --overlay-bg: rgba(0, 0, 0, 0.6);
+  --kbd-bg: rgba(0, 0, 0, 0.25);
+  --scroll-thumb-strong: rgba(255, 255, 255, 0.25);
+  --scroll-thumb-strong-hover: rgba(255, 255, 255, 0.4);
+  --scroll-track-strong: rgba(0, 0, 0, 0.15);
+  --input-inset-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) inset;
+
   /* Tokens used by the shared components (step 2) */
   --control-h-sm: 32px;
   --control-h-md: 40px;
@@ -157,6 +175,70 @@
   --md3-elevation-3: var(--linear-shadow-lg);
   --md3-elevation-4: var(--linear-shadow-lg);
   --md3-elevation-5: var(--linear-shadow-lg);
+}
+
+/* ---------------------------------------------------------------
+   LIGHT THEME — same token names, light values. Everything in the app reads
+   colours from these tokens, so switching the class switches every screen.
+   Contrast on white: body text 16:1, secondary 7.6:1, faint 4.8:1,
+   accent/error/success/warning text all >= 4.5:1.
+   --------------------------------------------------------------- */
+html.theme-light {
+  color-scheme: light;
+
+  --linear-bg: #F3F4F6;
+  --linear-surface: #FFFFFF;
+  --linear-surface-hover: #EEF0F4;
+  --linear-surface-elevated: #F8F9FB;
+  --linear-border: #D6DAE1;
+  --linear-border-hover: #B3BAC5;
+
+  --linear-text: #0F172A;
+  --linear-text-muted: #475569;
+  --linear-text-dim: #64748B;
+
+  --linear-accent: #2563EB;
+  --linear-accent-hover: #1D4ED8;
+  --linear-accent-transparent: rgba(37, 99, 235, 0.08);
+  --linear-accent-text: #1E40AF;
+
+  --linear-error: #DC2626;
+  --linear-error-bg: rgba(220, 38, 38, 0.08);
+  --linear-success: #15803D;
+  --linear-success-bg: rgba(21, 128, 61, 0.09);
+
+  --bg-input: #FFFFFF;
+  --bg-input-disabled: #F3F4F6;
+
+  --border-light: rgba(15, 23, 42, 0.09);
+  --border-medium: rgba(15, 23, 42, 0.14);
+  --border-heavy: rgba(15, 23, 42, 0.26);
+  --border-input: rgba(15, 23, 42, 0.2);
+
+  --color-warning: #B45309;
+  --color-warning-bg: rgba(217, 119, 6, 0.1);
+  --color-warning-solid: #F59E0B;
+  --color-accent-border: rgba(37, 99, 235, 0.3);
+  --color-success-border: rgba(21, 128, 61, 0.3);
+  --color-error-border: rgba(220, 38, 38, 0.3);
+  --color-warning-border: rgba(180, 83, 9, 0.3);
+  --color-purple: #7E22CE;
+  --color-purple-bg: rgba(126, 34, 206, 0.08);
+  --color-purple-border: rgba(126, 34, 206, 0.28);
+
+  --overlay-bg: rgba(15, 23, 42, 0.45);
+  --kbd-bg: rgba(255, 255, 255, 0.25);
+  --scroll-thumb-strong: rgba(15, 23, 42, 0.25);
+  --scroll-thumb-strong-hover: rgba(15, 23, 42, 0.4);
+  --scroll-track-strong: rgba(15, 23, 42, 0.06);
+  --input-inset-shadow: none;
+
+  --pos-receive-bg: rgba(21, 128, 61, 0.06);
+  --pos-transfer-bg: rgba(180, 83, 9, 0.06);
+
+  --linear-shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.06);
+  --linear-shadow-md: 0 4px 8px -2px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
+  --linear-shadow-lg: 0 12px 24px -6px rgba(15, 23, 42, 0.12), 0 4px 8px -4px rgba(15, 23, 42, 0.08);
 }
 
 /* ---------------------------------------------------------------
@@ -237,7 +319,7 @@ textarea {
   font-size: 0.875rem;
   line-height: 1.5;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) inset;
+  box-shadow: var(--input-inset-shadow);
 }
 
 select {
@@ -249,7 +331,7 @@ select {
   font-size: 0.875rem;
   line-height: 1.5;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) inset;
+  box-shadow: var(--input-inset-shadow);
   appearance: none;
   -webkit-appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='1.5' stroke='%23888888'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5' /%3E%3C/svg%3E");
@@ -263,7 +345,7 @@ select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px var(--color-accent-bg), 0 1px 2px rgba(0, 0, 0, 0.1) inset;
+  box-shadow: 0 0 0 3px var(--color-accent-bg), var(--input-inset-shadow);
 }
 
 input:hover:not(:disabled, :focus),
@@ -339,21 +421,21 @@ input[type="date"]::-webkit-datetime-edit-fields-wrapper {
 
 .modal-scroll {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+  scrollbar-color: var(--scroll-thumb-strong) transparent;
 }
 .modal-scroll::-webkit-scrollbar {
   width: 8px !important;
 }
 .modal-scroll::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--scroll-track-strong);
   border-radius: 4px;
 }
 .modal-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--scroll-thumb-strong);
   border-radius: 4px;
 }
 .modal-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.4);
+  background: var(--scroll-thumb-strong-hover);
 }
 
 /* ---------------------------------------------------------------
@@ -820,7 +902,7 @@ tr.hover-row:hover > td {
 }
 
 .glow-accent {
-  box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 15px var(--color-accent-border);
   transition: box-shadow 0.2s ease;
 }
 

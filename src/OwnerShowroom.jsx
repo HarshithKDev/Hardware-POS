@@ -152,7 +152,7 @@ export default function OwnerShowroom() {
                               </p>
                               <span
                                 className="text-[11px] font-bold px-1.5 py-0.5 rounded uppercase inline-block mt-0.5 tracking-wider"
-                                style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', border: '1px solid rgba(59, 130, 246, 0.2)' }}
+                                style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', border: '1px solid var(--color-accent-border)' }}
                               >
                                 SHOWROOM
                               </span>

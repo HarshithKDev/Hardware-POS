@@ -17,8 +17,8 @@ export default function BatchDetailsModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 animate-fade-in"
-      style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}
+      className="fixed inset-0 z-[10040] flex items-center justify-center p-2 sm:p-4 animate-fade-in"
+      style={{ backgroundColor: 'var(--overlay-bg)' }}
       role="dialog"
       aria-modal="true"
     >

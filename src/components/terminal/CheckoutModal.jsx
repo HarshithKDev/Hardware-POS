@@ -171,12 +171,12 @@ export default function CheckoutModal({
                     className={`relative h-11 px-3 sm:px-4 text-sm font-semibold rounded-md transition-colors flex items-center justify-center cursor-pointer ${isSelected ? 'shadow-sm' : 'hover:border-[var(--border-heavy)]'}`}
                     style={{ 
                       backgroundColor: isShowroomMethod
-                        ? (isSelected ? 'var(--color-warning)' : 'var(--bg-tertiary)')
+                        ? (isSelected ? 'var(--color-warning-solid)' : 'var(--bg-tertiary)')
                         : (isSelected ? 'var(--color-accent-solid)' : 'var(--bg-tertiary)'),
                       color: isSelected
-                        ? (isShowroomMethod ? '#000' : '#fff')
+                        ? (isShowroomMethod ? 'var(--color-warning-on-solid)' : 'var(--text-on-solid)')
                         : 'var(--text-primary)',
-                      border: `1px solid ${isShowroomMethod && isSelected ? 'var(--color-warning)' : isSelected ? 'var(--color-accent-solid)' : 'var(--border-medium)'}`
+                      border: `1px solid ${isShowroomMethod && isSelected ? 'var(--color-warning-solid)' : isSelected ? 'var(--color-accent-solid)' : 'var(--border-medium)'}`
                     }}
                   >
                     <span>{label}</span>
@@ -186,7 +186,7 @@ export default function CheckoutModal({
               })}
             </div>
             {checkoutModal.paymentMethod === 'SHOWROOM' && (
-              <div className="p-3 mt-2 rounded-md border flex items-start gap-2.5 animate-fade-in" style={{ backgroundColor: 'rgba(234, 179, 8, 0.08)', borderColor: 'rgba(234, 179, 8, 0.3)', color: 'var(--color-warning)' }}>
+              <div className="p-3 mt-2 rounded-md border flex items-start gap-2.5 animate-fade-in" style={{ backgroundColor: 'var(--color-warning-bg)', borderColor: 'var(--color-warning-border)', color: 'var(--color-warning)' }}>
                 <svg className="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>

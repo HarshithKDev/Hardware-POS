@@ -829,7 +829,7 @@ export default function BatchDetailsView({
               </span>
 
               {item.is_loose_item && (
-                <span className="shrink-0 px-2 py-0.5 text-[11px] font-bold uppercase rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/25">
+                <span className="shrink-0 px-2 py-0.5 text-[11px] font-bold uppercase rounded-full bg-[var(--color-warning-bg)] text-[var(--color-warning)] border border-[var(--color-warning-border)]">
                   Loose
                 </span>
               )}
@@ -1026,7 +1026,7 @@ export default function BatchDetailsView({
         {canScrollLeft && (
           <button
             onClick={() => scrollTabs('left')}
-            className="flex items-center justify-center px-2 shrink-0 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/5 transition-colors z-10"
+            className="flex items-center justify-center px-2 shrink-0 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors z-10"
             aria-label="Scroll tabs left" title="Scroll tabs left"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -1073,7 +1073,7 @@ export default function BatchDetailsView({
                   className={`group relative flex items-center gap-2.5 px-4 py-2.5 rounded-t-lg text-xs transition-colors cursor-pointer whitespace-nowrap select-none shrink-0 ${
                     isActive
                       ? 'font-bold text-[var(--text-primary)] z-10'
-                      : 'font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/5'
+                      : 'font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
                   }`}
                   style={{
                     backgroundColor: isActive ? 'var(--bg-tertiary)' : 'transparent',
@@ -1091,7 +1091,7 @@ export default function BatchDetailsView({
                     className={`px-1.5 py-0.5 text-xs rounded-full font-semibold ${
                       isActive
                         ? 'bg-[var(--color-accent-bg)] text-[var(--color-accent)]'
-                        : 'bg-white/5 text-[var(--text-tertiary)]'
+                        : 'bg-[var(--bg-hover)] text-[var(--text-tertiary)]'
                     }`}
                   >
                     {tabCountLabel}
@@ -1106,7 +1106,7 @@ export default function BatchDetailsView({
         {canScrollRight && (
           <button
             onClick={() => scrollTabs('right')}
-            className="flex items-center justify-center px-2 shrink-0 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/5 transition-colors z-10"
+            className="flex items-center justify-center px-2 shrink-0 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors z-10"
             aria-label="Scroll tabs right" title="Scroll tabs right"
           >
             <ChevronRight className="w-4 h-4" />

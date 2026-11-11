@@ -11,6 +11,17 @@
     <link rel="manifest" id="app-manifest" href="/manifest.json" />
     <title>hardware-pos</title>
     <script>
+      // Apply the saved theme before the app draws, so a light-theme device never flashes dark
+      try {
+        if (localStorage.getItem('posTheme') === 'light') {
+          document.documentElement.classList.add('theme-light');
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#FFFFFF');
+        } else {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) { /* ignore */ }
+    </script>
+    <script>
       // Safety net for deployments: if the app's main file can't be loaded (an old cached
       // page asking for a file from the previous version), clear the offline cache and
       // reload once. Never loops: a second failure in the same tab shows a reload button.

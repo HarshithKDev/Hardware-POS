@@ -780,7 +780,7 @@ export default function OwnerLedger({ isActive }) {
                 )}
               </>
             ) : (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold" style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--color-accent)' }}>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold" style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)' }}>
                 <span>Searching all dates across all history</span>
               </div>
             )}

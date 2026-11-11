@@ -52,7 +52,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
         key: 'receive',
         path: '/terminal/receive',
         title: `Receiving Stock\n${isWarehouseDisabled ? 'Into Store' : 'From Wholesaler'}`,
-        bg: '#3b82f6',
+        bg: '#2563EB',
         icon: (
           <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
         )
@@ -64,7 +64,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
         key: 'transfer',
         path: '/terminal/transfer',
         title: 'Sending Stock\nWarehouse to Store',
-        bg: '#f59e0b',
+        bg: '#B45309',
         icon: (
           <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
         )
@@ -77,7 +77,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
           key: 'checkout',
           path: '/terminal/checkout',
           title: 'Checkout\nCustomer',
-          bg: '#10b981',
+          bg: '#047857',
           icon: (
             <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
           )
@@ -86,7 +86,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
           key: 'sales',
           path: '/terminal/sales',
           title: 'Sales &\nReturns',
-          bg: '#ef4444',
+          bg: '#DC2626',
           icon: (
             <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
           )
@@ -95,7 +95,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
           key: 'print-barcode',
           path: '/terminal/print-barcode',
           title: 'Print\nBarcodes',
-          bg: '#06b6d4',
+          bg: '#0E7490',
           icon: (
             <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -106,7 +106,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
           key: 'expenses',
           path: '/terminal/expenses',
           title: 'Expenses &\nAdvances',
-          bg: '#e11d48',
+          bg: '#BE123C',
           icon: (
             <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" /></svg>
           )
@@ -115,7 +115,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
           key: 'screw-boxes',
           path: '/terminal/screw-boxes',
           title: 'Screw\nBoxes',
-          bg: '#64748b',
+          bg: '#4338CA',
           icon: (
             <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
           )
@@ -127,7 +127,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
           key: 'lookup',
           path: '/terminal/lookup',
           title: 'Item & Stock\nLookup',
-          bg: '#8b5cf6',
+          bg: '#6D28D9',
           icon: (
             <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -138,7 +138,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
           key: 'scanner',
           path: '/terminal/scanner',
           title: 'Floor\nScanner',
-          bg: '#06b6d4',
+          bg: '#0E7490',
           icon: (
             <svg className="w-7 h-7 md:w-8 md:h-8 mb-1.5 md:mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
@@ -667,7 +667,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
 
       {lowStockModal.isOpen && createPortal(
         <div
-          className="fixed inset-0 flex items-center justify-center z-[10001] p-4 sm:p-6 md:p-8 bg-black/75 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 flex items-center justify-center z-[10001] p-4 sm:p-6 md:p-8 bg-[var(--overlay-bg)] backdrop-blur-sm animate-fade-in"
           onClick={() => setLowStockModal({ isOpen: false, type: null })}
           role="dialog"
           aria-modal="true"

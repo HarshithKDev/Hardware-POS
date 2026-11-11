@@ -9,6 +9,16 @@ import { createContext, useContext, useState, useCallback, useRef, useEffect } f
 
 const AppContext = createContext(null);
 
+/** Puts the theme class on <html> (colours live in index.css) and updates the browser bar colour. */
+export function applyTheme(theme) {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  root.classList.toggle('theme-light', theme === 'light');
+  root.classList.toggle('dark', theme !== 'light');
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', theme === 'light' ? '#FFFFFF' : '#121212');
+}
+
 const SUCCESS_TITLES = new Set(['success', 'saved', 'box opened', 'stock updated', 'recorded', 'item restored', 'restored', 'updated', 'deleted', 'done']);
 const isSuccessTitle = (title) => SUCCESS_TITLES.has(String(title || '').trim().toLowerCase());
 
@@ -54,28 +64,22 @@ export function AppProvider({ children }) {
     return '';
   });
 
-  // --- Dark Mode ---
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('posDarkMode');
-      if (saved !== null) {
-        try { return JSON.parse(saved); } catch (e) { /* fallback */ }
-      }
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-    return false;
+  // --- Theme (dark / light) ---
+  // An explicit choice per device, dark by default (the look the shop is used to).
+  // The computer's own light/dark setting is not used, so nothing changes until
+  // someone presses the theme switch.
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('posTheme') === 'light' ? 'light' : 'dark'; } catch { return 'dark'; }
   });
+  const isDarkMode = theme === 'dark';
 
   useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('posDarkMode', JSON.stringify(isDarkMode));
-  }, [isDarkMode]);
+    applyTheme(theme);
+    try { localStorage.setItem('posTheme', theme); } catch { /* ignore */ }
+  }, [theme]);
 
-  const toggleDarkMode = useCallback(() => setIsDarkMode((v) => !v), []);
+  const toggleDarkMode = useCallback(() => setTheme((t) => (t === 'dark' ? 'light' : 'dark')), []);
+  const setDarkMode = useCallback((dark) => setTheme(dark ? 'dark' : 'light'), []);
 
   const pushToastRef = useRef(null);
 
@@ -190,6 +194,8 @@ export function AppProvider({ children }) {
     // Dark mode
     isDarkMode,
     toggleDarkMode,
+    setDarkMode,
+    theme,
 
     // Alert dialog
     alertConfig,

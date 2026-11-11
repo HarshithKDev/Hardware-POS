@@ -2279,7 +2279,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             {cart.length === 0 ? (
               activeCartTab && activeCartTab.startsWith('held_') ? (
                 <div className="h-full flex flex-col items-center justify-center text-center p-6 my-auto">
-                  <div className="w-14 h-14 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-error)' }}>
+                  <div className="w-14 h-14 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: 'var(--color-error-bg)', color: 'var(--color-error)' }}>
                     <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                   </div>
                   <p className="text-lg font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>This Held Cart is Empty</p>
@@ -2362,9 +2362,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               onClick={() => handleRestoreCart('local')}
               className="px-4 py-1.5 text-xs font-bold rounded-sm transition-colors shrink-0"
               style={{
-                backgroundColor: activeCartTab === 'local' ? 'var(--color-accent)' : 'var(--bg-primary)',
-                color: activeCartTab === 'local' ? '#fff' : 'var(--text-secondary)',
-                border: `1px solid ${activeCartTab === 'local' ? 'var(--color-accent)' : 'var(--border-medium)'}`
+                backgroundColor: activeCartTab === 'local' ? 'var(--color-accent-solid)' : 'var(--bg-primary)',
+                color: activeCartTab === 'local' ? 'var(--text-on-solid)' : 'var(--text-secondary)',
+                border: `1px solid ${activeCartTab === 'local' ? 'var(--color-accent-solid)' : 'var(--border-medium)'}`
               }}
             >
               Local Cart
@@ -2376,9 +2376,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   key={hc.id}
                   className="inline-flex items-center rounded-sm transition-colors text-xs font-bold uppercase tracking-wider overflow-hidden shrink-0"
                   style={{
-                    backgroundColor: isActive ? 'var(--color-accent)' : 'var(--bg-primary)',
-                    color: isActive ? '#fff' : 'var(--text-secondary)',
-                    border: `1px solid ${isActive ? 'var(--color-accent)' : 'var(--border-medium)'}`
+                    backgroundColor: isActive ? 'var(--color-accent-solid)' : 'var(--bg-primary)',
+                    color: isActive ? 'var(--text-on-solid)' : 'var(--text-secondary)',
+                    border: `1px solid ${isActive ? 'var(--color-accent-solid)' : 'var(--border-medium)'}`
                   }}
                 >
                   <button 
@@ -2388,7 +2388,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                     title={`Switch to ${hc.name}`}
                   >
                     <span>{hc.name}</span>
-                    <span className="bg-white/20 px-1.5 rounded-full text-xs">{hc.items?.length || 0}</span>
+                    <span className={`${isActive ? 'bg-white/20' : 'bg-[var(--bg-hover)]'} px-1.5 rounded-full text-xs`}>{hc.items?.length || 0}</span>
                   </button>
                   <button
                     type="button"
@@ -2397,7 +2397,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                       e.stopPropagation();
                       handleCancelHeldCart(hc.id);
                     }}
-                    className="px-2 py-1.5 transition-colors opacity-70 hover:opacity-100 hover:text-red-300 focus:outline-none"
+                    className="px-2 py-1.5 transition-colors opacity-70 hover:opacity-100 hover:text-[var(--color-error)] focus:outline-none"
                     title={`Cancel and discard ${hc.name}`}
                     aria-label={`Cancel and discard ${hc.name}`}
                   >
@@ -2415,9 +2415,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   key={pc.id}
                   className="inline-flex items-center rounded-sm transition-colors text-xs font-bold uppercase tracking-wider overflow-hidden shrink-0"
                   style={{
-                    backgroundColor: isActive ? 'var(--color-accent)' : 'var(--bg-primary)',
-                    color: isActive ? '#fff' : 'var(--text-secondary)',
-                    border: `1px solid ${isActive ? 'var(--color-accent)' : 'var(--border-medium)'}`
+                    backgroundColor: isActive ? 'var(--color-accent-solid)' : 'var(--bg-primary)',
+                    color: isActive ? 'var(--text-on-solid)' : 'var(--text-secondary)',
+                    border: `1px solid ${isActive ? 'var(--color-accent-solid)' : 'var(--border-medium)'}`
                   }}
                 >
                   <button 
@@ -2427,7 +2427,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                     title={`Switch to ${pc.worker_name}'s Cart`}
                   >
                     <span>{pc.worker_name}'s Cart</span>
-                    <span className="bg-white/20 px-1.5 rounded-full text-xs">{pc.items?.length || 0}</span>
+                    <span className={`${isActive ? 'bg-white/20' : 'bg-[var(--bg-hover)]'} px-1.5 rounded-full text-xs`}>{pc.items?.length || 0}</span>
                   </button>
                   <button
                     type="button"
@@ -2442,7 +2442,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                         true
                       );
                     }}
-                    className="px-2 py-1.5 transition-colors opacity-70 hover:opacity-100 hover:text-red-300 focus:outline-none"
+                    className="px-2 py-1.5 transition-colors opacity-70 hover:opacity-100 hover:text-[var(--color-error)] focus:outline-none"
                     title={`Discard ${pc.worker_name}'s Cart`}
                     aria-label={`Discard ${pc.worker_name}'s Cart`}
                   >
@@ -2467,7 +2467,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                 <div className="flex items-center w-full md:w-72 h-10 md:h-9 rounded-md overflow-hidden transition-colors focus-within:border-[var(--color-accent)] focus-within:ring-1 focus-within:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)' }}>
                   <label htmlFor="manual-barcode" className="sr-only">Barcode</label>
                   <input id="manual-barcode" type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} onFocus={() => { setIsInputFocused(true); manualBarcode.trim().length >= 2 && setShowSuggestions(true); }} onBlur={() => { setIsInputFocused(false); setTimeout(() => setShowSuggestions(false), 200); }} placeholder="Search barcode or name..." className="h-full w-full px-3 text-sm focus:outline-none flex-1 bg-transparent border-none outline-none rounded-none focus:ring-0 focus:border-transparent focus:shadow-none" style={{ color: 'var(--text-input)', outline: 'none', border: 'none', boxShadow: 'none' }} autoComplete="off" />
-                  <button type="submit" className="h-full px-3 text-sm font-bold focus:outline-none transition-colors border-none rounded-none bg-transparent hover:bg-white/5 focus:ring-0 focus:outline-none shrink-0" style={{ color: 'var(--color-accent)', outline: 'none', border: 'none' }}>ADD</button>
+                  <button type="submit" className="h-full px-3 text-sm font-bold focus:outline-none transition-colors border-none rounded-none bg-transparent hover:bg-[var(--bg-hover)] focus:ring-0 focus:outline-none shrink-0" style={{ color: 'var(--color-accent)', outline: 'none', border: 'none' }}>ADD</button>
                 </div>
                 {showSuggestions && suggestions.length > 0 && (
                   <ul className="absolute top-[100%] left-0 w-full md:w-64 bg-[var(--bg-secondary)] border border-[var(--border-medium)] z-50 max-h-60 overflow-y-auto shadow-lg mt-1 rounded-sm">
@@ -2691,7 +2691,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               title={activeTab === 'checkout' ? 'Shortcut: F4 or Space' : 'Shortcut: F4'}
             >
               <span>{isCheckingOut ? 'Saving...' : 'Complete'}</span>
-              <kbd aria-hidden="true" className="hidden md:inline px-1.5 py-0.5 text-[11px] font-mono font-semibold rounded bg-black/25">F4</kbd>
+              <kbd aria-hidden="true" className="hidden md:inline px-1.5 py-0.5 text-[11px] font-mono font-semibold rounded bg-[var(--kbd-bg)]">F4</kbd>
             </button>
           </div>
         )}

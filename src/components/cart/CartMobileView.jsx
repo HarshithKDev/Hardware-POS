@@ -26,7 +26,7 @@ const CartMobileView = React.memo(function CartMobileView({
     if (activeCartTab && activeCartTab.startsWith('held_')) {
       return (
         <div className="p-8 text-center flex flex-col items-center justify-center">
-          <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-error)' }}>
+          <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: 'var(--color-error-bg)', color: 'var(--color-error)' }}>
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
           </div>
           <p className="text-base font-bold mb-1" style={{ color: 'var(--text-primary)' }}>This Held Cart is Empty</p>
@@ -120,7 +120,7 @@ const CartMobileView = React.memo(function CartMobileView({
           <div className="pr-2 flex-1">
             <div className="flex justify-between items-start w-full">
               <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name || (item.is_screw || item.barcode === 'SCREWS' ? 'Screws' : 'Item')}</p>
-              <button type="button" onClick={() => onRemoveItem(item.id)} className=" text-[var(--text-secondary)] hover:bg-red-500/10 hover:text-[var(--color-error)]" aria-label={`Remove ${item.name}`} title={`Remove ${item.name}`}>
+              <button type="button" onClick={() => onRemoveItem(item.id)} className=" text-[var(--text-secondary)] hover:bg-[var(--color-error-bg)] hover:text-[var(--color-error)]" aria-label={`Remove ${item.name}`} title={`Remove ${item.name}`}>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
               </button>
             </div>

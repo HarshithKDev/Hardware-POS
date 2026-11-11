@@ -81,7 +81,7 @@ export default function Modal({
 
   const overlay = (
     <div
-      className="fixed inset-0 flex items-end sm:items-center justify-center sm:p-4 bg-black/60 print:hidden animate-fade-in"
+      className="fixed inset-0 flex items-end sm:items-center justify-center sm:p-4 bg-[var(--overlay-bg)] print:hidden animate-fade-in"
       style={{ zIndex: MODAL_LAYER_BASE + zIndex }}
       role="presentation"
       onMouseDown={(e) => { if (closeOnBackdrop && e.target === e.currentTarget) onClose?.(); }}

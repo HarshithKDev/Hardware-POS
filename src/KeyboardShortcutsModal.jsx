@@ -30,7 +30,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }) {
     },
     {
       title: 'Payment Modal',
-      icon: <CreditCard className="w-4 h-4 text-emerald-400" />,
+      icon: <CreditCard className="w-4 h-4 text-[var(--color-success)]" />,
       shortcuts: [
         { keys: ['1', 'C'], description: 'Select Cash Payment' },
         { keys: ['2', 'U'], description: 'Select UPI Payment' },
@@ -42,7 +42,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }) {
     },
     {
       title: 'Cart Navigation & Quantities',
-      icon: <Layers className="w-4 h-4 text-amber-400" />,
+      icon: <Layers className="w-4 h-4 text-[var(--color-warning)]" />,
       shortcuts: [
         { keys: ['↑', '↓'], description: 'Navigate and select items in the cart' },
         { keys: ['+'], description: 'Increase quantity of selected item' },
@@ -52,7 +52,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }) {
     },
     {
       title: 'Navigation & Screens',
-      icon: <Navigation className="w-4 h-4 text-sky-400" />,
+      icon: <Navigation className="w-4 h-4 text-[var(--color-accent)]" />,
       shortcuts: [
         { keys: ['F1', '?'], description: 'Open this Keyboard Shortcuts Cheatsheet' },
         { keys: ['Alt', 'D'], description: 'Return to Staff Dashboard' },

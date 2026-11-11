@@ -96,7 +96,7 @@ export function DialogOverlay({ isOpen, onClose, children, labelId, maxWidth = '
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-[30000] px-4 print:hidden animate-fade-in"
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+      style={{ backgroundColor: 'var(--overlay-bg)' }}
       onClick={(e) => {
         // Close on backdrop click
         if (e.target === e.currentTarget) onClose();
@@ -143,17 +143,17 @@ export function AlertDialog({ isOpen, title, message, onClose }) {
   const lowerTitle = (title || '').toLowerCase();
   
   if (lowerTitle.includes('success') || lowerTitle.includes('restored') || lowerTitle.includes('backup') || lowerTitle.includes('download') || lowerTitle.includes('export')) {
-    borderColorStyle = '#10b981'; // green
-    titleColor = '#10b981';
+    borderColorStyle = 'var(--color-success)';
+    titleColor = 'var(--color-success)';
   } else if (lowerTitle.includes('error') || lowerTitle.includes('fail') || lowerTitle.includes('invalid')) {
     borderColorStyle = 'var(--color-error)'; // red
     titleColor = 'var(--color-error)';
   } else if (lowerTitle.includes('warn') || lowerTitle.includes('limit') || lowerTitle.includes('notice') || lowerTitle.includes('missing') || lowerTitle.includes('required') || lowerTitle.includes('expired')) {
-    borderColorStyle = '#f59e0b'; // orange
-    titleColor = '#f59e0b';
+    borderColorStyle = 'var(--color-warning)';
+    titleColor = 'var(--color-warning)';
   } else if (lowerTitle.includes('info')) {
-    borderColorStyle = '#3b82f6'; // blue
-    titleColor = '#3b82f6';
+    borderColorStyle = 'var(--color-accent)';
+    titleColor = 'var(--color-accent)';
   }
 
   return (

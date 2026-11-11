@@ -41,7 +41,7 @@ const CartTable = React.memo(function CartTable({
     if (activeCartTab && activeCartTab.startsWith('held_')) {
       return (
         <div className="h-full flex flex-col items-center justify-center min-h-[320px] text-center p-6" data-testid="empty-held-cart-view">
-          <div className="w-14 h-14 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-error)' }}>
+          <div className="w-14 h-14 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: 'var(--color-error-bg)', color: 'var(--color-error)' }}>
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
@@ -393,7 +393,7 @@ const CartTable = React.memo(function CartTable({
                 <td className="p-2 text-center align-middle">
                   <div className="flex flex-col items-center justify-center">
                     <div className="h-8 flex items-center justify-center">
-                      <button type="button" onClick={() => onRemoveItem(item.id)} className="w-8 h-8 rounded-md flex items-center justify-center text-[var(--text-secondary)] hover:bg-red-500/10 hover:text-[var(--color-error)] transition-colors cursor-pointer" aria-label={`Remove ${item.name}`} title={`Remove ${item.name}`}>
+                      <button type="button" onClick={() => onRemoveItem(item.id)} className="w-8 h-8 rounded-md flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--color-error-bg)] hover:text-[var(--color-error)] transition-colors cursor-pointer" aria-label={`Remove ${item.name}`} title={`Remove ${item.name}`}>
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                       </button>
                     </div>

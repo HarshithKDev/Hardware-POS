@@ -133,16 +133,16 @@ export default function BillDetailsView({
                 className="px-2.5 py-0.5 text-[11px] font-bold rounded uppercase tracking-wider"
                 style={{
                   backgroundColor: currentBill.payment_method === 'CASH'
-                    ? 'rgba(34, 197, 94, 0.15)'
+                    ? 'var(--color-success-bg)'
                     : currentBill.payment_method === 'UPI'
-                      ? 'rgba(59, 130, 246, 0.15)'
-                      : 'rgba(234, 179, 8, 0.15)',
+                      ? 'var(--color-accent-bg)'
+                      : 'var(--color-warning-bg)',
                   color: currentBill.payment_method === 'CASH'
                     ? 'var(--color-success)'
                     : currentBill.payment_method === 'UPI'
                       ? 'var(--color-accent)'
                       : 'var(--color-warning)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)'
+                  border: '1px solid var(--border-light)'
                 }}
               >
                 {currentBill.payment_method}
@@ -150,11 +150,11 @@ export default function BillDetailsView({
             )}
 
             {isVoided ? (
-              <span className="px-2.5 py-0.5 text-[11px] font-bold uppercase rounded-full bg-red-500/15 text-red-400 border border-red-500/30">
+              <span className="px-2.5 py-0.5 text-[11px] font-bold uppercase rounded-full bg-[var(--color-error-bg)] text-[var(--color-error)] border border-[var(--color-error-border)]">
                 Voided / Returned
               </span>
             ) : (
-              <span className="px-2.5 py-0.5 text-[11px] font-bold uppercase rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              <span className="px-2.5 py-0.5 text-[11px] font-bold uppercase rounded-full bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success-border)]">
                 Completed
               </span>
             )}
@@ -277,7 +277,7 @@ export default function BillDetailsView({
                             </span>
                           )}
                           {it.instance_barcode && (
-                            <span className="text-xs text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20 font-mono">
+                            <span className="text-xs text-[var(--color-purple)] bg-[var(--color-purple-bg)] px-1.5 py-0.5 rounded border border-[var(--color-purple-border)] font-mono">
                               Piece: {it.instance_barcode}
                             </span>
                           )}
@@ -325,7 +325,7 @@ export default function BillDetailsView({
                     </div>
 
                     {discountPct > 0 && (
-                      <div className="flex items-center justify-between text-xs px-2 py-1 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                      <div className="flex items-center justify-between text-xs px-2 py-1 rounded bg-[var(--color-warning-bg)] border border-[var(--color-warning-border)] text-[var(--color-warning)]">
                         <span>Discount Applied</span>
                         <span className="font-bold tabular-nums">{discountPct.toFixed(1)}% OFF</span>
                       </div>
@@ -382,7 +382,7 @@ export default function BillDetailsView({
                               </span>
                             )}
                             {it.instance_barcode && (
-                              <span className="text-xs text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20 font-mono">
+                              <span className="text-xs text-[var(--color-purple)] bg-[var(--color-purple-bg)] px-1.5 py-0.5 rounded border border-[var(--color-purple-border)] font-mono">
                                 Piece: {it.instance_barcode}
                               </span>
                             )}
@@ -404,7 +404,7 @@ export default function BillDetailsView({
 
                         <td className="py-3 px-3 text-center text-xs tabular-nums" style={{ borderRight: '1px solid var(--border-medium)' }}>
                           {discountPct > 0 && it.barcode !== 'SCREWS' && !it.is_screw ? (
-                            <span className="text-amber-400 font-semibold">{discountPct.toFixed(1)}%</span>
+                            <span className="text-[var(--color-warning)] font-semibold">{discountPct.toFixed(1)}%</span>
                           ) : (
                             <span className="text-[var(--text-tertiary)]">—</span>
                           )}

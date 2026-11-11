@@ -242,7 +242,7 @@ export default function InventoryRow({
           style={{
             backgroundColor: 'var(--bg-secondary)',
             borderColor: 'var(--border-medium)',
-            boxShadow: '0 12px 36px -4px rgba(0, 0, 0, 0.7), 0 4px 12px rgba(0, 0, 0, 0.4)',
+            boxShadow: 'var(--linear-shadow-lg)',
           }}
         >
           {/* Header */}
@@ -258,9 +258,9 @@ export default function InventoryRow({
             <span
               className="text-[11px] px-2 py-0.5 rounded-full font-bold uppercase shrink-0"
               style={{
-                backgroundColor: item.is_cuttable ? 'var(--color-accent-bg)' : 'rgba(16, 185, 129, 0.15)',
+                backgroundColor: item.is_cuttable ? 'var(--color-accent-bg)' : 'var(--color-success-bg)',
                 color: item.is_cuttable ? 'var(--color-accent)' : 'var(--color-success)',
-                border: `1px solid ${item.is_cuttable ? 'rgba(59, 130, 246, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
+                border: `1px solid ${item.is_cuttable ? 'var(--color-accent-border)' : 'var(--color-success-border)'}`
               }}
             >
               {activeBatches.length} {activeBatches.length === 1 ? 'Batch' : 'Batches'}
@@ -507,7 +507,7 @@ export default function InventoryRow({
                   #{item.barcode}
                 </span>
                 {item.is_loose_item && (
-                  <span className="px-1.5 py-0.2 text-[11px] font-bold uppercase rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                  <span className="px-1.5 py-0.2 text-[11px] font-bold uppercase rounded bg-[var(--color-warning-bg)] text-[var(--color-warning)] border border-[var(--color-warning-border)]">
                     Loose
                   </span>
                 )}
@@ -562,9 +562,9 @@ export default function InventoryRow({
               }}
               className="flex-1 py-1 px-2.5 text-[11px] font-bold rounded-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5 hover:brightness-110"
               style={{
-                backgroundColor: item.is_cuttable ? 'var(--color-accent-bg)' : 'rgba(16, 185, 129, 0.1)',
+                backgroundColor: item.is_cuttable ? 'var(--color-accent-bg)' : 'var(--color-success-bg)',
                 color: item.is_cuttable ? 'var(--color-accent)' : 'var(--color-success)',
-                border: `1px solid ${item.is_cuttable ? 'rgba(59, 130, 246, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
+                border: `1px solid ${item.is_cuttable ? 'var(--color-accent-border)' : 'var(--color-success-border)'}`
               }}
             >
               <span>{activeBatches.length} {activeBatches.length === 1 ? 'Batch' : 'Batches'}</span>
@@ -618,7 +618,7 @@ export default function InventoryRow({
         <div className="flex items-center justify-center gap-2 w-full min-h-[1.5rem] px-1">
           <span className="truncate text-center" title={item.name}>{item.name}</span>
           {item.is_loose_item && (
-            <span className="shrink-0 px-2 py-0.5 text-[11px] font-bold uppercase rounded-full whitespace-nowrap" style={{ backgroundColor: 'rgba(234, 179, 8, 0.1)', color: 'var(--color-warning)', border: '1px solid rgba(234, 179, 8, 0.2)' }}>Loose</span>
+            <span className="shrink-0 px-2 py-0.5 text-[11px] font-bold uppercase rounded-full whitespace-nowrap" style={{ backgroundColor: 'var(--color-warning-bg)', color: 'var(--color-warning)', border: '1px solid var(--color-warning-border)' }}>Loose</span>
           )}
         </div>
       </td>
@@ -636,9 +636,9 @@ export default function InventoryRow({
           onMouseLeave={handleMouseLeave}
           className="inline-flex px-2.5 py-1 text-[11px] font-bold rounded-full whitespace-nowrap cursor-pointer transition-all active:scale-95 shadow-sm items-center justify-center gap-1.5 w-[96px] h-[26px] hover:brightness-110"
           style={{
-            backgroundColor: item.is_cuttable ? 'var(--color-accent-bg)' : 'rgba(16, 185, 129, 0.1)',
+            backgroundColor: item.is_cuttable ? 'var(--color-accent-bg)' : 'var(--color-success-bg)',
             color: item.is_cuttable ? 'var(--color-accent)' : 'var(--color-success)',
-            border: `1px solid ${item.is_cuttable ? 'rgba(59, 130, 246, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
+            border: `1px solid ${item.is_cuttable ? 'var(--color-accent-border)' : 'var(--color-success-border)'}`
           }}
         >
           <span>{activeBatches.length} {activeBatches.length === 1 ? 'Batch' : 'Batches'}</span>

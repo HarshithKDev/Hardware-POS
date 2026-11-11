@@ -453,7 +453,7 @@ export default function OwnerSettings() {
                       onChange={(e) => handleToggleWarehouse(e.target.checked)} 
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:bg-[var(--color-accent-solid)] peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all cursor-pointer" />
+                    <div className="w-9 h-5 bg-[var(--border-heavy)] peer-focus:outline-none rounded-full peer peer-checked:bg-[var(--color-accent-solid)] peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all cursor-pointer" />
                   </label>
                 </div>
 
@@ -493,7 +493,7 @@ export default function OwnerSettings() {
                       onChange={(e) => handleToggleSound(e.target.checked)} 
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:bg-[var(--color-accent-solid)] peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all cursor-pointer" />
+                    <div className="w-9 h-5 bg-[var(--border-heavy)] peer-focus:outline-none rounded-full peer peer-checked:bg-[var(--color-accent-solid)] peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all cursor-pointer" />
                   </label>
                 </div>
               </div>
@@ -525,7 +525,7 @@ export default function OwnerSettings() {
                     <>
                       <img src={logoPreview} alt="Shop Logo" className="w-full h-full object-cover" />
                       {isEditing && (
-                        <div className="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center transition-all">
+                        <div className="absolute inset-0 bg-[var(--overlay-bg)] hidden group-hover:flex items-center justify-center transition-all">
                           <Upload className="w-5 h-5 text-white" />
                         </div>
                       )}
@@ -564,7 +564,7 @@ export default function OwnerSettings() {
                             setLogoFile(null);
                             setLogoPreview(null);
                           }}
-                          className="text-xs text-red-500 hover:text-red-400 font-semibold inline-flex items-center gap-1 cursor-pointer"
+                          className="text-xs text-[var(--color-error)] hover:text-[var(--color-error)] font-semibold inline-flex items-center gap-1 cursor-pointer"
                         >
                           <Trash2 size={12} />
                           <span>Remove</span>
@@ -612,7 +612,7 @@ export default function OwnerSettings() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
-                      Shop Name <span className="text-red-500">*</span>
+                      Shop Name <span className="text-[var(--color-error)]">*</span>
                     </label>
                     <input 
                       type="text" 
@@ -629,7 +629,7 @@ export default function OwnerSettings() {
 
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
-                      Owner / Admin Name <span className="text-red-500">*</span>
+                      Owner / Admin Name <span className="text-[var(--color-error)]">*</span>
                     </label>
                     <input 
                       type="text" 

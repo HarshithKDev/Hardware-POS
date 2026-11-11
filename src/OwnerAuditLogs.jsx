@@ -325,13 +325,13 @@ export default function OwnerAuditLogs() {
 
   const getActionStyles = (action) => {
     switch (action) {
-      case 'CREATE': return { bg: 'rgba(14, 165, 233, 0.1)', text: '#0ea5e9' }; // Sky blue
-      case 'STOCK IN': return { bg: 'rgba(34, 197, 94, 0.1)', text: 'var(--color-success, #16a34a)' };
-      case 'TRANSFER': return { bg: 'rgba(59, 130, 246, 0.1)', text: '#3b82f6' };
-      case 'SALE': return { bg: 'rgba(168, 85, 247, 0.1)', text: '#a855f7' };
-      case 'DELETE': return { bg: 'rgba(239, 68, 68, 0.1)', text: 'var(--color-error, #dc2626)' };
-      case 'UPDATE': return { bg: 'rgba(234, 179, 8, 0.1)', text: '#ca8a04' };
-      case 'RESTORE': return { bg: 'rgba(16, 185, 129, 0.1)', text: '#059669' };
+      case 'CREATE': return { bg: 'var(--color-accent-bg)', text: 'var(--color-accent)' }; // Sky blue
+      case 'STOCK IN': return { bg: 'var(--color-success-bg)', text: 'var(--color-success)' };
+      case 'TRANSFER': return { bg: 'var(--color-accent-bg)', text: 'var(--color-accent)' };
+      case 'SALE': return { bg: 'var(--color-purple-bg)', text: 'var(--color-purple)' };
+      case 'DELETE': return { bg: 'var(--color-error-bg)', text: 'var(--color-error)' };
+      case 'UPDATE': return { bg: 'var(--color-warning-bg)', text: 'var(--color-warning)' };
+      case 'RESTORE': return { bg: 'var(--color-success-bg)', text: 'var(--color-success)' };
       default: return { bg: 'var(--bg-hover)', text: 'var(--text-primary)' };
     }
   };
@@ -356,7 +356,7 @@ export default function OwnerAuditLogs() {
             style={{
               backgroundColor: showAdvanced ? 'var(--color-accent-solid)' : 'var(--bg-input)',
               border: showAdvanced ? '1px solid var(--color-accent-solid)' : '1px solid var(--border-medium)',
-              color: showAdvanced ? '#fff' : 'var(--text-primary)'
+              color: showAdvanced ? 'var(--text-on-solid)' : 'var(--text-primary)'
             }}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -435,7 +435,7 @@ export default function OwnerAuditLogs() {
               )}
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold" style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--color-accent)' }}>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold" style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)' }}>
               <span>Searching all logs across all history</span>
             </div>
           )}

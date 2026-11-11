@@ -275,7 +275,7 @@ export default function WorkerPriceCheck() {
                       </span>
                     )}
                     {scannedItem.activeBatch && (
-                      <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                      <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-[var(--color-purple-bg)] text-[var(--color-purple)] border border-[var(--color-purple-border)]">
                         Batch #{String(scannedItem.activeBatch.batch_number).padStart(2, '0')}
                       </span>
                     )}
@@ -328,13 +328,13 @@ export default function WorkerPriceCheck() {
                         {isWarehouseDisabled ? 'Current Stock' : 'Store'}
                       </span>
                       <div className="flex items-baseline gap-1.5 my-2">
-                        <span className={`text-3xl md:text-5xl font-black ${Number(storeStock) < STORE_LOW_STOCK_THRESHOLD ? 'text-amber-500' : 'text-[var(--text-primary)]'}`}>
+                        <span className={`text-3xl md:text-5xl font-black ${Number(storeStock) < STORE_LOW_STOCK_THRESHOLD ? 'text-[var(--color-warning)]' : 'text-[var(--text-primary)]'}`}>
                           {storeStock}
                         </span>
                         <span className="text-xs font-semibold text-[var(--text-tertiary)]">{displayUnit || 'pcs'}</span>
                       </div>
                       {Number(storeStock) < STORE_LOW_STOCK_THRESHOLD ? (
-                        <span className="text-xs font-bold text-amber-500 flex items-center gap-1">
+                        <span className="text-xs font-bold text-[var(--color-warning)] flex items-center gap-1">
                           <AlertTriangle size={11} /> Low stock
                         </span>
                       ) : (
@@ -349,13 +349,13 @@ export default function WorkerPriceCheck() {
                           Warehouse
                         </span>
                         <div className="flex items-baseline gap-1.5 my-2">
-                          <span className={`text-3xl md:text-5xl font-black ${Number(whseStock) < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'text-amber-500' : 'text-[var(--text-primary)]'}`}>
+                          <span className={`text-3xl md:text-5xl font-black ${Number(whseStock) < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'text-[var(--color-warning)]' : 'text-[var(--text-primary)]'}`}>
                             {whseStock}
                           </span>
                           <span className="text-xs font-semibold text-[var(--text-tertiary)]">{displayUnit || 'pcs'}</span>
                         </div>
                         {Number(whseStock) < WAREHOUSE_LOW_STOCK_THRESHOLD ? (
-                          <span className="text-xs font-bold text-amber-500 flex items-center gap-1">
+                          <span className="text-xs font-bold text-[var(--color-warning)] flex items-center gap-1">
                             <AlertTriangle size={11} /> Low stock
                           </span>
                         ) : (
@@ -393,8 +393,8 @@ export default function WorkerPriceCheck() {
                 <p className="text-xs text-[var(--text-secondary)] mt-1">Point camera at barcode to look up stock & price</p>
               </div>
               {isScanning && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-[var(--color-success-bg)] text-[var(--color-success)] border border-[var(--color-success-border)]">
+                  <span className="w-2 h-2 rounded-full bg-[var(--color-success)] animate-pulse"></span>
                   Scanning
                 </span>
               )}
@@ -409,7 +409,7 @@ export default function WorkerPriceCheck() {
                 `}</style>
                 <div id="price-check-reader" className="w-full flex justify-center"></div>
                 <div className="mt-2.5 py-1 text-center text-xs text-white/80 font-medium flex items-center justify-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span className="w-2 h-2 rounded-full bg-[var(--color-success)] animate-pulse"></span>
                   Align barcode within camera view
                 </div>
               </div>

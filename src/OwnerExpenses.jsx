@@ -345,7 +345,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
           {totalExpenses > 0 && (
             <div 
               className="h-10 px-3 sm:px-4 rounded-lg border flex flex-col justify-center text-center shrink-0" 
-              style={{ backgroundColor: 'var(--color-accent-bg)', borderColor: 'rgba(59, 130, 246, 0.3)' }}
+              style={{ backgroundColor: 'var(--color-accent-bg)', borderColor: 'var(--color-accent-border)' }}
             >
               <span className="text-[11px] sm:text-[11px] font-bold uppercase tracking-wider leading-none" style={{ color: 'var(--color-accent)' }}>Total Expenses</span>
               <span className="text-xs sm:text-sm font-bold leading-tight mt-0.5 tabular-nums" style={{ color: 'var(--color-accent)' }}>₹{formatINR(totalExpenses, 2)}</span>

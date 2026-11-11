@@ -9,6 +9,14 @@ export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }
   const [qty, setQty] = useState(10);
   const [isPrinting, setIsPrinting] = useState(false);
 
+  // Esc closes, like every other popup
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
   if (!isOpen || !item || !selectedBatch) return null;
 
   const batchNumberStr = String(selectedBatch.batch_number || 1).padStart(2, '0');
@@ -25,7 +33,7 @@ export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[600] px-4 print:hidden animate-fade-in">
+      <div className="fixed inset-0 bg-[var(--overlay-bg)] flex items-center justify-center z-[10600] px-4 print:hidden animate-fade-in">
         <div className="w-[90%] max-w-[450px] rounded-xl overflow-hidden flex flex-col shadow-2xl bg-[var(--bg-secondary)] border border-[var(--border-light)]">
           <div className="flex justify-between items-center px-5 py-3 border-b border-[var(--border-light)]">
             <h2 className="text-sm font-bold text-[var(--text-primary)]">Print Labels: {item.name}</h2>

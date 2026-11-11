@@ -277,7 +277,7 @@ export default function OwnerCategories() {
                         <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{sub.name}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDeleteSubcategory(sub.name, sub.name, sub.category_name); }}
-                          className="p-1.5 rounded-sm transition-colors text-[var(--color-error)] hover:bg-red-500/10 focus:outline-none"
+                          className="p-1.5 rounded-sm transition-colors text-[var(--color-error)] hover:bg-[var(--color-error-bg)] focus:outline-none"
                           aria-label={`Delete subcategory ${sub.name}`} title={`Delete subcategory ${sub.name}`}
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
@@ -359,7 +359,7 @@ export default function OwnerCategories() {
                                       className="p-1.5 rounded-sm transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100"
                                       style={{ color: 'var(--text-tertiary)' }}
                                       onMouseEnter={(e) => {
-                                        e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                                        e.currentTarget.style.backgroundColor = 'var(--color-error-bg)';
                                         e.currentTarget.style.color = 'var(--color-error)';
                                       }}
                                       onMouseLeave={(e) => {

@@ -13,7 +13,7 @@ const VARIANTS = {
   primary: 'text-white bg-[var(--color-accent-solid)] hover:bg-[var(--color-accent-solid-hover)] border border-transparent',
   success: 'text-white bg-[var(--color-success-solid)] hover:bg-[var(--color-success-solid-hover)] border border-transparent',
   danger: 'text-white bg-[var(--color-error-solid)] hover:bg-[var(--color-error-solid-hover)] border border-transparent',
-  warning: 'text-black bg-[var(--color-warning)] hover:brightness-95 border border-transparent',
+  warning: 'text-[var(--color-warning-on-solid)] bg-[var(--color-warning-solid)] hover:brightness-95 border border-transparent',
   secondary: 'text-[var(--text-primary)] bg-transparent border border-[var(--border-medium)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-heavy)]',
   ghost: 'text-[var(--text-secondary)] bg-transparent border border-transparent hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
   'danger-outline': 'text-[var(--color-error)] bg-transparent border border-[var(--color-error)]/50 hover:bg-[var(--color-error-bg)]',

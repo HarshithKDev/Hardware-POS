@@ -244,7 +244,7 @@ function TopProductsList({ products }) {
         {products.length === 0 ? (
           <li className="text-sm py-4 text-center" style={{ color: 'var(--text-tertiary)' }}>Not enough data.</li>
         ) : products.map((p, idx) => (
-          <li key={p.name} className="py-1.5 sm:py-2 flex justify-between items-center hover:bg-white/[0.02] px-1 rounded transition-colors">
+          <li key={p.name} className="py-1.5 sm:py-2 flex justify-between items-center hover:bg-[var(--bg-hover)] px-1 rounded transition-colors">
             <div className="flex items-center gap-2.5 overflow-hidden pr-2 min-w-0">
               <span className="text-xs font-bold w-5 shrink-0 text-right" style={{ color: 'var(--text-tertiary)' }}>{idx + 1}.</span>
               <span className="text-xs sm:text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }} title={p.name}>{p.name}</span>
@@ -463,7 +463,7 @@ function DashboardDateFilter({
               className={`py-1.5 px-2 rounded-md transition-all cursor-pointer text-center ${activeTab === 'today' ? 'shadow-sm text-white' : 'hover:text-[var(--text-primary)]'}`}
               style={{
                 backgroundColor: activeTab === 'today' ? 'var(--color-accent-solid)' : 'transparent',
-                color: activeTab === 'today' ? '#ffffff' : 'var(--text-secondary)',
+                color: activeTab === 'today' ? 'var(--text-on-solid)' : 'var(--text-secondary)',
               }}
             >
               Today
@@ -474,7 +474,7 @@ function DashboardDateFilter({
               className={`py-1.5 px-2 rounded-md transition-all cursor-pointer text-center ${activeTab === 'date' ? 'shadow-sm text-white' : 'hover:text-[var(--text-primary)]'}`}
               style={{
                 backgroundColor: activeTab === 'date' ? 'var(--color-accent-solid)' : 'transparent',
-                color: activeTab === 'date' ? '#ffffff' : 'var(--text-secondary)',
+                color: activeTab === 'date' ? 'var(--text-on-solid)' : 'var(--text-secondary)',
               }}
             >
               Choose Date
@@ -485,7 +485,7 @@ function DashboardDateFilter({
               className={`py-1.5 px-2 rounded-md transition-all cursor-pointer text-center ${activeTab === 'range' ? 'shadow-sm text-white' : 'hover:text-[var(--text-primary)]'}`}
               style={{
                 backgroundColor: activeTab === 'range' ? 'var(--color-accent-solid)' : 'transparent',
-                color: activeTab === 'range' ? '#ffffff' : 'var(--text-secondary)',
+                color: activeTab === 'range' ? 'var(--text-on-solid)' : 'var(--text-secondary)',
               }}
             >
               Date Range
@@ -572,10 +572,10 @@ function DashboardDateFilter({
                   let borderRadius = 'rounded-md';
 
                   if (isSelected) {
-                    cellBg = 'var(--color-accent)';
-                    cellColor = '#ffffff';
+                    cellBg = 'var(--color-accent-solid)';
+                    cellColor = 'var(--text-on-solid)';
                   } else if (isInRange) {
-                    cellBg = 'rgba(59, 130, 246, 0.2)';
+                    cellBg = 'var(--color-accent-border)';
                     cellColor = 'var(--text-primary)';
                     borderRadius = isRangeStart ? 'rounded-l-md' : isRangeEnd ? 'rounded-r-md' : 'rounded-none';
                   }
@@ -1336,7 +1336,7 @@ export default function OwnerStats({ isActive }) {
       {/* MODALS */}
       {activeModal && createPortal(
         <div
-          className="fixed inset-0 flex items-center justify-center z-[10001] p-4 sm:p-6 md:p-8 bg-black/75 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 flex items-center justify-center z-[10001] p-4 sm:p-6 md:p-8 bg-[var(--overlay-bg)] backdrop-blur-sm animate-fade-in"
           onClick={() => setActiveModal(null)}
           role="dialog"
           aria-modal="true"
@@ -1402,7 +1402,7 @@ export default function OwnerStats({ isActive }) {
                           <div key={idx} className="p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-light)] shadow-sm space-y-2">
                             <div className="flex items-start justify-between gap-2">
                               <span className="font-semibold text-sm text-[var(--text-primary)] leading-tight">{item.name}</span>
-                              <span className="text-xs font-bold text-[var(--color-success)] tabular-nums bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                              <span className="text-xs font-bold text-[var(--color-success)] tabular-nums bg-[var(--color-success-bg)] px-2 py-0.5 rounded border border-[var(--color-success-border)]">
                                 +₹{formatINR(item.lineProfit, 2)}
                               </span>
                             </div>
@@ -1463,7 +1463,7 @@ export default function OwnerStats({ isActive }) {
                   {/* MOBILE STOCK CARD VIEW */}
                   <div className="block md:hidden divide-y divide-[var(--border-medium)] p-2.5 space-y-2">
                     {activeModal === 'low-store' && lowStoreItems.length === 0 && (
-                      <div className="h-48 flex items-center justify-center text-sm font-semibold text-emerald-400">
+                      <div className="h-48 flex items-center justify-center text-sm font-semibold text-[var(--color-success)]">
                         Nothing in low stock.
                       </div>
                     )}
@@ -1480,16 +1480,16 @@ export default function OwnerStats({ isActive }) {
                             <span className="text-[11px] text-[var(--text-secondary)] uppercase block">Min Alert</span>
                             <span className="font-bold text-[var(--text-tertiary)] tabular-nums">{item.min_quantity_store ?? 10} {item.unit || 'PCS'}</span>
                           </div>
-                          <div className="bg-red-500/10 border border-red-500/20 p-1.5 rounded">
-                            <span className="text-[11px] text-red-400 uppercase block font-semibold">Current Stock</span>
-                            <span className="font-bold text-red-400 tabular-nums">{item.stock_store} {item.unit || 'PCS'}</span>
+                          <div className="bg-[var(--color-error-bg)] border border-[var(--color-error-border)] p-1.5 rounded">
+                            <span className="text-[11px] text-[var(--color-error)] uppercase block font-semibold">Current Stock</span>
+                            <span className="font-bold text-[var(--color-error)] tabular-nums">{item.stock_store} {item.unit || 'PCS'}</span>
                           </div>
                         </div>
                       </div>
                     ))}
 
                     {activeModal === 'low-warehouse' && lowWarehouseItems.length === 0 && (
-                      <div className="h-48 flex items-center justify-center text-sm font-semibold text-emerald-400">
+                      <div className="h-48 flex items-center justify-center text-sm font-semibold text-[var(--color-success)]">
                         Nothing in low stock.
                       </div>
                     )}
@@ -1506,16 +1506,16 @@ export default function OwnerStats({ isActive }) {
                             <span className="text-[11px] text-[var(--text-secondary)] uppercase block">Min Alert</span>
                             <span className="font-bold text-[var(--text-tertiary)] tabular-nums">{item.min_quantity_warehouse ?? 50} {item.unit || 'PCS'}</span>
                           </div>
-                          <div className="bg-red-500/10 border border-red-500/20 p-1.5 rounded">
-                            <span className="text-[11px] text-red-400 uppercase block font-semibold">Current Whse</span>
-                            <span className="font-bold text-red-400 tabular-nums">{item.stock_warehouse} {item.unit || 'PCS'}</span>
+                          <div className="bg-[var(--color-error-bg)] border border-[var(--color-error-border)] p-1.5 rounded">
+                            <span className="text-[11px] text-[var(--color-error)] uppercase block font-semibold">Current Whse</span>
+                            <span className="font-bold text-[var(--color-error)] tabular-nums">{item.stock_warehouse} {item.unit || 'PCS'}</span>
                           </div>
                         </div>
                       </div>
                     ))}
 
                     {activeModal === 'dead-stock' && deadStockItems.length === 0 && (
-                      <div className="h-48 flex items-center justify-center text-sm font-semibold text-emerald-400 text-center px-4">
+                      <div className="h-48 flex items-center justify-center text-sm font-semibold text-[var(--color-success)] text-center px-4">
                         Great job! All your stock is active and moving.
                       </div>
                     )}
@@ -1530,11 +1530,11 @@ export default function OwnerStats({ isActive }) {
                         <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[var(--border-medium)] text-center text-xs">
                           <div className="bg-[var(--bg-tertiary)]/50 p-1.5 rounded">
                             <span className="text-[11px] text-[var(--text-secondary)] uppercase block">Locked Qty</span>
-                            <span className="font-bold text-amber-400 tabular-nums">{item.totalQty}</span>
+                            <span className="font-bold text-[var(--color-warning)] tabular-nums">{item.totalQty}</span>
                           </div>
-                          <div className="bg-red-500/10 border border-red-500/20 p-1.5 rounded">
-                            <span className="text-[11px] text-red-400 uppercase block font-semibold">Capital Tied Up</span>
-                            <span className="font-bold text-red-400 tabular-nums">₹{formatINR(item.deadValue, 2)}</span>
+                          <div className="bg-[var(--color-error-bg)] border border-[var(--color-error-border)] p-1.5 rounded">
+                            <span className="text-[11px] text-[var(--color-error)] uppercase block font-semibold">Capital Tied Up</span>
+                            <span className="font-bold text-[var(--color-error)] tabular-nums">₹{formatINR(item.deadValue, 2)}</span>
                           </div>
                         </div>
                       </div>
