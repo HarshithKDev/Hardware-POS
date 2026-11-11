@@ -126,7 +126,7 @@ function StatCard({ title, value, accentColor, borderColor, onClick, clickLabel,
     : valLen > 9
       ? 'text-lg sm:text-xl xl:text-2xl'
       : valLen > 6
-        ? 'text-xl sm:text-2xl'
+        ? 'text-xl sm:text-2xl 2xl:text-3xl'
         : 'text-2xl sm:text-3xl 2xl:text-4xl';
 
   return (
@@ -1283,10 +1283,8 @@ export default function OwnerStats({ isActive }) {
       )}
 
       {/* ROW 1: TODAY'S VITALS */}
-      <div className={`grid grid-cols-2 md:grid-cols-4 ${isWarehouseDisabled ? '2xl:grid-cols-7' : '2xl:grid-cols-8'} gap-3 lg:gap-4 mb-4 shrink-0`}>
+      <div className={`grid grid-cols-2 md:grid-cols-3 ${isWarehouseDisabled ? '2xl:grid-cols-5' : '2xl:grid-cols-6'} gap-3 lg:gap-4 mb-4 shrink-0`}>
         <StatCard title="Revenue" value={`₹${formatINR(tfTrueRevenue, 2)}`} borderColor="var(--color-success)" />
-        <StatCard title="Cash" value={`₹${formatINR(tfCash, 2)}`} borderColor="var(--color-success)" />
-        <StatCard title="UPI" value={`₹${formatINR(tfUpi, 2)}`} borderColor="var(--color-accent)" />
         <StatCard
           title="Profit"
           value={`₹${formatINR(tfGrossProfit, 2)}`}
@@ -1318,8 +1316,6 @@ export default function OwnerStats({ isActive }) {
         )}
         <StatCard
           title="Dead Stock Value"
-          // 7 boxes: widen the last one so the 4-per-row layout has no empty slot
-          className={isWarehouseDisabled ? 'col-span-2 2xl:col-span-1' : ''}
           value={`₹${formatINR(deadStockValue, 0)}`}
           borderColor={deadStockValue > DEAD_STOCK_ALARM_VALUE ? 'var(--color-error)' : 'var(--color-warning)'}
           onClick={() => setActiveModal('dead-stock')}
@@ -1336,13 +1332,22 @@ export default function OwnerStats({ isActive }) {
         <TopProductsList products={topProducts} />
       </div>
 
-      {/* ROW 3: CAPITAL */}
+      {/* ROW 3: MONEY RECEIVED (for the chosen period) + CAPITAL */}
       {isWarehouseDisabled ? (
         // Without a warehouse, all stock is in the store, so asset value and stock capital are the same figure
-        <div className="grid grid-cols-1 gap-3 lg:gap-4 shrink-0">
-          <StatCard title="Stock Capital (Total Asset Value)" value={`₹${formatINR(totalInventoryValue, 2)}`} borderColor="var(--text-tertiary)" />
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 lg:gap-4 shrink-0">
+          <StatCard title="Cash Received" value={`₹${formatINR(tfCash, 2)}`} borderColor="var(--color-success)" />
+          <StatCard title="UPI Received" value={`₹${formatINR(tfUpi, 2)}`} borderColor="var(--color-accent)" />
+          <div className="col-span-2 md:col-span-1">
+            <StatCard title="Stock Capital (Total Asset Value)" value={`₹${formatINR(totalInventoryValue, 2)}`} borderColor="var(--text-tertiary)" />
+          </div>
         </div>
       ) : (
+        <>
+        <div className="grid grid-cols-2 gap-3 lg:gap-4 mb-4 shrink-0">
+          <StatCard title="Cash Received" value={`₹${formatINR(tfCash, 2)}`} borderColor="var(--color-success)" />
+          <StatCard title="UPI Received" value={`₹${formatINR(tfUpi, 2)}`} borderColor="var(--color-accent)" />
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 lg:gap-4 shrink-0">
           <StatCard title="Total Asset Value" value={`₹${formatINR(totalInventoryValue, 2)}`} borderColor="var(--text-tertiary)" />
           <StatCard title="Warehouse Capital" value={`₹${formatINR(warehouseCapital, 2)}`} borderColor="var(--color-accent)" />
@@ -1350,6 +1355,7 @@ export default function OwnerStats({ isActive }) {
             <StatCard title="Store Capital" value={`₹${formatINR(storeCapital, 2)}`} borderColor="var(--color-accent)" />
           </div>
         </div>
+        </>
       )}
 
       {/* MODALS */}

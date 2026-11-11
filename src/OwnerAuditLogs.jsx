@@ -8,6 +8,7 @@ import { useApp } from './AppContext';
 import { X, Calendar } from 'lucide-react';
 import PageTitleReset from './components/PageTitleReset';
 import { buttonClass, DateField, TableSkeleton } from './components/ui';
+import { groupTransactionLogs } from './services/auditGrouping';
 
 /** Every action that is written to the audit log, with a plain name for the filter. */
 const ACTION_LABELS = {
@@ -316,6 +317,9 @@ export default function OwnerAuditLogs() {
         const actionType = (log.action_type === 'RECEIVE' || log.action_type === 'STOCK_IN') ? 'STOCK IN' : log.action_type;
         return {
           id: `audit-${log.id}`,
+          created_at: log.created_at,
+          rawChanges: log.changes,
+          unit: unitMap[log.barcode],
           timestamp: new Date(log.created_at).getTime(),
           date: formatDateTime(log.created_at).full,
           action_type: actionType,
@@ -332,7 +336,8 @@ export default function OwnerAuditLogs() {
       });
 
       return {
-        logs: normalizedAudit,
+        // one row per sale / showroom dispatch instead of one per item
+        logs: groupTransactionLogs(normalizedAudit),
         totalCount: count !== null && count !== undefined ? count : normalizedAudit.length
       };
     },
@@ -352,7 +357,7 @@ export default function OwnerAuditLogs() {
 
   const filteredLogs = useMemo(() => {
     return rawLogs.filter(log => {
-      if (activeFilter !== 'ALL' && log.action_type !== activeFilter) return false;
+      if (activeFilter !== 'ALL' && !(log.actions || [log.action_type]).includes(activeFilter)) return false;
       if (selectedUser !== 'ALL' && log.performed_by !== selectedUser) return false;
       return true;
     });
@@ -550,7 +555,7 @@ export default function OwnerAuditLogs() {
                     <div className="flex justify-between items-start mb-2 gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold tracking-widest text-[var(--color-accent)] mb-1">
-                          {log.barcode === 'CATEGORY' || log.barcode === 'SUB-CATEGORY' || log.barcode === '---' ? <span style={{ color: 'var(--text-tertiary)' }}>—</span> : log.barcode}
+                          {log.barcodeLabel ? <span style={{ color: 'var(--text-secondary)' }}>{log.barcodeLabel}</span> : log.barcode === 'CATEGORY' || log.barcode === 'SUB-CATEGORY' || log.barcode === '---' ? <span style={{ color: 'var(--text-tertiary)' }}>—</span> : log.barcode}
                         </div>
                         <div className="text-sm font-bold text-[var(--text-primary)] leading-tight whitespace-normal break-words">{log.item_name}</div>
                         <div className="text-xs text-[var(--text-secondary)] mt-1">{log.date}</div>
@@ -585,10 +590,10 @@ export default function OwnerAuditLogs() {
                     </span>
                   </td>
                   <td className="hidden md:table-cell p-3 w-24 text-sm font-bold text-center" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--color-accent)' }}>
-                    {log.barcode === 'CATEGORY' || log.barcode === 'SUB-CATEGORY' || log.barcode === '---' ? <span style={{ color: 'var(--text-tertiary)' }}>—</span> : log.barcode}
+                    {log.barcodeLabel ? <span style={{ color: 'var(--text-secondary)' }}>{log.barcodeLabel}</span> : log.barcode === 'CATEGORY' || log.barcode === 'SUB-CATEGORY' || log.barcode === '---' ? <span style={{ color: 'var(--text-tertiary)' }}>—</span> : log.barcode}
                   </td>
                   <td className="hidden md:table-cell p-3 w-64 text-sm font-medium text-center" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
-                    <div title={String(log.item_name ?? '')} className="max-w-[220px] overflow-hidden text-ellipsis mx-auto">{log.item_name}</div>
+                    <div title={String(log.item_name ?? '')} className={`max-w-[220px] overflow-hidden text-ellipsis mx-auto ${log.grouped ? 'line-clamp-2' : ''}`}>{log.item_name}</div>
                   </td>
                   <td className="hidden md:table-cell p-3 text-sm text-center whitespace-normal" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
                     <div className="flex flex-col items-center gap-1 max-w-[560px] mx-auto">
