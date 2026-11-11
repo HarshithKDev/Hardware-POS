@@ -5,6 +5,7 @@ import { formatINR } from '../../utils';
 import { useCart } from '../../contexts/CartContext';
 import { useApp } from '../../AppContext';
 import { formatUnitBadge } from './CartTable';
+import useScanFlash, { scanFlashClass } from './useScanFlash';
 
 const CartMobileView = React.memo(function CartMobileView({ 
   activeTab, 
@@ -20,6 +21,7 @@ const CartMobileView = React.memo(function CartMobileView({
 }) {
   const { cart, activeCartTab, cancelHeldCart, switchCartTab } = useCart();
   const { userRole } = useApp();
+  const scanFlash = useScanFlash(cart, activeCartTab);
   if (cart.length === 0) {
     if (activeCartTab && activeCartTab.startsWith('held_')) {
       return (
@@ -58,7 +60,7 @@ const CartMobileView = React.memo(function CartMobileView({
 
   if (activeTab === 'receive' || activeTab === 'transfer') {
     return cart.map((item) => (
-      <div key={item.id} className="p-5 flex flex-col shadow-md rounded-lg animate-fade-in" style={{ backgroundColor: 'var(--bg-secondary)', border: '2px solid var(--border-medium)' }}>
+      <div key={item.id} className={`p-5 flex flex-col shadow-md rounded-lg animate-fade-in ${scanFlashClass(scanFlash, item.id)}`} style={{ backgroundColor: 'var(--bg-secondary)', border: '2px solid var(--border-medium)' }}>
         <div className="flex justify-between items-start mb-4 gap-4">
           <div className="flex flex-col flex-1">
             <span className="font-bold text-xl leading-tight" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
@@ -111,7 +113,7 @@ const CartMobileView = React.memo(function CartMobileView({
     const safeQty = item.quantity === '' ? 0 : Number(item.quantity);
     const sellPrice = item.customPriceInput !== undefined && item.customPriceInput !== '' ? Number(item.customPriceInput) : Number(item.price || 0);
     return (
-      <div key={item.id} className="p-4 flex flex-col gap-3 animate-fade-in" style={{ borderBottom: '1px solid var(--border-light)' }}>
+      <div key={item.id} className={`p-4 flex flex-col gap-3 animate-fade-in ${scanFlashClass(scanFlash, item.id)}`} style={{ borderBottom: '1px solid var(--border-light)' }}>
         <div className="flex justify-between items-start">
           <div className="pr-2 flex-1">
             <div className="flex justify-between items-start w-full">

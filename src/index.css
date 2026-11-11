@@ -863,3 +863,17 @@ input[type="radio"]:focus-visible,
   outline: none !important;
   box-shadow: var(--focus-ring) !important;
 }
+
+/* ---------------------------------------------------------------
+   Counter: brief green flash on the cart row that was just scanned
+   --------------------------------------------------------------- */
+@keyframes scanFlashA {
+  0% { background-color: rgba(34, 197, 94, 0.28); }
+  100% { background-color: transparent; }
+}
+@keyframes scanFlashB {
+  0% { background-color: rgba(34, 197, 94, 0.28); }
+  100% { background-color: transparent; }
+}
+.scan-flash-a { animation: scanFlashA 0.9s ease-out; }
+.scan-flash-b { animation: scanFlashB 0.9s ease-out; }

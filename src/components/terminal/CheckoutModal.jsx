@@ -260,7 +260,7 @@ export default function CheckoutModal({
                   {isChange && (
                     <div className="mt-3 p-3 rounded-md flex items-center justify-between animate-fade-in" style={{ backgroundColor: 'var(--color-success-bg)', border: '1px solid var(--color-success)' }}>
                       <div className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-success)' }}>Change to Return:</div>
-                      <div className="text-2xl font-bold tabular-nums" style={{ color: 'var(--color-success)' }}>
+                      <div className="text-3xl font-bold tabular-nums" style={{ color: 'var(--color-success)' }}>
                         ₹{formatINR((numCashGiven - activeTotal), 2)}
                       </div>
                     </div>

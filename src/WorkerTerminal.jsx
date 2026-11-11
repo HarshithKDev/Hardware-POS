@@ -30,6 +30,7 @@ import {
   CuttableQuantityModal
 } from './components/terminal';
 import { broadcastStockUpdate, subscribeToStockUpdates } from './services/realtimeStock';
+import { buttonClass } from './components/ui';
 
 // Dynamic smart denomination suggestions for rapid cash checkout
 function getQuickTenderOptions(total) {
@@ -2564,10 +2565,15 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             </div>
           </div>
           <div className="text-left md:text-right flex flex-col justify-end pt-2 md:pt-0 border-t border-[var(--border-light)] md:border-t-0 shrink-0">
-            <span className="text-xs uppercase font-semibold tracking-wider block mb-1" style={{ color: 'var(--text-tertiary)' }}>{activeTab === 'checkout' ? 'Total Price' : 'Total Units'}</span>
-            <span className="text-3xl md:text-4xl font-light" style={{ color: 'var(--color-accent)' }} aria-live="polite">
+            <span className="text-xs uppercase font-semibold tracking-wider block mb-1" style={{ color: 'var(--text-secondary)' }}>{activeTab === 'checkout' ? 'Total Price' : 'Total Units'}</span>
+            <span className="text-4xl md:text-5xl font-bold tabular-nums leading-none" style={{ color: 'var(--color-accent)' }} aria-live="polite">
               {activeTab === 'checkout' ? `₹${formatINR(cartTotal, 2)}` : cartUnits}
             </span>
+            {activeTab === 'checkout' && cart.length > 0 && (
+              <span className="text-xs mt-1.5 tabular-nums" style={{ color: 'var(--text-secondary)' }}>
+                {cart.length} {cart.length === 1 ? 'item' : 'items'}
+              </span>
+            )}
           </div>
         </div>
 
@@ -2663,8 +2669,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                 <button
                   type="button"
                   onClick={() => showConfirm("Clear all items?", handleCancelSale, activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items', 'Clear', 'Cancel', true)}
-                  className="flex-1 sm:flex-none min-h-[40px] md:h-10 px-4 md:px-5 text-sm font-semibold focus:outline-none rounded-md flex items-center justify-center gap-2 transition-all active:scale-95"
-                  style={{ backgroundColor: 'transparent', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
+                  className={buttonClass({ variant: 'danger-outline', size: 'lg', className: 'flex-1 sm:flex-none' })}
+                  title="Shortcut: F8"
                 >
                   <span>{activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items'}</span>
                 </button>
@@ -2672,8 +2678,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               {activeTab === 'checkout' && activeCartTab === 'local' && (
                 <button
                   onClick={handleHoldCart}
-                  className="flex-1 sm:flex-none min-h-[40px] md:h-10 px-4 md:px-5 text-sm font-semibold focus:outline-none rounded-md flex items-center justify-center gap-2"
-                  style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--color-accent)', border: '1px solid var(--color-accent)' }}
+                  className={buttonClass({ variant: 'secondary', size: 'lg', className: 'flex-1 sm:flex-none' })}
+                  title="Shortcut: F7"
                 >
                   <span>Hold Cart</span>
                 </button>
@@ -2681,10 +2687,11 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             </div>
             <button
               onClick={() => activeTab === 'checkout' ? handleOpenCheckoutModal() : handleCompleteTransaction()}
-              className="w-full sm:w-auto min-h-[40px] md:h-10 px-6 md:px-8 text-white text-sm font-semibold focus:outline-none rounded-md focus:ring-2 focus:ring-offset-1 flex justify-center items-center gap-2"
-              style={{ backgroundColor: 'var(--color-accent-solid)', border: '1px solid transparent' }}
+              className={buttonClass({ variant: 'primary', size: 'lg', className: 'w-full sm:w-auto sm:min-w-[200px] text-lg' })}
+              title={activeTab === 'checkout' ? 'Shortcut: F4 or Space' : 'Shortcut: F4'}
             >
               <span>{isCheckingOut ? 'Saving...' : 'Complete'}</span>
+              <kbd aria-hidden="true" className="hidden md:inline px-1.5 py-0.5 text-[11px] font-mono font-semibold rounded bg-black/25">F4</kbd>
             </button>
           </div>
         )}

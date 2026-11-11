@@ -3,6 +3,7 @@ import { formatINR } from '../../utils';
 
 import { useCart } from '../../contexts/CartContext';
 import { useApp } from '../../AppContext';
+import useScanFlash, { scanFlashClass } from './useScanFlash';
 
 export const formatUnitBadge = (unit) => {
   if (!unit) return 'pcs';
@@ -35,6 +36,7 @@ const CartTable = React.memo(function CartTable({
 }) {
   const { cart, activeCartTab, cancelHeldCart, switchCartTab } = useCart();
   const { userRole } = useApp();
+  const scanFlash = useScanFlash(cart, activeCartTab);
   if (cart.length === 0) {
     if (activeCartTab && activeCartTab.startsWith('held_')) {
       return (
@@ -139,7 +141,7 @@ const CartTable = React.memo(function CartTable({
                   const rIdx = cart.findIndex(c => c.id === item.id);
                   if (rIdx >= 0 && onSelectCartIndex) onSelectCartIndex(rIdx);
                 }}
-                className={`animate-fade-in cursor-pointer transition-colors ${isRowSelected ? 'bg-[var(--bg-hover)]' : ''}`} 
+                className={`animate-fade-in cursor-pointer transition-colors ${isRowSelected ? 'bg-[var(--bg-hover)]' : ''} ${scanFlashClass(scanFlash, item.id)}`} 
                 style={{ 
                   borderBottom: '1px solid var(--border-medium)'
                 }}
