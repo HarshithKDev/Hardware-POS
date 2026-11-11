@@ -262,7 +262,7 @@ New finding while fixing: in the mobile scanner, editing a quantity changed only
 ## Database security review (2026-11-11)
 
 Based on `supabase/diagnostics/security_check.sql` output from the live project.
-Fix: `supabase/migrations/20261111_security_hardening.sql` (tested on a local copy that
+Fix: `supabase/migrations/20261111_security_hardening.sql` — **applied to the live database on 2026-11-11** (0 expenses left without a shop). Tested first on a local copy that
 reproduces the live rules: before → after for logged-out visitors, staff and owner).
 
 | # | Finding (live) | Fix |
