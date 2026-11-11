@@ -10,6 +10,43 @@
     <link rel="dns-prefetch" href="https://nxwevtgekjsakjqbbkcr.supabase.co" />
     <link rel="manifest" id="app-manifest" href="/manifest.json" />
     <title>hardware-pos</title>
+    <script>
+      // Safety net for deployments: if the app's main file can't be loaded (an old cached
+      // page asking for a file from the previous version), clear the offline cache and
+      // reload once. Never loops: a second failure in the same tab shows a reload button.
+      (function () {
+        var KEY = 'pos_boot_recovery';
+        function recover() {
+          if (window.__posBooted) return;
+          if (sessionStorage.getItem(KEY)) {
+            var root = document.getElementById('root');
+            if (root && !root.firstChild) {
+              root.innerHTML = '<div style="font-family:sans-serif;color:#fafafa;background:#0a0a0a;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center">' +
+                '<p style="font-size:16px;margin:0">The app could not load the latest version.</p>' +
+                '<button onclick="sessionStorage.removeItem(\'' + KEY + '\');location.reload()" style="height:44px;padding:0 20px;border-radius:6px;border:0;background:#2563EB;color:#fff;font-size:15px;font-weight:600;cursor:pointer">Reload</button></div>';
+            }
+            return;
+          }
+          sessionStorage.setItem(KEY, '1');
+          var jobs = [];
+          if ('serviceWorker' in navigator) {
+            jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+              return Promise.all(rs.map(function (r) { return r.unregister(); }));
+            }).catch(function () {}));
+          }
+          if (window.caches && caches.keys) {
+            jobs.push(caches.keys().then(function (ks) {
+              return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+            }).catch(function () {}));
+          }
+          Promise.all(jobs).then(function () { location.reload(); });
+        }
+        window.addEventListener('error', function (e) {
+          var t = e && e.target;
+          if (t && t.tagName === 'SCRIPT' && t.type === 'module') recover();
+        }, true);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

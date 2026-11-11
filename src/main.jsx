@@ -55,6 +55,21 @@ if (window.location.hostname === 'localhost' || window.location.hostname === '12
   });
 }
 
+// The app started: tell the safety net in index.html, and allow a future recovery again.
+window.__posBooted = true;
+try { sessionStorage.removeItem('pos_boot_recovery'); } catch { /* ignore */ }
+
+// A lazily loaded part of the app from the previous version is gone after a deploy:
+// reload once to get the new version (guarded so it can't loop).
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault();
+  try {
+    if (sessionStorage.getItem('pos_chunk_reload')) return;
+    sessionStorage.setItem('pos_chunk_reload', '1');
+  } catch { /* ignore */ }
+  if (!isCriticalWorkInProgress()) window.location.reload();
+});
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
