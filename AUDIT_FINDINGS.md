@@ -256,3 +256,29 @@ Legend: ✅ fixed · 🟡 partly fixed in the app, rest needs the database · �
 | EX5 | ✅ | Profit view shows expenses and profit after expenses. |
 
 New finding while fixing: in the mobile scanner, editing a quantity changed only the display for cut-length items while the sale deducted the old amount — fixed.
+
+---
+
+## Database security review (2026-11-11)
+
+Based on `supabase/diagnostics/security_check.sql` output from the live project.
+Fix: `supabase/migrations/20261111_security_hardening.sql` (tested on a local copy that
+reproduces the live rules: before → after for logged-out visitors, staff and owner).
+
+| # | Finding (live) | Fix |
+|---|---|---|
+| S-1 | `expenses` had "Allow all" for everyone, including logged-out visitors | Own-shop rule; old expenses without a shop attached when there is one shop |
+| S-2 | `product_master_public` / `inventory_batches_public` views bypassed shop rules (readable logged-out) | `security_invoker = true`; no logged-out access |
+| S-3 | Staff table fully readable by logged-out visitors and other shops (emails, billable flag) | Logged-out: names only (login dropdown); signed-in: own shop |
+| S-4 | Staff could update `shop_settings` (incl. owner email → owner takeover) | Only the owner (admin email) can update |
+| S-5 | Staff could edit `workers` (e.g. make themselves billable) and delete audit logs | Staff table writes owner-only; audit logs insert + read only |
+| S-6 | `returns`, `return_items`, `register_sessions` readable/writable by any signed-in user of any shop | Own shop only |
+| S-7 | All database functions callable by logged-out visitors | Revoked from anon/public; `process_return`, `close_register` locked |
+| S-8 | Any signed-in user could replace/delete any shop's logo | Only the uploader / shop owner |
+| S-9 | TRUNCATE/TRIGGER/REFERENCES and logged-out write grants on all tables | Removed |
+
+Still open (needs moving writes into database functions first):
+- Staff devices can read cost prices from `product_master` / `inventory_batches` directly
+  through the API (the app uses the cost-free views, but the base tables are readable for
+  the own shop), and can change prices/stock or edit bills of their own shop via the API.
+- Staff names (only names) of all shops are visible before login.
