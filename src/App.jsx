@@ -9,8 +9,8 @@ import { startBackgroundSync, stopBackgroundSync } from './services/sync';
 import { startLiveRefresh, stopLiveRefresh } from './services/liveRefresh';
 import { isRoleConsistentWithEmail, isNetworkishError } from './services/roleGuard';
 import { escapeIlike } from './utils';
-import { stripOwnerOnlyDataFromLocalInventory } from './services/db';
-import { WifiOff, ScanBarcode, Moon, Sun, LogOut } from 'lucide-react';
+import { stripOwnerOnlyDataFromLocalInventory, getOfflineQueue } from './services/db';
+import { WifiOff, ScanBarcode, Moon, Sun, LogOut, Wifi, RefreshCw, CloudUpload } from 'lucide-react';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -26,6 +26,7 @@ function App() {
     isDarkMode, toggleDarkMode, setDarkMode,
     alertConfig, showAlert, closeAlert,
     confirmConfig, handleConfirm, closeConfirm,
+    showToast,
   } = useApp();
 
   const [isInitialLoad, setIsInitialLoad] = useState(() => {
@@ -87,8 +88,33 @@ function App() {
 
 
 
+  // Sales saved on this device and not yet sent (shown in the top bar)
+  const [pendingCount, setPendingCount] = useState(0);
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
+    if (!userRole) return undefined;
+    let alive = true;
+    const refresh = () => {
+      getOfflineQueue()
+        .then(q => { if (alive) setPendingCount(q.filter(t => !t.status || t.status === 'pending' || t.status === 'submitting').length); })
+        .catch(() => {});
+    };
+    refresh();
+    const timer = setInterval(refresh, 10000);
+    window.addEventListener('queue_sync_end', refresh);
+    window.addEventListener('online', refresh);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+      window.removeEventListener('queue_sync_end', refresh);
+      window.removeEventListener('online', refresh);
+    };
+  }, [userRole]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      showToast('Back online. Saved sales are being sent.', { tone: 'success', title: 'Online' });
+    };
     const handleOffline = () => setIsOnline(false);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -113,7 +139,7 @@ function App() {
       window.removeEventListener('queue_sync_start', handleSyncStart);
       window.removeEventListener('queue_sync_end', handleSyncEnd);
     };
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
     if (userRole) {
@@ -508,13 +534,15 @@ function App() {
       style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
     >
       {!isOnline && (
-        <div className="w-full bg-[var(--color-error-solid)] text-white font-bold text-sm text-center py-1.5 shadow-sm z-[100] animate-pulse">
-          Offline Mode: Queuing transactions locally
+        <div role="status" className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-center py-1.5 z-[100] print:hidden" style={{ backgroundColor: 'var(--color-warning-bg)', color: 'var(--color-warning)', borderBottom: '1px solid rgba(234, 179, 8, 0.3)' }}>
+          <WifiOff size={15} aria-hidden="true" />
+          <span>Offline: sales are saved on this device and sent when the internet is back.</span>
         </div>
       )}
       {isOnline && isSyncing && (
-        <div className="w-full bg-blue-500 text-white font-bold text-sm text-center py-1.5 shadow-sm z-[100]">
-          Syncing {syncCount} offline transaction{syncCount !== 1 ? 's' : ''} to server...
+        <div role="status" className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-center py-1.5 z-[100] print:hidden" style={{ backgroundColor: 'var(--color-accent-bg)', color: 'var(--color-accent)', borderBottom: '1px solid rgba(59, 130, 246, 0.3)' }}>
+          <RefreshCw size={14} className="animate-spin" aria-hidden="true" />
+          <span>Sending {syncCount} saved sale{syncCount !== 1 ? 's' : ''} to the server…</span>
         </div>
       )}
       {/* SHARED DIALOGS — rendered from context state */}
@@ -569,24 +597,48 @@ function App() {
         aria-label="Main navigation"
       >
         <div className="w-full flex items-center justify-between h-full">
-          <div
-            className="h-full flex items-center justify-center flex-shrink-0 px-3 md:px-0 w-auto md:w-56"
-          >
-            <span
-              className="text-xs md:text-sm font-bold uppercase tracking-wider truncate text-center w-full px-1 md:px-2"
-              style={{ color: 'var(--text-primary)' }}
-            >
-              {cashierName}
-            </span>
+          <div className="h-full flex items-center gap-2.5 flex-shrink-0 min-w-0 px-3 md:px-4 w-auto md:w-56 lg:w-auto">
+            {shopSettings?.logo_url ? (
+              <img src={shopSettings.logo_url} alt="" className="w-7 h-7 md:w-8 md:h-8 rounded-md object-cover shrink-0 border border-[var(--border-light)]" />
+            ) : (
+              <span aria-hidden="true" className="w-7 h-7 md:w-8 md:h-8 rounded-md shrink-0 flex items-center justify-center text-sm font-bold text-white bg-[var(--color-accent-solid)]">
+                {(shopSettings?.shop_name || 'H').trim().charAt(0).toUpperCase()}
+              </span>
+            )}
+            <div className="min-w-0 leading-tight">
+              <p className="text-sm font-semibold truncate max-w-[40vw] md:max-w-[260px]" style={{ color: 'var(--text-primary)' }} title={shopSettings?.shop_name || ''}>
+                {shopSettings?.shop_name || 'Hardware POS'}
+              </p>
+              <p className="text-xs truncate max-w-[40vw] md:max-w-[260px]" style={{ color: 'var(--text-secondary)' }}>
+                {cashierName}{userRole ? ` · ${userRole === 'owner' ? 'Owner' : 'Staff'}` : ''}
+              </p>
+            </div>
           </div>
 
           <div className="flex-1 min-w-0 flex items-center justify-end gap-1.5 md:gap-3 h-full pl-2 pr-2.5 md:pr-4 overflow-x-hidden md:overflow-x-auto hide-scrollbar" style={{ scrollbarWidth: 'none' }}>
-            {!isOnline && (
-              <div className="flex items-center gap-1 text-xs font-bold px-2 py-1 bg-[var(--color-error-solid)] text-white mr-auto animate-pulse whitespace-nowrap shrink-0">
-                <WifiOff size={16} />
-                <span className="hidden md:inline">OFFLINE MODE</span>
-              </div>
+            {pendingCount > 0 && (
+              <span
+                className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-semibold whitespace-nowrap shrink-0 border"
+                style={{ color: 'var(--color-warning)', backgroundColor: 'var(--color-warning-bg)', borderColor: 'rgba(234, 179, 8, 0.3)' }}
+                title="Sales saved on this device that have not reached the server yet"
+              >
+                <CloudUpload size={14} aria-hidden="true" />
+                <span>{pendingCount}<span className="hidden md:inline"> waiting to send</span></span>
+              </span>
             )}
+            <span
+              role="status"
+              className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-semibold whitespace-nowrap shrink-0 border"
+              style={!isOnline
+                ? { color: 'var(--color-warning)', backgroundColor: 'var(--color-warning-bg)', borderColor: 'rgba(234, 179, 8, 0.3)' }
+                : isSyncing
+                  ? { color: 'var(--color-accent)', backgroundColor: 'var(--color-accent-bg)', borderColor: 'rgba(59, 130, 246, 0.3)' }
+                  : { color: 'var(--color-success)', backgroundColor: 'var(--color-success-bg)', borderColor: 'rgba(34, 197, 94, 0.3)' }}
+              title={!isOnline ? 'No internet: sales are saved on this device' : isSyncing ? 'Sending saved sales' : 'Connected'}
+            >
+              {!isOnline ? <WifiOff size={14} aria-hidden="true" /> : isSyncing ? <RefreshCw size={14} className="animate-spin" aria-hidden="true" /> : <Wifi size={14} aria-hidden="true" />}
+              <span className="hidden sm:inline">{!isOnline ? 'Offline' : isSyncing ? 'Sending…' : 'Online'}</span>
+            </span>
 
 
 

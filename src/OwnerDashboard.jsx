@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
+import { useState, useMemo, useEffect, lazy, Suspense, Fragment } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from './AppContext';
 import { PageLoader } from './SharedUI';
@@ -78,17 +78,17 @@ export default function OwnerDashboard() {
   };
 
   const navItems = useMemo(() => [
-    { key: 'dashboard', label: 'Overview', icon: LayoutDashboard },
-    { key: 'register', label: 'Add Items', icon: Plus },
-    { key: 'categories', label: 'Categories', icon: Tags },
-    { key: 'warehouse', label: isWarehouseDisabled ? 'Store Inventory' : 'Main Storage', icon: isWarehouseDisabled ? Boxes : Warehouse },
-    { key: 'checkout', label: 'Checkout', icon: ShoppingCart },
-    { key: 'sales', label: 'Sales & Returns', icon: History },
-    { key: 'showroom', label: 'Showroom', icon: Store },
-    { key: 'staff', label: 'Manage Staff', icon: Users },
-    { key: 'expenses', label: 'Expenses', icon: Receipt },
-    { key: 'audit', label: 'Audit Logs', icon: Search },
-    { key: 'settings', label: 'Shop Settings', icon: Settings },
+    { key: 'dashboard', label: 'Overview', icon: LayoutDashboard, group: '' },
+    { key: 'checkout', label: 'Checkout', icon: ShoppingCart, group: 'Sales' },
+    { key: 'sales', label: 'Sales & Returns', icon: History, group: 'Sales' },
+    { key: 'showroom', label: 'Showroom', icon: Store, group: 'Sales' },
+    { key: 'warehouse', label: isWarehouseDisabled ? 'Store Inventory' : 'Main Storage', icon: isWarehouseDisabled ? Boxes : Warehouse, group: 'Stock' },
+    { key: 'register', label: 'Add Items', icon: Plus, group: 'Stock' },
+    { key: 'categories', label: 'Categories', icon: Tags, group: 'Stock' },
+    { key: 'expenses', label: 'Expenses', icon: Receipt, group: 'Money' },
+    { key: 'staff', label: 'Manage Staff', icon: Users, group: 'Admin' },
+    { key: 'audit', label: 'Audit Logs', icon: Search, group: 'Admin' },
+    { key: 'settings', label: 'Shop Settings', icon: Settings, group: 'Admin' },
   ], [isWarehouseDisabled]);
 
   const changeTab = (newTab) => {
@@ -144,9 +144,16 @@ export default function OwnerDashboard() {
         </div>
 
         <div className="flex flex-col gap-0.5 md:gap-1 px-2.5 md:px-3 flex-1">
-          {navItems.map(({ key, label, icon: Icon }) => {
+          {navItems.map(({ key, label, icon: Icon, group }, index) => {
             const isActive = activeTab === key;
+            const startsGroup = group && (index === 0 || navItems[index - 1].group !== group);
             return (
+              <Fragment key={key}>
+              {startsGroup && (
+                <p className="px-3.5 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider select-none" style={{ color: 'var(--text-tertiary)' }}>
+                  {group}
+                </p>
+              )}
               <button
                 key={key}
                 onClick={() => changeTab(key)}
@@ -163,6 +170,7 @@ export default function OwnerDashboard() {
                 <Icon size={18} className={isActive ? 'text-[var(--color-accent)]' : 'text-[var(--text-tertiary)]'} />
                 <span className="truncate">{label}</span>
               </button>
+              </Fragment>
             );
           })}
         </div>
