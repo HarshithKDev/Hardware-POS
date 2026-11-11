@@ -15,6 +15,7 @@ import { Search, Undo2, X, Phone, User, Calendar } from 'lucide-react';
 import BillDetailsView from './BillDetailsView';
 import { getInventoryItemByBarcode } from './services/db';
 import PageTitleReset from './components/PageTitleReset';
+import DayClosingModal from './components/reports/DayClosingModal';
 import { Badge, Button, buttonClass, DateField, useSort, SortTh, TableSkeleton } from './components/ui';
 
 // Click-to-sort columns for the sales list (sorting happens on the loaded day/page only)
@@ -90,7 +91,8 @@ const enrichBillItems = async (rawItems) => {
 };
 
 export default function OwnerLedger({ isActive }) {
-  const { showAlert, userRole } = useApp();
+  const { showAlert, userRole, shopSettings } = useApp();
+  const [isClosingOpen, setIsClosingOpen] = useState(false);
   const isOwner = userRole === 'owner';
   const queryClient = useQueryClient();
   const shopId = localStorage.getItem('shop_id');
@@ -641,14 +643,33 @@ export default function OwnerLedger({ isActive }) {
 
   return (
     <div className="h-full flex flex-col relative w-full">
-      <div className="flex justify-between items-end mb-4">
+      <div className="flex flex-wrap justify-between items-end gap-3 mb-4">
         <PageTitleReset
           title="Sales History"
           subtitle="Search past sales by customer phone or name, view receipts, and process returns."
           onReset={handleResetLedger}
           tooltip="Click title to reset customer search and date filters to default"
         />
+        {isOwner && (
+          <Button
+            variant="primary"
+            onClick={() => setIsClosingOpen(true)}
+            title={`End-of-day summary for ${formatDayHeader(currentDay)}`}
+          >
+            <Calendar className="w-4 h-4" />
+            <span>Day closing</span>
+          </Button>
+        )}
       </div>
+      {isOwner && (
+        <DayClosingModal
+          isOpen={isClosingOpen}
+          onClose={() => setIsClosingOpen(false)}
+          day={currentDay}
+          shopId={shopId}
+          shopName={shopSettings?.shop_name}
+        />
+      )}
 
       <div className="flex flex-col flex-1 min-h-0">
         <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-3 mb-4 pb-3" style={{ borderBottom: '1px solid var(--border-light)' }}>
