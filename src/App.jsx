@@ -6,6 +6,7 @@ import { AlertDialog, ConfirmDialog } from './Dialog';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from './AppContext';
 import { startBackgroundSync, stopBackgroundSync } from './services/sync';
+import { startLiveRefresh, stopLiveRefresh } from './services/liveRefresh';
 import { isRoleConsistentWithEmail, isNetworkishError } from './services/roleGuard';
 import { escapeIlike } from './utils';
 import { stripOwnerOnlyDataFromLocalInventory } from './services/db';
@@ -117,9 +118,14 @@ function App() {
   useEffect(() => {
     if (userRole) {
       startBackgroundSync(userRole);
+      // Refresh sales / dashboard / showroom / expenses screens when another device changes them
+      startLiveRefresh(queryClient, localStorage.getItem('shop_id'));
     }
-    return () => stopBackgroundSync();
-  }, [userRole]);
+    return () => {
+      stopBackgroundSync();
+      stopLiveRefresh();
+    };
+  }, [userRole, queryClient]);
 
   useEffect(() => {
     const faviconLink = document.getElementById('app-favicon') || document.querySelector('link[rel="icon"]');

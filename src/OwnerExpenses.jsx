@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
+import { EXPENSES_CHANGED_EVENT } from './services/liveRefresh';
 import { generateId, formatDateTime, formatINR } from './utils';
 import { 
   Receipt, 
@@ -176,6 +177,13 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
 
   useEffect(() => {
     fetchExpenses();
+  }, [shopId]);
+
+  // Another device added or deleted an expense: reload the list
+  useEffect(() => {
+    const onChanged = () => fetchExpenses();
+    window.addEventListener(EXPENSES_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(EXPENSES_CHANGED_EVENT, onChanged);
   }, [shopId]);
 
   // Handle Save Expense

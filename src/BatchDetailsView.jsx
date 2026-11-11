@@ -77,12 +77,9 @@ export default function BatchDetailsView({
             .filter(b => b.is_active !== false)
             .sort((a, b) => (a.batch_number || 1) - (b.batch_number || 1));
 
-          const isMissingCost =
-            local.cost_price === undefined ||
-            local.cost_price === null ||
-            activeBatches.some(b => b.purchase_cost === undefined || b.purchase_cost === null);
-
-          if (!isMissingCost || !navigator.onLine) {
+          // Costs and stock shown here must be exact: when online, always read the
+          // database (below); this device's copy is used offline or if that fails.
+          if (!navigator.onLine) {
             return { ...local, batches: activeBatches };
           }
         }
