@@ -510,7 +510,7 @@ describe('WorkerScanner Integration', () => {
 
     await waitFor(() => {
       expect(supabase.rpc).toHaveBeenCalledWith(
-        'process_pos_transaction_unsafe',
+        'pos_process_sale',
         expect.objectContaining({
           p_items: expect.arrayContaining([
             expect.objectContaining({
@@ -520,8 +520,8 @@ describe('WorkerScanner Integration', () => {
           ])
         })
       );
-      // Screws inserted at exact untouched price of ₹30
-      expect(supabase.from).toHaveBeenCalledWith('bill_items');
+      // Screws saved (by the database, in the same call) at the exact untouched price of ₹30
+      expect(supabase.rpc).toHaveBeenCalledWith('pos_process_sale', expect.objectContaining({ p_screw_price: 30 }));
     });
   });
 
@@ -825,7 +825,7 @@ describe('WorkerScanner Integration', () => {
 
     await waitFor(() => {
       expect(supabase.rpc).toHaveBeenCalledWith(
-        'process_pos_transaction_unsafe',
+        'pos_process_sale',
         expect.objectContaining({
           p_items: expect.arrayContaining([
             expect.objectContaining({

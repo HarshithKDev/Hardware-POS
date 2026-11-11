@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // ---------------------------------------------------------------------------
 let handler = () => ({ data: null, error: null });
 const rpcCalls = [];
-let rpcImpl = async () => ({ data: { bill_id: 'bill-1' }, error: null });
+let rpcImpl = async (name) => (String(name).startsWith('pos_') ? { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${name}` } } : { data: { bill_id: 'bill-1' }, error: null });
 
 function makeBuilder(table) {
   const state = { table, op: 'select', filters: [], payload: null, opts: null, cols: null };
@@ -72,7 +72,7 @@ beforeEach(() => {
   vi.useRealTimers();
   queue.clear();
   rpcCalls.length = 0;
-  rpcImpl = async () => ({ data: { bill_id: 'bill-1' }, error: null });
+  rpcImpl = async (name) => (String(name).startsWith('pos_') ? { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${name}` } } : { data: { bill_id: 'bill-1' }, error: null });
   handler = () => ({ data: [], error: null, count: 1 });
   localStorage.clear();
   localStorage.setItem('shop_id', 'shop-abc');
@@ -301,7 +301,8 @@ describe('B4: offline receipts with warehouse disabled are routed to store after
     await flushOfflineQueue('worker');
     const batchWrite = writes.find((w) => w.table === 'inventory_batches');
     expect(batchWrite.payload).toEqual({ stock_warehouse: 0, stock_store: 5 });
-    expect(writes.find((w) => w.table === 'product_master').payload).toEqual({ stock_warehouse: 0, stock_store: 5 });
+    // product totals are recalculated from batches by the database, not written by the app
+    expect(writes.find((w) => w.table === 'product_master')).toBeUndefined();
   });
 
   it('does not route normal warehouse receipts', async () => {
@@ -365,7 +366,7 @@ describe('C8: audit logs record the real user', () => {
 import { scrapBatchStock } from '../services/atomicStock';
 
 describe('Scrap stock from a batch', () => {
-  it('removes the quantity from store stock and the product total', async () => {
+  it('fallback: removes the quantity from store stock (product totals left to the database)', async () => {
     const writes = [];
     handler = (s) => {
       if (s.op === 'select' && s.table === 'inventory_batches') return { data: { stock_store: 50, stock_warehouse: 20 }, error: null };
@@ -374,9 +375,9 @@ describe('Scrap stock from a batch', () => {
       return { error: null, count: 1 };
     };
     const res = await scrapBatchStock({ batchId: 'B', barcode: '2001', shopId: 'S', qty: 10, location: 'store' });
-    expect(res).toEqual({ fromStore: 10, fromWarehouse: 0 });
+    expect(res).toEqual({ fromStore: 10, fromWarehouse: 0, audited: false });
     expect(writes.find(w => w.table === 'inventory_batches').payload).toEqual({ stock_store: 40, stock_warehouse: 20 });
-    expect(writes.find(w => w.table === 'product_master').payload).toMatchObject({ stock_store: 40, stock_warehouse: 20 });
+    expect(writes.find(w => w.table === 'product_master')).toBeUndefined();
   });
 
   it('refuses to scrap more than is available', async () => {
@@ -392,7 +393,7 @@ describe('Scrap stock from a batch', () => {
       return { error: null, count: 1 };
     };
     const res = await scrapBatchStock({ batchId: 'B', barcode: '2001', qty: 5, location: 'store', allowOtherLocation: true });
-    expect(res).toEqual({ fromStore: 3, fromWarehouse: 2 });
+    expect(res).toEqual({ fromStore: 3, fromWarehouse: 2, audited: false });
     expect(writes[0].payload).toEqual({ stock_store: 0, stock_warehouse: 8 });
   });
 });
@@ -468,5 +469,42 @@ describe('Indian number formatting for prices', () => {
     expect(formatINR(999.5)).toBe('999.50');
     expect(formatINR('21100')).toBe('21,100.00');
     expect(formatINR(undefined)).toBe('0.00');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// After the database update: one-call functions
+// ---------------------------------------------------------------------------
+describe('One-call database functions (after the SQL update)', () => {
+  it('scrap uses pos_remove_stock and does not write stock itself', async () => {
+    const writes = [];
+    handler = (s) => { writes.push(s); return { data: [], error: null, count: 1 }; };
+    rpcImpl = async (name, args) => (name === 'pos_remove_stock'
+      ? { data: { from_store: args.p_qty, from_warehouse: 0 }, error: null }
+      : { data: null, error: null });
+    const res = await scrapBatchStock({ batchId: 'B', barcode: '2001', shopId: 'S', qty: 10, location: 'store', actionType: 'SCRAP', note: 'offcuts', performedBy: 'Owner' });
+    expect(res).toEqual({ fromStore: 10, fromWarehouse: 0, audited: true });
+    expect(rpcCalls.at(-1)).toMatchObject({ name: 'pos_remove_stock', payload: { p_batch_id: 'B', p_qty: 10, p_action_type: 'SCRAP', p_note: 'offcuts' } });
+    expect(writes.filter(w => w.op === 'update')).toHaveLength(0);
+  });
+
+  it('a database refusal (e.g. not enough stock) is shown to the user', async () => {
+    rpcImpl = async () => ({ data: null, error: { code: 'P0001', message: 'Only 5 available in this batch; cannot remove 8.' } });
+    await expect(scrapBatchStock({ batchId: 'B', barcode: '2001', qty: 8, location: 'store' })).rejects.toThrow(/Only 5 available/);
+  });
+
+  it('an interrupted offline sale with a reference is resent safely (database de-duplicates)', async () => {
+    queue.set(21, queuedSale(21, { status: 'submitting', client_ref: 'ref-21' }));
+    rpcImpl = async (name) => (name === 'pos_process_sale' ? { data: { bill_id: 'bill-21', duplicate: true }, error: null } : { data: null, error: null });
+    await flushOfflineQueue('worker');
+    expect(rpcCalls.find(c => c.name === 'pos_process_sale').payload).toMatchObject({ p_client_ref: 'ref-21', p_action: 'SALE', p_payment_method: 'CASH', p_cash_amount: 100 });
+    expect(queue.has(21)).toBe(false);
+  });
+
+  it('an interrupted sale is NOT resent when the database has not been updated yet', async () => {
+    queue.set(22, queuedSale(22, { status: 'submitting', client_ref: 'ref-22' }));
+    await flushOfflineQueue('worker'); // default rpcImpl: pos_* functions missing
+    expect(rpcCalls.filter(c => c.name.startsWith('process_pos'))).toHaveLength(0);
+    expect(queue.get(22).status).toBe('failed');
   });
 });

@@ -33,22 +33,26 @@ export async function openScrewBox({ item, batch = null, shopId, isWarehouseDisa
   }
   const currentShopId = shopId || localStorage.getItem('shop_id');
 
-  const { fromStore, fromWarehouse } = await scrapBatchStock({
+  const note = `Opened 1 box for loose sale (Batch ${targetBatch.batch_number || 1}) — removed from stock, not a sale`;
+  const { fromStore, fromWarehouse, audited } = await scrapBatchStock({
     batchId: targetBatch.batch_id,
     barcode: item.barcode,
     shopId: currentShopId,
     qty: 1,
     location: 'store',
     allowOtherLocation: isWarehouseDisabled,
+    actionType: 'BOX_OPENED',
+    note,
+    performedBy: getPerformedBy(),
   });
 
-  try {
+  if (!audited) try {
     await supabase.from('audit_logs').insert([{
       shop_id: currentShopId,
       action_type: 'BOX_OPENED',
       barcode: item.barcode,
       item_name: item.name,
-      changes: `Opened 1 box for loose sale (Batch ${targetBatch.batch_number || 1}) — removed from stock, not a sale`,
+      changes: note,
       performed_by: getPerformedBy(),
     }]);
   } catch (e) {

@@ -4,6 +4,7 @@ import { getPerformedBy } from './utils';
 import { supabase } from './supabaseClient';
 import { casUpdateRow } from './services/atomicStock';
 import { beginCriticalWork } from './services/busyGuard';
+import { returnItemsAtomic } from './services/posRpc';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
@@ -417,114 +418,138 @@ export default function OwnerLedger({ isActive }) {
 
       let updatedBillTotal = Number(bill.total_amount);
 
-      if (isAll) {
-        // Mark entire bill as voided
-        updatedBillTotal = 0;
-        let billUpdateQuery = supabase
-          .from('bills')
-          .update({ status: 'voided' })
-          .eq('id', bill.id);
-        if (shopId) {
-          billUpdateQuery = billUpdateQuery.eq('shop_id', shopId);
-        }
-        const { error: billError } = await billUpdateQuery;
-        if (billError) throw billError;
-      } else {
-        // Calculate partial refund
-        const refundAmount = itemsToReturn.reduce((sum, item) => sum + (Number(item.price_at_sale) * item.returnQuantity), 0);
-        updatedBillTotal = Math.max(0, Number(bill.total_amount) - refundAmount);
-        const newStatus = updatedBillTotal <= 0.001 ? 'voided' : bill.status;
-        const billUpdatePayload = { total_amount: updatedBillTotal, status: newStatus };
-        // Keep the payment split consistent with the reduced total (refund comes out of cash first)
-        const round2 = (n) => Math.round(n * 100) / 100;
-        if (bill.payment_method === 'CASH') {
-          billUpdatePayload.cash_amount = round2(updatedBillTotal);
-        } else if (bill.payment_method === 'UPI') {
-          billUpdatePayload.upi_amount = round2(updatedBillTotal);
-        } else if (bill.payment_method === 'SPLIT') {
-          const prevCash = Number(bill.cash_amount || 0);
-          const prevUpi = Number(bill.upi_amount || 0);
-          const cashRefund = Math.min(prevCash, refundAmount);
-          billUpdatePayload.cash_amount = round2(prevCash - cashRefund);
-          billUpdatePayload.upi_amount = round2(Math.max(0, prevUpi - (refundAmount - cashRefund)));
-        }
-        let billUpdateQuery = supabase.from('bills').update(billUpdatePayload).eq('id', bill.id);
-        if (shopId) {
-          billUpdateQuery = billUpdateQuery.eq('shop_id', shopId);
-        }
-        const { error: billError } = await billUpdateQuery;
-        if (billError) throw billError;
-      }
-
-      // Restore stock for selected items directly to inventory_batches
       const stockRestoreFailures = [];
-      for (const item of itemsToReturn) {
-        const qtyToRestore = item.returnQuantity;
-        let targetBatchId = item.batch_id;
-        if (!targetBatchId) {
-           let bQuery = supabase.from('inventory_batches').select('batch_id').eq('barcode', item.barcode);
-           if (shopId) {
-             bQuery = bQuery.eq('shop_id', shopId);
-           }
-           const { data: batches } = await bQuery.limit(1);
-           if (batches && batches.length > 0) targetBatchId = batches[0].batch_id;
-        }
-        
-        if (targetBatchId) {
-          // Atomic increment (compare-and-swap) so a sale on a counter at the same moment isn't lost
-          try {
-            await casUpdateRow({
-              table: 'inventory_batches',
-              match: { batch_id: targetBatchId, shop_id: shopId },
-              columns: ['stock_store'],
-              compute: (cur) => ({
-                update: { stock_store: Number(cur.stock_store || 0) + Number(qtyToRestore) }
-              })
-            });
-          } catch (stockErr) {
-            // Keep processing the remaining items (same as before), but report it instead of failing silently
-            console.error(`Stock restore failed for ${item.name}:`, stockErr);
-            stockRestoreFailures.push(`${item.name} (${qtyToRestore} ${item.unit || ''})`.trim());
-          }
-        }
 
-        await supabase.from('audit_logs').insert([{
-          shop_id: shopId,
-          item_name: item.name,
-          barcode: item.barcode,
-          action_type: isAll ? 'VOID' : 'RETURN',
-          changes: isAll 
-            ? `Restored ${qtyToRestore} ${item.unit} (Bill #${bill.id.split('-')[0]})` 
-            : `Returned ${qtyToRestore} ${item.unit} of ${item.name} from Bill #${bill.id.split('-')[0]}`,
-          performed_by: performedBy
-        }]);
-
-        if (!isAll && !String(item.id).startsWith('screw-legacy-')) {
-          const currentQty = Number(item.billable_quantity || item.quantity);
-          if (qtyToRestore >= currentQty) {
-            // Delete individual returned item from bill_items
-            let delItem = supabase.from('bill_items').delete().eq('id', item.id);
-            if (shopId) {
-              delItem = delItem.eq('shop_id', shopId);
-            }
-            await delItem;
-          } else {
-            // Update quantity for partial return
-            const newQty = currentQty - qtyToRestore;
-            const actQty = Number(item.actual_quantity || item.quantity) - qtyToRestore;
-            let updateItem = supabase.from('bill_items').update({
-                quantity: newQty,
-                billable_quantity: newQty,
-                actual_quantity: actQty
-            }).eq('id', item.id);
-            if (shopId) {
-              updateItem = updateItem.eq('shop_id', shopId);
-            }
-            await updateItem;
-          }
+      // One database call does the whole return (stock back, bill lines, total, Cash/UPI,
+      // return record, audit log) all-or-nothing. Before the database update it isn't
+      // available and the step-by-step path below is used instead.
+      let atomicDone = false;
+      const allRealLines = itemsToReturn.every(i => /^[0-9a-f-]{36}$/i.test(String(i.id)));
+      if (allRealLines) {
+        const res = await returnItemsAtomic({
+          billId: bill.id,
+          items: itemsToReturn.map(i => ({ bill_item_id: i.id, quantity: Number(i.returnQuantity) })),
+          voidAll: isAll,
+          performedBy
+        });
+        if (!res.unavailable) {
+          if (res.error) throw res.error;
+          atomicDone = true;
+          if (isAll) updatedBillTotal = 0;
+          else if (res.data?.new_total !== undefined && res.data?.new_total !== null) updatedBillTotal = Number(res.data.new_total);
         }
       }
+
+      if (!atomicDone) {
+        if (isAll) {
+          // Mark entire bill as voided
+          updatedBillTotal = 0;
+          let billUpdateQuery = supabase
+            .from('bills')
+            .update({ status: 'voided' })
+            .eq('id', bill.id);
+          if (shopId) {
+            billUpdateQuery = billUpdateQuery.eq('shop_id', shopId);
+          }
+          const { error: billError } = await billUpdateQuery;
+          if (billError) throw billError;
+        } else {
+          // Calculate partial refund
+          const refundAmount = itemsToReturn.reduce((sum, item) => sum + (Number(item.price_at_sale) * item.returnQuantity), 0);
+          updatedBillTotal = Math.max(0, Number(bill.total_amount) - refundAmount);
+          const newStatus = updatedBillTotal <= 0.001 ? 'voided' : bill.status;
+          const billUpdatePayload = { total_amount: updatedBillTotal, status: newStatus };
+          // Keep the payment split consistent with the reduced total (refund comes out of cash first)
+          const round2 = (n) => Math.round(n * 100) / 100;
+          if (bill.payment_method === 'CASH') {
+            billUpdatePayload.cash_amount = round2(updatedBillTotal);
+          } else if (bill.payment_method === 'UPI') {
+            billUpdatePayload.upi_amount = round2(updatedBillTotal);
+          } else if (bill.payment_method === 'SPLIT') {
+            const prevCash = Number(bill.cash_amount || 0);
+            const prevUpi = Number(bill.upi_amount || 0);
+            const cashRefund = Math.min(prevCash, refundAmount);
+            billUpdatePayload.cash_amount = round2(prevCash - cashRefund);
+            billUpdatePayload.upi_amount = round2(Math.max(0, prevUpi - (refundAmount - cashRefund)));
+          }
+          let billUpdateQuery = supabase.from('bills').update(billUpdatePayload).eq('id', bill.id);
+          if (shopId) {
+            billUpdateQuery = billUpdateQuery.eq('shop_id', shopId);
+          }
+          const { error: billError } = await billUpdateQuery;
+          if (billError) throw billError;
+        }
+
+        // Restore stock for selected items directly to inventory_batches
+        for (const item of itemsToReturn) {
+          const qtyToRestore = item.returnQuantity;
+          let targetBatchId = item.batch_id;
+          if (!targetBatchId) {
+             let bQuery = supabase.from('inventory_batches').select('batch_id').eq('barcode', item.barcode);
+             if (shopId) {
+               bQuery = bQuery.eq('shop_id', shopId);
+             }
+             const { data: batches } = await bQuery.limit(1);
+             if (batches && batches.length > 0) targetBatchId = batches[0].batch_id;
+          }
+        
+          if (targetBatchId) {
+            // Atomic increment (compare-and-swap) so a sale on a counter at the same moment isn't lost
+            try {
+              await casUpdateRow({
+                table: 'inventory_batches',
+                match: { batch_id: targetBatchId, shop_id: shopId },
+                columns: ['stock_store'],
+                compute: (cur) => ({
+                  update: { stock_store: Number(cur.stock_store || 0) + Number(qtyToRestore) }
+                })
+              });
+            } catch (stockErr) {
+              // Keep processing the remaining items (same as before), but report it instead of failing silently
+              console.error(`Stock restore failed for ${item.name}:`, stockErr);
+              stockRestoreFailures.push(`${item.name} (${qtyToRestore} ${item.unit || ''})`.trim());
+            }
+          }
+
+          await supabase.from('audit_logs').insert([{
+            shop_id: shopId,
+            item_name: item.name,
+            barcode: item.barcode,
+            action_type: isAll ? 'VOID' : 'RETURN',
+            changes: isAll 
+              ? `Restored ${qtyToRestore} ${item.unit} (Bill #${bill.id.split('-')[0]})` 
+              : `Returned ${qtyToRestore} ${item.unit} of ${item.name} from Bill #${bill.id.split('-')[0]}`,
+            performed_by: performedBy
+          }]);
+
+          if (!isAll && !String(item.id).startsWith('screw-legacy-')) {
+            const currentQty = Number(item.billable_quantity || item.quantity);
+            if (qtyToRestore >= currentQty) {
+              // Delete individual returned item from bill_items
+              let delItem = supabase.from('bill_items').delete().eq('id', item.id);
+              if (shopId) {
+                delItem = delItem.eq('shop_id', shopId);
+              }
+              await delItem;
+            } else {
+              // Update quantity for partial return
+              const newQty = currentQty - qtyToRestore;
+              const actQty = Number(item.actual_quantity || item.quantity) - qtyToRestore;
+              let updateItem = supabase.from('bill_items').update({
+                  quantity: newQty,
+                  billable_quantity: newQty,
+                  actual_quantity: actQty
+              }).eq('id', item.id);
+              if (shopId) {
+                updateItem = updateItem.eq('shop_id', shopId);
+              }
+              await updateItem;
+            }
+          }
+        }
       
+      }
+
       if (stockRestoreFailures.length > 0) {
         showAlert(`Return recorded, but stock could not be added back for: ${stockRestoreFailures.join(', ')}. Please adjust these items' stock manually.`, "Partial Stock Restore");
       } else {

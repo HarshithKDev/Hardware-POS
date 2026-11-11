@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { removeStockAtomic } from './posRpc';
 
 /**
  * Concurrency-safe read-modify-write for a single row (compare-and-swap).
@@ -100,8 +101,9 @@ export async function routeReceivedStockToStore({ entries, shopId }) {
     const { data: bData } = await bQuery.maybeSingle();
 
     if (bData && Number(bData.stock_warehouse) > 0) {
-      // Atomic move (compare-and-swap) so a concurrent sale/transfer on another terminal isn't overwritten
-      const batchMove = await casUpdateRow({
+      // Atomic move (compare-and-swap) so a concurrent sale/transfer on another terminal isn't
+      // overwritten. Product totals are recalculated from batches by the database.
+      await casUpdateRow({
         table: 'inventory_batches',
         match: { batch_id: bData.batch_id, shop_id: shopId },
         columns: ['stock_warehouse', 'stock_store'],
@@ -118,22 +120,6 @@ export async function routeReceivedStockToStore({ entries, shopId }) {
           };
         }
       });
-      const transferQty = batchMove.applied ? Number(batchMove.result || 0) : 0;
-
-      // Also update product_master to keep parent warehouse and store stock in sync
-      if (transferQty > 0) {
-        await casUpdateRow({
-          table: 'product_master',
-          match: { barcode: entry.barcode, shop_id: shopId },
-          columns: ['stock_warehouse', 'stock_store'],
-          compute: (cur) => ({
-            update: {
-              stock_warehouse: Math.max(0, Number(cur.stock_warehouse || 0) - transferQty),
-              stock_store: Number(cur.stock_store || 0) + transferQty
-            }
-          })
-        });
-      }
     }
   }
 }
@@ -152,10 +138,24 @@ export async function routeReceivedStockToStore({ entries, shopId }) {
  *        (used when the warehouse is disabled and everything counts as store stock).
  * @returns {Promise<{ fromStore: number, fromWarehouse: number }>}
  */
-export async function scrapBatchStock({ batchId, barcode, shopId, qty, location, allowOtherLocation = false }) {
+export async function scrapBatchStock({ batchId, barcode, shopId, qty, location, allowOtherLocation = false, actionType = 'SCRAP', note = null, performedBy = null }) {
   const amount = Math.round(Number(qty) * 1000) / 1000;
   if (!(amount > 0)) throw new Error('Enter a quantity greater than 0.');
 
+  // One database call: stock change + audit log together (after the database update)
+  const atomic = await removeStockAtomic({
+    batchId, qty: amount, location, allowOther: allowOtherLocation, actionType, note, performedBy,
+  });
+  if (!atomic.unavailable) {
+    if (atomic.error) throw new Error(atomic.error.message || 'Could not update stock.');
+    return {
+      fromStore: Number(atomic.data?.from_store || 0),
+      fromWarehouse: Number(atomic.data?.from_warehouse || 0),
+      audited: true,
+    };
+  }
+  // Fallback (before the database update): guarded batch update; the product's totals
+  // are recalculated from its batches by the database.
   const res = await casUpdateRow({
     table: 'inventory_batches',
     match: { batch_id: batchId, shop_id: shopId },
@@ -185,19 +185,5 @@ export async function scrapBatchStock({ batchId, barcode, shopId, qty, location,
   if (res.notFound) throw new Error('This batch no longer exists. Refresh and try again.');
   const { fromStore, fromWarehouse } = res.result;
 
-  // Keep the product-level totals in step (clamped at 0), like other stock moves do
-  await casUpdateRow({
-    table: 'product_master',
-    match: { barcode, shop_id: shopId },
-    columns: ['stock_store', 'stock_warehouse'],
-    compute: (cur) => ({
-      update: {
-        stock_store: Math.max(0, Math.round((Number(cur.stock_store || 0) - fromStore) * 1000) / 1000),
-        stock_warehouse: Math.max(0, Math.round((Number(cur.stock_warehouse || 0) - fromWarehouse) * 1000) / 1000),
-        updated_at: new Date().toISOString(),
-      },
-    }),
-  });
-
-  return { fromStore, fromWarehouse };
+  return { fromStore, fromWarehouse, audited: false };
 }

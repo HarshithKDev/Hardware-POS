@@ -287,18 +287,7 @@ export default function BatchDetailsView({
             }
 
             if (totalMoved > 0) {
-              await casUpdateRow({
-                table: 'product_master',
-                match: { barcode: item.barcode, shop_id: currentShopId },
-                columns: ['stock_warehouse', 'stock_store'],
-                compute: (cur) => ({
-                  update: {
-                    stock_warehouse: Math.max(0, Number(cur.stock_warehouse || 0) - totalMoved),
-                    stock_store: Number(cur.stock_store || 0) + totalMoved
-                  }
-                })
-              });
-
+              // (product totals are recalculated from batches by the database)
               // Also update local IDB cache immediately so offline & instant views sync
               try {
                 const localItem = await getInventoryItemByBarcode(item.barcode);
@@ -1471,15 +1460,19 @@ export default function BatchDetailsView({
         onClose={() => setScrapBatch(null)}
         onConfirm={async ({ qty, location, reason }) => {
           const currentShopId = shopId || localStorage.getItem('shop_id');
-          const { fromStore, fromWarehouse } = await scrapBatchStock({
+          const scrapNote = `Scrapped ${qty} ${item.unit || ''} from Batch ${scrapBatch.batch_number || 1}${reason ? ` — ${reason}` : ''}`;
+          const { fromStore, fromWarehouse, audited } = await scrapBatchStock({
             batchId: scrapBatch.batch_id,
             barcode: item.barcode,
             shopId: currentShopId,
             qty,
             location,
             allowOtherLocation: isWarehouseDisabled,
+            actionType: 'SCRAP',
+            note: scrapNote,
+            performedBy: getPerformedBy(),
           });
-          try {
+          if (!audited) try {
             await supabase.from('audit_logs').insert([{
               shop_id: currentShopId,
               action_type: 'SCRAP',

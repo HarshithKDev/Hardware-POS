@@ -12,6 +12,7 @@ import { finalizeBillMetadata } from './services/billFinalize';
 import { routeReceivedStockToStore } from './services/atomicStock';
 import { beginCriticalWork } from './services/busyGuard';
 import { buildTransactionItems } from './services/transactionPayload';
+import { processSaleAtomic, saleArgsFromPayload, atomicSaleKnownAvailable } from './services/posRpc';
 import { isNetworkishError } from './services/roleGuard';
 import { useApp } from './AppContext';
 import { generateId, formatDateTime, calculateMSP, formatINR } from './utils';
@@ -1462,20 +1463,36 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         p_customer_phone: checkoutModal.customerPhone || null,
         screw_item: finalCart.find(i => i.is_screw || i.barcode === 'SCREWS') || null,
         p_items: buildTransactionItems(finalCart, activeTab),
+        // Bill total the customer pays (checkout only) and a unique reference for this
+        // checkout: the database uses it so a retried or re-synced sale is never saved twice.
+        p_total_amount: activeTab === 'checkout' ? totalForPayment : null,
+        client_ref: generateId(),
       };
 
       let successData = null;
+      // true when the one-call database function saved everything (stock, bill, payment,
+      // customer, screws, showroom status, receipt location) in a single transaction
+      let usedAtomicSale = false;
       if (navigator.onLine) {
         try {
-          const { data, error } = await supabase.rpc('process_pos_transaction_unsafe', {
-            p_action: payload.p_action,
-            p_location: payload.p_location,
-            p_cashier_name: payload.p_cashier_name,
-            p_items: payload.p_items
-          });
+          const atomic = await processSaleAtomic(saleArgsFromPayload(payload));
+          let data;
+          let error;
+          if (!atomic.unavailable) {
+            ({ data, error } = atomic);
+            usedAtomicSale = !error;
+          } else {
+            // Database not updated yet: previous step-by-step path
+            ({ data, error } = await supabase.rpc('process_pos_transaction_unsafe', {
+              p_action: payload.p_action,
+              p_location: payload.p_location,
+              p_cashier_name: payload.p_cashier_name,
+              p_items: payload.p_items
+            }));
+          }
           if (error) throw error;
           successData = data;
-          if (successData?.bill_id) {
+          if (successData?.bill_id && !usedAtomicSale) {
             const shopId = localStorage.getItem('shop_id');
             const updatePayload = {
               payment_method: payload.p_payment_method,
@@ -1535,6 +1552,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             await queueOfflineTransaction(payload);
             successData = { bill_id: 'OFFL-' + generateId().substring(0, 5).toUpperCase() };
             setTimeout(() => showAlertRef.current("Transaction queued offline. It will sync automatically when internet returns.", "Offline Mode"), 100);
+          } else if (isNetworkishError(error) && atomicSaleKnownAvailable()) {
+            // The database recognises this checkout's reference, so resending it can never
+            // create a second bill: queue it and let the background sync finish it.
+            await queueOfflineTransaction(payload);
+            successData = { bill_id: 'OFFL-' + generateId().substring(0, 5).toUpperCase() };
+            setTimeout(() => showAlertRef.current("The connection dropped while saving. The sale is kept on this device and will be completed automatically (it cannot be billed twice).", "Saved Offline"), 100);
           } else if (isNetworkishError(error)) {
             // The request may or may not have reached the server, so the sale may already be
             // recorded. Never auto-queue here (that could bill twice) — tell the cashier to check.
@@ -1602,7 +1625,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       }
 
       // Safeguard: When warehouse is disabled, ensure server batch and cuttable instances are routed to Store
-      if (activeTab === 'receive' && isWarehouseDisabled && navigator.onLine) {
+      // (the one-call database function already puts these receipts into store stock)
+      if (activeTab === 'receive' && isWarehouseDisabled && navigator.onLine && !usedAtomicSale) {
         try {
           const shopId = shopSettings?.id || localStorage.getItem('shop_id');
           await routeReceivedStockToStore({

@@ -10,11 +10,13 @@ import {
   deleteOrphanedInventory,
   getLocalInventoryCount,
   deleteInventoryItemByBarcode,
-  markTransactionSubmitting
+  markTransactionSubmitting,
+  requeueTransaction
 } from './db';
 import { finalizeBillMetadata, flushPendingBillPatches } from './billFinalize';
 import { beginCriticalWork } from './busyGuard';
 import { routeReceivedStockToStore } from './atomicStock';
+import { processSaleAtomic, saleArgsFromPayload } from './posRpc';
 
 const PAGE_SIZE = 500;
 const BATCH_CHUNK_SIZE = 200;
@@ -467,14 +469,21 @@ async function flushOfflineQueueUnlocked() {
   const queue = (await getOfflineQueue(currentShopId)) || [];
 
   // A sale left in "submitting" means a previous flush was cut off mid-request
-  // (tab closed, crash, reload). We can't know if the server recorded it, so do NOT
-  // auto-resend; hand it to the owner via the Failed Syncs list instead.
+  // (tab closed, crash, reload). If it carries a checkout reference, the database can
+  // tell whether it was already saved, so it is safe to resend through the one-call
+  // function. Without a reference (or before the database update) it goes to Failed
+  // Syncs for a person to check, as before.
+  const interrupted = [];
   for (const tx of queue.filter(t => t.status === 'submitting')) {
-    await markTransactionFailed(tx.id, UNCERTAIN_SYNC_MESSAGE);
-    await reportFailedSync(tx, 'sync was interrupted; may already be recorded');
+    if (tx.client_ref) {
+      interrupted.push({ ...tx, _interrupted: true });
+    } else {
+      await markTransactionFailed(tx.id, UNCERTAIN_SYNC_MESSAGE);
+      await reportFailedSync(tx, 'sync was interrupted; may already be recorded');
+    }
   }
 
-  const pending = queue.filter(tx => !tx.status || tx.status === 'pending');
+  const pending = [...interrupted, ...queue.filter(tx => !tx.status || tx.status === 'pending')];
   if (pending.length === 0) return true;
 
   console.log(`Attempting to flush ${pending.length} offline transactions...`);
@@ -483,21 +492,43 @@ async function flushOfflineQueueUnlocked() {
   try {
     for (const tx of pending) {
       // Claim it; if its state changed since we read the queue, skip it.
-      const claimed = await markTransactionSubmitting(tx.id);
-      if (!claimed) continue;
+      // (interrupted sales are already 'submitting' and we hold the flush lock)
+      if (!tx._interrupted) {
+        const claimed = await markTransactionSubmitting(tx.id);
+        if (!claimed) continue;
+      }
 
       try {
-        const rpcPayload = {
-          p_action: tx.p_action,
-          p_location: tx.p_location,
-          p_cashier_name: tx.p_cashier_name,
-          p_items: tx.p_items
-        };
+        let usedAtomic = false;
+        let triedAtomic = false;
+        let rpcResult = null;
+        if (tx.client_ref) {
+          // One call: stock, bill, payment, customer, screws, showroom status, receipt
+          // location. A sale already saved under this reference is not saved again.
+          const atomic = await processSaleAtomic(saleArgsFromPayload(tx));
+          if (!atomic.unavailable) {
+            triedAtomic = true;
+            rpcResult = { data: atomic.data, error: atomic.error };
+            usedAtomic = !atomic.error;
+          } else if (tx._interrupted) {
+            await markTransactionFailed(tx.id, UNCERTAIN_SYNC_MESSAGE);
+            await reportFailedSync(tx, 'sync was interrupted; may already be recorded');
+            continue;
+          }
+        }
 
-        // Use process_pos_transaction_unsafe matching WorkerTerminal checkout, with graceful fallback
-        let rpcResult = await supabase.rpc('process_pos_transaction_unsafe', rpcPayload);
-        if (rpcResult.error && rpcResult.error.message?.includes('process_pos_transaction_unsafe') && rpcResult.error.message?.includes('does not exist')) {
-          rpcResult = await supabase.rpc('process_pos_transaction', rpcPayload);
+        if (!rpcResult) {
+          const rpcPayload = {
+            p_action: tx.p_action,
+            p_location: tx.p_location,
+            p_cashier_name: tx.p_cashier_name,
+            p_items: tx.p_items
+          };
+          // Use process_pos_transaction_unsafe matching WorkerTerminal checkout, with graceful fallback
+          rpcResult = await supabase.rpc('process_pos_transaction_unsafe', rpcPayload);
+          if (rpcResult.error && rpcResult.error.message?.includes('process_pos_transaction_unsafe') && rpcResult.error.message?.includes('does not exist')) {
+            rpcResult = await supabase.rpc('process_pos_transaction', rpcPayload);
+          }
         }
 
         const { data, error } = rpcResult;
@@ -505,6 +536,11 @@ async function flushOfflineQueueUnlocked() {
         if (error) {
           console.error(`Failed to sync transaction ${tx.id}:`, error);
           const isNetwork = /fetch|network|timeout/i.test(error.message || '');
+          if (isNetwork && triedAtomic) {
+            // Safe to retry: the database recognises this sale's reference
+            await requeueTransaction(tx.id);
+            continue;
+          }
           await markTransactionFailed(tx.id, isNetwork ? `${UNCERTAIN_SYNC_MESSAGE} (${error.message})` : error.message);
           await reportFailedSync(tx, error.message);
           continue;
@@ -514,6 +550,9 @@ async function flushOfflineQueueUnlocked() {
         await deleteOfflineTransaction(tx.id);
         console.log(`Successfully synced offline transaction ${tx.id}`);
 
+        // The one-call function already saved payment details, screws, showroom status and
+        // put warehouse-disabled receipts into the store: nothing more to do.
+        if (usedAtomic) continue;
         // Receipts queued while the warehouse was disabled (location 'Store') must end up in
         // store stock, exactly like a live receipt does.
         if (tx.p_action === 'RECEIVE' && tx.p_location === 'Store') {
