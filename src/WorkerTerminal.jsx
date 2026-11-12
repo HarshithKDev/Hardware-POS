@@ -2477,13 +2477,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           </div>
         )}
 
-        <div className={`p-4 shrink-0 flex flex-col md:flex-row justify-between gap-4 ${(activeTab === 'receive' || activeTab === 'transfer') ? 'hidden md:flex' : ''}`} style={{ borderBottom: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}>
+        <div className={`p-3 md:p-4 shrink-0 flex flex-col md:flex-row justify-between gap-3 md:gap-4 ${(activeTab === 'receive' || activeTab === 'transfer') ? 'hidden md:flex' : ''}`} style={{ borderBottom: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}>
           <div className="flex flex-col w-full md:w-auto flex-1 md:flex-none">
-            <h2 className="text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>
+            <h2 className="hidden md:block text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>
               {activeTab === 'receive' ? 'Receive Stock' : activeTab === 'transfer' ? 'Move Stock to Store' : 'Checkout Counter'}
             </h2>
             
-            <div className="mt-3 flex flex-wrap items-center gap-2.5">
+            <div className="md:mt-3 flex flex-wrap items-center gap-2.5">
               <form onSubmit={(e) => { e.preventDefault(); processScan(manualBarcode); setManualBarcode(''); setShowSuggestions(false); }} className="relative w-full md:w-auto">
                 <div className="flex items-center w-full md:w-72 h-11 md:h-9 rounded-md overflow-hidden transition-colors focus-within:border-[var(--color-accent)] focus-within:ring-1 focus-within:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)' }}>
                   <label htmlFor="manual-barcode" className="sr-only">Barcode</label>
@@ -2547,7 +2547,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                       <button
                         type="button"
                         onClick={() => setCart(prev => prev.filter(i => !i.is_screw && i.barcode !== 'SCREWS'))}
-                        className="w-4 h-4 flex items-center justify-center rounded text-[var(--text-secondary)] hover:text-[var(--color-error)] transition-colors cursor-pointer"
+                        className="tap-area relative w-4 h-4 flex items-center justify-center rounded text-[var(--text-secondary)] hover:text-[var(--color-error)] transition-colors cursor-pointer"
                         title="Remove screws from bill"
                         aria-label="Remove screws"
                       >
@@ -2585,13 +2585,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               )}
             </div>
           </div>
-          <div className="text-left md:text-right flex flex-col justify-end pt-2 md:pt-0 border-t border-[var(--border-light)] md:border-t-0 shrink-0">
-            <span className="text-xs uppercase font-semibold tracking-wider block mb-1" style={{ color: 'var(--text-secondary)' }}>{activeTab === 'checkout' ? 'Total Price' : 'Total Units'}</span>
-            <span className="text-4xl md:text-5xl font-bold tabular-nums leading-none" style={{ color: 'var(--color-accent)' }} aria-live="polite">
+          <div className="text-left md:text-right flex flex-row flex-wrap md:flex-col items-baseline md:items-stretch gap-x-3 md:gap-x-0 justify-end pt-2 md:pt-0 border-t border-[var(--border-light)] md:border-t-0 shrink-0">
+            <span className="text-xs uppercase font-semibold tracking-wider block md:mb-1" style={{ color: 'var(--text-secondary)' }}>{activeTab === 'checkout' ? 'Total Price' : 'Total Units'}</span>
+            <span className="text-3xl md:text-5xl font-bold tabular-nums leading-none" style={{ color: 'var(--color-accent)' }} aria-live="polite">
               {activeTab === 'checkout' ? `₹${formatINR(cartTotal, 2)}` : cartUnits}
             </span>
             {activeTab === 'checkout' && cart.length > 0 && (
-              <span className="text-xs mt-1.5 tabular-nums" style={{ color: 'var(--text-secondary)' }}>
+              <span className="text-xs md:mt-1.5 tabular-nums" style={{ color: 'var(--text-secondary)' }}>
                 {cart.length} {cart.length === 1 ? 'item' : 'items'}
               </span>
             )}
@@ -2655,8 +2655,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         </div>
 
         {cart.length > 0 && !isInputFocused && (
-          <div className="p-3 md:p-4 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
-            <div className="flex w-full sm:w-auto gap-2 md:gap-3">
+          <div className="p-3 md:p-4 flex flex-row flex-wrap justify-between items-stretch sm:items-center gap-2 md:gap-3 shrink-0" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
+            <div className="flex flex-none gap-2 md:gap-3">
               {activeCartTab.startsWith('held_') ? (
                 <button
                   type="button"
@@ -2690,7 +2690,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                 <button
                   type="button"
                   onClick={() => showConfirm("Clear all items?", handleCancelSale, activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items', 'Clear', 'Cancel', true)}
-                  className={buttonClass({ variant: 'danger-outline', size: 'lg', className: 'flex-1 sm:flex-none' })}
+                  className={buttonClass({ variant: 'danger-outline', size: 'lg', className: 'flex-1 sm:flex-none max-md:px-3' })}
                   title="Shortcut: F8"
                 >
                   <span>{activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items'}</span>
@@ -2699,7 +2699,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               {activeTab === 'checkout' && activeCartTab === 'local' && (
                 <button
                   onClick={handleHoldCart}
-                  className={buttonClass({ variant: 'secondary', size: 'lg', className: 'flex-1 sm:flex-none' })}
+                  className={buttonClass({ variant: 'secondary', size: 'lg', className: 'flex-1 sm:flex-none max-md:px-3' })}
                   title="Shortcut: F7"
                 >
                   <span>Hold Cart</span>
@@ -2708,7 +2708,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             </div>
             <button
               onClick={() => activeTab === 'checkout' ? handleOpenCheckoutModal() : handleCompleteTransaction()}
-              className={buttonClass({ variant: 'primary', size: 'lg', className: 'w-full sm:w-auto sm:min-w-[200px] text-lg' })}
+              className={buttonClass({ variant: 'primary', size: 'lg', className: 'flex-1 min-w-[7rem] sm:flex-none sm:w-auto sm:min-w-[200px] text-lg max-md:px-3' })}
               title={activeTab === 'checkout' ? 'Shortcut: F4 or Space' : 'Shortcut: F4'}
             >
               <span>{isCheckingOut ? 'Saving...' : 'Complete'}</span>

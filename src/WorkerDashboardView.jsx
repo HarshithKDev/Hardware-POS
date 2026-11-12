@@ -5,7 +5,8 @@ import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from './AppContext';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
-import { TableVirtuoso } from 'react-virtuoso';
+import { TableVirtuoso, Virtuoso } from 'react-virtuoso';
+import { usePhoneLayout } from './hooks/useMediaQuery';
 import { escapeIlike, debounce, useSessionState, formatINR } from './utils';
 import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD, INV_PER_PAGE, STALE_TIME_5MIN } from './constants';
 import { 
@@ -441,6 +442,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
     });
   }, [paginatedInventory]);
 
+  const isPhone = usePhoneLayout();
   const storeAlerts = lowStockCounts?.store || 0;
   const whseAlerts = lowStockCounts?.warehouse || 0;
 
@@ -622,6 +624,43 @@ export default function WorkerDashboardView({ isBillable = true }) {
           </div>
         ) : paginatedInventory.length === 0 ? (
           <EmptyState message="No items found." />
+        ) : isPhone ? (
+          // Phones: one card per item/batch instead of a squeezed 5-column table
+          <Virtuoso
+            data={expandedRows}
+            computeItemKey={(index, row) => `${row.item.id}-${row.batch?.batch_number ?? row.batchIndex ?? 'single'}`}
+            style={{ height: '100%', width: '100%' }}
+            defaultItemHeight={76}
+            increaseViewportBy={{ top: 300, bottom: 300 }}
+            endReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
+            components={{ Footer: () => (isFetchingNextPage ? <div className="py-3 text-center text-xs font-semibold" style={{ color: 'var(--text-tertiary)' }}>Loading more...</div> : null) }}
+            itemContent={(index, { item, batch, batchIndex }) => {
+              const batchNum = batch ? String(batch.batch_number || batchIndex + 1).padStart(2, '0') : null;
+              const mrp = batch ? Number(batch.selling_price ?? item.price ?? 0) : Number(item.price ?? 0);
+              const stockStore = batch ? Number(batch.stock_store ?? 0) : Number(item.stock_store ?? 0);
+              const stockWarehouse = batch ? Number(batch.stock_warehouse ?? 0) : Number(item.stock_warehouse ?? 0);
+              const lowStore = stockStore < STORE_LOW_STOCK_THRESHOLD;
+              return (
+                <div className="flex items-start justify-between gap-3 px-3.5 py-3" style={{ borderBottom: '1px solid var(--border-medium)' }}>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold leading-snug break-words" style={{ color: 'var(--text-primary)' }}>{item.name}</p>
+                    <p className="mt-1 text-xs font-semibold tabular-nums" style={{ color: 'var(--text-secondary)' }}>
+                      <span style={{ color: 'var(--color-accent)' }}>{item.barcode}</span>
+                      {batchNum && <span> · Batch #{batchNum}</span>}
+                      <span> · MRP ₹{formatINR(mrp, 2)}</span>
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-lg font-bold leading-none tabular-nums" style={{ color: lowStore ? 'var(--color-error)' : 'var(--text-primary)' }}>{stockStore}</p>
+                    <p className="mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>{isWarehouseDisabled ? 'in stock' : 'store'}</p>
+                    {!isWarehouseDisabled && (
+                      <p className="mt-0.5 text-xs font-semibold tabular-nums" style={{ color: stockWarehouse < WAREHOUSE_LOW_STOCK_THRESHOLD ? 'var(--color-error)' : 'var(--text-secondary)' }}>{stockWarehouse} whse</p>
+                    )}
+                  </div>
+                </div>
+              );
+            }}
+          />
         ) : (
           <TableVirtuoso
             data={expandedRows}

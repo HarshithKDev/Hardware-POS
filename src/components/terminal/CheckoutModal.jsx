@@ -228,7 +228,7 @@ export default function CheckoutModal({
 
                   {/* Quick Tender Note Suggestions (higher standard notes) */}
                   {tenderPills.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
+                    <div className="flex flex-wrap gap-2 md:gap-1.5 mt-2">
                       {tenderPills.map((pill) => {
                         const isSelected = Number(checkoutModal.cashGiven) === pill.value;
                         return (
@@ -236,7 +236,7 @@ export default function CheckoutModal({
                             key={pill.value}
                             type="button"
                             onClick={() => setCheckoutModal(prev => ({ ...prev, cashGiven: String(pill.value), error: '' }))}
-                            className={`h-8 px-3 rounded-md text-xs font-semibold tabular-nums transition-colors border cursor-pointer ${
+                            className={`h-11 md:h-8 px-4 md:px-3 rounded-md text-sm md:text-xs font-semibold tabular-nums transition-colors border cursor-pointer ${
                               isSelected
                                 ? 'bg-[var(--color-accent-solid)] text-white border-[var(--color-accent-solid)] shadow-sm'
                                 : 'bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border-[var(--border-medium)]'

@@ -4,6 +4,7 @@ import { Modal, Button, Input, TableSkeleton, table } from '../ui';
 import { computeDayClosing, fetchDayClosingData } from '../../services/dayClosing';
 import { formatINR, formatDayHeader, formatDateTime } from '../../utils';
 import { logActivity } from '../../services/auditLog';
+import { usePhoneLayout } from '../../hooks/useMediaQuery';
 
 const rupees = (n) => `₹${formatINR(Number(n) || 0, 2)}`;
 const storageKey = (shopId, day) => `pos_day_closing_${shopId || 'shop'}_${day}`;
@@ -95,6 +96,7 @@ const Stat = ({ label, value, sub }) => (
  * Opening and counted cash are typed in and kept on this device for that day.
  */
 export default function DayClosingModal({ isOpen, onClose, day, shopId, shopName }) {
+  const isPhone = usePhoneLayout();
   const key = storageKey(shopId, day);
   const [opening, setOpening] = useState('');
   const [counted, setCounted] = useState('');
@@ -222,7 +224,21 @@ export default function DayClosingModal({ isOpen, onClose, day, shopId, shopName
           )}
 
           {/* 4. By cashier */}
-          {report.byCashier.length > 1 && (
+          {report.byCashier.length > 1 && isPhone && (
+            // Phones: one row per cashier instead of a 5-column table that scrolls sideways
+            <div className="rounded-lg border border-[var(--border-light)] divide-y divide-[var(--border-light)]">
+              {report.byCashier.map((c) => (
+                <div key={c.name} className="px-4 py-3">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="font-semibold text-[var(--text-primary)]"><span className="capitalize">{c.name}</span> <span className="text-xs font-normal text-[var(--text-secondary)]">· {c.count} {c.count === 1 ? 'bill' : 'bills'}</span></span>
+                    <span className="font-semibold tabular-nums text-[var(--text-primary)]">{rupees(c.total)}</span>
+                  </div>
+                  <p className="mt-1 text-xs tabular-nums text-[var(--text-secondary)]">Cash {rupees(c.cash)} · UPI {rupees(c.upi)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {report.byCashier.length > 1 && !isPhone && (
             <div className={table.wrap}>
               <table className={table.table}>
                 <thead className={table.thead}>

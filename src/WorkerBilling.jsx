@@ -6,6 +6,7 @@ import { useApp } from './AppContext';
 import WorkerDashboardView from './WorkerDashboardView';
 import { CartProvider } from './contexts/CartContext';
 import { PageLoader } from './SharedUI';
+import StaffBottomNav from './components/nav/StaffBottomNav';
 
 const WorkerTerminal = lazy(() => import('./WorkerTerminal'));
 const WorkerScanner = lazy(() => import('./WorkerScanner'));
@@ -105,10 +106,11 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
   }
 
   return (
-    <div style={{ fontFamily: "var(--font-family)" }} className="h-full min-h-0 flex flex-col flex-1">
+    // On phones the staff bottom bar sits under the screen, so leave room for it
+    <div style={{ fontFamily: "var(--font-family)" }} className={`h-full min-h-0 flex flex-col flex-1 ${hideNav ? '' : 'pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))] md:pb-0'}`}>
       <div className="flex flex-col h-full w-full min-h-0 flex-1">
         {!hideNav && activeTab !== 'dashboard' && (
-          <div className="pt-3 px-4 md:pt-2 md:px-0 mb-2">
+          <div className="hidden md:block pt-3 px-4 md:pt-2 md:px-0 mb-2">
             <button
               type="button"
               onClick={() => handleTabSwitch('dashboard')}
@@ -196,6 +198,7 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
           )}
         </Suspense>
       </div>
+      {!hideNav && <StaffBottomNav tabs={tabs} activeTab={activeTab} onSelect={handleTabSwitch} />}
     </div>
   );
 }

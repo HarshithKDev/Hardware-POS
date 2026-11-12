@@ -5,6 +5,7 @@ import { PageLoader } from './SharedUI';
 import OwnerStats from './OwnerStats';
 import PageTitleReset from './components/PageTitleReset';
 import { useSessionState } from './hooks/useSessionState';
+import { Modal } from './components/ui';
 
 const OwnerCatalog = lazy(() => import('./OwnerCatalog'));
 const OwnerInventory = lazy(() => import('./OwnerInventory'));
@@ -42,6 +43,8 @@ export default function OwnerDashboard() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // Phones: "More" opens a sheet with the screens that are not on the bottom bar
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
   const shopId = localStorage.getItem('shop_id');
   const [selectedBatchBarcode, setSelectedBatchBarcode] = useSessionState(`pos_owner_batch_barcode_${shopId}`, null);
   const warehouseSubTab = searchParams.get('wsub') || 'inventory';
@@ -94,7 +97,12 @@ export default function OwnerDashboard() {
   const changeTab = (newTab) => {
     navigate(`/owner/${newTab}`);
     setIsSidebarOpen(false);
+    setIsMoreOpen(false);
   };
+
+  const BOTTOM_BAR_KEYS = ['dashboard', 'warehouse', 'checkout', 'sales'];
+  const moreItems = navItems.filter(item => !BOTTOM_BAR_KEYS.includes(item.key));
+  const moreIsActive = moreItems.some(item => item.key === activeTab);
 
   return (
     <div className="flex flex-col md:flex-row h-full overflow-hidden relative md:gap-4" style={{ backgroundColor: 'transparent' }}>
@@ -330,23 +338,48 @@ export default function OwnerDashboard() {
               type="button"
               onClick={() => {
                 if (isMore) {
-                  setIsSidebarOpen(prev => !prev);
+                  setIsMoreOpen(prev => !prev);
                 } else {
                   changeTab(key);
                 }
               }}
               className="flex-1 flex flex-col items-center justify-center h-full py-1 gap-0.5 transition-colors focus:outline-none"
               style={{
-                color: (isActive || (isMore && isSidebarOpen)) ? 'var(--color-accent)' : 'var(--text-secondary)',
+                color: (isActive || (isMore && (isMoreOpen || moreIsActive))) ? 'var(--color-accent)' : 'var(--text-secondary)',
               }}
               aria-label={label}
             >
-              <Icon size={19} strokeWidth={(isActive || (isMore && isSidebarOpen)) ? 2.5 : 2} />
+              <Icon size={19} strokeWidth={(isActive || (isMore && (isMoreOpen || moreIsActive))) ? 2.5 : 2} />
               <span className="text-xs font-semibold tracking-tight">{label}</span>
             </button>
           );
         })}
       </nav>
+
+      <Modal isOpen={isMoreOpen} onClose={() => setIsMoreOpen(false)} title="More" titleId="owner-more-title" closeOnBackdrop zIndex={30}>
+        <div className="grid grid-cols-3 gap-2.5">
+          {moreItems.map(({ key, label, icon: Icon }) => {
+            const active = activeTab === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => changeTab(key)}
+                aria-current={active ? 'page' : undefined}
+                className="flex flex-col items-center justify-center gap-2 min-h-[84px] px-2 py-3 rounded-xl border text-center text-sm font-semibold leading-tight transition-colors hover:bg-[var(--bg-hover)]"
+                style={{
+                  borderColor: active ? 'var(--color-accent)' : 'var(--border-medium)',
+                  color: active ? 'var(--color-accent)' : 'var(--text-primary)',
+                  backgroundColor: active ? 'var(--color-accent-bg)' : 'var(--bg-tertiary)',
+                }}
+              >
+                <Icon size={22} strokeWidth={2} />
+                <span>{label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </Modal>
     </div>
   );
 }

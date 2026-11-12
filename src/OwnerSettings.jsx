@@ -452,10 +452,10 @@ export default function OwnerSettings() {
                       <Boxes size={16} />
                     </div>
                     <div className="min-w-0">
-                      <span className="text-sm font-semibold block truncate" style={{ color: 'var(--text-primary)' }}>
+                      <span className="text-sm font-semibold block md:truncate" style={{ color: 'var(--text-primary)' }}>
                         Disable Warehouse
                       </span>
-                      <span className="text-xs text-[var(--text-tertiary)] block truncate mt-0.5">
+                      <span className="text-xs text-[var(--text-tertiary)] block md:truncate mt-0.5">
                         Direct to Store — bypass main storage allocation
                       </span>
                     </div>
@@ -479,8 +479,8 @@ export default function OwnerSettings() {
                       {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
                     </div>
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                      <div className="flex flex-wrap md:flex-nowrap items-center gap-x-2 gap-y-1">
+                        <span className="text-sm font-semibold md:truncate" style={{ color: 'var(--text-primary)' }}>
                           POS Sound Effects
                         </span>
                         {soundEnabled && (
@@ -495,7 +495,7 @@ export default function OwnerSettings() {
                           </button>
                         )}
                       </div>
-                      <span className="text-xs text-[var(--text-tertiary)] block truncate mt-0.5">
+                      <span className="text-xs text-[var(--text-tertiary)] block md:truncate mt-0.5">
                         Audio confirmations on barcode scan and checkout
                       </span>
                     </div>
