@@ -1339,7 +1339,7 @@ export default function OwnerStats({ isActive }) {
           <StatCard title="Cash Received" value={`₹${formatINR(tfCash, 2)}`} borderColor="var(--color-success)" />
           <StatCard title="UPI Received" value={`₹${formatINR(tfUpi, 2)}`} borderColor="var(--color-accent)" />
           <div className="col-span-2 md:col-span-1">
-            <StatCard title="Stock Capital (Total Asset Value)" value={`₹${formatINR(totalInventoryValue, 2)}`} borderColor="var(--text-tertiary)" />
+            <StatCard title="Stock Capital" value={`₹${formatINR(totalInventoryValue, 2)}`} borderColor="var(--text-tertiary)" />
           </div>
         </div>
       ) : (

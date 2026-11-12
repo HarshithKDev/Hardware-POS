@@ -374,8 +374,8 @@ export default function OwnerSettings() {
   };
 
   return (
-    <div className="w-full flex-1 flex flex-col animate-fade-in pb-12" style={{ backgroundColor: 'transparent' }}>
-      <div className="w-full max-w-7xl mx-auto flex flex-col gap-4 p-1">
+    <div className="w-full flex-1 flex flex-col animate-fade-in pb-12 lg:pb-0" style={{ backgroundColor: 'transparent' }}>
+      <div className="w-full max-w-7xl mx-auto flex flex-col gap-4 lg:gap-3 p-1">
 
         {/* TOP BAR / PAGE HEADER */}
         <div className="flex items-center justify-between pb-2.5 border-b border-[var(--border-light)] shrink-0">
@@ -422,12 +422,12 @@ export default function OwnerSettings() {
         </div>
 
         {/* 2-COLUMN HORIZONTAL GRID */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-3 items-start">
           
           {/* ======================================================== */}
           {/* LEFT COLUMN: System Controls & "On and Off" Switches     */}
           {/* ======================================================== */}
-          <div className="lg:col-span-5 flex flex-col gap-4">
+          <div className="lg:col-span-5 flex flex-col gap-4 lg:gap-3">
 
             {/* SYSTEM TOGGLES PANEL */}
             <div 
@@ -601,6 +601,56 @@ export default function OwnerSettings() {
                   />
                 </div>
               </div>
+            </div>
+
+            {/* DATA BACKUP & EXPORT CARD */}
+            <div 
+              className="p-4 rounded-xl border shadow-sm flex flex-col gap-3 transition-all"
+              style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-light)' }}
+            >
+              <div className="flex items-center justify-between pb-2.5 border-b border-[var(--border-light)]">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-medium)]">
+                    <FileSpreadsheet size={14} />
+                  </div>
+                  <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
+                    Download Business Data
+                  </h2>
+                </div>
+                <span className="px-2 py-0.5 text-[11px] font-bold uppercase rounded bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] border border-[var(--border-medium)]">
+                  XLSX
+                </span>
+              </div>
+
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                One Excel file with separate sheets for products &amp; inventory, sales &amp; invoices, line items, expenses, staff and activity logs.
+              </p>
+
+              {exportStatus && isExporting && (
+                <div className="p-2.5 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--color-accent)]/30 flex items-center gap-2 text-xs text-[var(--color-accent)] font-semibold animate-pulse">
+                  <Spinner className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">{exportStatus}</span>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleDownloadCompleteData}
+                disabled={isExporting}
+                className={buttonClass({ variant: 'primary', size: 'md', className: 'w-full mt-1' })}
+              >
+                {isExporting ? (
+                  <>
+                    <Spinner className="w-4 h-4 text-white" />
+                    <span>Preparing Excel Backup...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download size={14} />
+                    <span>Download Complete Data</span>
+                  </>
+                )}
+              </button>
             </div>
 
           </div>
@@ -833,75 +883,6 @@ export default function OwnerSettings() {
 
             </form>
 
-            {/* DATA BACKUP & EXPORT CARD */}
-            <div 
-              className="p-4 rounded-xl border shadow-sm flex flex-col gap-3 transition-all"
-              style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-light)' }}
-            >
-              <div className="flex items-center justify-between pb-2.5 border-b border-[var(--border-light)]">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-medium)]">
-                    <FileSpreadsheet size={14} />
-                  </div>
-                  <h2 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>
-                    Download Business Data
-                  </h2>
-                </div>
-                <span className="px-2 py-0.5 text-[11px] font-bold uppercase rounded bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] border border-[var(--border-medium)]">
-                  XLSX
-                </span>
-              </div>
-
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                Export your complete store database into an organized, multi-sheet Excel spreadsheet with color-coded financials, stock valuation, and activity trails.
-              </p>
-
-              {/* Clean structured breakdown */}
-              <div className="grid grid-cols-2 gap-2 text-xs text-[var(--text-tertiary)] bg-[var(--bg-tertiary)]/40 p-2.5 rounded-lg border border-[var(--border-light)]">
-                <div className="flex items-center gap-1.5 truncate">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent-solid)] shrink-0" />
-                  <span>Products & Inventory</span>
-                </div>
-                <div className="flex items-center gap-1.5 truncate">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent-solid)] shrink-0" />
-                  <span>Sales & Invoices</span>
-                </div>
-                <div className="flex items-center gap-1.5 truncate">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent-solid)] shrink-0" />
-                  <span>Line Items Breakdown</span>
-                </div>
-                <div className="flex items-center gap-1.5 truncate">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent-solid)] shrink-0" />
-                  <span>Expenses, Staff & Logs</span>
-                </div>
-              </div>
-
-              {exportStatus && isExporting && (
-                <div className="p-2.5 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--color-accent)]/30 flex items-center gap-2 text-xs text-[var(--color-accent)] font-semibold animate-pulse">
-                  <Spinner className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">{exportStatus}</span>
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={handleDownloadCompleteData}
-                disabled={isExporting}
-                className={buttonClass({ variant: 'primary', size: 'md', className: 'w-full mt-1' })}
-              >
-                {isExporting ? (
-                  <>
-                    <Spinner className="w-4 h-4 text-white" />
-                    <span>Preparing Excel Backup...</span>
-                  </>
-                ) : (
-                  <>
-                    <Download size={14} />
-                    <span>Download Complete Data</span>
-                  </>
-                )}
-              </button>
-            </div>
           </div>
 
         </div>

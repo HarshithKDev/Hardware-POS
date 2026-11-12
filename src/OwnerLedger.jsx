@@ -17,6 +17,9 @@ import { getInventoryItemByBarcode } from './services/db';
 import { readRows } from './services/secureRead';
 import PageTitleReset from './components/PageTitleReset';
 import DayClosingModal from './components/reports/DayClosingModal';
+
+// Day closing report: hidden for now at the owner's request. Set to true to bring the button back.
+const SHOW_DAY_CLOSING = false;
 import { Badge, Button, buttonClass, DateField, useSort, SortTh, TableSkeleton } from './components/ui';
 
 // Click-to-sort columns for the sales list (sorting happens on the loaded day/page only)
@@ -645,7 +648,7 @@ export default function OwnerLedger({ isActive }) {
           onReset={handleResetLedger}
           tooltip="Click title to reset customer search and date filters to default"
         />
-        {isOwner && (
+        {isOwner && SHOW_DAY_CLOSING && (
           <Button
             variant="primary"
             onClick={() => setIsClosingOpen(true)}
@@ -656,7 +659,7 @@ export default function OwnerLedger({ isActive }) {
           </Button>
         )}
       </div>
-      {isOwner && (
+      {isOwner && SHOW_DAY_CLOSING && (
         <DayClosingModal
           isOpen={isClosingOpen}
           onClose={() => setIsClosingOpen(false)}
