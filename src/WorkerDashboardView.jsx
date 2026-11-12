@@ -551,13 +551,13 @@ export default function WorkerDashboardView({ isBillable = true }) {
         <button onClick={() => setLowStockModal({ isOpen: true, type: 'store' })} className="p-3 md:p-4 rounded-lg border border-[var(--border-light)] text-left cursor-pointer flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
           <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full" style={{ backgroundColor: storeAlerts > 0 ? 'var(--color-error)' : 'var(--color-accent)' }} />
           <p className="text-[11px] md:text-xs font-semibold uppercase tracking-wider mb-1 ml-3" style={{ color: 'var(--text-secondary)' }}>{isWarehouseDisabled ? 'Low Stock Alerts' : 'Store Low Stock'}</p>
-          <p className="text-xl md:text-2xl font-semibold ml-3" style={{ color: storeAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{storeAlerts} Items</p>
+          <p className="text-xl md:text-2xl font-semibold ml-3" style={{ color: storeAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{storeAlerts} {storeAlerts === 1 ? 'Item' : 'Items'}</p>
         </button>
         {!isWarehouseDisabled && (
           <button onClick={() => setLowStockModal({ isOpen: true, type: 'warehouse' })} className="p-3 md:p-4 rounded-lg border border-[var(--border-light)] text-left cursor-pointer flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
             <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full" style={{ backgroundColor: whseAlerts > 0 ? 'var(--color-error)' : 'var(--color-accent)' }} />
             <p className="text-[11px] md:text-xs font-semibold uppercase tracking-wider mb-1 ml-3" style={{ color: 'var(--text-secondary)' }}>Low Warehouse Stock</p>
-            <p className="text-xl md:text-2xl font-semibold ml-3" style={{ color: whseAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{whseAlerts} Items</p>
+            <p className="text-xl md:text-2xl font-semibold ml-3" style={{ color: whseAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{whseAlerts} {whseAlerts === 1 ? 'Item' : 'Items'}</p>
           </button>
         )}
       </div>
@@ -706,14 +706,14 @@ export default function WorkerDashboardView({ isBillable = true }) {
 
       {lowStockModal.isOpen && createPortal(
         <div
-          className="fixed inset-0 flex items-center justify-center z-[10001] p-4 sm:p-6 md:p-8 bg-[var(--overlay-bg)] backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 flex items-end sm:items-center justify-center z-[10001] p-0 sm:p-6 md:p-8 bg-[var(--overlay-bg)] backdrop-blur-sm animate-fade-in"
           onClick={() => setLowStockModal({ isOpen: false, type: null })}
           role="dialog"
           aria-modal="true"
           aria-labelledby="low-stock-modal-title"
         >
           <div
-            className="w-full max-w-3xl flex flex-col h-[70vh] max-h-[620px] rounded-[14px] overflow-hidden shadow-2xl border border-[var(--border-light)] animate-scale-in my-auto"
+            className="w-full max-w-3xl flex flex-col h-[85dvh] sm:h-[70vh] sm:max-h-[620px] rounded-t-2xl sm:rounded-[14px] overflow-hidden shadow-2xl border border-[var(--border-light)] animate-scale-in sm:my-auto"
             style={{ backgroundColor: 'var(--bg-secondary)' }}
             onClick={(e) => e.stopPropagation()}
           >

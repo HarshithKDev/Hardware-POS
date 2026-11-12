@@ -964,12 +964,13 @@ export default function OwnerLedger({ isActive }) {
                 <span>&larr;<span className="hidden sm:inline"> Previous</span></span>
               </button>
 
-              <div className="flex items-center gap-1.5 sm:gap-2 text-xs font-medium text-[var(--text-secondary)] text-center min-w-0">
-                <span className="font-bold text-[var(--text-primary)] px-2 sm:px-2.5 py-1 rounded-md inline-flex items-center gap-1 sm:gap-1.5 truncate" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-light)' }}>
+              <div className="flex flex-wrap md:flex-nowrap items-center justify-center gap-x-1.5 gap-y-1 sm:gap-2 text-xs font-medium text-[var(--text-secondary)] text-center min-w-0">
+                <span className="font-bold text-[var(--text-primary)] px-2 sm:px-2.5 py-1 rounded-md inline-flex items-center gap-1 sm:gap-1.5 truncate max-md:shrink-0" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-light)' }}>
                   <Calendar className="w-3.5 h-3.5 text-[var(--color-accent)] shrink-0" />
                   <span className="truncate">{formatDayHeader(currentDay)}</span>
                 </span>
-                <span>•</span>
+                <span className="basis-full h-0 md:hidden" aria-hidden="true" />
+                <span className="max-md:hidden">•</span>
                 <span className="shrink-0">{bills.length} {bills.length === 1 ? 'sale' : 'sales'}</span>
                 {bills.length > 0 && (
                   <>

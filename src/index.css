@@ -366,7 +366,8 @@ select {
   color: var(--text-input);
   border: 1px solid var(--border-medium);
   border-radius: 8px;
-  padding: 0.625rem 2.5rem 0.625rem 0.875rem;
+  /* 0.5rem top/bottom: text + padding fit inside the usual 40px box (0.625rem cut the bottom of letters like g/y) */
+  padding: 0.5rem 2.5rem 0.5rem 0.875rem;
   font-size: 0.875rem;
   line-height: 1.5;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);

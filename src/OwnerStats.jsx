@@ -241,7 +241,7 @@ function TopProductsList({ products }) {
       <p className="text-xs font-semibold uppercase tracking-wider mb-3 pb-2 shrink-0 flex items-center justify-between" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-light)' }}>
         <span>Top 10 Profit Makers</span>
         {products.length > 0 && (
-          <span className="text-xs font-bold text-[var(--color-success)]">{products.length} Items</span>
+          <span className="text-xs font-bold text-[var(--color-success)]">{products.length} {products.length === 1 ? 'Item' : 'Items'}</span>
         )}
       </p>
       <ul className="flex-1 overflow-y-auto modal-scroll pr-1 divide-y divide-[var(--border-light)]">
@@ -1361,14 +1361,14 @@ export default function OwnerStats({ isActive }) {
       {/* MODALS */}
       {activeModal && createPortal(
         <div
-          className="fixed inset-0 flex items-center justify-center z-[10001] p-4 sm:p-6 md:p-8 bg-[var(--overlay-bg)] backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 flex items-end sm:items-center justify-center z-[10001] p-0 sm:p-6 md:p-8 bg-[var(--overlay-bg)] backdrop-blur-sm animate-fade-in"
           onClick={() => setActiveModal(null)}
           role="dialog"
           aria-modal="true"
           aria-labelledby="stats-modal-title"
         >
           <div
-            className="w-full max-w-4xl flex flex-col h-[70vh] max-h-[620px] rounded-[14px] overflow-hidden shadow-2xl border border-[var(--border-light)] animate-scale-in my-auto"
+            className="w-full max-w-4xl flex flex-col h-[85dvh] sm:h-[70vh] sm:max-h-[620px] rounded-t-2xl sm:rounded-[14px] overflow-hidden shadow-2xl border border-[var(--border-light)] animate-scale-in sm:my-auto"
             style={{ backgroundColor: 'var(--bg-secondary)' }}
             onClick={(e) => e.stopPropagation()}
           >

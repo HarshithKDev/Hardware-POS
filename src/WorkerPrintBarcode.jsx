@@ -201,8 +201,9 @@ export default function WorkerPrintBarcode() {
                 <button
                   type="button"
                   onClick={handleClearSearch}
-                  className="absolute right-2 p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] rounded-full hover:bg-[var(--bg-hover)]"
+                  className="tap-area absolute right-2 p-1 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] rounded-full hover:bg-[var(--bg-hover)]"
                   title="Clear search"
+                  aria-label="Clear search"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -280,7 +281,7 @@ export default function WorkerPrintBarcode() {
         </div>
 
         {/* RIGHT PANEL: BATCH SELECTION, QUANTITY, PREVIEW & PRINT */}
-        <div className="lg:col-span-7 flex flex-col min-h-0 rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] overflow-y-auto p-4 sm:p-5">
+        <div className={`lg:col-span-7 flex flex-col min-h-0 rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] overflow-y-auto p-4 sm:p-5 ${selectedProduct ? '' : 'max-lg:hidden'}`}>
           {!selectedProduct ? (
             <div className="flex flex-col items-center justify-center h-full text-center p-8 text-[var(--text-tertiary)]">
               <Printer className="w-10 h-10 mb-2.5 opacity-30 text-[var(--color-accent)]" />

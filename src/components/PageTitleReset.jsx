@@ -33,28 +33,35 @@ export default function PageTitleReset({
   return (
     <div className={`flex flex-col ${className}`}>
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={handleClick}
-          className="tap-area relative group inline-flex items-center gap-2.5 text-left cursor-pointer select-none p-0 bg-transparent border-0 focus:outline-none w-fit transition-all hover:opacity-85 active:scale-[0.99]"
-          title={tooltip}
-          aria-label={`${title} - Click to reset`}
-        >
-          <HeadingTag
-            className="text-xl sm:text-2xl font-semibold m-0 leading-tight transition-colors group-hover:text-[var(--color-accent)]"
-            style={{ color: 'var(--text-primary)' }}
+        <div className="group inline-flex items-center gap-2.5 transition-all hover:opacity-85">
+          {/* The title resets on click with a mouse (desktop habit). On phones a tap on the
+              title does nothing, so filters are never reset by accident; the ↻ button does it. */}
+          <button
+            type="button"
+            onClick={handleClick}
+            className="tap-area relative inline-flex items-center text-left cursor-pointer select-none p-0 bg-transparent border-0 focus:outline-none w-fit transition-all active:scale-[0.99] max-md:pointer-events-none"
+            title={tooltip}
+            aria-label={`${title} - Click to reset`}
           >
-            {title}
-          </HeadingTag>
-          <span
-            className={`p-1 rounded-md text-[var(--text-tertiary)] group-hover:text-[var(--color-accent)] group-hover:bg-[var(--bg-tertiary)] transition-all duration-300 ${
+            <HeadingTag
+              className="text-xl sm:text-2xl font-semibold m-0 leading-tight transition-colors group-hover:text-[var(--color-accent)]"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              {title}
+            </HeadingTag>
+          </button>
+          <button
+            type="button"
+            onClick={handleClick}
+            title={tooltip}
+            aria-label="Reset filters"
+            className={`tap-area relative p-1 rounded-md bg-transparent border-0 cursor-pointer text-[var(--text-tertiary)] group-hover:text-[var(--color-accent)] group-hover:bg-[var(--bg-tertiary)] focus:outline-none transition-all duration-300 ${
               isRotating ? '-rotate-180 text-[var(--color-accent)]' : ''
             }`}
-            aria-hidden="true"
           >
-            <RotateCcw className="w-4 h-4" />
-          </span>
-        </button>
+            <RotateCcw className="w-4 h-4" aria-hidden="true" />
+          </button>
+        </div>
         {extra}
       </div>
       {subtitle && (

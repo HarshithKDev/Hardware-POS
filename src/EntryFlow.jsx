@@ -356,7 +356,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
             </div>
 
             {/* Required Fields */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className={labelClass} style={labelStyle}>Shop Name *</label>
                 <input type="text" value={shopName} onChange={(e) => setShopName(e.target.value)} placeholder="Metro Hardware" className={inputClass} style={inputStyle} />
@@ -372,7 +372,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
               <input type="email" value={ownerEmail} onChange={(e) => setOwnerEmail(e.target.value)} placeholder="you@example.com" className={inputClass} style={inputStyle} />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className={labelClass} style={labelStyle}>Password *</label>
                 <div className="relative">
@@ -403,7 +403,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
               <textarea value={shopAddress} onChange={(e) => setShopAddress(e.target.value)} placeholder="Full address (printed on bills)" rows="2" className="w-full px-3 py-2 rounded-lg focus:outline-none text-sm resize-none" style={inputStyle} />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className={labelClass} style={labelStyle}>Phone Number</label>
                 <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 98765 43210" className={inputClass} style={inputStyle} />

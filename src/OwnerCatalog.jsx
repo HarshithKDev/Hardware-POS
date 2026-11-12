@@ -602,7 +602,7 @@ export default function OwnerCatalog() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-4 md:p-6 rounded-xl shadow-sm flex flex-col flex-1 gap-4" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-medium)' }}>
+      <form onSubmit={handleSubmit} className="p-0 md:p-6 rounded-xl md:shadow-sm flex flex-col flex-1 gap-4 md:bg-[var(--bg-secondary)] md:border md:border-[var(--border-medium)]">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="md:col-span-2 lg:col-span-4">
             <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }} htmlFor="item-name">Item Name</label>
@@ -619,7 +619,7 @@ export default function OwnerCatalog() {
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               placeholder="e.g. High-tensile corrosion-resistant steel rebar suitable for heavy construction..."
-              className="w-full p-3 text-sm focus:outline-none rounded-md resize-none"
+              className="w-full p-3 text-sm focus:outline-none rounded-md resize-none max-md:min-h-[104px]"
               style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
             />
           </div>
@@ -737,7 +737,8 @@ export default function OwnerCatalog() {
         {/* Spacer to push the footer down if the screen is tall */}
         <div className="flex-1" />
 
-        <div className="flex justify-end items-center mt-auto pt-6" style={{ borderTop: '1px solid var(--border-light)' }}>
+        {/* Phones: Save stays visible at the bottom while scrolling the form */}
+        <div className="flex justify-end items-center mt-auto pt-3 pb-3 md:pt-6 md:pb-0 max-md:sticky max-md:bottom-0 max-md:z-10 max-md:bg-[var(--bg-secondary)]" style={{ borderTop: '1px solid var(--border-light)' }}>
           <button
             type="submit"
             disabled={addItemMutation.isPending || !nextBarcode}

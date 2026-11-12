@@ -16,6 +16,9 @@ export default function OwnerStaff() {
   const [newStaffName, setNewStaffName] = useState('');
   const [newStaffPassword, setNewStaffPassword] = useState('');
   const [newStaffIsBillable, setNewStaffIsBillable] = useState("true");
+  // Phones: the add form opens on demand so the staff list is visible first
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [showPromptModal, setShowPromptModal] = useState(false);
   const [promptPassword, setPromptPassword] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
@@ -169,9 +172,17 @@ export default function OwnerStaff() {
         tooltip="Click title to clear staff form inputs"
       />
 
-      <div className="p-6 rounded-lg flex-shrink-0 border border-[var(--border-light)]" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-        <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--text-secondary)' }}>Add New Cashier</h2>
-        <form onSubmit={handleAddStaff} className="flex flex-col md:flex-row gap-4 items-start md:items-end">
+      <div className={`${showAddForm ? 'p-4 bg-[var(--bg-secondary)]' : 'p-0 max-md:border-0 md:bg-[var(--bg-secondary)]'} md:p-6 rounded-lg flex-shrink-0 border border-[var(--border-light)]`}>
+        <button
+          type="button"
+          onClick={() => setShowAddForm(v => !v)}
+          aria-expanded={showAddForm}
+          className={buttonClass({ variant: showAddForm ? 'secondary' : 'primary', size: 'md', className: `md:hidden w-full ${showAddForm ? 'mb-4' : ''}` })}
+        >
+          {showAddForm ? 'Close' : '+ Add New Cashier'}
+        </button>
+        <h2 className={`${showAddForm ? '' : 'max-md:hidden'} text-sm font-semibold uppercase tracking-wider mb-4`} style={{ color: 'var(--text-secondary)' }}>Add New Cashier</h2>
+        <form onSubmit={handleAddStaff} className={`${showAddForm ? '' : 'max-md:hidden'} flex flex-col md:flex-row gap-4 items-start md:items-end`}>
           <div className="w-full md:flex-1">
             <label className="block text-xs font-semibold uppercase mb-1" style={{ color: 'var(--text-tertiary)' }} htmlFor="staff-name">Full Name</label>
             <input
@@ -186,15 +197,26 @@ export default function OwnerStaff() {
           </div>
           <div className="w-full md:flex-1">
             <label className="block text-xs font-semibold uppercase mb-1" style={{ color: 'var(--text-tertiary)' }} htmlFor="staff-pwd">Login Password</label>
-            <input
-              id="staff-pwd"
-              type="text"
-              value={newStaffPassword}
-              onChange={(e) => setNewStaffPassword(e.target.value)}
-              placeholder="Min. 6 characters"
-              className="w-full h-10 px-3 text-sm focus:outline-none rounded-md"
-              style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
-            />
+            <div className="relative">
+              <input
+                id="staff-pwd"
+                type={showNewPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                value={newStaffPassword}
+                onChange={(e) => setNewStaffPassword(e.target.value)}
+                placeholder="Min. 6 characters"
+                className="w-full h-10 pl-3 pr-16 text-sm focus:outline-none rounded-md"
+                style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword(v => !v)}
+                aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                className="tap-area absolute inset-y-0 right-0 px-3 text-xs font-semibold text-[var(--color-accent)] bg-transparent border-0"
+              >
+                {showNewPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
           </div>
           <div className="w-full md:flex-1">
             <label className="block text-xs font-semibold uppercase mb-1" style={{ color: 'var(--text-tertiary)' }} htmlFor="staff-type">Account Type</label>

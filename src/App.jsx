@@ -606,7 +606,7 @@ function App() {
         aria-label="Main navigation"
       >
         <div className="w-full flex items-center justify-between h-full">
-          <div className="h-full flex items-center gap-2.5 flex-shrink-0 min-w-0 px-3 md:px-4 w-auto md:w-56 lg:w-auto">
+          <div className="h-full flex items-center gap-2.5 flex-shrink-0 max-md:flex-1 max-md:shrink min-w-0 px-3 md:px-4 w-auto md:w-56 lg:w-auto">
             {shopSettings?.logo_url ? (
               <img src={shopSettings.logo_url} alt="" className="w-7 h-7 md:w-8 md:h-8 rounded-md object-cover shrink-0 border border-[var(--border-light)]" />
             ) : (
@@ -615,16 +615,16 @@ function App() {
               </span>
             )}
             <div className="min-w-0 leading-tight">
-              <p className="text-sm font-semibold truncate max-w-[40vw] md:max-w-[260px]" style={{ color: 'var(--text-primary)' }} title={shopSettings?.shop_name || ''}>
+              <p className="text-sm font-semibold truncate md:max-w-[260px]" style={{ color: 'var(--text-primary)' }} title={shopSettings?.shop_name || ''}>
                 {shopSettings?.shop_name || 'Hardware POS'}
               </p>
-              <p className="text-xs truncate max-w-[40vw] md:max-w-[260px]" style={{ color: 'var(--text-secondary)' }}>
+              <p className="text-xs truncate md:max-w-[260px]" style={{ color: 'var(--text-secondary)' }}>
                 {cashierName}{userRole ? ` · ${userRole === 'owner' ? 'Owner' : 'Staff'}` : ''}
               </p>
             </div>
           </div>
 
-          <div className="flex-1 min-w-0 flex items-center justify-end gap-1.5 md:gap-3 h-full pl-2 pr-2.5 md:pr-4 overflow-x-hidden md:overflow-x-auto hide-scrollbar" style={{ scrollbarWidth: 'none' }}>
+          <div className="flex-1 max-md:flex-none min-w-0 flex items-center justify-end gap-1.5 md:gap-3 h-full pl-2 pr-2.5 md:pr-4 overflow-x-hidden md:overflow-x-auto hide-scrollbar" style={{ scrollbarWidth: 'none' }}>
             {pendingCount > 0 && (
               <span
                 className="inline-flex items-center gap-1.5 h-8 md:h-9 px-2.5 rounded-md text-xs font-semibold whitespace-nowrap shrink-0 border"

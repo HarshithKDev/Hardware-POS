@@ -247,7 +247,7 @@ export default function OwnerCategories() {
                 >
                   <div className="flex flex-col min-w-0">
                     <span title={String(cat.name ?? '')} className="font-bold text-base truncate" style={{ color: 'var(--text-primary)' }}>{cat.name}</span>
-                    <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>{catSubcategories.length} sub-categories</span>
+                    <span className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>{catSubcategories.length} {catSubcategories.length === 1 ? 'sub-category' : 'sub-categories'}</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <button
@@ -319,7 +319,7 @@ export default function OwnerCategories() {
                       <td className="p-4 text-sm" style={{ borderRight: '1px solid var(--border-medium)' }}>
                         <div className="flex items-center justify-center w-full text-center">
                           <span className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>{cat.name}</span>
-                          <span className="ml-2 text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>({catSubcategories.length} sub-categories)</span>
+                          <span className="ml-2 text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>({catSubcategories.length} {catSubcategories.length === 1 ? 'sub-category' : 'sub-categories'})</span>
                         </div>
                       </td>
                       <td className="p-2 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
