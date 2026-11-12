@@ -384,8 +384,8 @@ export default function WorkerScanner({ cashierName }) {
                     <span className="text-[12px] font-semibold px-2 py-1 uppercase tracking-wider rounded-md" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border-medium)' }}>
                       MRP: ₹{formatINR(Number(item.price || 0), 2)}
                     </span>
-                    <span className="text-[12px] font-semibold px-2 py-1 uppercase tracking-wider rounded-md group/msp cursor-help" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border-medium)' }}>
-                      MSP: {userRole === 'owner' ? `₹${formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}</span></span>}
+                    <span tabIndex={-1} className="outline-none text-[12px] font-semibold px-2 py-1 uppercase tracking-wider rounded-md group/msp cursor-help" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border-medium)' }}>
+                      MSP: {userRole === 'owner' ? `₹${formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden group-focus/msp:hidden">***</span><span className="hidden group-hover/msp:inline group-focus/msp:inline">₹{formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}</span></span>}
                     </span>
                   </div>
                 </div>
@@ -405,7 +405,7 @@ export default function WorkerScanner({ cashierName }) {
                 <div className="flex items-center gap-2">
                   <button onClick={() => updateQuantity(item.id, Number(item.quantity) - 1)} className="w-14 h-14 flex items-center justify-center rounded-md bg-[var(--bg-tertiary)] active:bg-[var(--bg-hover)] text-[var(--text-primary)] border-2 border-[var(--border-medium)] font-bold text-3xl leading-none">-</button>
                   <input
-                    type="number"
+                    type="number" inputMode="decimal"
                     min="0"
                     step="any"
                     value={item.quantity}

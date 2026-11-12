@@ -96,6 +96,7 @@ export default function CuttableQuantityModal({
           label={question}
           size="lg"
           type="number"
+          inputMode="decimal"
           step="any"
           min="0"
           value={qtyInput}

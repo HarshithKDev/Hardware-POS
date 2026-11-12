@@ -14,7 +14,7 @@ export function FieldLabel({ htmlFor, children, required = false, hint, classNam
 }
 
 const SIZES = {
-  md: 'h-10 text-sm',
+  md: 'h-11 md:h-10 text-sm',
   lg: 'h-12 text-xl font-bold',
 };
 
@@ -40,8 +40,10 @@ const Input = forwardRef(function Input(
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${inputId}-error` : undefined}
           required={required}
-          className={`w-full h-full min-w-0 bg-transparent text-[var(--text-input)] placeholder:text-[var(--text-tertiary)] ${inputClassName}`}
+          className={`compact-field w-full h-full min-w-0 bg-transparent text-[var(--text-input)] placeholder:text-[var(--text-tertiary)] ${inputClassName}`}
           style={{ outline: 'none', border: 'none', boxShadow: 'none', padding: 0, fontSize: 'inherit', fontWeight: 'inherit' }}
+          // number fields open the number pad (with a decimal point) on phones
+          {...(rest.type === 'number' && !rest.inputMode ? { inputMode: 'decimal' } : {})}
           {...rest}
         />
         {suffix && <span className="shrink-0 text-sm font-semibold text-[var(--text-secondary)]">{suffix}</span>}

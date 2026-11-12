@@ -388,12 +388,12 @@ export default function WorkerPrintBarcode() {
                       -
                     </button>
                     <input
-                      type="number"
+                      type="number" inputMode="decimal"
                       min="1"
                       max={MAX_LABELS_PER_PRINT}
                       value={labelQty}
                       onChange={(e) => setLabelQty(clampLabelQty(e.target.value))}
-                      className="w-12 h-full text-center text-xs font-bold bg-transparent text-[var(--text-primary)] rounded-none !border-none !shadow-none !outline-none focus:!outline-none focus:!border-none focus:!shadow-none focus:bg-[var(--bg-secondary)] transition-colors p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      className="compact-field w-12 h-full text-center text-xs font-bold bg-transparent text-[var(--text-primary)] rounded-none !border-none !shadow-none !outline-none focus:!outline-none focus:!border-none focus:!shadow-none focus:bg-[var(--bg-secondary)] transition-colors p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       style={{ borderRadius: 0, border: 'none', boxShadow: 'none', outline: 'none' }}
                       aria-label="Quantity of labels"
                     />

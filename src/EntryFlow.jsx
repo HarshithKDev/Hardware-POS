@@ -310,7 +310,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
                 <label className={labelClass} style={labelStyle}>Password</label>
                 <div className="relative">
                   <input type={showSetupPassword ? 'text' : 'password'} value={setupPassword} onChange={(e) => setSetupPassword(e.target.value)} placeholder="Password" className={`${inputClass} pr-10`} style={inputStyle} />
-                  <button type="button" onClick={() => setShowSetupPassword(!showSetupPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center focus:outline-none" style={{ color: 'var(--text-tertiary)' }} tabIndex="-1">
+                  <button type="button" onClick={() => setShowSetupPassword(!showSetupPassword)} aria-label={showSetupPassword ? 'Hide password' : 'Show password'} className="tap-area absolute inset-y-0 right-0 pr-3 flex items-center focus:outline-none" style={{ color: 'var(--text-tertiary)' }} tabIndex="-1">
                     {showSetupPassword ? <EyeSlashIcon /> : <EyeIcon />}
                   </button>
                 </div>
@@ -377,7 +377,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
                 <label className={labelClass} style={labelStyle}>Password *</label>
                 <div className="relative">
                   <input type={showSetupPassword ? 'text' : 'password'} value={setupPassword} onChange={(e) => setSetupPassword(e.target.value)} placeholder="Min 6 chars" className={`${inputClass} pr-10`} style={inputStyle} />
-                  <button type="button" onClick={() => setShowSetupPassword(!showSetupPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center focus:outline-none" style={{ color: 'var(--text-tertiary)' }} tabIndex="-1">
+                  <button type="button" onClick={() => setShowSetupPassword(!showSetupPassword)} aria-label={showSetupPassword ? 'Hide password' : 'Show password'} className="tap-area absolute inset-y-0 right-0 pr-3 flex items-center focus:outline-none" style={{ color: 'var(--text-tertiary)' }} tabIndex="-1">
                     {showSetupPassword ? <EyeSlashIcon /> : <EyeIcon />}
                   </button>
                 </div>
@@ -386,7 +386,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
                 <label className={labelClass} style={labelStyle}>Confirm Password *</label>
                 <div className="relative">
                   <input type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Re-enter" className={`${inputClass} pr-10`} style={inputStyle} />
-                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center focus:outline-none" style={{ color: 'var(--text-tertiary)' }} tabIndex="-1">
+                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} aria-label={showConfirmPassword ? 'Hide password' : 'Show password'} className="tap-area absolute inset-y-0 right-0 pr-3 flex items-center focus:outline-none" style={{ color: 'var(--text-tertiary)' }} tabIndex="-1">
                     {showConfirmPassword ? <EyeSlashIcon /> : <EyeIcon />}
                   </button>
                 </div>
@@ -423,7 +423,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
               {isSettingUp ? <Spinner className="w-5 h-5 text-white" /> : 'Register My Shop'}
             </button>
             <div className="text-center pt-2">
-              <button type="button" onClick={() => { setIsExistingLogin(true); setError(''); }} className="text-sm font-semibold hover:underline focus:outline-none" style={{ color: 'var(--color-accent)' }}>
+              <button type="button" onClick={() => { setIsExistingLogin(true); setError(''); }} className="tap-area relative text-sm font-semibold hover:underline focus:outline-none" style={{ color: 'var(--color-accent)' }}>
                 Already registered? Log in here
               </button>
             </div>
@@ -545,7 +545,8 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
                 <button
                   type="button"
                   onClick={() => setShowLoginPassword(!showLoginPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center focus:outline-none"
+                  aria-label={showLoginPassword ? 'Hide password' : 'Show password'}
+                  className="tap-area absolute inset-y-0 right-0 pr-3 flex items-center focus:outline-none"
                   style={{ color: 'var(--text-tertiary)' }}
                   tabIndex="-1"
                 >

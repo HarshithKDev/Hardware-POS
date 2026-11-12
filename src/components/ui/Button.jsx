@@ -25,8 +25,11 @@ const SIZES = {
   lg: 'h-12 px-6 text-base gap-2',
 };
 
+// Positioned buttons keep their own position; all others become relative so the touch area can attach.
+const positionFor = (className) => (/(^|\s)(absolute|fixed|sticky)(\s|$)/.test(className) ? '' : 'relative');
+
 export const buttonClass = ({ variant = 'secondary', size = 'md', fullWidth = false, className = '' } = {}) =>
-  `inline-flex items-center justify-center shrink-0 rounded-md font-semibold whitespace-nowrap transition-colors cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed ${VARIANTS[variant] || VARIANTS.secondary} ${SIZES[size] || SIZES.md} ${fullWidth ? 'w-full' : ''} ${className}`;
+  `tap-area ${positionFor(className)} inline-flex items-center justify-center shrink-0 rounded-md font-semibold whitespace-nowrap transition-colors cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed ${VARIANTS[variant] || VARIANTS.secondary} ${SIZES[size] || SIZES.md} ${fullWidth ? 'w-full' : ''} ${className}`;
 
 const Button = forwardRef(function Button(
   { variant = 'secondary', size = 'md', type = 'button', loading = false, fullWidth = false, disabled, className = '', children, ...rest },

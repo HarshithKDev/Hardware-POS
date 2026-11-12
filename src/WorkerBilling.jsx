@@ -112,7 +112,7 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
             <button
               type="button"
               onClick={() => handleTabSwitch('dashboard')}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs md:text-sm font-bold rounded-xl text-[var(--color-accent)] bg-[var(--color-accent-bg)] border border-[var(--color-accent)]/20 hover:opacity-80 active:scale-95 transition-all shadow-sm cursor-pointer"
+              className="tap-area relative inline-flex items-center gap-1.5 px-3.5 py-2 text-xs md:text-sm font-bold rounded-xl text-[var(--color-accent)] bg-[var(--color-accent-bg)] border border-[var(--color-accent)]/20 hover:opacity-80 active:scale-95 transition-all shadow-sm cursor-pointer"
             >
               <span>← Back to Dashboard</span>
             </button>

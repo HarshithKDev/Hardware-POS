@@ -186,7 +186,7 @@ export function AlertDialog({ isOpen, title, message, onClose }) {
             e.stopPropagation();
             onClose();
           }}
-          className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] p-1 rounded-md transition-colors shrink-0 -mr-1 -mt-1 cursor-pointer"
+          className="tap-area relative text-[var(--text-tertiary)] hover:text-[var(--text-primary)] p-1 rounded-md transition-colors shrink-0 -mr-1 -mt-1 cursor-pointer"
           aria-label="Close notification" title="Close notification"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

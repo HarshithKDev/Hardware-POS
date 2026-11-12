@@ -106,7 +106,7 @@ export default function Modal({
                 onClick={onClose}
                 aria-label="Close"
                 title="Close (Esc)"
-                className="-mr-2 -mt-0.5 p-1.5 rounded-md shrink-0 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
+                className="tap-area relative -mr-2 -mt-0.5 p-1.5 rounded-md shrink-0 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

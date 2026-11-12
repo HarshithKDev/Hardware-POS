@@ -36,7 +36,7 @@ export default function PageTitleReset({
         <button
           type="button"
           onClick={handleClick}
-          className="group inline-flex items-center gap-2.5 text-left cursor-pointer select-none p-0 bg-transparent border-0 focus:outline-none w-fit transition-all hover:opacity-85 active:scale-[0.99]"
+          className="tap-area relative group inline-flex items-center gap-2.5 text-left cursor-pointer select-none p-0 bg-transparent border-0 focus:outline-none w-fit transition-all hover:opacity-85 active:scale-[0.99]"
           title={tooltip}
           aria-label={`${title} - Click to reset`}
         >

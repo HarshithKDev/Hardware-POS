@@ -526,10 +526,10 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
                 <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-secondary)]">
                   Amount (₹) <span className="text-[var(--color-error)]">*</span>
                 </label>
-                <div className="flex items-center rounded-md bg-[var(--bg-input)] border border-[var(--border-input)] focus-within:border-[var(--color-accent)] transition-colors px-3 h-10">
+                <div className="flex items-center rounded-md bg-[var(--bg-input)] border border-[var(--border-input)] focus-within:border-[var(--color-accent)] transition-colors px-3 h-11 md:h-10">
                   <span className="text-base font-bold text-[var(--color-accent)] mr-2 select-none shrink-0">₹</span>
                   <input
-                    type="number"
+                    type="number" inputMode="decimal"
                     min="1"
                     step="any"
                     value={amount}
@@ -537,7 +537,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
                     placeholder="0.00"
                     required
                     style={{ outline: 'none', border: 'none', boxShadow: 'none' }}
-                    className="w-full h-full bg-transparent text-base font-bold text-[var(--text-input)] placeholder:text-[var(--text-tertiary)] p-0"
+                    className="compact-field w-full h-full bg-transparent text-base font-bold text-[var(--text-input)] placeholder:text-[var(--text-tertiary)] p-0"
                   />
                 </div>
               </div>

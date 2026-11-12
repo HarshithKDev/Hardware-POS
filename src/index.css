@@ -292,12 +292,51 @@ div[data-viewport-type="element"],
   overscroll-behavior-x: none !important;
 }
 
-/* Prevent unwanted automatic zoom jumps on mobile iOS devices when inputs are focused */
-@media (max-width: 768px) {
+/* Prevent unwanted automatic zoom jumps on mobile iOS devices when inputs are focused.
+   Phones and tablets (touch, no mouse) both need 16px: iOS zooms into smaller fields. */
+@media (max-width: 768px), (hover: none) and (pointer: coarse) {
   input:not([type="checkbox"]):not([type="radio"]),
   select,
   textarea {
     font-size: 16px !important;
+  }
+}
+
+/* Pinch-zoom is allowed (accessibility); this only removes the double-tap-to-zoom delay. */
+html { touch-action: manipulation; }
+
+/* Phones: fields and dropdowns are at least 44px tall (comfortable to tap), and dropdowns get
+   enough height that their 16px text is never cut off at the bottom. */
+@media (max-width: 768px) {
+  select {
+    min-height: 44px;
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not(.compact-field),
+  textarea {
+    min-height: 44px;
+  }
+}
+
+/* Phone screens: nothing smaller than 12px (labels, badges). Screen only, so printed labels and
+   receipts keep their exact sizes. */
+@media screen and (max-width: 768px) {
+  .text-\[11px\] { font-size: 12px; }
+}
+
+/* Touch screens: small buttons keep their look, but the area that responds to a tap is
+   extended (invisibly) to at least 44x44px, as Apple and Google recommend. Only applies to
+   elements that are already positioned, so the invisible area can never escape the button. */
+@media (pointer: coarse) {
+  .tap-area:is(.relative, .absolute, .fixed, .sticky)::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
   }
 }
 

@@ -159,8 +159,8 @@ const CartTable = React.memo(function CartTable({
                         <span className="text-[11px] font-semibold px-1.5 py-0.5 uppercase tracking-wider" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
                           MRP: ₹{formatINR(Number(item.price || 0), 2)}{isLooseKg ? '/kg' : ''}
                         </span>
-                        <span className="text-[11px] font-semibold px-1.5 py-0.5 uppercase tracking-wider group/msp cursor-help rounded-sm" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
-                          MSP: {userRole === 'owner' ? `₹${formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}${isLooseKg ? '/kg' : ''}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}{isLooseKg ? '/kg' : ''}</span></span>}
+                        <span tabIndex={-1} className="outline-none text-[11px] font-semibold px-1.5 py-0.5 uppercase tracking-wider group/msp cursor-help rounded-sm" style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', border: '1px solid var(--border-light)' }}>
+                          MSP: {userRole === 'owner' ? `₹${formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}${isLooseKg ? '/kg' : ''}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden group-focus/msp:hidden">***</span><span className="hidden group-hover/msp:inline group-focus/msp:inline">₹{formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}{isLooseKg ? '/kg' : ''}</span></span>}
                         </span>
                       </div>
                   )}
@@ -180,13 +180,13 @@ const CartTable = React.memo(function CartTable({
                           -
                         </button>
                         <input 
-                          type="number" 
+                          type="number" inputMode="decimal" 
                           step="any" 
                           min="0" 
                           onWheel={handleWheelBlur} 
                           value={item.quantity} 
                           onChange={(e) => onUpdateQuantity(item.id, e.target.value)} 
-                          className="w-14 h-8 text-sm font-bold text-center bg-transparent text-[var(--text-primary)] rounded-none !border-none !shadow-none !outline-none focus:!outline-none focus:!border-none focus:!shadow-none focus:bg-[var(--bg-secondary)] transition-colors p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                          className="compact-field w-14 h-8 text-sm font-bold text-center bg-transparent text-[var(--text-primary)] rounded-none !border-none !shadow-none !outline-none focus:!outline-none focus:!border-none focus:!shadow-none focus:bg-[var(--bg-secondary)] transition-colors p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
                           style={{ borderRadius: 0, border: 'none', boxShadow: 'none', outline: 'none' }}
                           aria-label={`${item.name} quantity`} 
                         />
@@ -238,7 +238,7 @@ const CartTable = React.memo(function CartTable({
                                     -50g
                                   </button>
                                   <input
-                                    type="number"
+                                    type="number" inputMode="decimal"
                                     step="1"
                                     min="0"
                                     onWheel={handleWheelBlur}
@@ -252,7 +252,7 @@ const CartTable = React.memo(function CartTable({
                                         onUpdateQuantity(item.id, g / 1000, g);
                                       }
                                     }}
-                                    className="w-14 h-8 text-sm font-bold text-center bg-transparent text-[var(--text-primary)] rounded-none !border-none !shadow-none !outline-none focus:!outline-none focus:!border-none focus:!shadow-none focus:bg-[var(--bg-secondary)] transition-colors p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    className="compact-field w-14 h-8 text-sm font-bold text-center bg-transparent text-[var(--text-primary)] rounded-none !border-none !shadow-none !outline-none focus:!outline-none focus:!border-none focus:!shadow-none focus:bg-[var(--bg-secondary)] transition-colors p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                     style={{ borderRadius: 0, border: 'none', boxShadow: 'none', outline: 'none' }}
                                     aria-label={`${item.name} quantity in grams`}
                                   />
@@ -290,9 +290,9 @@ const CartTable = React.memo(function CartTable({
                         <>
                           <div className="min-h-8 flex items-center justify-center">
                             <div className="inline-flex items-center rounded-lg border border-[var(--border-medium)] bg-[var(--bg-tertiary)] overflow-hidden shadow-sm">
-                              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="w-8 h-8 flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-r border-[var(--border-medium)] select-none" style={{ borderRadius: 0 }} aria-label={`Decrease ${item.name} quantity`} title={`Decrease ${item.name} quantity`}>-</button>
-                              <input type="number" step="any" min="0" onWheel={handleWheelBlur} value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="w-14 h-8 text-sm font-bold text-center bg-transparent text-[var(--text-primary)] rounded-none !border-none !shadow-none !outline-none focus:!outline-none focus:!border-none focus:!shadow-none focus:bg-[var(--bg-secondary)] transition-colors p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" style={{ borderRadius: 0, border: 'none', boxShadow: 'none', outline: 'none' }} aria-label={`${item.name} quantity`} />
-                              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="w-8 h-8 flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-l border-[var(--border-medium)] select-none" style={{ borderRadius: 0 }} aria-label={`Increase ${item.name} quantity`} title={`Increase ${item.name} quantity`}>+</button>
+                              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty - 1)} className="tap-area relative w-8 h-8 flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-r border-[var(--border-medium)] select-none" style={{ borderRadius: 0 }} aria-label={`Decrease ${item.name} quantity`} title={`Decrease ${item.name} quantity`}>-</button>
+                              <input type="number" inputMode="decimal" step="any" min="0" onWheel={handleWheelBlur} value={item.quantity} onChange={(e) => onUpdateQuantity(item.id, e.target.value)} className="compact-field w-14 h-8 text-sm font-bold text-center bg-transparent text-[var(--text-primary)] rounded-none !border-none !shadow-none !outline-none focus:!outline-none focus:!border-none focus:!shadow-none focus:bg-[var(--bg-secondary)] transition-colors p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" style={{ borderRadius: 0, border: 'none', boxShadow: 'none', outline: 'none' }} aria-label={`${item.name} quantity`} />
+                              <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onUpdateQuantity(item.id, safeQty + 1)} className="tap-area relative w-8 h-8 flex items-center justify-center text-sm font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] active:bg-[var(--bg-secondary)] transition-colors cursor-pointer border-l border-[var(--border-medium)] select-none" style={{ borderRadius: 0 }} aria-label={`Increase ${item.name} quantity`} title={`Increase ${item.name} quantity`}>+</button>
                             </div>
                           </div>
                           <div className="h-4 flex items-center justify-center mt-1">
@@ -315,7 +315,7 @@ const CartTable = React.memo(function CartTable({
                           <div className="relative flex items-center justify-center w-full max-w-[120px] h-8 mx-auto">
                             <span className="absolute left-3 text-xs font-bold pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>₹</span>
                             <input 
-                              type="number" 
+                              type="number" inputMode="decimal" 
                               step="0.01" 
                               min={itemMsp > 0 ? itemMsp : 0}
                               onWheel={handleWheelBlur} 
@@ -355,7 +355,7 @@ const CartTable = React.memo(function CartTable({
                         <div className="relative flex items-center justify-center w-full max-w-[120px] h-8 mx-auto">
                           <span className="absolute left-3 text-xs font-bold pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>₹</span>
                           <input 
-                            type="number" 
+                            type="number" inputMode="decimal" 
                             step="0.01" 
                             onWheel={handleWheelBlur} 
                             value={item.customTotalInput !== undefined ? item.customTotalInput : (sellPrice * billableQty).toFixed(2)} 
@@ -383,8 +383,8 @@ const CartTable = React.memo(function CartTable({
                   </td>
                 </>)}
                 {activeTab === 'receive' && (<>
-                  <td className="p-2 text-center align-middle text-sm font-semibold bg-[var(--bg-tertiary)] group/msp cursor-help" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}>
-                    {userRole === 'owner' ? `₹${formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden">***</span><span className="hidden group-hover/msp:inline">₹{formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}</span></span>}
+                  <td tabIndex={-1} className="outline-none p-2 text-center align-middle text-sm font-semibold bg-[var(--bg-tertiary)] group/msp cursor-help" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}>
+                    {userRole === 'owner' ? `₹${formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}` : <span className="transition-all duration-300"><span className="group-hover/msp:hidden group-focus/msp:hidden">***</span><span className="hidden group-hover/msp:inline group-focus/msp:inline">₹{formatINR(Number(item.msp_price !== undefined ? item.msp_price : item.msp || 0), 2)}</span></span>}
                   </td>
                   <td className="p-2 text-center align-middle text-sm font-semibold bg-[var(--bg-tertiary)]" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}>
                     ₹{formatINR(Number(item.selling_price !== undefined ? item.selling_price : item.price || 0), 2)}
@@ -393,7 +393,7 @@ const CartTable = React.memo(function CartTable({
                 <td className="p-2 text-center align-middle">
                   <div className="flex flex-col items-center justify-center">
                     <div className="h-8 flex items-center justify-center">
-                      <button type="button" onClick={() => onRemoveItem(item.id)} className="w-8 h-8 rounded-md flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--color-error-bg)] hover:text-[var(--color-error)] transition-colors cursor-pointer" aria-label={`Remove ${item.name}`} title={`Remove ${item.name}`}>
+                      <button type="button" onClick={() => onRemoveItem(item.id)} className="tap-area relative w-8 h-8 rounded-md flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--color-error-bg)] hover:text-[var(--color-error)] transition-colors cursor-pointer" aria-label={`Remove ${item.name}`} title={`Remove ${item.name}`}>
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                       </button>
                     </div>

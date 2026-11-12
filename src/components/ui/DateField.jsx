@@ -17,7 +17,7 @@ export default function DateField({ value, onChange, min, max, placeholder = 'Pi
   const label = formatDayLabel(value);
   return (
     <div
-      className={`relative inline-flex items-center gap-2 h-10 md:h-9 px-3 rounded-md border border-[var(--border-medium)] bg-[var(--bg-input)] text-[var(--text-input)] text-sm font-semibold focus-within:border-[var(--color-accent)] focus-within:shadow-[var(--focus-ring)] hover:border-[var(--border-heavy)] transition-colors cursor-pointer ${className}`}
+      className={`relative inline-flex items-center gap-2 h-11 md:h-9 px-3 rounded-md border border-[var(--border-medium)] bg-[var(--bg-input)] text-[var(--text-input)] text-sm font-semibold focus-within:border-[var(--color-accent)] focus-within:shadow-[var(--focus-ring)] hover:border-[var(--border-heavy)] transition-colors cursor-pointer ${className}`}
     >
       <svg className="w-4 h-4 shrink-0 text-[var(--color-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />

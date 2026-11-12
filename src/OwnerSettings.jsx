@@ -389,7 +389,7 @@ export default function OwnerSettings() {
               <button 
                 type="button"
                 onClick={() => setIsEditing(true)}
-                className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all border shadow-sm hover:bg-[var(--bg-hover)] active:scale-95 cursor-pointer"
+                className="tap-area relative flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all border shadow-sm hover:bg-[var(--bg-hover)] active:scale-95 cursor-pointer"
                 style={{ borderColor: 'var(--border-medium)', color: 'var(--text-primary)', backgroundColor: 'var(--bg-secondary)' }}
               >
                 <Edit2 size={14} /> Edit Profile
@@ -461,7 +461,7 @@ export default function OwnerSettings() {
                     </div>
                   </div>
 
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
+                  <label className="tap-area relative inline-flex items-center cursor-pointer shrink-0 ml-2">
                     <input 
                       type="checkbox" 
                       checked={disableWarehouse} 
@@ -501,7 +501,7 @@ export default function OwnerSettings() {
                     </div>
                   </div>
 
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
+                  <label className="tap-area relative inline-flex items-center cursor-pointer shrink-0 ml-2">
                     <input 
                       type="checkbox" 
                       checked={soundEnabled} 
@@ -540,7 +540,7 @@ export default function OwnerSettings() {
                     <>
                       <img src={logoPreview} alt="Shop Logo" className="w-full h-full object-cover" />
                       {isEditing && (
-                        <div className="absolute inset-0 bg-[var(--overlay-bg)] hidden group-hover:flex items-center justify-center transition-all">
+                        <div className="absolute inset-0 bg-[var(--overlay-bg)] hidden group-hover:flex [@media(hover:none)]:flex items-center justify-center transition-all">
                           <Upload className="w-5 h-5 text-white" />
                         </div>
                       )}
@@ -679,7 +679,9 @@ export default function OwnerSettings() {
                       Phone Number
                     </label>
                     <input 
-                      type="text" 
+                      type="tel" 
+                      inputMode="tel"
+                      autoComplete="tel"
                       name="phone"
                       value={formData.phone}
                       onChange={handleInputChange}
@@ -695,7 +697,7 @@ export default function OwnerSettings() {
                       <label className="block text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                         UPI ID (Digital Payment)
                       </label>
-                      <label className="flex items-center gap-1.5 cursor-pointer">
+                      <label className="tap-area relative flex items-center gap-1.5 cursor-pointer">
                         <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Show on Bill</span>
                         <input 
                           type="checkbox" 
@@ -759,7 +761,7 @@ export default function OwnerSettings() {
                     <label className="block text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                       Shop Address
                     </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer">
+                    <label className="tap-area relative flex items-center gap-1.5 cursor-pointer">
                       <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>Show on Bill</span>
                       <input 
                         type="checkbox" 

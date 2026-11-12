@@ -189,7 +189,7 @@ export default function OwnerShowroom() {
                       <td className="py-4 px-6 text-sm font-bold text-center align-middle tabular-nums" style={{ color: 'var(--text-primary)' }}>
                         <div className="flex items-center justify-center gap-2">
                           <span>₹{formatINR(Number(bill.total_amount), 2)}</span>
-                          <ChevronRight className="w-4 h-4 text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <ChevronRight className="w-4 h-4 text-[var(--text-tertiary)] opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity" />
                         </div>
                       </td>
                     </tr>

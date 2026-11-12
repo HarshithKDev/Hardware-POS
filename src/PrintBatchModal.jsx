@@ -67,7 +67,7 @@ export default function PrintBatchModal({ isOpen, onClose, item, selectedBatch }
             <div>
               <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1 uppercase tracking-wider">Number of Labels</label>
               <input 
-                type="number" 
+                type="number" inputMode="decimal" 
                 value={qty} 
                 onChange={e => setQty(e.target.value === '' ? '' : clampLabelQty(e.target.value))}
                 className="w-full h-10 px-3 rounded-md bg-[var(--bg-input)] border border-[var(--border-medium)] text-sm font-bold focus:outline-none focus:border-[var(--color-accent)]"

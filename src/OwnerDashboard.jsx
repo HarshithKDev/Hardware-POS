@@ -136,7 +136,7 @@ export default function OwnerDashboard() {
           </div>
           <button
             onClick={() => setIsSidebarOpen(false)}
-            className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
+            className="tap-area relative p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
             aria-label="Close navigation drawer" title="Close navigation drawer"
           >
             <X size={18} />
@@ -150,7 +150,7 @@ export default function OwnerDashboard() {
               <button
                 key={key}
                 onClick={() => changeTab(key)}
-                className={`relative overflow-hidden text-left pl-3.5 pr-2.5 py-2 my-0.5 rounded-lg text-sm flex items-center gap-2.5 md:gap-3 transition-all duration-200 shrink-0 ${
+                className={`relative overflow-hidden text-left pl-3.5 pr-2.5 py-3 md:py-2 my-0.5 rounded-lg text-sm flex items-center gap-2.5 md:gap-3 transition-all duration-200 shrink-0 ${
                   isActive 
                     ? 'bg-[var(--bg-tertiary)] text-[var(--color-accent)] font-semibold shadow-sm' 
                     : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
@@ -170,7 +170,7 @@ export default function OwnerDashboard() {
 
       {/* MAIN CONTENT */}
       <main
-        className="flex-1 min-w-0 min-h-0 flex flex-col p-3 pb-20 md:p-4 overflow-y-auto overflow-x-hidden relative m-0 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm"
+        className="flex-1 min-w-0 min-h-0 flex flex-col p-3 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:p-4 overflow-y-auto overflow-x-hidden relative m-0 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm"
         style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}
         role="main"
         aria-label="Dashboard content"
@@ -217,7 +217,7 @@ export default function OwnerDashboard() {
                         setSelectedBatchBarcode(null);
                         setSearchParams({ wsub: key });
                       }}
-                      className={`px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-semibold whitespace-nowrap transition-all rounded-lg sm:rounded-none relative shrink-0 cursor-pointer ${
+                      className={`px-3.5 sm:px-4 py-3.5 sm:py-2 text-xs sm:text-sm font-semibold whitespace-nowrap transition-all rounded-lg sm:rounded-none relative shrink-0 cursor-pointer ${
                         isActive
                           ? 'text-[var(--text-primary)] bg-[var(--bg-tertiary)] sm:bg-transparent font-bold'
                           : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] sm:hover:bg-transparent'
@@ -307,9 +307,11 @@ export default function OwnerDashboard() {
 
       {/* MOBILE BOTTOM NAVIGATION BAR */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around h-14 border-t border-[var(--border-medium)] shadow-lg"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-[var(--border-medium)] shadow-lg"
         style={{
           backgroundColor: 'var(--bg-secondary)',
+          // 56px for the buttons, plus the iPhone home-bar area underneath them (not taken out of the 56px)
+          height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         }}
         aria-label="Mobile Bottom Navigation"

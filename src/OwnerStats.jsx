@@ -205,7 +205,7 @@ function SalesTrendChart({ trend, isLoading }) {
             </div>
           </div>
         ) : (trend || []).map((point, i) => (
-          <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group cursor-crosshair relative">
+          <div key={i} tabIndex={-1} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group cursor-crosshair relative outline-none">
             <div
               className={`w-full relative rounded-t-sm transition-all duration-300 opacity-80 group-hover:opacity-100 ${!isAnimated ? 'ease-in' : 'ease-out'}`}
               style={{
@@ -215,15 +215,15 @@ function SalesTrendChart({ trend, isLoading }) {
               }}
             >
               {showBarLabels && point.rev > 0 && (
-                <span className={`absolute -top-5 left-1/2 -translate-x-1/2 text-xs font-semibold tabular-nums whitespace-nowrap pointer-events-none transition-opacity group-hover:opacity-0 ${isAnimated ? 'opacity-100' : 'opacity-0'}`} style={{ color: 'var(--text-secondary)' }}>
+                <span className={`absolute -top-5 left-1/2 -translate-x-1/2 text-xs font-semibold tabular-nums whitespace-nowrap pointer-events-none transition-opacity group-hover:opacity-0 group-focus:opacity-0 ${isAnimated ? 'opacity-100' : 'opacity-0'}`} style={{ color: 'var(--text-secondary)' }}>
                   {compactINR(point.rev)}
                 </span>
               )}
-              <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm flex items-center gap-1 pointer-events-none" style={{ color: 'var(--text-primary)', backgroundColor: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-light)' }}>
+              <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm flex items-center gap-1 pointer-events-none" style={{ color: 'var(--text-primary)', backgroundColor: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-light)' }}>
                 ₹{formatINR(point.rev, 0)} <span className="font-medium text-xs" style={{ color: 'var(--text-tertiary)' }}>({point.label})</span>
               </span>
             </div>
-            <span className={`absolute -bottom-4 left-1/2 -translate-x-1/2 text-[9px] sm:text-[10px] md:text-[11px] font-semibold uppercase whitespace-nowrap text-center`} style={{ color: 'var(--text-tertiary)' }}>
+            <span className={`absolute -bottom-4 left-1/2 -translate-x-1/2 text-[11px] font-semibold uppercase whitespace-nowrap text-center`} style={{ color: 'var(--text-tertiary)' }}>
               {point.label}
             </span>
           </div>
@@ -464,7 +464,7 @@ function DashboardDateFilter({
             <button
               type="button"
               onClick={handleSelectToday}
-              className={`py-1.5 px-2 rounded-md transition-all cursor-pointer text-center ${activeTab === 'today' ? 'shadow-sm text-white' : 'hover:text-[var(--text-primary)]'}`}
+              className={`tap-area relative py-1.5 px-2 rounded-md transition-all cursor-pointer text-center ${activeTab === 'today' ? 'shadow-sm text-white' : 'hover:text-[var(--text-primary)]'}`}
               style={{
                 backgroundColor: activeTab === 'today' ? 'var(--color-accent-solid)' : 'transparent',
                 color: activeTab === 'today' ? 'var(--text-on-solid)' : 'var(--text-secondary)',
@@ -475,7 +475,7 @@ function DashboardDateFilter({
             <button
               type="button"
               onClick={() => setActiveTab('date')}
-              className={`py-1.5 px-2 rounded-md transition-all cursor-pointer text-center ${activeTab === 'date' ? 'shadow-sm text-white' : 'hover:text-[var(--text-primary)]'}`}
+              className={`tap-area relative py-1.5 px-2 rounded-md transition-all cursor-pointer text-center ${activeTab === 'date' ? 'shadow-sm text-white' : 'hover:text-[var(--text-primary)]'}`}
               style={{
                 backgroundColor: activeTab === 'date' ? 'var(--color-accent-solid)' : 'transparent',
                 color: activeTab === 'date' ? 'var(--text-on-solid)' : 'var(--text-secondary)',
@@ -486,7 +486,7 @@ function DashboardDateFilter({
             <button
               type="button"
               onClick={() => setActiveTab('range')}
-              className={`py-1.5 px-2 rounded-md transition-all cursor-pointer text-center ${activeTab === 'range' ? 'shadow-sm text-white' : 'hover:text-[var(--text-primary)]'}`}
+              className={`tap-area relative py-1.5 px-2 rounded-md transition-all cursor-pointer text-center ${activeTab === 'range' ? 'shadow-sm text-white' : 'hover:text-[var(--text-primary)]'}`}
               style={{
                 backgroundColor: activeTab === 'range' ? 'var(--color-accent-solid)' : 'transparent',
                 color: activeTab === 'range' ? 'var(--text-on-solid)' : 'var(--text-secondary)',

@@ -71,6 +71,7 @@ export default function ScrapStockModal({ isOpen, item, batch, isWarehouseDisabl
           label={`Quantity to scrap (${unit})`}
           hint={`available ${Math.round(available * 100) / 100}`}
           type="number"
+          inputMode="decimal"
           step="any"
           min="0"
           autoFocus

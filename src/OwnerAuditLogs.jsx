@@ -361,7 +361,7 @@ export default function OwnerAuditLogs() {
           {/* Advanced Filter Toggle */}
           <button
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className="h-10 px-4 text-sm font-semibold rounded-md flex items-center gap-2 transition-colors shrink-0 cursor-pointer" aria-pressed={showAdvanced}
+            className="tap-area relative h-10 px-4 text-sm font-semibold rounded-md flex items-center gap-2 transition-colors shrink-0 cursor-pointer" aria-pressed={showAdvanced}
             style={{
               backgroundColor: showAdvanced ? 'var(--color-accent-solid)' : 'var(--bg-input)',
               border: showAdvanced ? '1px solid var(--color-accent-solid)' : '1px solid var(--border-medium)',

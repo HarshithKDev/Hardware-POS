@@ -41,11 +41,11 @@ export default function SelectBatchModal({
               >
                 <div>
                   <div className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>₹{formatINR(Number(batch.selling_price), 2)}</div>
-                  <div className="text-xs uppercase tracking-wider mt-1 group/msp cursor-help" style={{ color: 'var(--text-tertiary)' }}>
+                  <div tabIndex={-1} className="outline-none text-xs uppercase tracking-wider mt-1 group/msp cursor-help" style={{ color: 'var(--text-tertiary)' }}>
                     MSP: {userRole === 'owner' ? `₹${formatINR(Number(calculateMSP ? calculateMSP(batch, item) : (batch.msp || 0)), 2)}` : (
                       <span className="transition-all duration-300">
-                        <span className="group-hover/msp:hidden">***</span>
-                        <span className="hidden group-hover/msp:inline">₹{formatINR(Number(calculateMSP ? calculateMSP(batch, item) : (batch.msp || 0)), 2)}</span>
+                        <span className="group-hover/msp:hidden group-focus/msp:hidden">***</span>
+                        <span className="hidden group-hover/msp:inline group-focus/msp:inline">₹{formatINR(Number(calculateMSP ? calculateMSP(batch, item) : (batch.msp || 0)), 2)}</span>
                       </span>
                     )}
                   </div>

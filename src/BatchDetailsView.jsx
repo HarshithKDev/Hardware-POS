@@ -923,7 +923,7 @@ export default function BatchDetailsView({
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-[var(--text-secondary)]">{isWarehouseDisabled ? 'Min Qty' : 'Store'}</span>
                 <input
-                  type="number"
+                  type="number" inputMode="decimal"
                   min="0"
                   step="any"
                   value={minQtyForm.store}
@@ -939,7 +939,7 @@ export default function BatchDetailsView({
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs text-[var(--text-secondary)]">Warehouse</span>
                     <input
-                      type="number"
+                      type="number" inputMode="decimal"
                       min="0"
                       step="any"
                       value={minQtyForm.warehouse}
@@ -1325,7 +1325,7 @@ export default function BatchDetailsView({
                   </span>
                   {isEditingBatch ? (
                     <input
-                      type="number"
+                      type="number" inputMode="decimal"
                       step="any"
                       min="0"
                       value={batchEditForm.cost}
@@ -1348,7 +1348,7 @@ export default function BatchDetailsView({
                   </span>
                   {isEditingBatch ? (
                     <input
-                      type="number"
+                      type="number" inputMode="decimal"
                       step="any"
                       min="0"
                       value={batchEditForm.msp}
@@ -1370,7 +1370,7 @@ export default function BatchDetailsView({
                   </span>
                   {isEditingBatch ? (
                     <input
-                      type="number"
+                      type="number" inputMode="decimal"
                       step="any"
                       min="0"
                       value={batchEditForm.mrp}

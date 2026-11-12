@@ -61,6 +61,7 @@ export default function ScrewsModal({
         required
         size="lg"
         type="number"
+        inputMode="decimal"
         step="any"
         min="1"
         autoFocus

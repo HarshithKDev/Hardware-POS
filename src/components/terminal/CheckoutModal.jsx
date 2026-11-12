@@ -90,7 +90,9 @@ export default function CheckoutModal({
               </label>
               <input 
                 id="customer-phone" 
-                type="text" 
+                type="tel" 
+                inputMode="tel"
+                autoComplete="tel" 
                 value={checkoutModal.customerPhone || ''} 
                 onChange={(e) => setCheckoutModal({ ...checkoutModal, customerPhone: e.target.value })} 
                 placeholder="e.g. 9876543210" 
@@ -111,7 +113,7 @@ export default function CheckoutModal({
             </label>
             <input 
               id="negotiated-total" 
-              type="number" 
+              type="number" inputMode="decimal" 
               step="any" 
               min="0" 
               autoFocus
@@ -211,7 +213,7 @@ export default function CheckoutModal({
                   </div>
                   <input 
                     id="cash-given" 
-                    type="number" 
+                    type="number" inputMode="decimal" 
                     step="any" 
                     min="0" 
                     value={checkoutModal.cashGiven} 
@@ -284,7 +286,7 @@ export default function CheckoutModal({
                   <label htmlFor="split-upi" className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-secondary)' }}>UPI (₹)</label>
                   <input 
                     id="split-upi" 
-                    type="number" 
+                    type="number" inputMode="decimal" 
                     step="any" 
                     min="0" 
                     value={checkoutModal.splitUpi} 
@@ -308,7 +310,7 @@ export default function CheckoutModal({
                   <label htmlFor="split-cash" className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-secondary)' }}>Cash (₹)</label>
                   <input 
                     id="split-cash" 
-                    type="number" 
+                    type="number" inputMode="decimal" 
                     step="any" 
                     min="0" 
                     value={checkoutModal.splitCash} 

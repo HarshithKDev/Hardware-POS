@@ -654,7 +654,7 @@ function App() {
             <button
               type="button"
               onClick={toggleDarkMode}
-              className="h-8 w-8 md:h-9 md:w-28 rounded-md px-0 text-xs font-semibold transition-colors shrink-0 flex items-center justify-center gap-2 border border-[var(--border-medium)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-heavy)] cursor-pointer"
+              className="tap-area relative h-8 w-8 md:h-9 md:w-28 rounded-md px-0 text-xs font-semibold transition-colors shrink-0 flex items-center justify-center gap-2 border border-[var(--border-medium)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-heavy)] cursor-pointer"
               aria-label={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}
               title={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}
             >
@@ -663,7 +663,7 @@ function App() {
             </button>
             <button
               onClick={() => setShowLogoutConfirm(true)}
-              className="h-8 w-8 md:h-9 md:w-28 rounded-md px-0 text-xs font-semibold transition-colors shrink-0 flex items-center justify-center gap-2 border border-[var(--border-medium)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-heavy)] cursor-pointer"
+              className="tap-area relative h-8 w-8 md:h-9 md:w-28 rounded-md px-0 text-xs font-semibold transition-colors shrink-0 flex items-center justify-center gap-2 border border-[var(--border-medium)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-heavy)] cursor-pointer"
               aria-label="Sign Out"
               title="Sign Out"
             >

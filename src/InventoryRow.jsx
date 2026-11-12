@@ -382,18 +382,18 @@ export default function InventoryRow({
               {!isWarehouseDisabled && (
                 <div>
                   <label className="text-[11px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Warehouse Stock</label>
-                  <input type="number" step="any" min="0" value={data.stock_warehouse ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_warehouse', e.target.value)} className="h-9 px-2 w-full text-xs text-center rounded focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                  <input type="number" inputMode="decimal" step="any" min="0" value={data.stock_warehouse ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_warehouse', e.target.value)} className="h-9 px-2 w-full text-xs text-center rounded focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
                 </div>
               )}
               <div>
                 <label className="text-[11px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">{isWarehouseDisabled ? 'Total Stock' : 'Store Stock'}</label>
-                <input type="number" step="any" min="0" value={data.stock_store ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_store', e.target.value)} className="h-9 px-2 w-full text-xs text-center rounded focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                <input type="number" inputMode="decimal" step="any" min="0" value={data.stock_store ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_store', e.target.value)} className="h-9 px-2 w-full text-xs text-center rounded focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
               </div>
             </div>
             <div>
               <label className="text-[11px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Cost Price (₹)</label>
               <input
-                type="number"
+                type="number" inputMode="decimal"
                 step="any"
                 min="0"
                 value={data.cost_price ?? ''}
@@ -442,11 +442,11 @@ export default function InventoryRow({
 
         {!isWarehouseDisabled && (
           <td className="hidden md:table-cell p-1" style={{ borderRight: '1px solid var(--border-medium)' }}>
-            <input type="number" step="any" min="0" value={data.stock_warehouse ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_warehouse', e.target.value)} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+            <input type="number" inputMode="decimal" step="any" min="0" value={data.stock_warehouse ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_warehouse', e.target.value)} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
           </td>
         )}
         <td className="hidden md:table-cell p-1" style={{ borderRight: '1px solid var(--border-medium)' }}>
-          <input type="number" step="any" min="0" value={data.stock_store ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_store', e.target.value)} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+          <input type="number" inputMode="decimal" step="any" min="0" value={data.stock_store ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_store', e.target.value)} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
         </td>
         <td className="hidden md:table-cell p-1 text-center text-xs text-[var(--text-tertiary)]">
           Editing
@@ -560,7 +560,7 @@ export default function InventoryRow({
                 setIsHovered(false);
                 onOpenBatchDetails && onOpenBatchDetails(item);
               }}
-              className="flex-1 py-1 px-2.5 text-[11px] font-bold rounded-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5 hover:brightness-110"
+              className="tap-area relative flex-1 py-1 px-2.5 text-[11px] font-bold rounded-md cursor-pointer transition-all active:scale-95 flex items-center justify-center gap-1.5 hover:brightness-110"
               style={{
                 backgroundColor: item.is_cuttable ? 'var(--color-accent-bg)' : 'var(--color-success-bg)',
                 color: item.is_cuttable ? 'var(--color-accent)' : 'var(--color-success)',
@@ -634,7 +634,7 @@ export default function InventoryRow({
           }}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
-          className="inline-flex px-2.5 py-1 text-[11px] font-bold rounded-full whitespace-nowrap cursor-pointer transition-all active:scale-95 shadow-sm items-center justify-center gap-1.5 w-[96px] h-[26px] hover:brightness-110"
+          className="tap-area relative inline-flex px-2.5 py-1 text-[11px] font-bold rounded-full whitespace-nowrap cursor-pointer transition-all active:scale-95 shadow-sm items-center justify-center gap-1.5 w-[96px] h-[26px] hover:brightness-110"
           style={{
             backgroundColor: item.is_cuttable ? 'var(--color-accent-bg)' : 'var(--color-success-bg)',
             color: item.is_cuttable ? 'var(--color-accent)' : 'var(--color-success)',

@@ -69,6 +69,7 @@ export default function LooseItemModal({
         label={isCheckout && isLooseKg ? 'Enter Quantity in Grams (g)' : `Enter Quantity (${item.unit || 'PCS'})`}
         size="lg"
         type="number"
+        inputMode="decimal"
         step={isCheckout && isLooseKg ? '1' : 'any'}
         min="0"
         autoFocus
