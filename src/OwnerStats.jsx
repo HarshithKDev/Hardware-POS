@@ -17,6 +17,7 @@ import { AlertTriangle, Calendar, ArrowUpRight } from 'lucide-react';
 import { useSessionState } from './hooks/useSessionState';
 import PageTitleReset from './components/PageTitleReset';
 import { billPaymentSplit } from './services/dayClosing';
+import { fetchAllRows, chunk, mapWithLimit } from './services/fetchAll';
 import { buttonClass, useSort, SortTh } from './components/ui';
 
 const PROFIT_SORT = {
@@ -795,20 +796,24 @@ export default function OwnerStats({ isActive }) {
     }
 
     const shopId = localStorage.getItem('shop_id');
-    let billsQuery = supabase
-      .from('bills')
-      .select('id, total_amount, cash_amount, upi_amount, payment_method, created_at')
-      .gte('created_at', localToUtcIso(queryStart))
-      .lte('created_at', localToUtcIso(queryEnd))
-      .eq('location', 'Store')
-      .neq('status', 'voided')
-      .neq('status', 'showroom_pending')
-      .neq('status', 'showroom')
-      .neq('payment_method', 'SHOWROOM');
-    if (shopId) {
-      billsQuery = billsQuery.eq('shop_id', shopId);
-    }
-    const { data: allBills } = await billsQuery;
+    // Every bill in the period (paged: the database returns at most 1,000 rows per request)
+    const { data: allBills, error: billsErr } = await fetchAllRows(() => {
+      let billsQuery = supabase
+        .from('bills')
+        .select('id, total_amount, cash_amount, upi_amount, payment_method, created_at')
+        .gte('created_at', localToUtcIso(queryStart))
+        .lte('created_at', localToUtcIso(queryEnd))
+        .eq('location', 'Store')
+        .neq('status', 'voided')
+        .neq('status', 'showroom_pending')
+        .neq('status', 'showroom')
+        .neq('payment_method', 'SHOWROOM');
+      if (shopId) {
+        billsQuery = billsQuery.eq('shop_id', shopId);
+      }
+      return billsQuery.order('created_at', { ascending: true }).order('id', { ascending: true });
+    });
+    if (billsErr) console.warn('[Stats] Bills could not be fully loaded:', billsErr.message);
 
     const billsData = allBills || [];
 
@@ -817,22 +822,16 @@ export default function OwnerStats({ isActive }) {
     const allBillIdArray = Array.from(new Set(billsData.map(b => b.id)));
     let rawItemsData = [];
     if (allBillIdArray.length > 0) {
-      const chunkSize = 100;
-      const chunks = [];
-      for (let i = 0; i < allBillIdArray.length; i += chunkSize) {
-        chunks.push(allBillIdArray.slice(i, i + chunkSize));
-      }
-      const batchResults = await Promise.all(
-        chunks.map(batch => {
-          let q = supabase.from('bill_items')
-            .select('name, barcode, quantity, price_at_sale, cost_at_sale, unit, bill_id, profit, cost_allocated, billable_quantity, system_price')
-            .in('bill_id', batch);
-          if (shopId) {
-            q = q.eq('shop_id', shopId);
-          }
-          return q;
-        })
-      );
+      // Items of those bills, 100 bills per request, at most 6 requests at a time
+      const batchResults = await mapWithLimit(chunk(allBillIdArray, 100), 6, (batch) => fetchAllRows(() => {
+        let q = supabase.from('bill_items')
+          .select('name, barcode, quantity, price_at_sale, cost_at_sale, unit, bill_id, profit, cost_allocated, billable_quantity, system_price')
+          .in('bill_id', batch);
+        if (shopId) {
+          q = q.eq('shop_id', shopId);
+        }
+        return q.order('id', { ascending: true });
+      }));
       rawItemsData = batchResults.flatMap(r => r.data || []);
     }
 
@@ -974,11 +973,13 @@ export default function OwnerStats({ isActive }) {
     // Expenses for the same period, so profit can be shown after expenses (best effort)
     let tfExpenses = 0;
     try {
-      const { data: expData, error: expErr } = await supabase
+      const { data: expData, error: expErr } = await fetchAllRows(() => supabase
         .from('expenses')
         .select('*')
         .gte('created_at', localToUtcIso(tfStart))
-        .lte('created_at', localToUtcIso(tfEnd));
+        .lte('created_at', localToUtcIso(tfEnd))
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true }));
       if (!expErr && expData) {
         let shopWorkerIds = new Set();
         if (shopId) {
@@ -1014,19 +1015,23 @@ export default function OwnerStats({ isActive }) {
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
     const deadStockStartIso = `${oneYearAgo.toLocaleDateString('en-CA')}T00:00:00`;
 
-    let dsBillsQuery = supabase
-      .from('bills')
-      .select('id')
-      .gte('created_at', localToUtcIso(deadStockStartIso))
-      .eq('location', 'Store')
-      .neq('status', 'voided')
-      .neq('status', 'showroom_pending')
-      .neq('status', 'showroom')
-      .neq('payment_method', 'SHOWROOM');
-    if (shopId) {
-      dsBillsQuery = dsBillsQuery.eq('shop_id', shopId);
-    }
-    const dsBillsPromise = dsBillsQuery;
+    // Every bill of the past year (paged: a busy shop has far more than 1,000), so items sold in
+    // any of them are not counted as dead stock
+    const dsBillsPromise = fetchAllRows(() => {
+      let dsBillsQuery = supabase
+        .from('bills')
+        .select('id')
+        .gte('created_at', localToUtcIso(deadStockStartIso))
+        .eq('location', 'Store')
+        .neq('status', 'voided')
+        .neq('status', 'showroom_pending')
+        .neq('status', 'showroom')
+        .neq('payment_method', 'SHOWROOM');
+      if (shopId) {
+        dsBillsQuery = dsBillsQuery.eq('shop_id', shopId);
+      }
+      return dsBillsQuery.order('created_at', { ascending: true }).order('id', { ascending: true });
+    });
 
     // Capital and dead stock need real batch costs. This device's local catalog can be
     // missing them (a staff login on the same device downloads it without costs, and owner
@@ -1069,27 +1074,21 @@ export default function OwnerStats({ isActive }) {
       }
     }
 
-    const { data: dsBillsData } = await dsBillsPromise;
+    const { data: dsBillsData, error: dsBillsErr } = await dsBillsPromise;
+    if (dsBillsErr) console.warn('[Stats] Past-year bills could not be fully loaded:', dsBillsErr.message);
 
     let deadStockSoldNames = new Set();
     if (dsBillsData && dsBillsData.length > 0) {
       const dsBillIds = dsBillsData.map(b => b.id);
-      const chunkSize = 100;
-      const chunks = [];
-      for (let i = 0; i < dsBillIds.length; i += chunkSize) {
-        chunks.push(dsBillIds.slice(i, i + chunkSize));
-      }
-      const batchResults = await Promise.all(
-        chunks.map(batch => {
-          let q = supabase.from('bill_items')
-            .select('name')
-            .in('bill_id', batch);
-          if (shopId) {
-            q = q.eq('shop_id', shopId);
-          }
-          return q;
-        })
-      );
+      const batchResults = await mapWithLimit(chunk(dsBillIds, 100), 6, (batch) => fetchAllRows(() => {
+        let q = supabase.from('bill_items')
+          .select('id, name')
+          .in('bill_id', batch);
+        if (shopId) {
+          q = q.eq('shop_id', shopId);
+        }
+        return q.order('id', { ascending: true });
+      }));
       const items = batchResults.flatMap(r => r.data || []);
       items.forEach(it => {
         const rawName = it.name || it.item_name || '';

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
+import { fetchAllRows } from './services/fetchAll';
 import { useApp } from './AppContext';
 import { EXPENSES_CHANGED_EVENT } from './services/liveRefresh';
 import { generateId, formatDateTime, formatINR } from './utils';
@@ -126,10 +127,12 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
     }
 
     try {
-      const { data, error } = await supabase
+      // All expenses (paged: the database returns at most 1,000 rows per request)
+      const { data, error } = await fetchAllRows(() => supabase
         .from('expenses')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false }));
 
       if (!error && data) {
         // Fetch current shop's worker IDs to correlate

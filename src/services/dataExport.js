@@ -1,4 +1,6 @@
 import { supabase } from '../supabaseClient';
+import { fetchAllRows as fetchAllRowsPaged } from './fetchAll';
+const fetchAllRowsWithExportSize = (buildQuery) => fetchAllRowsPaged(buildQuery, { pageSize: EXPORT_PAGE_SIZE });
 import { formatDateTime } from '../utils';
 
 // Indian digit grouping in Excel: ₹1,00,000.00 / ₹12,34,56,789.00
@@ -7,16 +9,6 @@ const INR_EXCEL_FORMAT = '[>=10000000]"₹"##\\,##\\,##\\,##0.00;[>=100000]"₹"
 // Supabase returns at most 1000 rows per request by default, so large tables were
 // silently cut off in exports. Page through until a short page is returned.
 const EXPORT_PAGE_SIZE = 1000;
-async function fetchAllRows(buildQuery) {
-  const rows = [];
-  for (let from = 0; ; from += EXPORT_PAGE_SIZE) {
-    const { data, error } = await buildQuery().range(from, from + EXPORT_PAGE_SIZE - 1);
-    if (error) return { data: from === 0 ? null : rows, error };
-    if (data) rows.push(...data);
-    if (!data || data.length < EXPORT_PAGE_SIZE) break;
-  }
-  return { data: rows, error: null };
-}
 
 /**
  * Applies header styling with custom background color, bold text, borders, and center alignment.
@@ -140,7 +132,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   // Step 1: Query All Tables from Remote Supabase
   // -------------------------------------------------------------
   onProgress?.('Fetching inventory items...');
-  const { data: products = [] } = await fetchAllRows(() => {
+  const { data: products = [] } = await fetchAllRowsWithExportSize(() => {
     let q = supabase.from('product_master').select('*').order('name').order('barcode');
     if (shopId) q = q.eq('shop_id', shopId);
     return q;
@@ -150,14 +142,14 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   onProgress?.('Fetching inventory batches...');
   let batches = [];
   try {
-    const { data: bData, error: bErr } = await fetchAllRows(() => {
+    const { data: bData, error: bErr } = await fetchAllRowsWithExportSize(() => {
       let q = supabase.from('inventory_batches').select('*').order('batch_id');
       if (shopId) q = q.eq('shop_id', shopId);
       return q;
     });
     if (bErr) {
       console.warn('Batch fetch note, retrying without filter:', bErr.message);
-      const { data: allBatches } = await fetchAllRows(() => supabase.from('inventory_batches').select('*').order('batch_id'));
+      const { data: allBatches } = await fetchAllRowsWithExportSize(() => supabase.from('inventory_batches').select('*').order('batch_id'));
       // Never mix in other shops' batches (barcodes like 1001 repeat across shops)
       if (allBatches) batches = allBatches.filter(b => !shopId || !b.shop_id || b.shop_id === shopId);
     } else if (bData) {
@@ -176,7 +168,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   });
 
   onProgress?.('Fetching sales transactions...');
-  const { data: bills = [] } = await fetchAllRows(() => {
+  const { data: bills = [] } = await fetchAllRowsWithExportSize(() => {
     let q = supabase.from('bills').select('*').order('created_at', { ascending: false }).order('id');
     if (shopId) q = q.eq('shop_id', shopId);
     return q;
@@ -186,7 +178,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   onProgress?.('Fetching bill item details...');
   let billItems = [];
   try {
-    const { data: biData, error: biErr } = await fetchAllRows(() => {
+    const { data: biData, error: biErr } = await fetchAllRowsWithExportSize(() => {
       let q = supabase.from('bill_items').select('*').order('id');
       if (shopId) q = q.eq('shop_id', shopId);
       return q;
@@ -196,7 +188,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
       // Fallback: fetch items for THIS shop's bills only (never all shops' items)
       const billIds = (bills || []).map(b => b.id);
       for (let i = 0; i < billIds.length; i += 200) {
-        const { data: chunk } = await fetchAllRows(() =>
+        const { data: chunk } = await fetchAllRowsWithExportSize(() =>
           supabase.from('bill_items').select('*').in('bill_id', billIds.slice(i, i + 200)).order('id')
         );
         if (chunk) billItems.push(...chunk);
@@ -258,7 +250,7 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   onProgress?.('Fetching expenses...');
   let expenses = [];
   try {
-    const { data: remoteExp } = await fetchAllRows(() =>
+    const { data: remoteExp } = await fetchAllRowsWithExportSize(() =>
       supabase.from('expenses').select('*').order('created_at', { ascending: false })
     );
     if (remoteExp) {

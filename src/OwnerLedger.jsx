@@ -15,6 +15,7 @@ import { Search, Undo2, X, Phone, User, Calendar } from 'lucide-react';
 import BillDetailsView from './BillDetailsView';
 import { getInventoryItemByBarcode } from './services/db';
 import { readRows } from './services/secureRead';
+import { useActiveDays, ACTIVE_DAYS_STEP } from './hooks/useActiveDays';
 import PageTitleReset from './components/PageTitleReset';
 import DayClosingModal from './components/reports/DayClosingModal';
 
@@ -134,37 +135,25 @@ export default function OwnerLedger({ isActive }) {
   };
 
   // Query distinct dates with store sales for day-by-day pagination
-  const { data: availableDates = [] } = useQuery({
-    queryKey: ['billAvailableDates', shopId, isActive],
-    queryFn: async () => {
-      const { data, error } = await readRows('bills', (q) => {
-        let query = q
-          .select('created_at')
-          .eq('location', 'Store')
-          .neq('status', 'showroom_pending')
-          .neq('status', 'showroom')
-          .neq('payment_method', 'SHOWROOM')
-          .order('created_at', { ascending: false })
-          .limit(2000);
-        if (shopId) query = query.eq('shop_id', shopId);
-        return query;
-      }, { owner: isOwner });
-      if (error) throw error;
-      const dates = [];
-      const seen = new Set();
-      for (const row of (data || [])) {
-        if (!row.created_at) continue;
-        const d = new Date(row.created_at).toLocaleDateString('en-CA');
-        if (!seen.has(d)) {
-          seen.add(d);
-          dates.push(d);
-        }
-      }
-      return dates;
-    },
-    enabled: isActive,
-    staleTime: 1000 * 60 * 2,
-  });
+  // Days with sales, newest first. Loads further back automatically as you step to older days
+  // (a single request would stop after the latest 1,000 bills).
+  const { dates: availableDates, hasMore: hasOlderDays, loadMore: loadOlderDays } = useActiveDays(
+    ['billAvailableDates', shopId, isActive],
+    (beforeIso) => readRows('bills', (q) => {
+      let query = q
+        .select('created_at')
+        .eq('location', 'Store')
+        .neq('status', 'showroom_pending')
+        .neq('status', 'showroom')
+        .neq('payment_method', 'SHOWROOM')
+        .order('created_at', { ascending: false })
+        .limit(ACTIVE_DAYS_STEP);
+      if (beforeIso) query = query.lt('created_at', beforeIso);
+      if (shopId) query = query.eq('shop_id', shopId);
+      return query;
+    }, { owner: isOwner }),
+    { enabled: isActive, currentIndex: datePageIndex }
+  );
 
   const isSearching = Boolean(searchQuery.trim());
 
@@ -172,7 +161,7 @@ export default function OwnerLedger({ isActive }) {
   const currentDay = useMemo(() => {
     if (customDate) return customDate;
     if (availableDates && availableDates.length > 0) {
-      return availableDates[datePageIndex] || availableDates[0];
+      return availableDates[Math.min(datePageIndex, availableDates.length - 1)];
     }
     return new Date().toLocaleDateString('en-CA');
   }, [customDate, availableDates, datePageIndex]);
@@ -284,7 +273,7 @@ export default function OwnerLedger({ isActive }) {
   });
   const { sorted: sortedBills, sort: billSort, toggleSort: toggleBillSort } = useSort(bills, LEDGER_SORT);
 
-  const hasMoreBills = isSearching ? bills.length === SALES_PER_PAGE : (datePageIndex < availableDates.length - 1);
+  const hasMoreBills = isSearching ? bills.length === SALES_PER_PAGE : (datePageIndex < availableDates.length - 1 || hasOlderDays);
 
   const handleExportCSV = async () => {
     try {
@@ -987,18 +976,20 @@ export default function OwnerLedger({ isActive }) {
                   <>
                     <span className="hidden sm:inline">•</span>
                     <span className="hidden sm:inline text-xs text-[var(--text-tertiary)]">
-                      Day {availableDates.indexOf(currentDay) >= 0 ? availableDates.indexOf(currentDay) + 1 : datePageIndex + 1} of {availableDates.length}
+                      Day {availableDates.indexOf(currentDay) >= 0 ? availableDates.indexOf(currentDay) + 1 : datePageIndex + 1} of {availableDates.length}{hasOlderDays ? '+' : ''}
                     </span>
                   </>
                 )}
               </div>
 
               <button 
-                onClick={() => {
+                onClick={async () => {
                   setCustomDate('');
-                  setDatePageIndex(p => Math.min(Math.max(0, availableDates.length - 1), p + 1));
+                  // At the end of the loaded days: load older days first, then step back
+                  if (datePageIndex >= availableDates.length - 1 && hasOlderDays) await loadOlderDays();
+                  setDatePageIndex(p => p + 1);
                 }} 
-                disabled={availableDates.length === 0 || (datePageIndex >= availableDates.length - 1 && (!customDate || customDate === availableDates[availableDates.length - 1]))} 
+                disabled={availableDates.length === 0 || (datePageIndex >= availableDates.length - 1 && !hasOlderDays && (!customDate || customDate === availableDates[availableDates.length - 1]))} 
                 className={buttonClass({ variant: 'secondary', size: 'sm', className: 'sm:px-4' })}
                 title="Next Day"
               >
