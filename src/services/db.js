@@ -34,6 +34,13 @@ export const initDB = async () => {
   return dbPromise;
 };
 
+// Set when the local catalog was filled with just the first page from the server (cold start).
+// The next background sync must then be a full one, not a "changes since last time" one.
+const PARTIAL_CATALOG_KEY = 'pos_local_catalog_partial';
+export const markLocalCatalogPartial = () => { try { localStorage.setItem(PARTIAL_CATALOG_KEY, '1'); } catch { /* storage unavailable */ } };
+export const isLocalCatalogPartial = () => { try { return localStorage.getItem(PARTIAL_CATALOG_KEY) === '1'; } catch { return false; } };
+export const clearLocalCatalogPartial = () => { try { localStorage.removeItem(PARTIAL_CATALOG_KEY); } catch { /* storage unavailable */ } };
+
 export const setCachedInventory = (items) => {
   cachedInventory = items ? [...items] : null;
 };
@@ -484,6 +491,7 @@ export const getInventoryByQuery = async ({
       });
       if (enriched.length > 0) {
         await saveInventoryBatch(enriched);
+        markLocalCatalogPartial();
         allItems = enriched;
       }
     } catch (e) {

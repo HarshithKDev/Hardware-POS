@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, forwardRef } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from './supabaseClient';
-import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from './AppContext';
 import { Spinner, PageLoader, EmptyState } from './SharedUI';
@@ -442,6 +442,19 @@ export default function WorkerDashboardView({ isBillable = true }) {
     });
   }, [paginatedInventory]);
 
+  // The product list is read from this device's local copy. When the background download
+  // finishes (first login on a device, or new/changed items), show the fresh, complete list.
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const onSyncComplete = () => {
+      queryClient.invalidateQueries({ queryKey: ['workerInventory'] });
+      queryClient.invalidateQueries({ queryKey: ['lowStockCounts'] });
+      queryClient.invalidateQueries({ queryKey: ['lowStockModal'] });
+    };
+    window.addEventListener('inventory_sync_complete', onSyncComplete);
+    return () => window.removeEventListener('inventory_sync_complete', onSyncComplete);
+  }, [queryClient]);
+
   const isPhone = usePhoneLayout();
   const storeAlerts = lowStockCounts?.store || 0;
   const whseAlerts = lowStockCounts?.warehouse || 0;
@@ -669,7 +682,10 @@ export default function WorkerDashboardView({ isBillable = true }) {
             style={{ height: '100%', width: '100%' }}
             className="overflow-x-hidden"
             defaultItemHeight={44}
-            initialItemCount={expandedRows.length}
+            // Render a first screenful straight away (also lets tests without a real screen see rows).
+            // Must stay below the page size: at the full row count the list never reports reaching
+            // the end, so further products were never loaded.
+            initialItemCount={Math.min(expandedRows.length, 30)}
             increaseViewportBy={{ top: 300, bottom: 300 }}
             fixedHeaderContent={fixedHeaderContent}
             components={tableComponents}

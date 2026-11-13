@@ -13,6 +13,8 @@ vi.mock('../services/db', () => ({
   deleteOrphanedInventory: vi.fn().mockResolvedValue(),
   getLocalInventoryCount: vi.fn(),
   deleteInventoryItemByBarcode: vi.fn().mockResolvedValue(),
+  isLocalCatalogPartial: vi.fn(() => false),
+  clearLocalCatalogPartial: vi.fn(),
 }));
 
 vi.mock('../supabaseClient', () => ({
@@ -104,6 +106,27 @@ describe('Delta / Incremental Sync System', () => {
       expect.stringContaining('inventory_sync'),
       expect.objectContaining({ mode: 'delta' })
     );
+  });
+
+  it('runs a FULL sync when the local catalog only holds the quick first page (cold start)', async () => {
+    vi.mocked(db.getSyncStatus).mockResolvedValue({
+      key: 'inventory_sync_test-shop-123_worker',
+      status: 'idle',
+      last_sync: '2026-10-21T18:00:00.000Z',
+      last_full_sync: new Date().toISOString(), // would normally allow a delta sync
+    });
+    vi.mocked(db.getLocalInventoryCount).mockResolvedValue(50);
+    vi.mocked(db.isLocalCatalogPartial).mockReturnValue(true);
+
+    const prodQuery = createChainableQuery([{ barcode: '1001', name: 'Item 1', is_active: true }]);
+    vi.mocked(supabase.from).mockImplementation((table) => (table === 'product_master_public' ? prodQuery : createChainableQuery()));
+
+    await syncInventoryToLocal('worker');
+
+    expect(prodQuery.gt).not.toHaveBeenCalled();
+    expect(db.setSyncStatus).toHaveBeenCalledWith(expect.stringContaining('inventory_sync'), expect.objectContaining({ mode: 'full' }));
+    expect(db.clearLocalCatalogPartial).toHaveBeenCalled();
+    vi.mocked(db.isLocalCatalogPartial).mockReturnValue(false);
   });
 
   it('forces FULL sync when options.forceFull is true', async () => {

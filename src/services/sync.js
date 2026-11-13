@@ -11,7 +11,9 @@ import {
   getLocalInventoryCount,
   deleteInventoryItemByBarcode,
   markTransactionSubmitting,
-  requeueTransaction
+  requeueTransaction,
+  isLocalCatalogPartial,
+  clearLocalCatalogPartial,
 } from './db';
 import { finalizeBillMetadata, flushPendingBillPatches } from './billFinalize';
 import { beginCriticalWork } from './busyGuard';
@@ -103,7 +105,9 @@ const runInventorySync = async (userRole = 'worker', options = {}) => {
     // - Local IndexedDB already contains products
     const fullSyncDue = !prevStatus?.last_full_sync
       || (Date.now() - Date.parse(prevStatus.last_full_sync)) > FULL_SYNC_INTERVAL_MS;
-    const isDelta = !forceFull && !needsCostBackfill && !fullSyncDue && Boolean(prevStatus?.last_sync) && localCount > 0;
+    // A catalog filled with only the quick first page (cold start) must be completed by a full sync
+    const catalogPartial = isLocalCatalogPartial();
+    const isDelta = !forceFull && !needsCostBackfill && !fullSyncDue && !catalogPartial && Boolean(prevStatus?.last_sync) && localCount > 0;
 
     await setSyncStatus(syncKey, { 
       status: 'syncing', 
@@ -137,6 +141,8 @@ const runInventorySync = async (userRole = 'worker', options = {}) => {
       const res = await performFullSync({ tableName, userRole, currentShopId });
       usedCostTables = Boolean(res?.usedCostTables);
     }
+
+    if (!isDelta) clearLocalCatalogPartial();
 
     const completedAt = new Date().toISOString();
     await setSyncStatus(syncKey, { 
