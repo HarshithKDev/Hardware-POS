@@ -509,7 +509,7 @@ function App() {
   if (isInitialLoad) {
     return (
       <div
-        className="w-full min-h-[100dvh] flex flex-col items-center justify-center"
+        className="w-full min-h-[100vh] supports-[height:100dvh]:min-h-[100dvh] flex flex-col items-center justify-center"
         style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
       >
         <PageLoader text="Initializing Subsystems" />
@@ -519,7 +519,7 @@ function App() {
 
   if (isSetupNeeded || !userRole) {
     return (
-      <Suspense fallback={<div className="w-full min-h-[100dvh] flex items-center justify-center bg-[var(--bg-tertiary)]"><PageLoader text="Loading..." /></div>}>
+      <Suspense fallback={<div className="w-full min-h-[100vh] supports-[height:100dvh]:min-h-[100dvh] flex items-center justify-center bg-[var(--bg-tertiary)]"><PageLoader text="Loading..." /></div>}>
         <EntryFlow
           onLoginSuccess={handleLoginSuccess}
           isSetupNeeded={isSetupNeeded}
@@ -539,7 +539,7 @@ function App() {
 
   return (
     <div
-      className="w-full max-w-[1920px] mx-auto h-[100dvh] flex flex-col overflow-hidden relative"
+      className="w-full max-w-[1920px] mx-auto h-[100vh] supports-[height:100dvh]:h-[100dvh] flex flex-col overflow-hidden relative pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
       style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
     >
       {!isOnline && (

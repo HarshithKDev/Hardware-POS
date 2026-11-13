@@ -321,6 +321,8 @@ export default function OwnerDashboard() {
           // 56px for the buttons, plus the iPhone home-bar area underneath them (not taken out of the 56px)
           height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          paddingLeft: 'env(safe-area-inset-left, 0px)',
+          paddingRight: 'env(safe-area-inset-right, 0px)',
         }}
         aria-label="Mobile Bottom Navigation"
       >

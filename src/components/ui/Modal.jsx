@@ -92,7 +92,7 @@ export default function Modal({
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
         onSubmit={onSubmit}
-        className={`w-full ${WIDTHS[size] || WIDTHS.md} max-h-[92dvh] flex flex-col overflow-hidden rounded-t-2xl sm:rounded-2xl border border-[var(--border-light)] shadow-2xl bg-[var(--bg-secondary)] text-[var(--text-primary)] animate-scale-in`}
+        className={`w-full ${WIDTHS[size] || WIDTHS.md} max-h-[92vh] supports-[height:100dvh]:max-h-[92dvh] flex flex-col overflow-hidden rounded-t-2xl sm:rounded-2xl border border-[var(--border-light)] shadow-2xl bg-[var(--bg-secondary)] text-[var(--text-primary)] animate-scale-in`}
       >
         {(title || showClose) && (
           <div className="flex items-start justify-between gap-3 px-5 py-3.5 border-b border-[var(--border-light)] shrink-0">

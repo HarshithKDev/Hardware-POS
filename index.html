@@ -61,6 +61,27 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Very old browsers (e.g. iPhone on iOS 15.3 or earlier) can't apply this app's styles and
+      // would show a broken page. Show a plain "please update" message instead. Old-style JS on purpose.
+      (function () {
+        var supported = typeof window.CSSLayerBlockRule !== 'undefined';
+        if (supported) return;
+        window.__posUnsupportedBrowser = true;
+        var root = document.getElementById('root');
+        if (root) root.style.display = 'none';
+        var box = document.createElement('div');
+        box.setAttribute('role', 'alert');
+        box.style.cssText = 'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;color:#fafafa;background:#0a0a0a;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;text-align:center';
+        box.innerHTML = '<div style="max-width:420px">' +
+          '<h1 style="font-size:22px;margin:0 0 12px">Please update your browser</h1>' +
+          '<p style="font-size:16px;line-height:1.5;margin:0 0 16px;color:#d4d4d4">This app needs a newer browser to work properly.</p>' +
+          '<p style="font-size:15px;line-height:1.5;margin:0 0 8px;color:#d4d4d4"><b>iPhone / iPad:</b> update to iOS 15.4 or later (Settings &rsaquo; General &rsaquo; Software Update).</p>' +
+          '<p style="font-size:15px;line-height:1.5;margin:0;color:#d4d4d4"><b>Android / computer:</b> use the latest Google Chrome or Microsoft Edge.</p>' +
+          '</div>';
+        document.body.appendChild(box);
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

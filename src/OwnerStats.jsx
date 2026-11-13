@@ -1368,7 +1368,7 @@ export default function OwnerStats({ isActive }) {
           aria-labelledby="stats-modal-title"
         >
           <div
-            className="w-full max-w-4xl flex flex-col h-[85dvh] sm:h-[70vh] sm:max-h-[620px] rounded-t-2xl sm:rounded-[14px] overflow-hidden shadow-2xl border border-[var(--border-light)] animate-scale-in sm:my-auto"
+            className="w-full max-w-4xl flex flex-col h-[85vh] supports-[height:100dvh]:h-[85dvh] sm:h-[70vh] sm:supports-[height:100dvh]:h-[70dvh] sm:max-h-[620px] rounded-t-2xl sm:rounded-[14px] overflow-hidden shadow-2xl border border-[var(--border-light)] animate-scale-in sm:my-auto"
             style={{ backgroundColor: 'var(--bg-secondary)' }}
             onClick={(e) => e.stopPropagation()}
           >

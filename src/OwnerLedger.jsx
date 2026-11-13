@@ -1128,7 +1128,7 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
         </button>
       </div>
 
-      <div className="p-6 max-h-[60vh] overflow-y-auto">
+      <div className="p-6 max-h-[60vh] supports-[height:100dvh]:max-h-[60dvh] overflow-y-auto">
         <div className="flex justify-between items-center mb-3">
           <p className="text-sm text-[var(--text-secondary)]">Select items and quantities to return:</p>
           {returnableItems.length > 1 && (

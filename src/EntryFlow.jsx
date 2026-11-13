@@ -297,7 +297,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
 
     if (isExistingLogin) {
       return (
-        <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4" style={{ backgroundColor: 'var(--bg-primary)' }}>
+        <div className="min-h-[100vh] supports-[height:100dvh]:min-h-[100dvh] flex flex-col items-center justify-center p-4" style={{ backgroundColor: 'var(--bg-primary)' }}>
           <div className="w-full max-w-sm p-6 md:p-8 rounded-xl border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
             <h2 className="text-2xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>Owner Login</h2>
             <p className="mb-5 text-sm" style={{ color: 'var(--text-secondary)' }}>Log in to access your registered shop.</p>
@@ -331,8 +331,8 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
     }
 
     return (
-      <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4" style={{ backgroundColor: 'var(--bg-primary)' }}>
-        <div className="w-full max-w-lg p-6 md:p-8 rounded-xl border border-[var(--border-light)] shadow-2xl max-h-[90vh] overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+      <div className="min-h-[100vh] supports-[height:100dvh]:min-h-[100dvh] flex flex-col items-center justify-center p-4" style={{ backgroundColor: 'var(--bg-primary)' }}>
+        <div className="w-full max-w-lg p-6 md:p-8 rounded-xl border border-[var(--border-light)] shadow-2xl max-h-[90vh] supports-[height:100dvh]:max-h-[90dvh] overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)' }}>
           <h2 className="text-2xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>Register Your Shop</h2>
           <p className="mb-5 text-sm" style={{ color: 'var(--text-secondary)' }}>Set up your POS system in minutes.</p>
           <form onSubmit={handleSetup} className="space-y-4">
@@ -434,7 +434,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
   }
 
   return (
-    <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4" style={{ backgroundColor: 'var(--bg-primary)' }}>
+    <div className="min-h-[100vh] supports-[height:100dvh]:min-h-[100dvh] flex flex-col items-center justify-center p-4" style={{ backgroundColor: 'var(--bg-primary)' }}>
       <div className="w-full max-w-md p-8 md:p-10 rounded-xl overflow-hidden border border-[var(--border-light)] shadow-2xl" style={{ backgroundColor: 'var(--bg-secondary)' }}>
         <div className="text-center mb-8 pb-4" style={{ borderBottom: '1px solid var(--border-medium)' }}>
           {shopSettings?.logo_url ? (

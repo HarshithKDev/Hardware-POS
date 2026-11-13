@@ -636,7 +636,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
       </div>
 
       <div 
-        className="flex-1 overflow-hidden min-h-0 max-md:min-h-[60dvh] rounded-lg border border-[var(--border-light)] relative" 
+        className="flex-1 overflow-hidden min-h-0 max-md:min-h-[60vh] max-md:supports-[height:100dvh]:min-h-[60dvh] rounded-lg border border-[var(--border-light)] relative" 
         style={{ backgroundColor: 'var(--bg-secondary)' }}
       >
         {isLoading ? (
@@ -737,7 +737,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
           aria-labelledby="low-stock-modal-title"
         >
           <div
-            className="w-full max-w-3xl flex flex-col h-[85dvh] sm:h-[70vh] sm:max-h-[620px] rounded-t-2xl sm:rounded-[14px] overflow-hidden shadow-2xl border border-[var(--border-light)] animate-scale-in sm:my-auto"
+            className="w-full max-w-3xl flex flex-col h-[85vh] supports-[height:100dvh]:h-[85dvh] sm:h-[70vh] sm:supports-[height:100dvh]:h-[70dvh] sm:max-h-[620px] rounded-t-2xl sm:rounded-[14px] overflow-hidden shadow-2xl border border-[var(--border-light)] animate-scale-in sm:my-auto"
             style={{ backgroundColor: 'var(--bg-secondary)' }}
             onClick={(e) => e.stopPropagation()}
           >

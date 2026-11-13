@@ -2298,7 +2298,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       />
 
       {isMobileScannerTab ? (
-        <div className="flex flex-col flex-1 bg-[var(--bg-primary)] overflow-hidden" style={{ minHeight: 'calc(100vh - 160px)' }}>
+        <div className="flex flex-col flex-1 bg-[var(--bg-primary)] overflow-hidden" style={{ minHeight: (typeof CSS !== 'undefined' && CSS.supports?.('height', '100dvh')) ? 'calc(100dvh - 160px)' : 'calc(100vh - 160px)' }}>
           {cart.length > 0 && (
             <div className="p-4 flex-shrink-0 flex gap-2" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
               <button 

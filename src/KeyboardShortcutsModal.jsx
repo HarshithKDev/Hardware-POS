@@ -67,7 +67,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }) {
   return (
     <DialogOverlay isOpen={true} onClose={onClose} zIndex={10000}>
       <div 
-        className="w-[95%] max-w-2xl max-h-[90vh] flex flex-col rounded-2xl overflow-hidden shadow-2xl border animate-scale-in"
+        className="w-[95%] max-w-2xl max-h-[90vh] supports-[height:100dvh]:max-h-[90dvh] flex flex-col rounded-2xl overflow-hidden shadow-2xl border animate-scale-in"
         style={{
           backgroundColor: 'var(--bg-secondary)',
           borderColor: 'var(--border-medium)',

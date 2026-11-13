@@ -23,7 +23,7 @@ export default function BatchDetailsModal({
       aria-modal="true"
     >
       <div 
-        className="w-full max-w-6xl h-[92vh] rounded-2xl overflow-hidden shadow-2xl border border-[var(--border-light)] flex flex-col p-4 sm:p-6"
+        className="w-full max-w-6xl h-[92vh] supports-[height:100dvh]:h-[92dvh] rounded-2xl overflow-hidden shadow-2xl border border-[var(--border-light)] flex flex-col p-4 sm:p-6"
         style={{ backgroundColor: 'var(--bg-secondary)' }}
       >
         <BatchDetailsView

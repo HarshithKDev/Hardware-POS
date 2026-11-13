@@ -48,6 +48,8 @@ export default function StaffBottomNav({ tabs, activeTab, onSelect }) {
           backgroundColor: 'var(--bg-secondary)',
           height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          paddingLeft: 'env(safe-area-inset-left, 0px)',
+          paddingRight: 'env(safe-area-inset-right, 0px)',
         }}
         aria-label="Staff navigation"
       >

@@ -58,7 +58,7 @@ export default function OwnerFailedSyncsModal({ failedSyncs, onClose }) {
         </thead>
         <tbody>
           {failedSyncs.length === 0 ? (
-            <tr><td colSpan="4" className="h-[50vh] align-middle text-center text-sm font-semibold" style={{ color: 'var(--color-success)' }}>No failed transactions!</td></tr>
+            <tr><td colSpan="4" className="h-[50vh] supports-[height:100dvh]:h-[50dvh] align-middle text-center text-sm font-semibold" style={{ color: 'var(--color-success)' }}>No failed transactions!</td></tr>
           ) : (
             failedSyncs.map(tx => (
               <tr key={tx.id} style={{ borderBottom: '1px solid var(--border-medium)' }}>
