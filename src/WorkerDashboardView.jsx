@@ -516,6 +516,14 @@ export default function WorkerDashboardView({ isBillable = true }) {
     ) : null,
   }), [isFetchingNextPage, isWarehouseDisabled]);
 
+  // Spread the dashboard boxes over one row (up to 5) or two even rows, on a 60-column grid
+  const boxCount = actionCards.length + (isWarehouseDisabled ? 1 : 2);
+  const firstRowCount = boxCount <= 5 ? boxCount : Math.ceil(boxCount / 2);
+  const secondRowCount = boxCount - firstRowCount;
+  const boxSpan = (index) => (index < firstRowCount ? 60 / firstRowCount : 60 / secondRowCount);
+  // Low-stock boxes: full width below the tiles on phones/tablets, part of the rows on laptops
+  const alertSpanClass = isWarehouseDisabled ? 'col-span-full lg:col-span-(--span)' : 'col-span-1 sm:col-span-full lg:col-span-(--span)';
+
   const fixedHeaderContent = useCallback(() => (
     <tr className="h-10 text-[11px] font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>
       <th className="p-2 md:p-3 w-[15%] md:w-auto align-middle" style={{ backgroundColor: 'var(--bg-tertiary)', borderRight: '1px solid var(--border-medium)', borderBottom: '1px solid var(--border-medium)' }}>Barcode</th>
@@ -539,18 +547,19 @@ export default function WorkerDashboardView({ isBillable = true }) {
         tooltip="Click title to reset inventory search, category, and sub-category filters to default"
       />
       
-      {/* Big Action Buttons */}
-      <div className={`grid gap-2.5 md:gap-4 mb-3 md:mb-4 ${
+      {/* Action tiles + low-stock box(es). Laptop/desktop: one or two rows that each fill the
+          full width (e.g. 7 boxes = 4 on top, 3 below). Phones/tablets keep the simple grid. */}
+      <div className={`grid gap-2.5 md:gap-4 mb-3 md:mb-4 lg:grid-cols-[repeat(60,minmax(0,1fr))] ${
         isBillable 
-          ? (isWarehouseDisabled ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6')
+          ? 'grid-cols-2 sm:grid-cols-3'
           : (isWarehouseDisabled ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-4')
       }`}>
-        {actionCards.map((card) => (
+        {actionCards.map((card, idx) => (
           <button 
             key={card.key}
             onClick={() => navigate(card.path)}
-            className="p-3 md:p-4 lg:p-5 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md relative group cursor-pointer"
-            style={{ backgroundColor: card.bg, color: 'white' }}
+            className="lg:col-span-(--span) p-3 md:p-4 lg:p-5 rounded-xl flex flex-col items-center justify-center text-center transition-transform hover:scale-105 active:scale-95 shadow-md relative group cursor-pointer"
+            style={{ backgroundColor: card.bg, color: 'white', '--span': boxSpan(idx) }}
           >
             {card.icon}
             <span className="font-bold text-xs md:text-sm lg:text-base leading-tight whitespace-pre-line">
@@ -558,16 +567,15 @@ export default function WorkerDashboardView({ isBillable = true }) {
             </span>
           </button>
         ))}
-      </div>
-      
-      <div className={`grid ${isWarehouseDisabled ? 'grid-cols-1' : 'grid-cols-2'} gap-3 md:gap-4 mb-3 md:mb-4`}>
-        <button onClick={() => setLowStockModal({ isOpen: true, type: 'store' })} className="p-3 md:p-4 rounded-lg border border-[var(--border-light)] text-left cursor-pointer flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+        <button onClick={() => setLowStockModal({ isOpen: true, type: 'store' })}
+          className={`${alertSpanClass} p-3 md:p-4 rounded-lg border border-[var(--border-light)] text-left cursor-pointer flex flex-col justify-center relative overflow-hidden h-full`} style={{ backgroundColor: 'var(--bg-secondary)', '--span': boxSpan(actionCards.length) }}>
           <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full" style={{ backgroundColor: storeAlerts > 0 ? 'var(--color-error)' : 'var(--color-accent)' }} />
           <p className="text-[11px] md:text-xs font-semibold uppercase tracking-wider mb-1 ml-3" style={{ color: 'var(--text-secondary)' }}>{isWarehouseDisabled ? 'Low Stock Alerts' : 'Store Low Stock'}</p>
           <p className="text-xl md:text-2xl font-semibold ml-3" style={{ color: storeAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{storeAlerts} {storeAlerts === 1 ? 'Item' : 'Items'}</p>
         </button>
         {!isWarehouseDisabled && (
-          <button onClick={() => setLowStockModal({ isOpen: true, type: 'warehouse' })} className="p-3 md:p-4 rounded-lg border border-[var(--border-light)] text-left cursor-pointer flex flex-col justify-center relative overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+          <button onClick={() => setLowStockModal({ isOpen: true, type: 'warehouse' })}
+            className={`${alertSpanClass} p-3 md:p-4 rounded-lg border border-[var(--border-light)] text-left cursor-pointer flex flex-col justify-center relative overflow-hidden h-full`} style={{ backgroundColor: 'var(--bg-secondary)', '--span': boxSpan(actionCards.length + 1) }}>
             <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-r-full" style={{ backgroundColor: whseAlerts > 0 ? 'var(--color-error)' : 'var(--color-accent)' }} />
             <p className="text-[11px] md:text-xs font-semibold uppercase tracking-wider mb-1 ml-3" style={{ color: 'var(--text-secondary)' }}>Low Warehouse Stock</p>
             <p className="text-xl md:text-2xl font-semibold ml-3" style={{ color: whseAlerts > 0 ? 'var(--color-error)' : 'var(--text-primary)' }}>{whseAlerts} {whseAlerts === 1 ? 'Item' : 'Items'}</p>
