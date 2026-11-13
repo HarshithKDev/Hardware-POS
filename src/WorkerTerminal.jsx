@@ -2237,7 +2237,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     ? splitTotalCents !== activeTotalCents
     : (checkoutModal.paymentMethod === 'CASH' && checkoutModal.cashGiven !== '' && cashGivenCents > 0 && cashGivenCents < activeTotalCents);
 
-  const isMobileScannerTab = window.innerWidth < 768 && (activeTab === 'receive' || activeTab === 'transfer');
+  const isMobileScannerTab = window.innerWidth < 1024 && (activeTab === 'receive' || activeTab === 'transfer');
 
   return (
     <>
@@ -2396,7 +2396,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           </div>
         </div>
       ) : (
-        <div className="flex flex-col flex-1 h-full min-h-0 shadow-sm print:hidden relative overflow-hidden" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+        <div className="flex flex-col flex-1 h-full min-h-0 shadow-sm print:hidden relative overflow-hidden [@media(max-height:500px)]:overflow-y-auto" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
           
           {/* Offline Banner */}
           {!isOnline && (
@@ -2686,7 +2686,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         {/* Mobile View for Checkout */}
         <div
           ref={mobileCartScrollRef}
-          className="md:hidden flex-1 min-h-0 overflow-y-auto"
+          className="md:hidden flex-1 min-h-0 overflow-y-auto [@media(max-height:500px)]:flex-none [@media(max-height:500px)]:overflow-visible"
           style={{
             backgroundColor: 'var(--bg-secondary)',
             borderBottom: '1px solid var(--border-medium)',
@@ -2748,7 +2748,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   className={buttonClass({ variant: 'danger-outline', size: 'lg', className: 'flex-1 sm:flex-none max-md:px-3' })}
                   title="Shortcut: F8"
                 >
-                  <span>{activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items'}</span>
+                  <span className="max-[379px]:hidden">{activeTab === 'checkout' ? 'Cancel Sale' : 'Clear Items'}</span>
+                  <span className="hidden max-[379px]:inline">{activeTab === 'checkout' ? 'Cancel' : 'Clear'}</span>
                 </button>
               )}
               {activeTab === 'checkout' && activeCartTab === 'local' && (
@@ -2757,13 +2758,14 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   className={buttonClass({ variant: 'secondary', size: 'lg', className: 'flex-1 sm:flex-none max-md:px-3' })}
                   title="Shortcut: F7"
                 >
-                  <span>Hold Cart</span>
+                  <span className="max-[379px]:hidden">Hold Cart</span>
+                  <span className="hidden max-[379px]:inline">Hold</span>
                 </button>
               )}
             </div>
             <button
               onClick={() => activeTab === 'checkout' ? handleOpenCheckoutModal() : handleCompleteTransaction()}
-              className={buttonClass({ variant: 'primary', size: 'lg', className: 'flex-1 min-w-[7rem] sm:flex-none sm:w-auto sm:min-w-[200px] text-lg max-md:px-3' })}
+              className={buttonClass({ variant: 'primary', size: 'lg', className: 'flex-1 min-w-[7rem] max-[379px]:min-w-0 sm:flex-none sm:w-auto sm:min-w-[200px] text-lg max-md:px-3' })}
               title={activeTab === 'checkout' ? 'Shortcut: F4 or Space' : 'Shortcut: F4'}
             >
               <span>{isCheckingOut ? 'Saving...' : 'Complete'}</span>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 /**
- * True while the CSS media query matches (e.g. '(max-width: 767px)' for phones).
+ * True while the CSS media query matches (e.g. '(max-width: 1023px)' for phones).
  * Returns false where matchMedia is unavailable (tests, very old browsers), so the
  * desktop layout is the fallback.
  */
@@ -19,5 +19,5 @@ export function useMediaQuery(query) {
   return matches;
 }
 
-/** Phone-sized screen (below Tailwind's md breakpoint). */
-export const usePhoneLayout = () => useMediaQuery('(max-width: 767px)');
+/** Phone or tablet layout (below the md breakpoint, which this app sets at 1024px). */
+export const usePhoneLayout = () => useMediaQuery('(max-width: 1023px)');

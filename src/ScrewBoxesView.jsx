@@ -70,7 +70,7 @@ export default function ScrewBoxesView() {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full px-4 pb-6 pt-1 md:px-0 animate-fade-in">
+    <div className="flex-1 flex flex-col h-full min-h-0 overflow-y-auto px-4 pb-6 pt-1 md:px-0 animate-fade-in">
       <div className="max-w-3xl w-full mx-auto flex flex-col gap-4">
         <PageHeader
           title="Screw Boxes"

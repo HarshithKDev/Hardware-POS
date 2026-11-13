@@ -10,6 +10,9 @@
      14px modals                               rounded-2xl / -3xl
    --------------------------------------------------------------- */
 @theme {
+  /* Phone layout (bottom bar, card lists) up to 1023px: tablets in portrait and phones held
+     sideways get the touch layout; the desktop layout with the side menu starts at 1024px. */
+  --breakpoint-md: 63.99rem; /* just below lg (64rem) so md and lg keep their order */
   --radius-xs: 6px;
   --radius-sm: 6px;
   --radius-md: 6px;
@@ -294,7 +297,7 @@ div[data-viewport-type="element"],
 
 /* Prevent unwanted automatic zoom jumps on mobile iOS devices when inputs are focused.
    Phones and tablets (touch, no mouse) both need 16px: iOS zooms into smaller fields. */
-@media (max-width: 768px), (hover: none) and (pointer: coarse) {
+@media (max-width: 1023px), (hover: none) and (pointer: coarse) {
   input:not([type="checkbox"]):not([type="radio"]),
   select,
   textarea {
@@ -307,7 +310,7 @@ html { touch-action: manipulation; }
 
 /* Phones: fields and dropdowns are at least 44px tall (comfortable to tap), and dropdowns get
    enough height that their 16px text is never cut off at the bottom. */
-@media (max-width: 768px) {
+@media (max-width: 1023px) {
   select {
     min-height: 44px;
     padding-top: 0.5rem !important;
@@ -321,7 +324,7 @@ html { touch-action: manipulation; }
 
 /* Phone screens: nothing smaller than 12px (labels, badges). Screen only, so printed labels and
    receipts keep their exact sizes. */
-@media screen and (max-width: 768px) {
+@media screen and (max-width: 1023px) {
   .text-\[11px\] { font-size: 12px; }
 }
 

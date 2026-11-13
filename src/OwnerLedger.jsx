@@ -618,7 +618,7 @@ export default function OwnerLedger({ isActive }) {
 
   if (selectedBill) {
     return (
-      <div className="h-full flex flex-col relative w-full">
+      <div className="h-full flex flex-col relative w-full max-md:overflow-y-auto">
         <BillDetailsView
           bill={selectedBill}
           onBack={() => setSelectedBill(null)}
@@ -640,7 +640,7 @@ export default function OwnerLedger({ isActive }) {
   }
 
   return (
-    <div className="h-full flex flex-col relative w-full">
+    <div className="h-full flex flex-col relative w-full max-md:overflow-y-auto">
       <div className="flex flex-wrap justify-between items-end gap-3 mb-4">
         <PageTitleReset
           title="Sales History"
@@ -791,7 +791,7 @@ export default function OwnerLedger({ isActive }) {
         </div>
 
         {/* Ledger Table */}
-        <div className="flex-1 overflow-x-hidden overflow-y-auto shadow-sm min-h-[260px] md:min-h-[400px] md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent', overscrollBehavior: 'none' }}>
+        <div className="flex-1 overflow-x-hidden overflow-y-auto max-md:flex-none max-md:overflow-y-visible shadow-sm min-h-[260px] md:min-h-[400px] md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent', overscrollBehavior: 'none' }}>
           <div className="w-full max-w-full h-full">
             <table className={`block md:table w-full md:table-fixed text-left md:text-center border-collapse ${(isLoadingBills && bills.length === 0 || bills.length === 0) ? 'h-full' : ''}`}>
             <colgroup className="hidden md:table-column-group">

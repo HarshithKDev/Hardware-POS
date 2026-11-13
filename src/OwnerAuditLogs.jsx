@@ -348,7 +348,7 @@ export default function OwnerAuditLogs() {
   const FILTERS = ['ALL', ...Object.keys(ACTION_LABELS), ...[...new Set(rawLogs.map(l => l.action_type))].filter(a => a && !ACTION_LABELS[a])];
 
   return (
-    <div className="flex flex-col h-full animate-fade-in w-full">
+    <div className="flex flex-col h-full animate-fade-in w-full max-md:overflow-y-auto">
       <div className="flex flex-col gap-4 mb-6">
         <PageTitleReset
           title="Unified Audit Logs"
@@ -486,7 +486,7 @@ export default function OwnerAuditLogs() {
         </div>
       )}
 
-      <div className="flex-1 overflow-x-hidden overflow-y-auto shadow-sm md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent', overscrollBehavior: 'none' }}>
+      <div className="flex-1 overflow-x-hidden overflow-y-auto max-md:flex-none max-md:overflow-y-visible shadow-sm md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent', overscrollBehavior: 'none' }}>
         {isLoading && rawLogs.length === 0 ? (
           <TableSkeleton rows={10} cols={5} label="Loading logs…" />
         ) : error ? (

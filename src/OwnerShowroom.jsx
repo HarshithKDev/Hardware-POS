@@ -72,7 +72,7 @@ export default function OwnerShowroom() {
 
   if (selectedBill) {
     return (
-      <div className="h-full flex flex-col relative w-full animate-fade-in">
+      <div className="h-full flex flex-col relative w-full animate-fade-in max-md:overflow-y-auto">
         <ShowroomDetailsView
           bill={selectedBill}
           onBack={() => setSelectedBill(null)}
@@ -82,7 +82,7 @@ export default function OwnerShowroom() {
   }
 
   return (
-    <div className="h-full flex flex-col relative w-full animate-fade-in">
+    <div className="h-full flex flex-col relative w-full animate-fade-in max-md:overflow-y-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
         <PageTitleReset
@@ -105,7 +105,7 @@ export default function OwnerShowroom() {
 
       {/* Bills list container */}
       <div className="flex-1 flex flex-col min-h-0">
-        <div className="flex-1 overflow-x-hidden overflow-y-auto shadow-sm min-h-[300px] rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] mb-4" style={{ overscrollBehavior: 'none' }}>
+        <div className="flex-1 overflow-x-hidden overflow-y-auto max-md:flex-none max-md:overflow-y-visible shadow-sm min-h-[300px] max-md:min-h-0 rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] mb-4" style={{ overscrollBehavior: 'none' }}>
           {isLoading ? (
             <TableSkeleton rows={8} cols={5} label="Loading showroom dispatches…" />
           ) : bills.length === 0 ? (

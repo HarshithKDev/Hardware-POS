@@ -271,7 +271,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
   const toggleSelect = (barcode) => {
     setSelectedBarcodes(prev => {
       const next = prev.includes(barcode) ? prev.filter(b => b !== barcode) : [...prev, barcode];
-      if (next.length === 0 && window.innerWidth < 768) {
+      if (next.length === 0 && window.innerWidth < 1024) {
         setIsSelectionMode(false);
       }
       return next;

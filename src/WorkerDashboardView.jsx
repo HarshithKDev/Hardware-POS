@@ -538,7 +538,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
   ), [isWarehouseDisabled]);
 
   return (
-    <div className="flex flex-col h-full p-3 md:p-4 animate-fade-in flex-1 m-0 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm min-h-0 overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+    <div className="flex flex-col h-full p-3 md:p-4 animate-fade-in flex-1 m-0 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm min-h-0 overflow-hidden max-md:overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
       <PageTitleReset
         title="Staff Dashboard"
         tag="h2"
@@ -636,7 +636,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
       </div>
 
       <div 
-        className="flex-1 overflow-hidden min-h-0 rounded-lg border border-[var(--border-light)] relative" 
+        className="flex-1 overflow-hidden min-h-0 max-md:min-h-[60dvh] rounded-lg border border-[var(--border-light)] relative" 
         style={{ backgroundColor: 'var(--bg-secondary)' }}
       >
         {isLoading ? (
