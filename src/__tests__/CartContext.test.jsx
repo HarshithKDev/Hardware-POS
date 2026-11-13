@@ -1,7 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { CartProvider, useCart } from '../contexts/CartContext';
-import React from 'react';
 
 import { AppProvider } from '../AppContext';
 

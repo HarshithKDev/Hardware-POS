@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { supabase } from './supabaseClient';
-import { Spinner, PageLoader } from './SharedUI';
+import { PageLoader } from './SharedUI';
 import { MobileScannerModal, ProductInfoModal } from './AppModals';
 import { AlertDialog, ConfirmDialog } from './Dialog';
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useApp } from './AppContext';
 import { startBackgroundSync, stopBackgroundSync } from './services/sync';
 import { startLiveRefresh, stopLiveRefresh } from './services/liveRefresh';
@@ -11,7 +11,7 @@ import { logActivity } from './services/auditLog';
 import { isRoleConsistentWithEmail, isNetworkishError } from './services/roleGuard';
 import { escapeIlike } from './utils';
 import { stripOwnerOnlyDataFromLocalInventory, getOfflineQueue } from './services/db';
-import { WifiOff, ScanBarcode, Moon, Sun, LogOut, Wifi, RefreshCw, CloudUpload } from 'lucide-react';
+import { WifiOff, Moon, Sun, LogOut, Wifi, RefreshCw, CloudUpload } from 'lucide-react';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -24,7 +24,7 @@ function App() {
     shopSettings, setShopSettings,
     userRole, setUserRole,
     cashierName, setCashierName,
-    isDarkMode, toggleDarkMode, setDarkMode,
+    isDarkMode, toggleDarkMode,
     alertConfig, showAlert, closeAlert,
     confirmConfig, handleConfirm, closeConfirm,
     showToast,
@@ -48,7 +48,6 @@ function App() {
 
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const location = useLocation();
 
   const savedShopId = localStorage.getItem('shop_id');
 

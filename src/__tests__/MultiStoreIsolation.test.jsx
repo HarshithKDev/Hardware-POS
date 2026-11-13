@@ -1,17 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import '@testing-library/jest-dom';
 import { supabase } from '../supabaseClient';
 import WorkerBilling from '../WorkerBilling';
-import { 
-  queueOfflineTransaction, 
-  getOfflineQueue, 
-  getFailedTransactions, 
-  clearInventoryCache 
-} from '../services/db';
+import { queueOfflineTransaction, getOfflineQueue, getFailedTransactions } from '../services/db';
 
 const memoryStore = {
   offline_queue: [],

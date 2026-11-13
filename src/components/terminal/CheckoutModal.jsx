@@ -10,8 +10,6 @@ export default function CheckoutModal({
   cartTotal,
   minPossibleTotal,
   screwPrice = 0,
-  userRole,
-  cashierName,
   isCheckingOut,
   onCompleteTransaction,
   getQuickTenderOptions

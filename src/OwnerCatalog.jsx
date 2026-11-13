@@ -202,7 +202,6 @@ export default function OwnerCatalog() {
 
       // Track in Audit Logs
       try {
-        const currentUser = (await supabase.auth.getUser()).data.user?.email || 'Unknown';
         await supabase.from('audit_logs').insert([{
           action_type: 'CREATE',
           barcode: savedItem.barcode,
@@ -256,6 +255,9 @@ export default function OwnerCatalog() {
     addItemMutation.mutate({ ...form, barcode: nextBarcode });
   };
 
+  // Bulk Excel import (template download + upload). Not linked to a button yet; kept so it
+  // can be switched on without rewriting it.
+  // eslint-disable-next-line no-unused-vars
   const handleDownloadTemplate = async () => {
     const { default: ExcelJS } = await import('exceljs');
     const { saveAs } = await import('file-saver');
@@ -332,6 +334,7 @@ export default function OwnerCatalog() {
     saveAs(new Blob([buffer]), 'Inventory_Import_Template.xlsx');
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleImportExcel = async (e) => {
     const file = e.target.files[0];
     if (!file) return;

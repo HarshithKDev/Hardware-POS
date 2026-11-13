@@ -1,13 +1,8 @@
-import React from 'react';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
 
 // 1. Modals
-import {
-  CheckoutModal,
-  SelectBatchModal,
-  LooseItemModal
-} from '../components/terminal';
+import { CheckoutModal, LooseItemModal } from '../components/terminal';
 
 // 2. Direct ESC/POS Thermal Printing Service
 import {

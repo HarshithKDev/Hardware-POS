@@ -4,7 +4,7 @@ import { supabase } from './supabaseClient';
 import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from './AppContext';
-import { Spinner, PageLoader, EmptyState } from './SharedUI';
+import { PageLoader, EmptyState } from './SharedUI';
 import { TableVirtuoso, Virtuoso } from 'react-virtuoso';
 import { usePhoneLayout } from './hooks/useMediaQuery';
 import { escapeIlike, debounce, useSessionState, formatINR } from './utils';

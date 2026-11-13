@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { getInventoryItemByBarcode } from './services/db';
 import { supabase } from './supabaseClient';
@@ -12,8 +12,7 @@ export default function WorkerPriceCheck() {
   const { showAlert, userRole, isWarehouseDisabled } = useApp();
   const [isScanning, setIsScanning] = useState(true);
   const [scannedItem, setScannedItem] = useState(null);
-  const [availableInstances, setAvailableInstances] = useState([]);
-  const [isLoadingInstances, setIsLoadingInstances] = useState(false);
+  const [, setAvailableInstances] = useState([]);
   const [revealedMsp, setRevealedMsp] = useState(false);
   
   const scannerRef = useRef(null);
@@ -171,7 +170,6 @@ export default function WorkerPriceCheck() {
     try {
       let matchedItem = await getInventoryItemByBarcode(rawBarcode);
       let matchedBatch = null;
-      let matchedInstance = null;
 
       // Check if it's formatted as [Barcode]-[BatchNumber] or [Barcode]-[BatchNumber][Sequence]
       if (!matchedItem && rawBarcode.includes('-')) {

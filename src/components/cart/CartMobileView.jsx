@@ -10,11 +10,6 @@ import useScanFlash, { scanFlashClass } from './useScanFlash';
 const CartMobileView = React.memo(function CartMobileView({ 
   activeTab, 
   onUpdateQuantity, 
-  onUpdateDimensions, 
-  onEditCuttableItem,
-  onCustomPriceChange, 
-  onCustomTotalChange, 
-  onCustomPriceBlur, 
   onRemoveItem,
   onCancelHeldCart,
   onBackToLocal

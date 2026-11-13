@@ -126,7 +126,7 @@ export default function OwnerCategories() {
   };
 
   const deleteCategoryMutation = useMutation({
-    mutationFn: async ({ id, name }) => {
+    mutationFn: async ({ name }) => {
       // Cascade check (fixes #8)
       const shopId = localStorage.getItem('shop_id');
       let countQuery = supabase.from('product_master').select('*', { count: 'exact', head: true }).eq('category', name).eq('is_active', true);
@@ -160,7 +160,7 @@ export default function OwnerCategories() {
   };
 
   const deleteSubcategoryMutation = useMutation({
-    mutationFn: async ({ id, name, category_name }) => {
+    mutationFn: async ({ name, category_name }) => {
       // Cascade check (fixes #8)
       const shopId = localStorage.getItem('shop_id');
       let countQuery = supabase.from('product_master').select('*', { count: 'exact', head: true }).eq('sub_category', name).eq('is_active', true);

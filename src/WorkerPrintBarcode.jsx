@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Barcode from 'react-barcode';
-import { Search, Printer, X, Check, Layers } from 'lucide-react';
+import { Search, Printer, X, Check } from 'lucide-react';
 import { getInventoryByQuery } from './services/db';
 import { useApp } from './AppContext';
 import { debounce, formatINR } from './utils';

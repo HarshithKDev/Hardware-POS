@@ -1,17 +1,17 @@
-import { useState, useEffect, useRef, useMemo, Fragment, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { localToUtcIso, formatINR, billLabel } from './utils';
 import { getPerformedBy } from './utils';
 import { supabase } from './supabaseClient';
 import { casUpdateRow } from './services/atomicStock';
 import { beginCriticalWork } from './services/busyGuard';
 import { returnItemsAtomic } from './services/posRpc';
-import { PageLoader, EmptyState } from './SharedUI';
+import { EmptyState } from './SharedUI';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { formatDateTime, escapeIlike, formatDayHeader, useSessionState } from './utils';
 import { SALES_PER_PAGE } from './constants';
 import { DialogOverlay } from './Dialog';
-import { Search, Undo2, X, Phone, User, Calendar } from 'lucide-react';
+import { Search, Undo2, X, Phone, Calendar } from 'lucide-react';
 import BillDetailsView from './BillDetailsView';
 import { getInventoryItemByBarcode } from './services/db';
 import { readRows } from './services/secureRead';
@@ -113,7 +113,7 @@ export default function OwnerLedger({ isActive }) {
 
   const [selectedBill, setSelectedBill] = useSessionState(`pos_ledger_selected_${shopId}`, null);
   const [billItemsCache, setBillItemsCache] = useState({});
-  const [isLoadingItems, setIsLoadingItems] = useState(false);
+  const [, setIsLoadingItems] = useState(false);
   const [returnModalState, setReturnModalState] = useSessionState(`pos_ledger_return_modal_${shopId}`, null);
 
   const handleResetLedger = () => {
@@ -272,92 +272,6 @@ export default function OwnerLedger({ isActive }) {
     staleTime: 1000 * 60 * 2,
   });
   const { sorted: sortedBills, sort: billSort, toggleSort: toggleBillSort } = useSort(bills, LEDGER_SORT);
-
-  const hasMoreBills = isSearching ? bills.length === SALES_PER_PAGE : (datePageIndex < availableDates.length - 1 || hasOlderDays);
-
-  const handleExportCSV = async () => {
-    try {
-      showAlert('Preparing CSV export...', 'Info');
-      const shopId = localStorage.getItem('shop_id');
-      let query = supabase.from('bills').select('*')
-        .eq('location', 'Store')
-        .neq('status', 'showroom_pending')
-        .neq('status', 'showroom')
-        .neq('payment_method', 'SHOWROOM');
-      if (shopId) {
-        query = query.eq('shop_id', shopId);
-      }
-
-      if (isSearching) {
-        const raw = searchQuery.trim().replace(/^#/, '').replace(/[,()]/g, '');
-        if (raw) {
-          const cleanQ = escapeIlike(raw);
-          query = query.or(`customer_phone.ilike.%${cleanQ}%,customer_name.ilike.%${cleanQ}%,id.ilike.%${cleanQ}%${billNoSearchEnabled && /^\d{1,12}$/.test(raw) ? `,bill_no.eq.${raw}` : ''}`);
-        }
-      } else {
-        const start = localToUtcIso(`${currentDay}T00:00:00`);
-        const end = localToUtcIso(`${currentDay}T23:59:59.999`);
-        query = query.gte('created_at', start).lte('created_at', end);
-      }
-
-      query = query.order('created_at', { ascending: false }).limit(5000);
-
-      const { data, error } = await query;
-      if (error) throw error;
-      
-      const rawData = data || [];
-      const cleanData = rawData.filter(b => b.payment_method || Number(b.total_amount) > 0 || b.status === 'voided');
-      if (cleanData.length === 0) {
-         return showAlert('No data to export for this filter.', 'Warning');
-      }
-      const exportData = cleanData.map(b => ({
-         'Bill ID': b.id,
-         'Date': formatDateTime(b.created_at).datePart,
-         'Time': formatDateTime(b.created_at).timePart,
-         'Customer Phone': b.customer_phone || '',
-         'Customer Name': b.customer_name || 'Walk-in',
-         'Cashier': b.cashier_name || 'System',
-         'Activity Type': b.status === 'voided' ? 'Voided / Returned' : 'Sale',
-         'Status': b.status || 'completed',
-         'Payment Method': b.payment_method || '',
-         'Total Amount': b.total_amount || 0,
-         ...(isOwner ? { 'Total Profit': b.total_profit || 0 } : {})
-      }));
-      
-      const { default: ExcelJS } = await import('exceljs');
-      const { saveAs } = await import('file-saver');
-
-      const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('Sales_Ledger');
-
-      const columns = [
-        { header: 'Bill ID', key: 'Bill ID', width: 15 },
-        { header: 'Date', key: 'Date', width: 15 },
-        { header: 'Time', key: 'Time', width: 10 },
-        { header: 'Customer Phone', key: 'Customer Phone', width: 18 },
-        { header: 'Customer Name', key: 'Customer Name', width: 20 },
-        { header: 'Cashier', key: 'Cashier', width: 15 },
-        { header: 'Activity Type', key: 'Activity Type', width: 18 },
-        { header: 'Status', key: 'Status', width: 15 },
-        { header: 'Payment Method', key: 'Payment Method', width: 15 },
-        { header: 'Total Amount', key: 'Total Amount', width: 15 },
-      ];
-      if (isOwner) {
-        columns.push({ header: 'Total Profit', key: 'Total Profit', width: 15 });
-      }
-      worksheet.columns = columns;
-      worksheet.getRow(1).font = { bold: true };
-
-      exportData.forEach(row => {
-        worksheet.addRow(row);
-      });
-
-      const buffer = await workbook.xlsx.writeBuffer();
-      saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `Sales_Export_${new Date().toLocaleDateString('en-CA')}.xlsx`);
-    } catch (e) {
-      showAlert(`Export failed: ${e.message}`, 'Error');
-    }
-  };
 
   const handleOpenReturnModal = async (bill) => {
     if (bill.status === 'voided') {

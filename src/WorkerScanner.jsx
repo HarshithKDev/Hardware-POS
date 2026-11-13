@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { getInventoryItemByBarcode } from './services/db';
 import { supabase } from './supabaseClient';
@@ -125,27 +125,6 @@ export default function WorkerScanner({ cashierName }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isScanning]);
-
-  const playBeep = () => {
-    try {
-      if (!audioCtxRef.current) return;
-      const audioCtx = audioCtxRef.current;
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-      
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
-      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.1);
-      oscillator.start(audioCtx.currentTime);
-      oscillator.stop(audioCtx.currentTime + 0.1);
-    } catch (e) {
-      console.log('Audio not supported or blocked', e);
-    }
-  };
 
   const handleScan = async (barcode) => {
     try {

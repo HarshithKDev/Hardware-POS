@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import OwnerCatalog from '../OwnerCatalog';
 import * as AppContext from '../AppContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import React from 'react';
 import '@testing-library/jest-dom';
 
 vi.mock('../services/sync', () => ({

@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from './supabaseClient';
 import { formatDateTime, formatINR, billLabel } from './utils';
-import { PageLoader } from './SharedUI';
 import { readRows } from './services/secureRead';
 import { buttonClass, TableSkeleton } from './components/ui';
 import { useApp } from './AppContext';

@@ -1,7 +1,6 @@
-import React, { useState, useRef, useEffect, useCallback, Fragment } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
-import { Spinner } from './SharedUI';
 import ReceiptTemplate from './ReceiptTemplate';
 import { PrintPreviewModal } from './AppModals';
 import { useCart } from './contexts/CartContext';
@@ -96,10 +95,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const { 
     cart, setCart,
     removeItem: handleRemoveItem,
-    activeCartTab, setActiveCartTab, switchCartTab,
+    activeCartTab, switchCartTab,
     cartSessions, setCartSessions, 
     heldCarts, setHeldCarts,
-    clearCart,
     cancelHeldCart
   } = useCart();
   const [manualBarcode, setManualBarcode] = useState('');
@@ -1937,10 +1935,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           return;
         }
 
-        const activeTotal = checkoutModal.negotiatedTotal !== '' 
-          ? Number(checkoutModal.negotiatedTotal) 
-          : calculateTotal();
-
         if (!isInput) {
           if (e.key === '1' || e.key.toUpperCase() === 'C') {
             e.preventDefault();
@@ -2229,13 +2223,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   }, 0) / 100;
 
   const activeTotal = checkoutModal.negotiatedTotal !== '' ? Number(checkoutModal.negotiatedTotal) : cartTotal;
-  const activeTotalCents = Math.round(activeTotal * 100);
-  
-  const cashGivenCents = checkoutModal.paymentMethod === 'CASH' ? Math.round(Number(checkoutModal.cashGiven || 0) * 100) : 0;
-  const splitTotalCents = Math.round(Number(checkoutModal.splitUpi || 0) * 100) + Math.round(Number(checkoutModal.splitCash || 0) * 100);
-  const isShortfall = checkoutModal.paymentMethod === 'SPLIT' 
-    ? splitTotalCents !== activeTotalCents
-    : (checkoutModal.paymentMethod === 'CASH' && checkoutModal.cashGiven !== '' && cashGivenCents > 0 && cashGivenCents < activeTotalCents);
 
   const isMobileScannerTab = window.innerWidth < 1024 && (activeTab === 'receive' || activeTab === 'transfer');
 

@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { supabase } from './supabaseClient';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useApp } from './AppContext';
-import { Spinner, PageLoader } from './SharedUI';
+import { PageLoader } from './SharedUI';
 import OwnerFailedSyncsModal from './OwnerFailedSyncsModal';
 import { getFailedTransactions, getInventoryByQuery } from './services/db';
 import {
@@ -116,7 +116,7 @@ function AnimatedNumber({ valueStr, duration = 250 }) {
 }
 
 /** Reusable stat card */
-function StatCard({ title, value, accentColor, borderColor, onClick, clickLabel, children, className = '' }) {
+function StatCard({ title, value, accentColor, onClick, clickLabel, children, className = '' }) {
   const Tag = onClick ? 'button' : 'div';
   const strVal = String(value ?? '');
   const valLen = strVal.length;
@@ -662,7 +662,7 @@ function DashboardDateFilter({
 // Main OwnerStats component
 // ---------------------------------------------------------------
 export default function OwnerStats({ isActive }) {
-  const { showAlert, shopSettings, isWarehouseDisabled } = useApp();
+  const { shopSettings, isWarehouseDisabled } = useApp();
   const shopId = shopSettings?.id || localStorage.getItem('shop_id');
   const [globalTimeframe, setGlobalTimeframe] = useSessionState(`pos_stats_timeframe_${shopId}`, 'today');
   const [customDate, setCustomDate] = useSessionState(`pos_stats_date_${shopId}`, () => new Date().toLocaleDateString('en-CA'));
@@ -1223,26 +1223,6 @@ export default function OwnerStats({ isActive }) {
   const warehouseCapital = invData?.warehouseCapital ?? 0;
   const storeCapital = invData?.storeCapital ?? 0;
   const failedSyncs = invData?.failedSyncs ?? [];
-
-  const getTimeframeLabel = () => {
-    if (globalTimeframe === 'today') {
-      return 'Today';
-    }
-    if (globalTimeframe === 'date') {
-      return formatDateLabel(customDate, false) || 'Selected Date';
-    }
-    if (globalTimeframe === 'range') {
-      const s = formatDateLabel(startDate, false);
-      const e = formatDateLabel(endDate, false);
-      if (s && e) {
-        return s === e ? s : `${s} - ${e}`;
-      }
-      return 'Date Range';
-    }
-    return 'Today';
-  };
-
-  const timeframeLabel = getTimeframeLabel();
 
   return (
     <div className="flex flex-col h-auto lg:h-full relative">

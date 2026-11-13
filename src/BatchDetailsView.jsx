@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { getPerformedBy, priceInputValue, formatINR } from './utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
@@ -7,7 +7,7 @@ import ScrapStockModal from './components/inventory/ScrapStockModal';
 import { openScrewBox } from './services/screwBox';
 import { isScrewBox } from './constants';
 import { useApp } from './AppContext';
-import { Spinner, PageLoader } from './SharedUI';
+import { PageLoader } from './SharedUI';
 import { getInventoryItemByBarcode, saveInventoryBatch } from './services/db';
 import PrintBatchModal from './PrintBatchModal';
 import CreateBatchModal from './CreateBatchModal';

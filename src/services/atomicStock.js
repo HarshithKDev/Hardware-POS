@@ -138,7 +138,7 @@ export async function routeReceivedStockToStore({ entries, shopId }) {
  *        (used when the warehouse is disabled and everything counts as store stock).
  * @returns {Promise<{ fromStore: number, fromWarehouse: number }>}
  */
-export async function scrapBatchStock({ batchId, barcode, shopId, qty, location, allowOtherLocation = false, actionType = 'SCRAP', note = null, performedBy = null }) {
+export async function scrapBatchStock({ batchId, shopId, qty, location, allowOtherLocation = false, actionType = 'SCRAP', note = null, performedBy = null }) {
   const amount = Math.round(Number(qty) * 1000) / 1000;
   if (!(amount > 0)) throw new Error('Enter a quantity greater than 0.');
 

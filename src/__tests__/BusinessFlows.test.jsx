@@ -7,7 +7,6 @@ import { CartProvider } from '../contexts/CartContext';
 import * as db from '../services/db';
 import * as AppContext from '../AppContext';
 import { MemoryRouter } from 'react-router-dom';
-import React from 'react';
 import '@testing-library/jest-dom';
 
 vi.mock('../services/db', () => ({

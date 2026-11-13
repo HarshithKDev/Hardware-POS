@@ -1,6 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import React from 'react';
 import OwnerLedger from '../OwnerLedger';
 import { AppProvider } from '../AppContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';

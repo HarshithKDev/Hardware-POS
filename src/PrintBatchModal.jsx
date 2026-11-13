@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { formatINR } from './utils';
 import Barcode from 'react-barcode';
-import { supabase } from './supabaseClient';
 import BarcodeLabelSheet, { MAX_LABELS_PER_PRINT, clampLabelQty } from './components/print/BarcodeLabelSheet';
 import { logActivity } from './services/auditLog';
 import { buttonClass } from './components/ui';

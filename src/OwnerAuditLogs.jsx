@@ -2,7 +2,6 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { localToUtcIso, formatINR } from './utils';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from './supabaseClient';
-import { Spinner, PageLoader } from './SharedUI';
 import { debounce, formatDateTime, formatDayHeader, escapeIlike, useSessionState } from './utils';
 import { useApp } from './AppContext';
 import { X, Calendar } from 'lucide-react';
@@ -303,7 +302,6 @@ export default function OwnerAuditLogs() {
   });
 
   const rawLogs = auditResult?.logs || [];
-  const totalCount = auditResult?.totalCount || rawLogs.length;
 
   const uniqueUsers = useMemo(() => {
     const set = new Set();

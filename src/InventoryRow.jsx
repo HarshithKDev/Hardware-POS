@@ -1,8 +1,6 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { formatINR } from './utils';
 import { createPortal } from 'react-dom';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
 import { buttonClass } from './components/ui';
 
@@ -22,7 +20,6 @@ export default function InventoryRow({
   onLongPress 
 }) {
   const { isWarehouseDisabled } = useApp();
-  const shopId = item.shop_id || localStorage.getItem('shop_id');
 
   // Long-press handling for mobile selection
   const timerRef = useRef(null);

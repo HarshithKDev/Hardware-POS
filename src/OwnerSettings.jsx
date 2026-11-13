@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
 import { Save, Upload, Eye, EyeOff, Edit2, Trash2, Volume2, VolumeX, SlidersHorizontal, Boxes, Store, FileSpreadsheet, Download } from 'lucide-react';

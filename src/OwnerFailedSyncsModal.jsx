@@ -1,11 +1,10 @@
-import React from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { deleteOfflineTransaction, requeueTransaction } from './services/db';
 import { formatDateTime } from './utils';
 import { buttonClass } from './components/ui';
 
-export default function OwnerFailedSyncsModal({ failedSyncs, onClose }) {
+export default function OwnerFailedSyncsModal({ failedSyncs }) {
   const { showAlert, showConfirm } = useApp();
   const queryClient = useQueryClient();
 

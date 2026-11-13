@@ -113,11 +113,6 @@ export function formatDayHeader(dateStr) {
     }
     const [y, m, d] = parts;
     const dateObj = new Date(y, m - 1, d);
-    const now = new Date();
-    const todayStr = now.toLocaleDateString('en-CA');
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toLocaleDateString('en-CA');
 
     const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
     const formatted = `${dateObj.getDate()} ${dateObj.toLocaleDateString('en-US', { month: 'short' })} ${dateObj.getFullYear()}`;

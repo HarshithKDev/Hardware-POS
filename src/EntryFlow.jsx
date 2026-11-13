@@ -13,7 +13,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [workersList, setWorkersList] = useState([]);
-  const [loadingWorkers, setLoadingWorkers] = useState(false);
+  const [, setLoadingWorkers] = useState(false);
 
   const [shopName, setShopName] = useState('');
   const [ownerName, setOwnerName] = useState('');
@@ -80,7 +80,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
     setError('');
 
     try {
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password: cleanPass
       });
@@ -126,12 +126,11 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
     setError('');
 
     try {
-      let authDataResult;
-      const { data: signUpData, error: authError } = await supabase.auth.signUp({ email: cleanEmail, password: cleanPass });
+      const { error: authError } = await supabase.auth.signUp({ email: cleanEmail, password: cleanPass });
 
       if (authError) {
         if (authError.message.toLowerCase().includes('already registered')) {
-          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          const { error: signInError } = await supabase.auth.signInWithPassword({
             email: cleanEmail,
             password: cleanPass
           });
@@ -139,12 +138,9 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
           if (signInError) {
             throw new Error('This email is already registered. Please use your existing password, or contact support.');
           }
-          authDataResult = signInData;
         } else {
           throw new Error(authError.message);
         }
-      } else {
-        authDataResult = signUpData;
       }
 
       // Upload logo if provided

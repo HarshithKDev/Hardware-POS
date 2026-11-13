@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, renderHook, act } from '@testing-library/react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useSessionState } from '../hooks/useSessionState';
 
 describe('useSessionState Hook', () => {
@@ -63,7 +63,7 @@ describe('useSessionState Hook', () => {
   });
 
   it('preserves filters across component unmount and remount (simulating page navigation)', () => {
-    function FilterComponent({ id }) {
+    function FilterComponent() {
       const [search, setSearch] = useSessionState('shop_123_inv_search', '');
       const [category, setCategory] = useSessionState('shop_123_inv_cat', 'ALL');
 

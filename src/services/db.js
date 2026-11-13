@@ -5,7 +5,6 @@ const DB_NAME = 'HardwarePOSDB';
 const DB_VERSION = 4;
 
 let cachedInventory = null;
-let pieceCountCache = {};
 
 let dbPromise = null;
 
@@ -51,7 +50,6 @@ export const clearInventoryCache = async () => {
     await db.clear('product_master');
   }
   cachedInventory = null;
-  pieceCountCache = {};
 };
 
 export const saveInventoryBatch = async (items) => {
@@ -413,7 +411,7 @@ const compareBarcodes = (a, b) => {
   return String(a).localeCompare(String(b));
 };
 
-const applySort = (items, sortOption, currentShopId) => {
+const applySort = (items, sortOption) => {
   if (sortOption === 'barcode-asc') items.sort((a, b) => compareBarcodes(a.barcode, b.barcode));
   else if (sortOption === 'barcode-desc') items.sort((a, b) => compareBarcodes(b.barcode, a.barcode));
   else if (sortOption === 'name-asc') items.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -448,7 +446,6 @@ export const getInventoryByQuery = async ({
   category,
   subcategory,
   sortOption,
-  viewType,
   status = 'active'
 }) => {
   let allItems;
@@ -527,7 +524,7 @@ export const getInventoryByQuery = async ({
 
     if (isExplicitCustomSort) {
       allItems = scoredItems.map(s => s.item);
-      applySort(allItems, sortOption, currentShopId);
+      applySort(allItems, sortOption);
     } else {
       // Relevance-ranked order
       scoredItems.sort((a, b) => {
@@ -558,7 +555,7 @@ export const getInventoryByQuery = async ({
       }
     }
   } else {
-    applySort(allItems, sortOption, currentShopId);
+    applySort(allItems, sortOption);
   }
 
   const start = Number(offset) || 0;

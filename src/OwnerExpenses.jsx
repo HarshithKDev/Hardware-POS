@@ -1,18 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 import { fetchAllRows } from './services/fetchAll';
 import { useApp } from './AppContext';
 import { EXPENSES_CHANGED_EVENT } from './services/liveRefresh';
 import { generateId, formatDateTime, formatINR } from './utils';
-import { 
-  Receipt, 
-  Plus, 
-  CheckCircle, 
-  AlertCircle,
-  Copy,
-  X
-} from 'lucide-react';
-import { PageLoader } from './SharedUI';
+import { Receipt, Plus, CheckCircle } from 'lucide-react';
 import { Modal, Button, buttonClass, useSort, SortTh, TableSkeleton } from './components/ui';
 
 const EXPENSE_SORT = {
@@ -65,7 +57,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
   const [workers, setWorkers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isDbConnected, setIsDbConnected] = useState(true);
+  const [, setIsDbConnected] = useState(true);
 
   // New Expense Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);

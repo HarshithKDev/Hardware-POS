@@ -1,6 +1,6 @@
-import { useState, Fragment } from 'react';
+import { Fragment } from 'react';
 import { supabase } from './supabaseClient';
-import { PageLoader, EmptyState } from './SharedUI';
+import { EmptyState } from './SharedUI';
 import { useQuery } from '@tanstack/react-query';
 import { formatDateTime, useSessionState, formatINR } from './utils';
 import { ChevronRight, Phone } from 'lucide-react';

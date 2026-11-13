@@ -18,23 +18,7 @@ const OwnerSettings = lazy(() => import('./OwnerSettings'));
 const OwnerExpenses = lazy(() => import('./OwnerExpenses'));
 const OwnerShowroom = lazy(() => import('./OwnerShowroom'));
 const BatchDetailsView = lazy(() => import('./BatchDetailsView'));
-import { 
-  LayoutDashboard, 
-  Plus, 
-  Tags, 
-  Warehouse, 
-  Boxes,
-  ShoppingCart, 
-  History, 
-  Users, 
-  Search, 
-  Menu,
-  Settings,
-  Undo2,
-  Receipt,
-  Store,
-  X
-} from 'lucide-react';
+import { LayoutDashboard, Plus, Tags, Warehouse, Boxes, ShoppingCart, History, Users, Search, Menu, Settings, Receipt, Store, X } from 'lucide-react';
 
 export default function OwnerDashboard() {
   const { isWarehouseDisabled } = useApp();

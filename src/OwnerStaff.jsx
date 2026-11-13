@@ -3,9 +3,8 @@ import { getPerformedBy } from './utils';
 import { supabase, provisioningClient } from './supabaseClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
-import { generateId } from './utils';
 import { getWorkerEmail, getAdminEmail } from './constants';
-import { Spinner, PageLoader } from './SharedUI';
+import { Spinner } from './SharedUI';
 import PageTitleReset from './components/PageTitleReset';
 import { buttonClass, Modal, Button, Input, TableSkeleton } from './components/ui';
 

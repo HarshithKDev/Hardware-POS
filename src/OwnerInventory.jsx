@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo, useCallback, forwardRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, forwardRef } from 'react';
 import { getPerformedBy, formatINR } from './utils';
 import { TableVirtuoso } from 'react-virtuoso';
-import { Spinner, PageLoader, EmptyState } from './SharedUI';
+import { EmptyState } from './SharedUI';
 import PrintBatchModal from './PrintBatchModal';
 import CreateBatchModal from './CreateBatchModal';
 import { supabase } from './supabaseClient';
@@ -17,7 +17,7 @@ import {
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { ConfirmDialog } from './Dialog';
 import { useApp } from './AppContext';
-import { escapeIlike, debounce, useSessionState } from './utils';
+import { debounce, useSessionState } from './utils';
 import { STALE_TIME_5MIN } from './constants';
 import InventoryRow from './InventoryRow';
 import BatchDetailsModal from './BatchDetailsModal';
@@ -193,42 +193,6 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
     } else {
       setSortOption(`${column}-asc`);
     }
-  };
-
-  const handleRemove = (barcode) => {
-    const itemToDelete = items.find(i => i.barcode === barcode);
-    const itemName = itemToDelete?.name || barcode;
-    showConfirm(`Deactivate ${itemName}?`, async () => {
-      const itemToDelete = items.find(i => i.barcode === barcode);
-      const shopId = localStorage.getItem('shop_id');
-      let delQuery = supabase.from('product_master').update({ is_active: false }).eq('barcode', barcode);
-      if (shopId) {
-        delQuery = delQuery.eq('shop_id', shopId);
-      }
-      const { error } = await delQuery;
-      if (error) {
-        showAlert(error.message, "Error Removing Item");
-      } else {
-        if (itemToDelete) {
-          await supabase.from('audit_logs').insert([{
-            action_type: 'DELETE',
-            barcode: barcode,
-            item_name: itemToDelete.name,
-            changes: `${itemToDelete.name} was moved to Recycle Bin (Warehouse Stock: ${itemToDelete.stock_warehouse}, Store Stock: ${itemToDelete.stock_store})`,
-            performed_by: getPerformedBy()
-          }]);
-        }
-        try {
-          const localItem = await getInventoryItemByBarcode(barcode);
-          if (localItem) {
-            await saveInventoryBatch([{ ...localItem, is_active: false }]);
-          }
-        } catch (e) {
-          console.error("Local IDB remove failed", e);
-        }
-        queryClient.invalidateQueries({ queryKey: ['inventory'] });
-      }
-    }, 'Deactivate Item', 'Deactivate', 'Cancel', true);
   };
 
   const handleRestore = (barcode) => {
@@ -507,7 +471,6 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
   };
 
   const items = inventoryData?.items || [];
-  const totalInvItems = inventoryData?.total || 0;
 
   const tableComponents = useMemo(() => ({
     Table: (props) => (
