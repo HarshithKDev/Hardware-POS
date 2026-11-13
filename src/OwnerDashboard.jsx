@@ -350,7 +350,7 @@ export default function OwnerDashboard() {
               aria-label={label}
             >
               <Icon size={19} strokeWidth={(isActive || (isMore && (isMoreOpen || moreIsActive))) ? 2.5 : 2} />
-              <span className="text-xs font-semibold tracking-tight">{label}</span>
+              <span className="text-xs font-semibold tracking-tight whitespace-nowrap">{label === 'Sales & Ret.' ? <><span className="max-[379px]:hidden">Sales &amp; Ret.</span><span className="hidden max-[379px]:inline">Sales</span></> : label}</span>
             </button>
           );
         })}

@@ -616,7 +616,7 @@ export default function InventoryRow({
         <td className="hidden md:table-cell p-3 w-24 lg:w-28 text-sm font-semibold tracking-wider" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--color-accent)' }}>{item.barcode}</td>
       <td className="hidden md:table-cell p-3 w-full min-w-[180px] text-sm font-medium" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
         <div className="flex items-center justify-center gap-2 w-full min-h-[1.5rem] px-1">
-          <span className="truncate text-center" title={item.name}>{item.name}</span>
+          <span className="line-clamp-2 break-words text-center" title={item.name}>{item.name}</span>
           {item.is_loose_item && (
             <span className="shrink-0 px-2 py-0.5 text-[11px] font-bold uppercase rounded-full whitespace-nowrap" style={{ backgroundColor: 'var(--color-warning-bg)', color: 'var(--color-warning)', border: '1px solid var(--color-warning-border)' }}>Loose</span>
           )}

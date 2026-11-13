@@ -375,7 +375,7 @@ export default function OwnerSettings() {
 
   return (
     <div className="w-full flex-1 flex flex-col animate-fade-in pb-12 lg:pb-0" style={{ backgroundColor: 'transparent' }}>
-      <div className="w-full max-w-7xl mx-auto flex flex-col gap-4 lg:gap-3 p-1">
+      <div className="w-full mx-auto flex flex-col gap-4 lg:gap-3 p-1">
 
         {/* TOP BAR / PAGE HEADER */}
         <div className="flex items-center justify-between pb-2.5 border-b border-[var(--border-light)] shrink-0">

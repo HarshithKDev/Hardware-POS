@@ -157,7 +157,7 @@ export function AlertDialog({ isOpen, title, message, onClose }) {
   }
 
   return (
-    <div className="fixed top-6 left-1/2 -translate-x-1/2 px-4 animate-fade-in-down print:hidden pointer-events-none w-full max-w-lg md:max-w-xl z-[99999]">
+    <div className="fixed top-[54px] md:top-[78px] lg:top-[86px] left-1/2 -translate-x-1/2 md:left-auto md:right-4 lg:right-6 md:translate-x-0 px-4 animate-fade-in-down print:hidden pointer-events-none w-full max-w-lg md:max-w-xl z-[99999]">
       <div 
         onClick={onClose}
         className="flex items-start justify-between gap-3 px-5 py-4 rounded-xl shadow-2xl pointer-events-auto cursor-pointer transition-transform hover:scale-[1.01] overflow-hidden"

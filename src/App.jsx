@@ -539,7 +539,7 @@ function App() {
 
   return (
     <div
-      className="w-full h-[100dvh] flex flex-col overflow-hidden relative"
+      className="w-full max-w-[1920px] mx-auto h-[100dvh] flex flex-col overflow-hidden relative"
       style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
     >
       {!isOnline && (
