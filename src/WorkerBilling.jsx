@@ -36,7 +36,7 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
     const handleKeyDown = (e) => {
       if (e.altKey && (e.key === 'd' || e.key === 'D')) {
         e.preventDefault();
-        handleTabSwitch('dashboard');
+        if (!hideNav) navigate('/terminal/dashboard');
       }
     };
     window.addEventListener('keydown', handleKeyDown);

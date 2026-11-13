@@ -149,7 +149,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
   const handleCategoryChange = useCallback((e) => {
     setFilterCategory(e.target.value);
     setFilterSubcategory('');
-  }, []);
+  }, [setFilterCategory, setFilterSubcategory]);
 
   const availableSubcategories = useMemo(() => {
     if (!subcategories || !Array.isArray(subcategories)) return [];
@@ -594,6 +594,8 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
       </th>
       <th className="p-3 w-28 lg:w-32 text-center">Actions</th>
     </tr>
+    // sortOption kept so the header's sort arrows always redraw when the sort changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   ), [isSelectionMode, items.length, selectedBarcodes.length, sortOption, handleSortClick, renderSortIcon, toggleSelectAll, isWarehouseDisabled]);
 
   return (

@@ -1006,6 +1006,8 @@ export default function OwnerStats({ isActive }) {
       topProducts,
       trend,
     };
+    // shopId kept so the figures reload when the shop changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopId, globalTimeframe, customDate, startDate, endDate]);
 
   // 2. Separate Inventory Query — runs ONCE on load, never re-runs on date change

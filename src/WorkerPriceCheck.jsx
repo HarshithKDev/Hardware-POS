@@ -7,9 +7,13 @@ import { calculateMSP, formatINR } from './utils';
 import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD } from './constants';
 import { AlertTriangle, Camera, RefreshCw, Eye } from 'lucide-react';
 import { buttonClass } from './components/ui';
+import { useLatest } from './hooks/useLatest';
 
 export default function WorkerPriceCheck() {
   const { showAlert, userRole, isWarehouseDisabled } = useApp();
+  // The camera (started once per scan session) calls these, so they must be the current versions
+  const lookupRef = useRef(null);
+  const showAlertRef = useLatest(showAlert);
   const [isScanning, setIsScanning] = useState(true);
   const [scannedItem, setScannedItem] = useState(null);
   const [, setAvailableInstances] = useState([]);
@@ -97,7 +101,7 @@ export default function WorkerPriceCheck() {
         const onDecoded = async (decodedText) => {
           if (!isProcessing && active) {
             isProcessing = true;
-            await handleLookup(decodedText);
+            await lookupRef.current(decodedText);
             setTimeout(() => {
               isProcessing = false;
             }, 500);
@@ -129,7 +133,7 @@ export default function WorkerPriceCheck() {
       } catch (err) {
         console.error("Lookup camera startup error:", err);
         if (active) {
-          showAlert(err.message || "Failed to access camera. Please check camera permissions.", "Camera Error");
+          showAlertRef.current(err.message || "Failed to access camera. Please check camera permissions.", "Camera Error");
           setIsScanning(false);
         }
       }
@@ -161,7 +165,7 @@ export default function WorkerPriceCheck() {
         });
       }
     };
-  }, [isScanning]);
+  }, [isScanning, lookupRef, showAlertRef]);
 
   const handleLookup = async (barcode) => {
     const rawBarcode = (barcode || '').trim();
@@ -226,6 +230,8 @@ export default function WorkerPriceCheck() {
       showAlert("Failed to retrieve item information.", "Error");
     }
   };
+  // Keep the camera's lookup handler current (see lookupRef above)
+  useEffect(() => { lookupRef.current = handleLookup; });
 
   const handleScanAnother = () => {
     setScannedItem(null);

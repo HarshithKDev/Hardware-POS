@@ -301,7 +301,7 @@ export default function OwnerAuditLogs() {
     refetchInterval: 30000, // refresh every 30s
   });
 
-  const rawLogs = auditResult?.logs || [];
+  const rawLogs = useMemo(() => auditResult?.logs || [], [auditResult]);
 
   const uniqueUsers = useMemo(() => {
     const set = new Set();

@@ -15,6 +15,7 @@ const EXPENSE_SORT = {
   by: { get: (e) => e.recorded_by || '', textual: true },
 };
 import PageTitleReset from './components/PageTitleReset';
+import { useLatest } from './hooks/useLatest';
 
 const getLocalStorageKey = (shopId) => `hardware_pos_expenses_${shopId || 'default'}`;
 // Expenses that could not be saved to the database yet (uploaded automatically later)
@@ -179,16 +180,17 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
     setIsLoading(false);
   };
 
+  const fetchExpensesRef = useLatest(fetchExpenses);
   useEffect(() => {
-    fetchExpenses();
-  }, [shopId]);
+    fetchExpensesRef.current();
+  }, [shopId, fetchExpensesRef]);
 
   // Another device added or deleted an expense: reload the list
   useEffect(() => {
-    const onChanged = () => fetchExpenses();
+    const onChanged = () => fetchExpensesRef.current();
     window.addEventListener(EXPENSES_CHANGED_EVENT, onChanged);
     return () => window.removeEventListener(EXPENSES_CHANGED_EVENT, onChanged);
-  }, [shopId]);
+  }, [shopId, fetchExpensesRef]);
 
   // Handle Save Expense
   const handleSaveExpense = async (e) => {

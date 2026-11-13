@@ -202,6 +202,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
 
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
+  // Live value for the scan handler, which is created once (setting can change while the terminal is open)
+  const isWarehouseDisabledRef = useRef(isWarehouseDisabled);
+  useEffect(() => { isWarehouseDisabledRef.current = isWarehouseDisabled; }, [isWarehouseDisabled]);
   
   useEffect(() => {
     // Prevent state desync ("COMMAREA Loss") by resetting modals when navigating between tabs
@@ -277,6 +280,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   }, [shopSettings?.id, queryClient]);
 
 
+  // Re-created each render on purpose: the keyboard-shortcut listener re-attaches every render so it always sees the current cart
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const handleHoldCart = () => {
     if (cart.length === 0) return;
     if (activeCartTab !== 'local') {
@@ -356,7 +361,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       const cleanBarcode = scannedCode.trim();
       if (!cleanBarcode) return;
 
-      if (activeTab === 'checkout' && cleanBarcode.toUpperCase() === 'SCREWS') {
+      if (activeTabRef.current === 'checkout' && cleanBarcode.toUpperCase() === 'SCREWS') {
         const existing = cartRef.current.find(i => i.is_screw || i.barcode === 'SCREWS');
         const currentVal = existing ? (existing.customPriceInput !== undefined ? String(existing.customPriceInput) : String(existing.price || '')) : '';
         setScrewsModal({ isOpen: true, price: currentVal });
@@ -415,7 +420,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           } else if (item.batches.length > 1) {
             if (currentTab === 'checkout') {
               const activeWithStock = item.batches.filter(b => {
-                const s = isWarehouseDisabled 
+                const s = isWarehouseDisabledRef.current 
                   ? (Number(b.stock_store || 0) + Number(b.stock_warehouse || 0)) 
                   : Number(b.stock_store || 0);
                 return s > 0;
@@ -474,7 +479,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
            if (currentTab === 'checkout' || currentTab === 'transfer') {
              const stockField = currentTab === 'transfer' ? 'stock_warehouse' : 'stock_store';
              const locationName = currentTab === 'transfer' ? 'warehouse' : 'store';
-             const bStock = (currentTab === 'checkout' && isWarehouseDisabled)
+             const bStock = (currentTab === 'checkout' && isWarehouseDisabledRef.current)
                ? (Number(autoSelectedBatch.stock_store || 0) + Number(autoSelectedBatch.stock_warehouse || 0))
                : Number(autoSelectedBatch[stockField] || 0);
              if (bStock <= 0) {
@@ -502,12 +507,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           const stockField = currentTab === 'transfer' ? 'stock_warehouse' : 'stock_store';
           const locationName = currentTab === 'transfer' ? 'warehouse' : 'store';
           const totalStock = availableBatches.length === 1 
-            ? ((currentTab === 'checkout' && isWarehouseDisabled)
+            ? ((currentTab === 'checkout' && isWarehouseDisabledRef.current)
                 ? (Number(autoSelectedBatch.stock_store || 0) + Number(autoSelectedBatch.stock_warehouse || 0))
                 : Number(autoSelectedBatch[stockField] || 0))
             : (item.batches 
-                ? item.batches.reduce((sum, b) => sum + ((currentTab === 'checkout' && isWarehouseDisabled) ? (Number(b.stock_store || 0) + Number(b.stock_warehouse || 0)) : Number(b[stockField] || 0)), 0)
-                : ((currentTab === 'checkout' && isWarehouseDisabled) ? (Number(item.stock_store || 0) + Number(item.stock_warehouse || 0)) : Number(item[stockField] || 0)));
+                ? item.batches.reduce((sum, b) => sum + ((currentTab === 'checkout' && isWarehouseDisabledRef.current) ? (Number(b.stock_store || 0) + Number(b.stock_warehouse || 0)) : Number(b[stockField] || 0)), 0)
+                : ((currentTab === 'checkout' && isWarehouseDisabledRef.current) ? (Number(item.stock_store || 0) + Number(item.stock_warehouse || 0)) : Number(item[stockField] || 0)));
           
           const currentCartItem = cartRef.current.find(c => c.barcode === item.barcode && (!autoSelectedBatch || c.batch_id === autoSelectedBatch.batch_id));
           const currentQty = currentCartItem ? (Number(currentCartItem.quantity) || 0) : 0;
@@ -567,7 +572,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       playScanErrorSound();
       showAlertRef.current(error.message || "An error occurred while looking up the barcode.", "Scanner Error");
     }
-  }, []);
+  }, [setCart]);
 
 
 
@@ -855,7 +860,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       if (limitMsg) setTimeout(() => showAlert(limitMsg, "Stock Limit"), 0);
       return newCart;
     });
-  }, [activeTab, showAlert, setCart]);
+  }, [activeTab, isWarehouseDisabled, showAlert, setCart]);
 
   const updateDimensions = useCallback((id, field, val) => {
     setCart(prev => {
@@ -889,7 +894,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       if (limitMsg) setTimeout(() => showAlert(limitMsg, "Stock Limit"), 0);
       return newCart;
     });
-  }, [activeTab, showAlert, setCart]);
+  }, [activeTab, isWarehouseDisabled, showAlert, setCart]);
 
 
   const handleCustomPriceChange = useCallback((id, val) => setCart(prev => prev.map(i => i.id === id ? { ...i, customPriceInput: val, customTotalInput: undefined } : i)), [setCart]);
@@ -1099,8 +1104,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     if (showToast) {
       showToast('Worker cart discarded');
     }
-  }, [activeCartTab, shopSettings?.id, switchCartTab, showToast, pendingCarts, cartSessions, logClearedCart]);
+  }, [activeCartTab, shopSettings?.id, switchCartTab, showToast, pendingCarts, cartSessions, setCartSessions, logClearedCart]);
 
+  // Re-created each render on purpose: the keyboard-shortcut listener re-attaches every render so it always sees the current cart
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const handleCancelSale = () => {
     if (activeCartTab.startsWith('held_')) {
       logClearedCart(`Held cart "${heldCarts.find(c => c.id === activeCartTab)?.name || activeCartTab}" cancelled`, cart);
@@ -1151,7 +1158,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
     setScrewsModal({ isOpen: false, price: '' });
     playScanSuccessSound();
-  }, [playScanSuccessSound, setCart]);
+  }, [setCart]);
 
   const handleOpenCheckoutModal = useCallback(() => {
     // Safety check: Ensure no item is below MSP before opening checkout
@@ -1199,6 +1206,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     }));
   }, [cart, showAlert, setCart, calculateTotal]);
 
+  // Re-created each render on purpose: the keyboard-shortcut listener re-attaches every render so it always sees the current cart
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const handleCompleteTransaction = async () => {
     if (isCheckingOut || checkoutInFlightRef.current) return;
     let finalCart = cart.filter(i => Number(i.quantity) > 0);
@@ -2207,7 +2216,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     handleCancelSale,
     updateQuantity,
     handleRemoveItem,
-    showConfirm
+    showConfirm,
+    handleOpenCheckoutModal
   ]);
 
   const cartTotal = calculateTotal();

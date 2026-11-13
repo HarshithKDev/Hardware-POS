@@ -420,7 +420,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
     staleTime: STALE_TIME_5MIN,
   });
 
-  const paginatedInventory = inventoryData?.pages.flatMap(page => page.items) || [];
+  const paginatedInventory = useMemo(() => inventoryData?.pages.flatMap(page => page.items) || [], [inventoryData]);
 
   const expandedRows = useMemo(() => {
     return paginatedInventory.flatMap(item => {

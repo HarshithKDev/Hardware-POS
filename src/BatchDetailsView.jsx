@@ -159,9 +159,9 @@ export default function BatchDetailsView({
   });
 
   // Active batch selection state (tab) - filter out any inactive/deleted batches
-  const rawBatches = item?.batches || [];
+  const rawBatches = item?.batches;
   const batches = useMemo(() => {
-    return rawBatches
+    return (rawBatches || [])
       .filter(b => b.is_active !== false)
       .sort((a, b) => (a.batch_number || 1) - (b.batch_number || 1));
   }, [rawBatches]);
@@ -176,6 +176,8 @@ export default function BatchDetailsView({
     } else {
       setActiveBatchId(null);
     }
+    // Only re-check when the batch list or item changes; reading the current selection here is intended
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batches, barcode]);
 
   const activeBatch = batches.find(b => b.batch_id === activeBatchId) || batches[0] || null;
@@ -242,6 +244,8 @@ export default function BatchDetailsView({
         warehouse: item.min_quantity_warehouse ?? 0
       });
     }
+    // Listed field by field so a background refresh of the item does not reset a half-typed edit
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item?.barcode, item?.min_quantity_store, item?.min_quantity_warehouse]);
 
   useEffect(() => {
@@ -254,6 +258,8 @@ export default function BatchDetailsView({
         mrp: priceInputValue(activeBatch.selling_price, item?.price)
       });
     }
+    // Listed field by field so a background refresh does not reset a half-typed batch edit
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeBatch?.batch_id, activeBatch?.supplier, activeBatch?.purchase_cost, activeBatch?.msp, activeBatch?.selling_price, item?.cost_price, item?.msp, item?.price]);
 
   // Self-healing: if warehouse is disabled but any batch has stranded warehouse stock, merge into store stock
@@ -321,6 +327,8 @@ export default function BatchDetailsView({
         fixStranded();
       }
     }
+    // Runs when the stock it repairs changes, not on every refresh of the item
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isWarehouseDisabled, item?.barcode, item?.batches, shopId, queryClient]);
 
 

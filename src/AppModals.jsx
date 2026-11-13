@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient';
 import { useApp } from './AppContext';
 import { getThermalPrinterStatus, printDirectEscPos, isDirectEscPosSupported } from './services/escpos';
 import { buttonClass, Modal } from './components/ui';
+import { useLatest } from './hooks/useLatest';
 
 
 
@@ -184,6 +185,7 @@ export function PrintPreviewModal({
     handlePrint();
   };
 
+  const printRef = useLatest(handleUnifiedPrint);
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e) => {
@@ -192,12 +194,12 @@ export function PrintPreviewModal({
         onClose();
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        handleUnifiedPrint();
+        printRef.current();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose, type, lastReceipt]);
+  }, [isOpen, onClose, printRef]);
 
   if (!isOpen) return null;
 

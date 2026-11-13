@@ -44,9 +44,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
             .order('name');
           if (data && data.length > 0) {
             setWorkersList(data);
-            if (!operatorId) {
-              setOperatorId(data[0].name);
-            }
+            setOperatorId(prev => prev || data[0].name);
           }
         } catch (e) {
           console.error(e);
