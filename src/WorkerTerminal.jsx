@@ -19,6 +19,8 @@ import { generateId, formatDateTime, calculateMSP, formatINR } from './utils';
 import { SCAN_TIMEOUT_MS } from './constants';
 
 import InlineContinuousScanner from './components/scanner/InlineContinuousScanner';
+import CheckoutCameraScanner from './components/scanner/CheckoutCameraScanner';
+import { ScanLine } from 'lucide-react';
 import CartTable from './components/cart/CartTable';
 import CartMobileView from './components/cart/CartMobileView';
 import { playScanSuccessSound, playScanErrorSound, playPaymentSuccessSound } from './services/audio';
@@ -159,6 +161,35 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
 
   const [isInputFocused, setIsInputFocused] = useState(false);
+
+  // Phone checkout: scan barcodes with the phone camera
+  const [isCheckoutCameraOpen, setIsCheckoutCameraOpen] = useState(false);
+  const [cameraLastAdded, setCameraLastAdded] = useState(null);
+  const prevCartForCameraRef = useRef(cart);
+  useEffect(() => {
+    const prev = prevCartForCameraRef.current || [];
+    prevCartForCameraRef.current = cart;
+    if (!isCheckoutCameraOpen) return;
+    // Show which item the scan added (new line, or a higher quantity)
+    for (const item of cart) {
+      const before = prev.find(p => p.id === item.id);
+      const qty = Number(item.quantity) || 0;
+      if (!before || qty > (Number(before.quantity) || 0)) {
+        setCameraLastAdded({ name: item.name || 'Item', qty, unit: item.unit, key: `${item.id}-${qty}-${Date.now()}` });
+        try { navigator.vibrate?.(40); } catch { /* not supported */ }
+        break;
+      }
+    }
+  }, [cart, isCheckoutCameraOpen]);
+  // Pause the camera while any popup needs the cashier's attention
+  const isCheckoutCameraPaused = Boolean(
+    checkoutModal.isOpen || screwsModal.isOpen || looseItemModal.isOpen || cuttableModal.isOpen ||
+    selectBatchModal.isOpen || printPreviewOpen || alertConfig?.isOpen || confirmConfig?.isOpen
+  );
+  // Payment screen: the camera is no longer needed
+  useEffect(() => {
+    if (checkoutModal.isOpen && isCheckoutCameraOpen) setIsCheckoutCameraOpen(false);
+  }, [checkoutModal.isOpen, isCheckoutCameraOpen]);
   const barcodeBuffer = useRef('');
   const lastKeyTime = useRef(Date.now());
   const lastScanKeyTime = useRef(0);
@@ -2484,12 +2515,27 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             </h2>
             
             <div className="md:mt-3 flex flex-wrap items-center gap-2.5">
-              <form onSubmit={(e) => { e.preventDefault(); processScan(manualBarcode); setManualBarcode(''); setShowSuggestions(false); }} className="relative w-full md:w-auto">
+              <form onSubmit={(e) => { e.preventDefault(); processScan(manualBarcode); setManualBarcode(''); setShowSuggestions(false); }} className="relative w-full md:w-auto flex items-center gap-2 md:block">
                 <div className="flex items-center w-full md:w-72 h-11 md:h-9 rounded-md overflow-hidden transition-colors focus-within:border-[var(--color-accent)] focus-within:ring-1 focus-within:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)' }}>
                   <label htmlFor="manual-barcode" className="sr-only">Barcode</label>
                   <input id="manual-barcode" type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} onFocus={() => { setIsInputFocused(true); manualBarcode.trim().length >= 2 && setShowSuggestions(true); }} onBlur={() => { setIsInputFocused(false); setTimeout(() => setShowSuggestions(false), 200); }} placeholder="Search barcode or name..." className="compact-field h-full w-full px-3 text-sm focus:outline-none flex-1 bg-transparent border-none outline-none rounded-none focus:ring-0 focus:border-transparent focus:shadow-none" style={{ color: 'var(--text-input)', outline: 'none', border: 'none', boxShadow: 'none' }} autoComplete="off" />
                   <button type="submit" className="tap-area relative h-full px-3 text-sm font-bold focus:outline-none transition-colors border-none rounded-none bg-transparent hover:bg-[var(--bg-hover)] focus:ring-0 focus:outline-none shrink-0" style={{ color: 'var(--color-accent)', outline: 'none', border: 'none' }}>ADD</button>
                 </div>
+                {activeTab === 'checkout' && (
+                  <button
+                    type="button"
+                    onClick={() => { setCameraLastAdded(null); setIsCheckoutCameraOpen(v => !v); }}
+                    aria-pressed={isCheckoutCameraOpen}
+                    aria-label={isCheckoutCameraOpen ? 'Close camera scanner' : 'Scan barcode with camera'}
+                    title={isCheckoutCameraOpen ? 'Close camera scanner' : 'Scan barcode with camera'}
+                    className="md:hidden shrink-0 w-11 h-11 flex items-center justify-center rounded-md border transition-colors active:scale-95"
+                    style={isCheckoutCameraOpen
+                      ? { backgroundColor: 'var(--color-accent-solid)', borderColor: 'var(--color-accent-solid)', color: 'var(--text-on-solid)' }
+                      : { backgroundColor: 'var(--bg-input)', borderColor: 'var(--border-input)', color: 'var(--color-accent)' }}
+                  >
+                    <ScanLine className="w-5 h-5" aria-hidden="true" />
+                  </button>
+                )}
                 {showSuggestions && suggestions.length > 0 && (
                   <ul className="absolute top-[100%] left-0 w-full md:w-64 bg-[var(--bg-secondary)] border border-[var(--border-medium)] z-50 max-h-60 overflow-y-auto shadow-lg mt-1 rounded-sm">
                     {suggestions.map((item) => (
@@ -2627,6 +2673,15 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             onBackToLocal={() => switchCartTab('local')}
           />
         </div>
+
+        {activeTab === 'checkout' && isCheckoutCameraOpen && (
+          <CheckoutCameraScanner
+            onScan={async (code) => { await processScan(code); }}
+            onClose={() => setIsCheckoutCameraOpen(false)}
+            paused={isCheckoutCameraPaused}
+            lastAdded={cameraLastAdded}
+          />
+        )}
 
         {/* Mobile View for Checkout */}
         <div

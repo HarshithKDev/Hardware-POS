@@ -2,7 +2,28 @@ import React, { useRef, useEffect } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { playScanSuccessSound } from '../../services/audio';
 
-export default function InlineContinuousScanner({ onScan }) {
+/**
+ * Live camera barcode scanner that keeps scanning until it is unmounted.
+ *
+ * Defaults match the Receive screen. Extra options (used by the phone checkout):
+ *  - readerId:          DOM id for the camera view (must be unique on the page)
+ *  - paused:            ignore scans while true (e.g. a popup is open)
+ *  - playSound:         beep on every decode (off when the caller plays its own sounds)
+ *  - sameCodeCooldownMs: the same barcode counts again only after it has been out of
+ *                        view for this long, so holding the camera on one label adds it
+ *                        once (move away and back to add another)
+ *  - onError(err):      camera could not start (permission denied, no camera…)
+ *  - videoMaxHeight:    CSS max-height of the video
+ */
+export default function InlineContinuousScanner({
+  onScan,
+  readerId = 'receive-reader',
+  paused = false,
+  playSound = true,
+  sameCodeCooldownMs = 0,
+  onError,
+  videoMaxHeight = '280px',
+}) {
   const scannerRef = useRef(null);
 
   const onScanRef = useRef(onScan);
@@ -10,16 +31,23 @@ export default function InlineContinuousScanner({ onScan }) {
     onScanRef.current = onScan;
   }, [onScan]);
 
+  const pausedRef = useRef(paused);
+  useEffect(() => { pausedRef.current = paused; }, [paused]);
+  const onErrorRef = useRef(onError);
+  useEffect(() => { onErrorRef.current = onError; }, [onError]);
+
   const isUnmountingRef = useRef(false);
 
   useEffect(() => {
     isUnmountingRef.current = false;
     let active = true;
     let html5QrCode = null;
+    let lastCode = '';
+    let lastSeenAt = 0;
 
     const startScanner = async () => {
       try {
-        html5QrCode = new Html5Qrcode("receive-reader");
+        html5QrCode = new Html5Qrcode(readerId);
         scannerRef.current = html5QrCode;
 
         const scanConfig = {
@@ -34,10 +62,19 @@ export default function InlineContinuousScanner({ onScan }) {
 
         let isProcessing = false;
         const onDecoded = async (decodedText) => {
-          if (!isProcessing && !isUnmountingRef.current && active) {
-            isProcessing = true;
-            playScanSuccessSound();
+          const now = Date.now();
+          if (sameCodeCooldownMs > 0 && decodedText === lastCode && now - lastSeenAt < sameCodeCooldownMs) {
+            lastSeenAt = now; // still in view: keep waiting until it has been away for a while
+            return;
+          }
+          if (isProcessing || isUnmountingRef.current || !active || pausedRef.current) return;
+          isProcessing = true;
+          lastCode = decodedText;
+          lastSeenAt = now;
+          if (playSound) playScanSuccessSound();
+          try {
             await onScanRef.current(decodedText);
+          } finally {
             setTimeout(() => {
               isProcessing = false;
             }, 800);
@@ -62,10 +99,13 @@ export default function InlineContinuousScanner({ onScan }) {
               onDecoded,
               () => {}
             );
+          } else {
+            throw envErr;
           }
         }
       } catch (err) {
         console.error("Inline scanner error:", err);
+        if (active && onErrorRef.current) onErrorRef.current(err);
       }
     };
 
@@ -89,16 +129,16 @@ export default function InlineContinuousScanner({ onScan }) {
         })();
       }
     };
-  }, []);
+  }, [readerId, playSound, sameCodeCooldownMs]);
 
   return (
     <>
       <style>{`
-        #receive-reader { width: 100% !important; border: none !important; }
-        #receive-reader video { width: 100% !important; max-height: 280px !important; object-fit: cover !important; }
-        #receive-reader canvas { display: none !important; }
+        #${readerId} { width: 100% !important; border: none !important; }
+        #${readerId} video { width: 100% !important; max-height: ${videoMaxHeight} !important; object-fit: cover !important; }
+        #${readerId} canvas { display: none !important; }
       `}</style>
-      <div id="receive-reader" className="w-full h-full flex flex-col justify-center"></div>
+      <div id={readerId} className="w-full h-full flex flex-col justify-center"></div>
     </>
   );
 }
