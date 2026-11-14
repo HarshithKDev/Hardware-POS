@@ -164,16 +164,12 @@ describe('Delta / Incremental Sync System', () => {
     });
     vi.mocked(db.getLocalInventoryCount).mockResolvedValue(150);
 
-    // Initial ping works
+    // No separate ping: the first request is the change check itself
     let callCount = 0;
     vi.mocked(supabase.from).mockImplementation((table) => {
       if (table === 'product_master_public') {
         callCount++;
         if (callCount === 1) {
-          // ping query
-          return createChainableQuery([{ barcode: '1001' }]);
-        }
-        if (callCount === 2) {
           // delta query fails with code 42703
           return createChainableQuery(null, { code: '42703', message: 'column updated_at does not exist' });
         }
@@ -199,12 +195,12 @@ describe('Delta / Incremental Sync System', () => {
     });
     vi.mocked(db.getLocalInventoryCount).mockResolvedValue(150);
 
-    const pingQuery = createChainableQuery([{ barcode: '1001' }]);
+    const publicViewQuery = createChainableQuery([{ barcode: '1001' }]);
     const ownerProdQuery = createChainableQuery([{ barcode: '1001', name: 'Balaji Frame', cost_price: 1200 }]);
     const ownerBatchQuery = createChainableQuery([{ barcode: '1001', batch_id: 'b1', batch_number: 1, purchase_cost: 1200, msp: 2000, selling_price: 3000 }]);
 
     vi.mocked(supabase.from).mockImplementation((table) => {
-      if (table === 'product_master_public') return pingQuery;
+      if (table === 'product_master_public') return publicViewQuery;
       if (table === 'product_master') return ownerProdQuery;
       if (table === 'inventory_batches') return ownerBatchQuery;
       return createChainableQuery([]);
@@ -256,9 +252,19 @@ describe('Delta / Incremental Sync System', () => {
 
     await Promise.all([1, 2, 3, 4, 5].map(() => syncInventoryToLocal('worker')));
 
-    // 1 running + 1 merged follow-up = 2 runs, each does a ping + one delta query
+    // 1 running + 1 merged follow-up = 2 runs, each does one delta query
     const deltaCalls = prodQuery.gt.mock.calls.length;
     expect(deltaCalls).toBe(2);
+  });
+
+  it.each(['owner', 'worker'])('a quiet minute with nothing changed costs one request (%s)', async (role) => {
+    vi.mocked(db.getSyncStatus).mockResolvedValue({ last_sync: new Date().toISOString(), last_full_sync: new Date().toISOString(), synced_with_cost: true });
+    vi.mocked(db.getLocalInventoryCount).mockResolvedValue(150);
+    vi.mocked(supabase.from).mockImplementation(() => createChainableQuery([]));
+
+    await syncInventoryToLocal(role);
+
+    expect(supabase.from).toHaveBeenCalledTimes(1);
   });
 
   it('a staff sync makes the owner\'s next sync on this device re-download cost prices', async () => {

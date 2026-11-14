@@ -1,10 +1,40 @@
 import { useEffect, useMemo } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { localToUtcIso } from '../utils';
+import { supabase } from '../supabaseClient';
+import { isMissingFunctionError } from '../services/posRpc';
 
 const ROWS_PER_STEP = 1000; // the database returns at most 1,000 rows per request
 
 const localDay = (iso) => new Date(iso).toLocaleDateString('en-CA');
+
+// With the pos_active_days database function: the list of days itself (a few bytes per day)
+// instead of 1,000 raw timestamps per step.
+const DAYS_PER_STEP = 60;
+let daysFunctionMissing = false;
+const deviceTimeZone = () => {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; }
+};
+
+/** Days from the database function, or null when it can't be used (then the caller falls back). */
+async function fetchDaysStep(kind, beforeIso) {
+  if (daysFunctionMissing || !supabase?.rpc) return null;
+  const { data, error } = await supabase.rpc('pos_active_days', {
+    p_kind: kind,
+    p_tz: deviceTimeZone(),
+    p_before: beforeIso || null,
+    p_limit: DAYS_PER_STEP,
+  });
+  if (error) {
+    if (isMissingFunctionError(error, 'pos_active_days')) daysFunctionMissing = true;
+    else console.warn('[ActiveDays] Falling back to reading timestamps:', error.message);
+    return null;
+  }
+  if (!Array.isArray(data)) return null;
+  const days = data.map(r => String(r?.day ?? r).slice(0, 10)).filter(Boolean);
+  const next = days.length >= DAYS_PER_STEP ? localToUtcIso(`${days[days.length - 1]}T00:00:00`) : undefined;
+  return { days, next };
+}
 
 /**
  * List of days (YYYY-MM-DD, newest first) that have activity, for the day-by-day screens.
@@ -13,16 +43,22 @@ const localDay = (iso) => new Date(iso).toLocaleDateString('en-CA');
  * reaches all the way back in history. Each step continues before the oldest day already
  * listed. When `currentIndex` gets near the end of what is loaded, the next step loads by itself.
  *
+ * With `daysKind` ('sales' | 'audit') the pos_active_days database function is asked first.
+ *
  * fetchStep(beforeIso | null) must return { data: [{ created_at }], error }, newest first,
  * limited to 1,000 rows, and only rows created before `beforeIso` when it is given.
  */
-export function useActiveDays(queryKey, fetchStep, { enabled = true, currentIndex = 0, staleTime = 1000 * 60 * 2 } = {}) {
+export function useActiveDays(queryKey, fetchStep, { enabled = true, currentIndex = 0, staleTime = 1000 * 60 * 2, daysKind = null } = {}) {
   const query = useInfiniteQuery({
     queryKey,
     enabled,
     staleTime,
     initialPageParam: null,
     queryFn: async ({ pageParam }) => {
+      if (daysKind) {
+        const fromFunction = await fetchDaysStep(daysKind, pageParam);
+        if (fromFunction) return fromFunction;
+      }
       const { data, error } = await fetchStep(pageParam);
       if (error) throw error;
       const rows = data || [];

@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient';
 import { Spinner, EyeIcon, EyeSlashIcon } from './SharedUI';
 import { getWorkerEmail, getLegacyWorkerEmail } from './constants';
 import { buttonClass } from './components/ui';
+import { readLoginNotice, clearLoginNotice } from './services/loginNotice';
 
 export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComplete, shopSettings }) {
   const [step, setStep] = useState(1);
@@ -10,6 +11,8 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
   const [operatorId, setOperatorId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  // Why the user was signed out (shown above the login, cleared once they sign in)
+  const [notice, setNotice] = useState(readLoginNotice);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [workersList, setWorkersList] = useState([]);
@@ -264,7 +267,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
         const { data: activeWorker, error: dbError } = await workerQuery.maybeSingle();
 
         if (!activeWorker || dbError) {
-          await supabase.auth.signOut();
+          await supabase.auth.signOut({ scope: 'local' });
           setError('Access Denied: Your account was removed by the owner.');
           setIsAuthenticating(false);
           return;
@@ -453,6 +456,13 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
           </h1>
           <p className="text-xs uppercase mt-2" style={{ color: 'var(--text-tertiary)' }}>Select User to Continue</p>
         </div>
+
+        {notice && (
+          <div role="status" className="mb-5 -mt-3 flex items-start justify-between gap-3 rounded-md px-3 py-2.5 text-sm" style={{ backgroundColor: 'var(--color-warning-bg, var(--bg-tertiary))', border: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
+            <span>{notice}</span>
+            <button type="button" aria-label="Dismiss" className="shrink-0 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]" onClick={() => { clearLoginNotice(); setNotice(''); }}>✕</button>
+          </div>
+        )}
 
         {step === 1 && (
           <div className="mb-2 min-h-[150px] flex flex-col justify-center">

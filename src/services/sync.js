@@ -83,15 +83,9 @@ const runInventorySync = async (userRole = 'worker', options = {}) => {
   const syncKey = `inventory_sync_${currentShopId || 'global'}_${userRole}`;
 
   try {
-    // 1. Lightweight connectivity ping via public view so transient RLS issues don't abort before fallback
-    let pingQuery = supabase.from('product_master_public').select('barcode');
-    if (currentShopId) {
-      pingQuery = pingQuery.eq('shop_id', currentShopId);
-    }
-    const { error: pingError } = await pingQuery.limit(1);
-    if (pingError) throw pingError;
-
-    // 2. Check previous sync status and local inventory count
+    // (No separate connectivity ping: the change check below fails the same way when offline,
+    // so the ping only doubled the requests every device made each minute.)
+    // Check previous sync status and local inventory count
     const prevStatus = await getSyncStatus(syncKey);
     const localCount = await getLocalInventoryCount(currentShopId);
 
@@ -240,8 +234,9 @@ async function performDeltaSync({ tableName, userRole, currentShopId, lastSync }
 
   let { data: changedProducts, error: prodError } = await prodQuery;
 
-  // Graceful fallback to public view ONLY if raw table fails or returns empty while public view has delta changes
-  if ((prodError || !changedProducts || changedProducts.length === 0) && effectiveTable === 'product_master') {
+  // Fall back to the public view only if the owner table could not be read. (It also retried
+  // whenever nothing had changed - nearly every minute - doubling the owner's requests.)
+  if (prodError && effectiveTable === 'product_master') {
     let fallbackQuery = supabase.from('product_master_public').select('*');
     if (currentShopId) {
       fallbackQuery = fallbackQuery.eq('shop_id', currentShopId);
