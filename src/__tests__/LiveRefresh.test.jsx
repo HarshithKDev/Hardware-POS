@@ -10,6 +10,10 @@ vi.mock('../supabaseClient', () => ({
 }));
 
 import { startLiveRefresh, stopLiveRefresh, EXPENSES_CHANGED_EVENT, INVENTORY_REFRESH_MS } from '../services/liveRefresh';
+import { POS_EVENT } from '../services/posEvents';
+
+// A sale/return/dispatch arrives as the shop's "bill changed" signal
+const billChanged = () => window.dispatchEvent(new CustomEvent(POS_EVENT, { detail: { kind: 'bill', op: 'UPDATE' } }));
 
 describe('Live refresh of sales / dashboard / expenses across devices', () => {
   let queryClient;
@@ -23,13 +27,20 @@ describe('Live refresh of sales / dashboard / expenses across devices', () => {
     vi.useRealTimers();
   });
 
-  it('listens only to this shop', () => {
-    expect(handlers.bills.opts.filter).toBe('shop_id=eq.shop-1');
+  it('listens only to this shop, and not to the bills table separately', () => {
+    expect(handlers.audit_logs.opts.filter).toBe('shop_id=eq.shop-1');
     expect(handlers.expenses.opts.filter).toBe('shop_id=eq.shop-1');
+    expect(handlers.bills).toBeUndefined();
+  });
+
+  it('ignores stock-only signals (those refresh the catalog, not the sales screens)', () => {
+    window.dispatchEvent(new CustomEvent(POS_EVENT, { detail: { kind: 'batch', op: 'UPDATE' } }));
+    vi.advanceTimersByTime(70000);
+    expect(queryClient.invalidateQueries).not.toHaveBeenCalled();
   });
 
   it('a new bill refreshes the ledger, dashboard and showroom once (debounced)', () => {
-    handlers.bills.cb({}); handlers.bills.cb({}); handlers.bills.cb({});
+    billChanged(); billChanged(); billChanged();
     expect(queryClient.invalidateQueries).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1300);
     const keys = queryClient.invalidateQueries.mock.calls.map(c => c[0].queryKey[0]);
@@ -39,12 +50,12 @@ describe('Live refresh of sales / dashboard / expenses across devices', () => {
 
   it('stock figures (capital, low stock, dead stock) refresh at most once a minute after sales', () => {
     const stockRefreshes = () => queryClient.invalidateQueries.mock.calls.filter(c => c[0].queryKey[0] === 'dashboard-inventory-stats').length;
-    handlers.bills.cb({});
+    billChanged();
     vi.advanceTimersByTime(1300);
     expect(stockRefreshes()).toBe(1); // first sale: soon
 
     // a busy minute of sales: no reload for each one, one at the end of the minute
-    for (let i = 0; i < 10; i++) { handlers.bills.cb({}); vi.advanceTimersByTime(5000); }
+    for (let i = 0; i < 10; i++) { billChanged(); vi.advanceTimersByTime(5000); }
     expect(stockRefreshes()).toBe(1);
     vi.advanceTimersByTime(INVENTORY_REFRESH_MS);
     expect(stockRefreshes()).toBe(2);
