@@ -13,7 +13,7 @@ import {
   DEAD_STOCK_ALARM_VALUE,
   STALE_TIME_5MIN,
 } from './constants';
-import { AlertTriangle, Calendar, ArrowUpRight, RotateCcw, Clock, CalendarDays, Users } from 'lucide-react';
+import { AlertTriangle, Calendar, ArrowUpRight, RotateCcw } from 'lucide-react';
 import { useSessionState } from './hooks/useSessionState';
 import PageTitleReset from './components/PageTitleReset';
 import { billPaymentSplit } from './services/dayClosing';
@@ -232,7 +232,7 @@ function SalesTrendChart({ buckets, isLoading, metric, setMetric, view, setView,
   const money = (v) => `${v < 0 ? '−' : ''}₹${formatINR(Math.abs(v), 0)}`;
 
   return (
-    <div className="p-4 sm:p-5 rounded-lg border border-[var(--border-light)] flex flex-col h-full xl:col-span-2 min-w-0" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+    <div className="p-4 sm:p-5 rounded-lg border border-[var(--border-light)] flex flex-col h-[360px] xl:h-full xl:col-span-2 min-w-0" style={{ backgroundColor: 'var(--bg-secondary)' }}>
       <div className="flex flex-wrap justify-between items-start gap-3 mb-4">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>{title}</p>
@@ -327,84 +327,55 @@ function MiniBars({ items, peakKey, ariaLabel }) {
   );
 }
 
-function InsightLine({ icon: Icon, label, value, detail }) {
-  return (
-    <p className="text-sm flex items-start gap-2 min-w-0" style={{ color: 'var(--text-secondary)' }}>
-      <Icon className="w-4 h-4 mt-0.5 shrink-0 text-[var(--color-accent)]" aria-hidden="true" />
-      <span className="min-w-0">
-        {label}: <strong style={{ color: 'var(--text-primary)' }}>{value}</strong>
-        {detail && <span style={{ color: 'var(--text-tertiary)' }}> · {detail}</span>}
-      </span>
-    </p>
-  );
-}
-
 const customers = (n) => `${oneDecimal(n)} customer${Math.round(n * 10) === 10 ? '' : 's'}`;
 
-/** When customers come: busiest hours and days over the last 4 full weeks */
+/** When customers come: busiest hour and day over the last 4 full weeks */
 function CustomerFlowInsights({ insights, isLoading, error }) {
-  const windowLabel = insights
-    ? `Last ${INSIGHT_WEEKS} full weeks · ${formatDateLabel(insights.startIso, false)} – ${formatDateLabel(insights.endIso, true)}`
-    : `Last ${INSIGHT_WEEKS} full weeks`;
-
   let body;
   if (isLoading && !insights) {
-    body = <p className="text-sm py-6 text-center" style={{ color: 'var(--text-tertiary)' }}>Looking at the last {INSIGHT_WEEKS} weeks of sales…</p>;
+    body = <p className="text-sm py-4" style={{ color: 'var(--text-tertiary)' }}>Loading…</p>;
   } else if (error) {
-    body = <p className="text-sm py-6 text-center" style={{ color: 'var(--color-error)' }}>Customer patterns could not be loaded. Please try again.</p>;
+    body = <p className="text-sm py-4" style={{ color: 'var(--color-error)' }}>Could not load. Please try again.</p>;
   } else if (!insights?.enough) {
-    body = (
-      <p className="text-sm py-6 text-center max-w-xl mx-auto" style={{ color: 'var(--text-tertiary)' }}>
-        Not enough sales yet to show a reliable pattern. This needs at least 20 bills on 7 different days in the last {INSIGHT_WEEKS} weeks
-        {insights ? ` (so far: ${insights.bills} bill${insights.bills === 1 ? '' : 's'} on ${insights.openDays} day${insights.openDays === 1 ? '' : 's'})` : ''}.
-      </p>
-    );
+    body = <p className="text-sm py-4" style={{ color: 'var(--text-tertiary)' }}>Not enough sales yet to show a pattern.</p>;
   } else {
-    const { hours, days, peakHour, quietHour, peakDay, quietDay } = insights;
+    const { hours, days, peakHour, peakDay } = insights;
     body = (
-      <>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-8">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-tertiary)' }}>Time of day</p>
-            <MiniBars
-              ariaLabel="Average customers by hour of day"
-              peakKey={`h${peakHour.hour}`}
-              items={hours.map(h => ({ key: `h${h.hour}`, label: h.label, avg: h.avg, tooltip: `${h.fullLabel}: ${customers(h.avg)} a day` }))}
-            />
-            <div className="mt-3 space-y-1.5">
-              <InsightLine icon={Clock} label="Busiest hour" value={peakHour.fullLabel} detail={`about ${customers(peakHour.avg)} on a typical open day`} />
-              {quietHour && <InsightLine icon={Clock} label="Quietest hour" value={quietHour.fullLabel} detail={`about ${customers(quietHour.avg)}`} />}
-            </div>
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-tertiary)' }}>Day of week</p>
-            <MiniBars
-              ariaLabel="Average customers by day of week"
-              peakKey={`d${peakDay.weekday}`}
-              items={days.map(d => ({ key: `d${d.weekday}`, label: d.label, avg: d.avg, tooltip: `${d.name}: ${customers(d.avg)} · ₹${formatINR(d.avgRev, 0)}` }))}
-            />
-            <div className="mt-3 space-y-1.5">
-              <InsightLine icon={CalendarDays} label="Busiest day" value={peakDay.name} detail={`about ${customers(peakDay.avg)} and ₹${formatINR(peakDay.avgRev, 0)} in sales`} />
-              {quietDay && <InsightLine icon={CalendarDays} label="Quietest day" value={quietDay.name} detail={quietDay.count === 0 ? 'no sales' : `about ${customers(quietDay.avg)} and ₹${formatINR(quietDay.avgRev, 0)} in sales`} />}
-            </div>
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-8">
+        <div className="min-w-0">
+          <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>
+            Busiest hour: <strong style={{ color: 'var(--text-primary)' }}>{peakHour.fullLabel}</strong>
+          </p>
+          <MiniBars
+            ariaLabel="Average customers by hour of day"
+            peakKey={`h${peakHour.hour}`}
+            items={hours.map(h => ({ key: `h${h.hour}`, label: h.label, avg: h.avg, tooltip: `${h.fullLabel}: ${customers(h.avg)} a day` }))}
+          />
         </div>
-        <div className="mt-4 pt-3 border-t border-[var(--border-light)] flex flex-wrap gap-x-6 gap-y-1.5">
-          <InsightLine icon={Users} label="Customers on a typical open day" value={oneDecimal(insights.avgCustomersPerOpenDay)} detail={`${insights.openDays} of ${insights.totalDays} days had sales`} />
-          <InsightLine icon={Users} label="Average sale per customer" value={`₹${formatINR(insights.avgSalePerCustomer, 0)}`} />
+        <div className="min-w-0">
+          <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>
+            Busiest day: <strong style={{ color: 'var(--text-primary)' }}>{peakDay.name}</strong>
+          </p>
+          <MiniBars
+            ariaLabel="Average customers by day of week"
+            peakKey={`d${peakDay.weekday}`}
+            items={days.map(d => ({ key: `d${d.weekday}`, label: d.label, avg: d.avg, tooltip: `${d.name}: ${customers(d.avg)} · ₹${formatINR(d.avgRev, 0)}` }))}
+          />
         </div>
-      </>
+      </div>
     );
   }
 
   return (
     <section className="p-4 sm:p-5 rounded-lg border border-[var(--border-light)] mb-4 shrink-0 min-w-0" style={{ backgroundColor: 'var(--bg-secondary)' }} aria-labelledby="customer-flow-title">
-      <div className="mb-3">
-        <h3 id="customer-flow-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>When customers come</h3>
-        <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-          {windowLabel}{insights?.enough ? ` · ${insights.bills} bills` : ''}. Each bill counts as one customer; averages are per day, so busy and quiet weeks even out.
-        </p>
-      </div>
+      <h3
+        id="customer-flow-title"
+        className="text-xs font-semibold uppercase tracking-wider mb-3"
+        style={{ color: 'var(--text-secondary)' }}
+        title="Average customers (bills) per day over the last 4 full weeks"
+      >
+        Customer Rush <span className="normal-case font-normal tracking-normal" style={{ color: 'var(--text-tertiary)' }}>· last {INSIGHT_WEEKS} weeks</span>
+      </h3>
       {body}
     </section>
   );
@@ -413,7 +384,7 @@ function CustomerFlowInsights({ insights, isLoading, error }) {
 /** Top products list */
 function TopProductsList({ products }) {
   return (
-    <div className="p-4 sm:p-5 rounded-lg border border-[var(--border-light)] flex flex-col h-full min-w-0" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+    <div className="p-4 sm:p-5 rounded-lg border border-[var(--border-light)] flex flex-col xl:h-full min-w-0" style={{ backgroundColor: 'var(--bg-secondary)' }}>
       <p className="text-xs font-semibold uppercase tracking-wider mb-3 pb-2 shrink-0 flex items-center justify-between" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-light)' }}>
         <span>Top 10 Profit Makers</span>
         {products.length > 0 && (
@@ -1287,7 +1258,7 @@ export default function OwnerStats({ isActive }) {
   const failedSyncs = invData?.failedSyncs ?? [];
 
   return (
-    <div className="flex flex-col h-auto lg:h-full relative">
+    <div className="flex flex-col relative">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 shrink-0 gap-4">
         <PageTitleReset
           title="Business Overview"
@@ -1365,7 +1336,7 @@ export default function OwnerStats({ isActive }) {
       </div>
 
       {/* ROW 2: TRENDS & LEADERBOARD */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 lg:gap-4 mb-4 flex-1 min-h-[420px] xl:min-h-[300px] min-w-0">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 lg:gap-4 mb-4 shrink-0 xl:h-[420px] min-w-0">
         <SalesTrendChart
           buckets={chart.buckets}
           title={chart.title}
