@@ -19,6 +19,7 @@ import { finalizeBillMetadata, flushPendingBillPatches } from './billFinalize';
 import { beginCriticalWork } from './busyGuard';
 import { routeReceivedStockToStore } from './atomicStock';
 import { processSaleAtomic, saleArgsFromPayload } from './posRpc';
+import { POS_EVENT } from './posEvents';
 
 const PAGE_SIZE = 500;
 const BATCH_CHUNK_SIZE = 200;
@@ -655,62 +656,47 @@ export const reconcileDeletedItems = async (userRole = 'owner') => {
 
 export const startRealtimeSync = (userRole = 'worker') => {
   if (typeof window === 'undefined' || !supabase) return;
-  if (realtimeSyncChannel) return;
+  if (realtimeSyncChannel || posEventsChannel) return;
 
   const currentShopId = localStorage.getItem('shop_id');
-  const channelName = currentShopId ? `pos_catalog_rt_${currentShopId}` : 'pos_catalog_rt_global';
 
-  realtimeSyncChannel = supabase.channel(channelName)
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'product_master' },
-      async (payload) => {
-        console.log('[RealtimeSync] product_master change detected:', payload.eventType);
-        if (payload.eventType === 'DELETE') {
-          const deletedBarcode = payload.old?.barcode;
-          if (deletedBarcode) {
-            await deleteInventoryItemByBarcode(deletedBarcode, currentShopId);
-          }
-          await reconcileDeletedItems(userRole);
-          window.dispatchEvent(new CustomEvent('inventory_sync_complete', { detail: { event: 'DELETE', barcode: deletedBarcode } }));
-        } else {
-          requestInventorySync(userRole);
-        }
-      }
-    )
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'inventory_batches' },
-      async (payload) => {
-        console.log('[RealtimeSync] inventory_batches change detected:', payload.eventType);
-        requestInventorySync(userRole);
-      }
-    )
-    .subscribe();
+  const onCatalogChange = async ({ kind, op, ref }) => {
+    if (kind === 'product' && op === 'DELETE' && ref) {
+      await deleteInventoryItemByBarcode(ref, currentShopId);
+      await reconcileDeletedItems(userRole);
+      window.dispatchEvent(new CustomEvent('inventory_sync_complete', { detail: { event: 'DELETE', barcode: ref } }));
+    } else {
+      requestInventorySync(userRole);
+    }
+  };
 
-  // Staff devices can't read the full product/batch tables after the cost-protection
-  // update, so they don't get the change events above. The database also writes a small
-  // cost-free "something changed" row to pos_events, which every device of the shop may
-  // read. Separate channel: if pos_events doesn't exist yet, the listener above still works.
-  if (currentShopId && !posEventsChannel) {
-    posEventsChannel = supabase.channel(`pos_events_stock_${currentShopId}`)
+  if (currentShopId) {
+    // One live subscription per device for everything that changes stock or sales: the
+    // database writes a small, cost-free "something changed" row to pos_events for this shop
+    // whenever a product, batch or bill changes. (Each device used to watch product_master and
+    // inventory_batches for every shop as well, and pos_events twice; the database checked
+    // every sale against all of those subscriptions.)
+    posEventsChannel = supabase.channel(`pos_events_${currentShopId}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'pos_events', filter: `shop_id=eq.${currentShopId}` },
         async (payload) => {
           const ev = payload.new || {};
-          if (ev.kind !== 'product' && ev.kind !== 'batch') return;
-          if (ev.kind === 'product' && ev.op === 'DELETE' && ev.ref) {
-            await deleteInventoryItemByBarcode(ev.ref, currentShopId);
-            await reconcileDeletedItems(userRole);
-            window.dispatchEvent(new CustomEvent('inventory_sync_complete', { detail: { event: 'DELETE', barcode: ev.ref } }));
-          } else {
-            requestInventorySync(userRole);
-          }
+          window.dispatchEvent(new CustomEvent(POS_EVENT, { detail: ev }));
+          if (ev.kind === 'product' || ev.kind === 'batch') await onCatalogChange(ev);
         }
       )
       .subscribe();
+    return;
   }
+
+  // No shop registered on this device yet: watch the catalog tables directly
+  realtimeSyncChannel = supabase.channel('pos_catalog_rt_global')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'product_master' },
+      (payload) => onCatalogChange({ kind: 'product', op: payload.eventType, ref: payload.old?.barcode }))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory_batches' },
+      () => requestInventorySync(userRole))
+    .subscribe();
 };
 
 export const stopRealtimeSync = () => {

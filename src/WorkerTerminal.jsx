@@ -247,8 +247,9 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       };
       fetchPending();
       
-      const channel = supabase.channel('pending_carts_changes')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'pending_carts' }, () => {
+      const shopFilter = localStorage.getItem('shop_id');
+      const channel = supabase.channel(`pending_carts_changes_${shopFilter || 'all'}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'pending_carts', ...(shopFilter ? { filter: `shop_id=eq.${shopFilter}` } : {}) }, () => {
           fetchPending();
         })
         .subscribe();
