@@ -13,7 +13,7 @@ import {
   DEAD_STOCK_ALARM_VALUE,
   STALE_TIME_5MIN,
 } from './constants';
-import { AlertTriangle, Calendar, ArrowUpRight, RotateCcw } from 'lucide-react';
+import { AlertTriangle, Calendar, ArrowUpRight, RotateCcw, Users } from 'lucide-react';
 import { useSessionState } from './hooks/useSessionState';
 import PageTitleReset from './components/PageTitleReset';
 import { billPaymentSplit } from './services/dayClosing';
@@ -137,7 +137,7 @@ function StatCard({ title, value, accentColor, onClick, clickLabel, children, cl
   return (
     <Tag
       onClick={onClick}
-      className={`${className} relative p-3.5 sm:p-4 rounded-lg border border-[var(--border-light)] text-left w-full flex flex-col justify-between h-full transition-all ${onClick ? 'cursor-pointer group hover:border-[var(--color-accent)]' : ''}`}
+      className={`${className} relative p-3 sm:p-4 lg:py-3 xl:py-3.5 rounded-lg border border-[var(--border-light)] text-left w-full flex flex-col justify-between h-full transition-all ${onClick ? 'cursor-pointer group hover:border-[var(--color-accent)]' : ''}`}
       style={{
         backgroundColor: 'var(--bg-secondary)',
       }}
@@ -183,7 +183,7 @@ function compactINR(n) {
 }
 
 /** Small two-option switch (Revenue | Profit, By hour | By day) */
-function Segmented({ label, options, value, onChange }) {
+function Segmented({ label, options, value, onChange, activeColor = 'var(--color-accent-solid)' }) {
   return (
     <div className="inline-flex p-0.5 rounded-lg text-xs font-semibold" style={{ backgroundColor: 'var(--bg-tertiary)' }} role="group" aria-label={label}>
       {options.map(o => {
@@ -196,7 +196,7 @@ function Segmented({ label, options, value, onChange }) {
             aria-pressed={active}
             className="tap-area relative px-2.5 py-1 rounded-md transition-colors cursor-pointer whitespace-nowrap"
             style={{
-              backgroundColor: active ? 'var(--color-accent-solid)' : 'transparent',
+              backgroundColor: active ? activeColor : 'transparent',
               color: active ? 'var(--text-on-solid)' : 'var(--text-secondary)',
             }}
           >
@@ -232,19 +232,19 @@ function SalesTrendChart({ buckets, isLoading, metric, setMetric, view, setView,
   const money = (v) => `${v < 0 ? '−' : ''}₹${formatINR(Math.abs(v), 0)}`;
 
   return (
-    <div className="p-4 sm:p-5 rounded-lg border border-[var(--border-light)] flex flex-col h-[360px] xl:h-full xl:col-span-2 min-w-0" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+    <div className="p-4 sm:p-5 rounded-lg border border-[var(--border-light)] flex flex-col h-[300px] sm:h-[340px] lg:h-auto lg:min-h-0 lg:col-span-2 min-w-0 overflow-hidden" style={{ backgroundColor: 'var(--bg-secondary)' }}>
       <div className="flex flex-wrap justify-between items-start gap-3 mb-4">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>{title}</p>
           {subtitle && <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{subtitle}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Segmented label="Chart figure" value={metric} onChange={setMetric} options={[{ value: 'rev', label: 'Revenue' }, { value: 'profit', label: 'Profit' }]} />
+          <Segmented label="Chart figure" value={metric} onChange={setMetric} activeColor={metric === 'profit' ? 'var(--color-success-solid)' : undefined} options={[{ value: 'rev', label: 'Revenue' }, { value: 'profit', label: 'Profit' }]} />
           <Segmented label="Chart grouping" value={view} onChange={setView} options={[{ value: 'hours', label: 'By hour' }, { value: 'days', label: 'By day' }]} />
         </div>
       </div>
 
-      <div className={`relative flex flex-1 items-end min-h-[8rem] gap-1 ${bars.length > 16 ? 'md:gap-1.5' : 'md:gap-3'} w-full px-2 mb-4 ${showBarLabels ? 'pt-6' : 'pt-2'}`} role="img" aria-label={`${title}${subtitle ? `, ${subtitle}` : ''}`}>
+      <div className={`relative flex flex-1 items-end min-h-0 gap-1 ${bars.length > 16 ? 'md:gap-1.5' : 'md:gap-3'} w-full px-2 mb-4 ${showBarLabels ? 'pt-6' : 'pt-2'}`} role="img" aria-label={`${title}${subtitle ? `, ${subtitle}` : ''}`}>
         {isLoading ? (
           <div className="w-full h-full flex items-center justify-center">
             <div className="premium-wave-loader scale-75">
@@ -261,7 +261,7 @@ function SalesTrendChart({ buckets, isLoading, metric, setMetric, view, setView,
                 style={{
                   height: isAnimated ? `${heightPct}%` : '0%',
                   minHeight: (isAnimated && point.value !== 0) ? '4px' : '0px',
-                  backgroundColor: negative ? 'var(--color-error)' : 'var(--color-accent-solid)',
+                  backgroundColor: negative ? 'var(--color-error)' : (metric === 'profit' ? 'var(--color-success)' : 'var(--color-accent-solid)'),
                 }}
               >
                 {showBarLabels && point.value !== 0 && (
@@ -295,59 +295,50 @@ function SalesTrendChart({ buckets, isLoading, metric, setMetric, view, setView,
 
 const oneDecimal = (n) => (Math.round(n * 10) / 10).toLocaleString('en-IN', { maximumFractionDigits: 1 });
 
-const customers = (n) => `${oneDecimal(n)} customer${Math.round(n * 10) === 10 ? '' : 's'}`;
 
-/** When customers come: busiest hour and day over the last 4 full weeks, in words */
-function CustomerFlowInsights({ insights, isLoading, error }) {
-  let body;
-  if (isLoading && !insights) {
-    body = <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Loading…</p>;
-  } else if (error) {
-    body = <p className="text-sm" style={{ color: 'var(--color-error)' }}>Could not load. Please try again.</p>;
+/** Customer rush: busiest hour and day over the last 4 full weeks, as one short line */
+function CustomerFlowInsights({ insights, isLoading, error, className = '' }) {
+  if (isLoading && !insights) return null;
+  const muted = { color: 'var(--text-tertiary)' };
+  let content;
+  let detail;
+  if (error) {
+    content = <span style={muted}>Customer rush could not be loaded.</span>;
   } else if (!insights?.enough) {
-    body = <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Not enough sales yet to show a pattern.</p>;
+    content = <span style={muted}>Customer rush: not enough sales yet.</span>;
   } else {
     const { peakHour, peakDay } = insights;
-    const line = (label, value, detail) => (
-      <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-        {label}: <strong style={{ color: 'var(--text-primary)' }}>{value}</strong>
-        <span style={{ color: 'var(--text-tertiary)' }}> · {detail}</span>
-      </p>
-    );
-    body = (
-      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-10 gap-y-1.5">
-        {line('Busiest hour', peakHour.fullLabel, `about ${customers(peakHour.avg)} a day`)}
-        {line('Busiest day', peakDay.name, `about ${customers(peakDay.avg)} and ₹${formatINR(peakDay.avgRev, 0)} in sales`)}
-      </div>
+    detail = `Last ${INSIGHT_WEEKS} full weeks (${insights.bills} bills). Busiest hour ${peakHour.fullLabel}: ${oneDecimal(peakHour.avg)} customers a day. `
+      + `Busiest day ${peakDay.name}: ${oneDecimal(peakDay.avg)} customers and ₹${formatINR(peakDay.avgRev, 0)} in sales on average.`;
+    const strong = { color: 'var(--text-primary)' };
+    content = (
+      <>
+        <span style={muted}>Busiest</span> <strong style={strong}>{peakHour.fullLabel}</strong>
+        <span style={muted}> · </span>
+        <strong style={strong}>{peakDay.name}</strong>
+        <span style={muted}> (last {INSIGHT_WEEKS} weeks)</span>
+      </>
     );
   }
-
   return (
-    <section className="p-4 sm:p-5 rounded-lg border border-[var(--border-light)] mb-4 shrink-0 min-w-0" style={{ backgroundColor: 'var(--bg-secondary)' }} aria-labelledby="customer-flow-title">
-      <h3
-        id="customer-flow-title"
-        className="text-xs font-semibold uppercase tracking-wider mb-2"
-        style={{ color: 'var(--text-secondary)' }}
-        title="Average customers (bills) per day over the last 4 full weeks"
-      >
-        Customer Rush <span className="normal-case font-normal tracking-normal" style={{ color: 'var(--text-tertiary)' }}>· last {INSIGHT_WEEKS} weeks</span>
-      </h3>
-      {body}
-    </section>
+    <p className={`text-sm min-w-0 ${className}`} style={{ color: 'var(--text-secondary)' }} title={detail} aria-label={detail}>
+      <Users className="w-4 h-4 inline -mt-0.5 mr-1.5 text-[var(--color-accent)]" aria-hidden="true" />
+      {content}
+    </p>
   );
 }
 
 /** Top products list */
 function TopProductsList({ products }) {
   return (
-    <div className="p-4 sm:p-5 rounded-lg border border-[var(--border-light)] flex flex-col xl:h-full min-w-0" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+    <div className="p-4 sm:p-5 rounded-lg border border-[var(--border-light)] flex flex-col lg:min-h-0 min-w-0" style={{ backgroundColor: 'var(--bg-secondary)' }}>
       <p className="text-xs font-semibold uppercase tracking-wider mb-3 pb-2 shrink-0 flex items-center justify-between" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-light)' }}>
         <span>Top 10 Profit Makers</span>
         {products.length > 0 && (
           <span className="text-xs font-bold text-[var(--color-success)]">{products.length} {products.length === 1 ? 'Item' : 'Items'}</span>
         )}
       </p>
-      <ul className="flex-1 overflow-y-auto modal-scroll pr-1 divide-y divide-[var(--border-light)]">
+      <ul className="flex-1 min-h-0 overflow-y-auto modal-scroll pr-1 divide-y divide-[var(--border-light)]">
         {products.length === 0 ? (
           <li className="text-sm py-4 text-center" style={{ color: 'var(--text-tertiary)' }}>Not enough data.</li>
         ) : products.map((p, idx) => (
@@ -1214,12 +1205,18 @@ export default function OwnerStats({ isActive }) {
   const failedSyncs = invData?.failedSyncs ?? [];
 
   return (
-    <div className="flex flex-col relative">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 shrink-0 gap-4">
+    <div className="flex flex-col relative lg:flex-1 lg:min-h-0">
+      <div className="flex flex-wrap justify-between items-center mb-3 lg:mb-4 shrink-0 gap-x-3 gap-y-2">
         <PageTitleReset
           title="Business Overview"
           onReset={handleResetStats}
           tooltip="Click title to reset overview timeframe to Today"
+        />
+        <CustomerFlowInsights
+          insights={insights}
+          isLoading={isInsightsLoading}
+          error={insightsError}
+          className="order-last w-full lg:order-none lg:w-auto lg:flex-1 lg:text-center lg:px-2 truncate"
         />
         <div className="flex items-center gap-2.5 flex-wrap">
           <DashboardDateFilter
@@ -1251,7 +1248,7 @@ export default function OwnerStats({ isActive }) {
       )}
 
       {/* ROW 1: TODAY'S VITALS */}
-      <div className={`grid grid-cols-2 md:grid-cols-3 ${isWarehouseDisabled ? 'xl:grid-cols-5' : 'xl:grid-cols-6'} gap-3 lg:gap-4 mb-4 shrink-0`}>
+      <div className={`grid grid-cols-2 md:grid-cols-3 ${isWarehouseDisabled ? 'lg:grid-cols-5' : 'lg:grid-cols-6'} gap-3 lg:gap-4 mb-3 lg:mb-4 shrink-0`}>
         <StatCard title="Revenue" value={`₹${formatINR(tfTrueRevenue, 2)}`} borderColor="var(--color-success)" />
         <StatCard
           title="Profit"
@@ -1283,6 +1280,7 @@ export default function OwnerStats({ isActive }) {
           />
         )}
         <StatCard
+          className={isWarehouseDisabled ? 'col-span-2 md:col-span-1' : ''}
           title="Dead Stock Value"
           value={`₹${formatINR(deadStockValue, 0)}`}
           borderColor={deadStockValue > DEAD_STOCK_ALARM_VALUE ? 'var(--color-error)' : 'var(--color-warning)'}
@@ -1292,7 +1290,7 @@ export default function OwnerStats({ isActive }) {
       </div>
 
       {/* ROW 2: TRENDS & LEADERBOARD */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 lg:gap-4 mb-4 shrink-0 xl:h-[420px] min-w-0">
+      <div className="grid grid-cols-1 lg:grid-cols-3 lg:grid-rows-1 gap-3 lg:gap-4 mb-3 lg:mb-4 shrink-0 lg:shrink lg:flex-1 lg:min-h-[210px] min-w-0">
         <SalesTrendChart
           buckets={chart.buckets}
           title={chart.title}
@@ -1307,7 +1305,6 @@ export default function OwnerStats({ isActive }) {
       </div>
 
       {/* ROW 2b: WHEN CUSTOMERS COME (last 4 full weeks) */}
-      <CustomerFlowInsights insights={insights} isLoading={isInsightsLoading} error={insightsError} />
 
       {/* ROW 3: MONEY RECEIVED (for the chosen period) + CAPITAL */}
       {isWarehouseDisabled ? (
@@ -1320,19 +1317,16 @@ export default function OwnerStats({ isActive }) {
           </div>
         </div>
       ) : (
-        <>
-        <div className="grid grid-cols-2 gap-3 lg:gap-4 mb-4 shrink-0">
+        // Phones: Cash/UPI side by side, then the capital cards; laptops/desktops: all five in one row
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4 shrink-0">
           <StatCard title="Cash Received" value={`₹${formatINR(tfCash, 2)}`} borderColor="var(--color-success)" />
           <StatCard title="UPI Received" value={`₹${formatINR(tfUpi, 2)}`} borderColor="var(--color-accent)" />
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 lg:gap-4 shrink-0">
           <StatCard title="Total Asset Value" value={`₹${formatINR(totalInventoryValue, 2)}`} borderColor="var(--text-tertiary)" />
           <StatCard title="Warehouse Capital" value={`₹${formatINR(warehouseCapital, 2)}`} borderColor="var(--color-accent)" />
-          <div className="col-span-2 md:col-span-1">
+          <div className="col-span-2 md:col-span-2 lg:col-span-1">
             <StatCard title="Store Capital" value={`₹${formatINR(storeCapital, 2)}`} borderColor="var(--color-accent)" />
           </div>
         </div>
-        </>
       )}
 
       {/* MODALS */}
