@@ -8,19 +8,31 @@ const at = (isoDate, h, m = 0) => new Date(`${isoDate}T${String(h).padStart(2, '
 const sum = (bars) => Math.round(bars.reduce((s, b) => s + b.value, 0) * 100) / 100;
 
 describe('per-bill figures', () => {
-  it('leaves screws out of revenue and profit, and falls back to the bill when it has no lines', () => {
+  it('revenue is what the customer paid minus screws, so Revenue + Screws = money received', () => {
+    // 3 items listed ₹1,000 each, negotiated to ₹2,000 for all three: the app spreads that as
+    // ₹666.67 each (lines add up to ₹2,000.01). Plus ₹50 of screws. Customer paid ₹2,050.
+    const bills = [{ id: 'a', created_at: at('2026-11-10', 10), total_amount: 2050 }];
+    const items = [
+      { bill_id: 'a', barcode: '1', price_at_sale: 666.67, billable_quantity: 3, quantity: 3, system_price: 1000, cost_allocated: 1500, profit: 500.01 },
+      { bill_id: 'a', barcode: 'SCREWS', name: 'Screws', price_at_sale: 50, quantity: 1, profit: 50 },
+    ];
+    const [a] = billPoints(bills, items);
+    expect(a.rev).toBe(2000);        // not 2,000.01
+    expect(a.screws).toBe(50);
+    expect(a.rev + a.screws).toBe(2050);
+    expect(a.profit).toBe(500);      // the paise round-off comes off profit too
+    expect(a.listed).toBe(3000);     // discount given = 3,000 - 2,000
+  });
+
+  it('works out line profit when it was not stored, and falls back to the bill when it has no lines', () => {
     const bills = [
-      { id: 'a', created_at: at('2026-11-10', 10), total_amount: 999 },
+      { id: 'a', created_at: at('2026-11-10', 10), total_amount: 31.5 },
       { id: 'b', created_at: at('2026-11-10', 11), total_amount: 300, total_profit: 75 },
     ];
-    const items = [
-      { bill_id: 'a', barcode: '1', price_at_sale: 100, billable_quantity: 2, quantity: 2, cost_allocated: 120, profit: 80 },
-      { bill_id: 'a', barcode: 'SCREWS', name: 'Screws', price_at_sale: 50, quantity: 1, profit: 50 },
-      { bill_id: 'a', barcode: '2', price_at_sale: 10.5, quantity: 3, cost_at_sale: 5 }, // profit worked out: 31.5 - 15
-    ];
+    const items = [{ bill_id: 'a', barcode: '2', price_at_sale: 10.5, quantity: 3, cost_at_sale: 5 }];
     const [a, b] = billPoints(bills, items);
-    expect(a).toMatchObject({ id: 'a', rev: 231.5, profit: 96.5 });
-    expect(b).toMatchObject({ id: 'b', rev: 300, profit: 75 });
+    expect(a).toMatchObject({ rev: 31.5, profit: 16.5, screws: 0 });
+    expect(b).toMatchObject({ rev: 300, profit: 75 });
   });
 });
 

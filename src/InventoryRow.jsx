@@ -94,6 +94,18 @@ export default function InventoryRow({
     ? (activeBatches.length > 0 ? activeBatches.reduce((sum, b) => sum + Number(b.stock_store || 0) + Number(b.stock_warehouse || 0), 0) : (Number(item.stock_store || 0) + Number(item.stock_warehouse || 0)))
     : (activeBatches.length > 0 ? activeBatches.reduce((sum, b) => sum + Number(b.stock_store || 0), 0) : Number(item.stock_store || 0));
 
+  // In edit mode: stock of an item with batches is the sum of its batches, so it is changed with
+  // Receive Stock or the batch Scrap action, not typed here (that value would never be used)
+  const hasBatches = activeBatches.length > 0;
+  const batchStockNote = 'Stock is kept per batch. Use Receive Stock to add, or open the item\'s batches to scrap.';
+  const stockField = (field, value, className) => (hasBatches ? (
+    <div className={`${className} flex items-center justify-center tabular-nums cursor-help`} title={batchStockNote} style={{ border: '1px dashed var(--border-medium)', color: 'var(--text-secondary)' }}>
+      {value}
+    </div>
+  ) : (
+    <input type="number" inputMode="decimal" step="any" min="0" value={(editData || item)[field] ?? ''} onChange={e => onEditChange(item.barcode, field, e.target.value)} className={`${className} focus:outline-none`} style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+  ));
+
   const [popoverPos, setPopoverPos] = useState(null);
   const [isHovered, setIsHovered] = useState(false);
   const hoverTimeoutRef = useRef(null);
@@ -379,12 +391,12 @@ export default function InventoryRow({
               {!isWarehouseDisabled && (
                 <div>
                   <label className="text-[11px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">Warehouse Stock</label>
-                  <input type="number" inputMode="decimal" step="any" min="0" value={data.stock_warehouse ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_warehouse', e.target.value)} className="h-9 px-2 w-full text-xs text-center rounded focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                  {stockField('stock_warehouse', totalWhse, 'h-9 px-2 w-full text-xs text-center rounded')}
                 </div>
               )}
               <div>
                 <label className="text-[11px] uppercase font-bold text-[var(--text-tertiary)] block mb-1">{isWarehouseDisabled ? 'Total Stock' : 'Store Stock'}</label>
-                <input type="number" inputMode="decimal" step="any" min="0" value={data.stock_store ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_store', e.target.value)} className="h-9 px-2 w-full text-xs text-center rounded focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+                {stockField('stock_store', totalStore, 'h-9 px-2 w-full text-xs text-center rounded')}
               </div>
             </div>
             <div>
@@ -439,11 +451,11 @@ export default function InventoryRow({
 
         {!isWarehouseDisabled && (
           <td className="hidden md:table-cell p-1" style={{ borderRight: '1px solid var(--border-medium)' }}>
-            <input type="number" inputMode="decimal" step="any" min="0" value={data.stock_warehouse ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_warehouse', e.target.value)} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+            {stockField('stock_warehouse', totalWhse, 'h-8 px-2 w-full text-sm text-center')}
           </td>
         )}
         <td className="hidden md:table-cell p-1" style={{ borderRight: '1px solid var(--border-medium)' }}>
-          <input type="number" inputMode="decimal" step="any" min="0" value={data.stock_store ?? ''} onChange={e=>onEditChange(item.barcode, 'stock_store', e.target.value)} className="h-8 px-2 w-full text-sm text-center focus:outline-none" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }} />
+          {stockField('stock_store', totalStore, 'h-8 px-2 w-full text-sm text-center')}
         </td>
         <td className="hidden md:table-cell p-1 text-center text-xs text-[var(--text-tertiary)]">
           Editing

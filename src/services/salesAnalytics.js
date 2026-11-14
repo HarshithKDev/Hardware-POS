@@ -21,7 +21,12 @@ export function lineFigures(item) {
 }
 
 /**
- * One point per bill: { t: time in ms, rev, profit } with screws left out.
+ * One point per bill: { id, t: time in ms, rev, profit, screws, listed } in rupees.
+ *  - rev: what the customer paid for everything except screws (bill total minus the screw
+ *    lines), so Revenue + Screws = Cash + UPI exactly. Line prices are rounded to paise when a
+ *    negotiated discount is spread over them; using the bill total avoids those paise.
+ *  - profit: the lines' profit plus that paise round-off (it is money kept or given away).
+ *  - listed: the items at their listed prices (for Discount Given = listed - rev).
  * Bills whose lines could not be read fall back to the bill's own total and profit.
  */
 export function billPoints(bills, items) {
@@ -32,20 +37,41 @@ export function billPoints(bills, items) {
   });
   return (bills || []).map(bill => {
     const lines = byBill.get(bill.id);
-    let revCents = 0;
-    let profitCents = 0;
+    const totalCents = bill.total_amount !== undefined && bill.total_amount !== null
+      ? Math.round(Number(bill.total_amount) * 100)
+      : null;
+    let revCents;
+    let profitCents;
+    let screwCents = 0;
+    let listedCents = 0;
     if (lines && lines.length > 0) {
+      let linesRevCents = 0;
+      let linesProfitCents = 0;
       lines.forEach(it => {
-        if (isScrewItem(it)) return;
         const f = lineFigures(it);
-        revCents += Math.round(f.rev * 100);
-        profitCents += Math.round(f.profit * 100);
+        if (isScrewItem(it)) {
+          screwCents += Math.round(f.rev * 100);
+          return;
+        }
+        linesRevCents += Math.round(f.rev * 100);
+        linesProfitCents += Math.round(f.profit * 100);
+        listedCents += Math.round(Number(it.selling_price || it.system_price || f.price) * f.qty * 100);
       });
+      revCents = totalCents !== null ? Math.max(0, totalCents - screwCents) : linesRevCents;
+      profitCents = linesProfitCents + (revCents - linesRevCents);
     } else {
-      revCents = Math.round(Number(bill.total_amount || 0) * 100);
+      revCents = totalCents ?? 0;
       profitCents = Math.round(Number(bill.total_profit || 0) * 100);
+      listedCents = revCents;
     }
-    return { id: bill.id, t: new Date(bill.created_at).getTime(), rev: revCents / 100, profit: profitCents / 100 };
+    return {
+      id: bill.id,
+      t: new Date(bill.created_at).getTime(),
+      rev: revCents / 100,
+      profit: profitCents / 100,
+      screws: screwCents / 100,
+      listed: listedCents / 100,
+    };
   });
 }
 

@@ -271,6 +271,10 @@ export default function OwnerLedger({ isActive }) {
     enabled: isActive,
     staleTime: 1000 * 60 * 2,
   });
+  const daySales = useMemo(() => {
+    const kept = bills.filter(b => b.status !== 'voided');
+    return { count: kept.length, total: kept.reduce((sum, b) => sum + (Number(b.total_amount) || 0), 0) };
+  }, [bills]);
   const { sorted: sortedBills, sort: billSort, toggleSort: toggleBillSort } = useSort(bills, LEDGER_SORT);
 
   const handleOpenReturnModal = async (bill) => {
@@ -882,12 +886,13 @@ export default function OwnerLedger({ isActive }) {
                 </span>
                 <span className="basis-full h-0 md:hidden" aria-hidden="true" />
                 <span className="max-md:hidden">•</span>
-                <span className="shrink-0">{bills.length} {bills.length === 1 ? 'sale' : 'sales'}</span>
-                {bills.length > 0 && (
+                {/* Fully returned bills are still listed, but not counted as sales or in the total */}
+                <span className="shrink-0">{daySales.count} {daySales.count === 1 ? 'sale' : 'sales'}</span>
+                {daySales.count > 0 && (
                   <>
                     <span>•</span>
                     <span className="shrink-0 font-bold tabular-nums text-[var(--text-primary)]" title="Total of this day's sales (returned bills excluded)">
-                      ₹{formatINR(bills.reduce((sum, b) => sum + (b.status === 'voided' ? 0 : (Number(b.total_amount) || 0)), 0), 2)}
+                      ₹{formatINR(daySales.total, 2)}
                     </span>
                   </>
                 )}
