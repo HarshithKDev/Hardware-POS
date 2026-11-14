@@ -825,30 +825,28 @@ export default function OwnerStats({ isActive }) {
       tfUpiCents += Math.round(upi * 100);
     });
 
-    // Revenue (screws left out), same per-bill figures as the chart
-    const tfTrueRevenue = tfPoints.reduce((s, p) => s + Math.round(p.rev * 100), 0) / 100;
+    // Revenue = what customers paid, screws left out (same per-bill figures as the chart)
+    const sumCents = (key) => tfPoints.reduce((s, p) => s + Math.round(p[key] * 100), 0);
+    const tfTrueRevenue = sumCents('rev') / 100;
+    const tfScrews = sumCents('screws') / 100;
+    const tProfitCents = sumCents('profit');
+    const tListedCents = sumCents('listed');
 
-    let tProfitCents = 0, tCostCents = 0, tSystemRevCents = 0, tFinalRevCents = 0;
+    // Cost and the per-product breakdown come from the bill lines
+    let tCostCents = 0;
     const salesMap = {};
     rawItemsData.filter(it => tfBillIds.has(it.bill_id)).forEach(item => {
       // Screws are left out of dashboard profit, discount and the leaderboard
       if (isScrewItem(item)) return;
       const cleanName = (item.name || item.item_name || 'Item').split(' (Cut from ')[0];
-      const { qty, price, rev: lineRev, cost: lineCost, profit: lineProfit } = lineFigures(item);
-      const lineSystemRev = Number(item.selling_price || item.system_price || price) * qty;
-      tProfitCents += Math.round(lineProfit * 100);
+      const { qty, rev: lineRev, cost: lineCost, profit: lineProfit } = lineFigures(item);
       tCostCents += Math.round(lineCost * 100);
-      tSystemRevCents += Math.round(lineSystemRev * 100);
-      tFinalRevCents += Math.round(lineRev * 100);
       const row = salesMap[cleanName] || (salesMap[cleanName] = { name: cleanName, unit: item.unit, qty: 0, lineCost: 0, lineRev: 0, lineProfit: 0 });
       row.qty += qty;
       row.lineCost += lineCost;
       row.lineRev += lineRev;
       row.lineProfit += lineProfit;
     });
-    // Bills saved without line details: their profit is on the bill itself
-    const billsWithLines = new Set(rawItemsData.map(it => it.bill_id));
-    tfPoints.filter(p => !billsWithLines.has(p.id)).forEach(p => { tProfitCents += Math.round(p.profit * 100); });
 
     const tfSalesDetails = Object.values(salesMap).sort((a, b) => b.lineProfit - a.lineProfit);
     const topProducts = tfSalesDetails.slice(0, 10).map(r => ({ name: r.name, profit: r.lineProfit, qty: r.qty, unit: r.unit }));
@@ -881,7 +879,9 @@ export default function OwnerStats({ isActive }) {
       tfTrueRevenue,
       tfGrossProfit: tProfitCents / 100,
       tfTotalCost: tCostCents / 100,
-      tfTotalDiscount: Math.max(0, (tSystemRevCents - tFinalRevCents) / 100),
+      // Listed price of what was sold minus what customers paid for it
+      tfTotalDiscount: Math.max(0, (tListedCents - Math.round(tfTrueRevenue * 100)) / 100),
+      tfScrews,
       tfCash: tfCashCents / 100,
       tfUpi: tfUpiCents / 100,
       tfBillCount: tfBills.length,
@@ -1130,6 +1130,7 @@ export default function OwnerStats({ isActive }) {
   }
 
   const tfTrueRevenue = salesData?.tfTrueRevenue ?? 0;
+  const tfScrews = salesData?.tfScrews ?? 0;
   const tfGrossProfit = salesData?.tfGrossProfit ?? 0;
   const tfExpenses = salesData?.tfExpenses ?? 0;
   const tfTotalCost = salesData?.tfTotalCost ?? 0;
@@ -1187,7 +1188,13 @@ export default function OwnerStats({ isActive }) {
 
       {/* ROW 1: TODAY'S VITALS */}
       <div className={`grid grid-cols-2 md:grid-cols-3 ${isWarehouseDisabled ? 'lg:grid-cols-5' : 'lg:grid-cols-6'} gap-3 lg:gap-4 mb-3 lg:mb-4 shrink-0`}>
-        <StatCard title="Revenue" value={`₹${formatINR(tfTrueRevenue, 2)}`} borderColor="var(--color-success)" />
+        <StatCard title="Revenue" value={`₹${formatINR(tfTrueRevenue, 2)}`} borderColor="var(--color-success)">
+          {tfScrews > 0 && (
+            <p className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--text-tertiary)' }} title="Screws are counted in Cash/UPI received but not in Revenue or Profit">
+              + ₹{formatINR(tfScrews, 0)} screws (not included)
+            </p>
+          )}
+        </StatCard>
         <StatCard
           title="Profit"
           value={`₹${formatINR(tfGrossProfit, 2)}`}

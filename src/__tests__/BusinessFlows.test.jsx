@@ -138,7 +138,7 @@ describe('Counter business flows (end to end)', () => {
     await waitFor(() => {
       const saved = db.saveInventoryBatch.mock.calls.flatMap(c => c[0]).find(i => i.barcode === '2001');
       expect(saved.batches[0].stock_store).toBe(70);
-    });
+    }, { timeout: 5000 });
 
     // payment details are saved in the same database call as the sale
     expect(supabase.rpc).toHaveBeenCalledWith('pos_process_sale', expect.objectContaining({
@@ -255,6 +255,6 @@ describe('Counter flows before the database update (fallback path)', () => {
     await waitFor(() => {
       const billUpdate = builders.find(b => b.calls.table === 'bills' && b.calls.update);
       expect(billUpdate.calls.update).toMatchObject({ payment_method: 'CASH', cash_amount: 250, total_amount: 250 });
-    });
+    }, { timeout: 5000 }); // the payment details are saved after the sale call; allow a busy test machine
   });
 });

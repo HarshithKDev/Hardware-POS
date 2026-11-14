@@ -20,7 +20,7 @@ const CartMobileView = React.memo(function CartMobileView({
   if (cart.length === 0) {
     if (activeCartTab && activeCartTab.startsWith('held_')) {
       return (
-        <div className="p-8 text-center flex flex-col items-center justify-center">
+        <div className="p-8 h-full min-h-full text-center flex flex-col items-center justify-center">
           <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: 'var(--color-error-bg)', color: 'var(--color-error)' }}>
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
           </div>
@@ -49,7 +49,7 @@ const CartMobileView = React.memo(function CartMobileView({
       );
     }
     return (
-      <div className="p-10 text-center text-sm font-semibold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>Cart Empty</div>
+      <div className="p-10 h-full min-h-full flex items-center justify-center text-center text-sm font-semibold uppercase tracking-widest" style={{ color: 'var(--text-tertiary)' }}>Cart Empty</div>
     );
   }
 

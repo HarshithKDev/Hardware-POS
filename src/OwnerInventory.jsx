@@ -18,6 +18,7 @@ import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-quer
 import { ConfirmDialog } from './Dialog';
 import { useApp } from './AppContext';
 import { debounce, useSessionState } from './utils';
+import { productEditChanges } from './services/productEdit';
 import { STALE_TIME_5MIN } from './constants';
 import InventoryRow from './InventoryRow';
 import BatchDetailsModal from './BatchDetailsModal';
@@ -360,48 +361,84 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
   };
 
   const saveBulkEdits = async () => {
-    const itemsToSave = Object.values(bulkEditData);
-    if (itemsToSave.length === 0) return;
-    try {
-      // First update Supabase
-      const { error } = await supabase.from('product_master').upsert(itemsToSave, { onConflict: 'shop_id, barcode' });
-      if (error) throw error;
-
-      // Update active batches in inventory_batches for items where cost_price was edited
-      for (const it of itemsToSave) {
-        if (it.cost_price !== undefined && it.cost_price !== '') {
-          let bQuery = supabase
-            .from('inventory_batches')
-            .update({ purchase_cost: Number(it.cost_price) })
-            .eq('barcode', it.barcode)
-            .eq('is_active', true);
-          if (shopId) bQuery = bQuery.eq('shop_id', shopId);
-          await bQuery;
-        }
-      }
-      
-      // Then update local IDB
-      await saveInventoryBatch(itemsToSave);
-      
-      const auditLogs = itemsToSave.map(item => ({
-        shop_id: shopId,
-        action_type: 'UPDATE',
-        barcode: item.barcode,
-        item_name: item.name,
-        changes: `Item updated via Global Edit${item.cost_price !== undefined ? ` (Cost Price: ₹${formatINR(item.cost_price, 2)})` : ''}`,
-        performed_by: getPerformedBy()
-      }));
-      await supabase.from('audit_logs').insert(auditLogs);
-      queryClient.invalidateQueries({ queryKey: ['inventory'] });
-      queryClient.invalidateQueries({ queryKey: ['inventory_item'] });
+    // Work out what really changed for each product (never write the whole on-screen copy:
+    // it carries the batch list and stock totals, which are not product columns)
+    const plans = Object.values(bulkEditData)
+      .map(edited => {
+        const original = items.find(i => i.barcode === edited.barcode);
+        return { original, edited, ...productEditChanges(original, edited) };
+      })
+      .filter(p => p.original);
+    const invalid = plans.find(p => p.error);
+    if (invalid) {
+      showAlert(invalid.error, 'Check the values');
+      return;
+    }
+    const toSave = plans.filter(p => Object.keys(p.changes).length > 0);
+    if (toSave.length === 0) {
       setIsGlobalEditMode(false);
       setBulkEditData({});
-      setSelectedBarcodes([]);
-      showAlert(`Successfully updated ${itemsToSave.length} items!`, "Success");
-    } catch (error) {
-      console.error("Bulk save error:", error);
-      showAlert(error.message, "Error saving items");
+      showAlert('Nothing was changed.', 'No changes');
+      return;
     }
+
+    const saved = [];
+    const failed = [];
+    for (const p of toSave) {
+      try {
+        let q = supabase.from('product_master').update(p.changes).eq('barcode', p.original.barcode);
+        if (shopId) q = q.eq('shop_id', shopId);
+        const { error } = await q;
+        if (error) throw error;
+
+        let batches = p.original.batches;
+        if (p.batchCost) {
+          let bq = supabase.from('inventory_batches')
+            .update({ purchase_cost: p.batchCost.purchase_cost })
+            .eq('batch_id', p.batchCost.batch_id);
+          if (shopId) bq = bq.eq('shop_id', shopId);
+          const { error: bErr } = await bq;
+          if (bErr) throw bErr;
+          batches = (batches || []).map(b => (b.batch_id === p.batchCost.batch_id ? { ...b, purchase_cost: p.batchCost.purchase_cost } : b));
+        }
+        saved.push({ ...p, local: { ...p.original, ...p.changes, batches } });
+      } catch (err) {
+        failed.push(`${p.original.name || p.original.barcode}: ${err.message}`);
+      }
+    }
+
+    if (saved.length > 0) {
+      // Keep this device's copy in step (the next sync brings the same values)
+      await saveInventoryBatch(saved.map(p => p.local));
+      const describe = (c) => Object.entries(c).map(([k, v]) => (
+        k === 'cost_price' ? `Cost Price: ₹${formatINR(v ?? 0, 2)}` : `${k.replace('_', ' ')}: ${v ?? '—'}`
+      )).join(', ');
+      await supabase.from('audit_logs').insert(saved.map(p => ({
+        shop_id: shopId,
+        action_type: 'UPDATE',
+        barcode: p.original.barcode,
+        item_name: p.local.name,
+        changes: `Item updated via Global Edit (${describe(p.changes)})`,
+        performed_by: getPerformedBy()
+      })));
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory_item'] });
+    }
+
+    if (failed.length > 0) {
+      // Keep edit mode open so nothing typed is lost
+      showAlert(`${saved.length} saved. Could not save:\n${failed.join('\n')}`, 'Some items were not saved');
+      return;
+    }
+    setIsGlobalEditMode(false);
+    setBulkEditData({});
+    setSelectedBarcodes([]);
+    const keptCosts = saved.filter(p => p.costKeptOnBatches).map(p => p.local.name);
+    showAlert(
+      `Updated ${saved.length} ${saved.length === 1 ? 'item' : 'items'}.`
+        + (keptCosts.length ? `\n\nNew cost price will apply to new stock. ${keptCosts.join(', ')} ${keptCosts.length === 1 ? 'has' : 'have'} several batches, so each batch keeps its own cost (change it in the item's batches if needed).` : ''),
+      'Saved'
+    );
   };
 
   const bulkDelete = () => {

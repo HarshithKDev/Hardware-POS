@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { getPerformedBy } from './utils';
+import { isMissingFunctionError } from './services/posRpc';
 import { supabase, provisioningClient } from './supabaseClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
@@ -92,27 +93,36 @@ export default function OwnerStaff() {
 
   const removeStaffMutation = useMutation({
     mutationFn: async ({ id, name }) => {
-      let delQuery = supabase.from('workers').delete().eq('id', id);
-      if (shopId) {
-        delQuery = delQuery.eq('shop_id', shopId);
+      // Removes the staff member and their sign-in account in one step (owner only)
+      const { error: rpcError } = await supabase.rpc('pos_remove_worker', { p_worker_id: id });
+      let loginRemoved = !rpcError;
+      if (rpcError) {
+        if (!isMissingFunctionError(rpcError, 'pos_remove_worker')) throw rpcError;
+        // Database not updated yet: remove from the staff list only
+        let delQuery = supabase.from('workers').delete().eq('id', id);
+        if (shopId) delQuery = delQuery.eq('shop_id', shopId);
+        const { error } = await delQuery;
+        if (error) throw error;
+        loginRemoved = false;
       }
-      const { error } = await delQuery;
-      if (error) throw error;
 
       await supabase.from('audit_logs').insert([{
         shop_id: shopId,
         action_type: 'DELETE',
         barcode: 'STAFF',
         item_name: name,
-        changes: `Removed Staff Account: ${name}`,
+        changes: `Removed Staff Account: ${name}${loginRemoved ? ' (login deleted)' : ''}`,
         performed_by: getPerformedBy()
       }]);
+      return { loginRemoved };
     },
-    onSuccess: () => {
+    onSuccess: ({ loginRemoved }) => {
       queryClient.invalidateQueries({ queryKey: ['staff'] });
       showAlert(
-        "Worker removed from active staff. \n\nIMPORTANT: To fully revoke login access, you must also delete their account from the Supabase Authentication dashboard.",
-        "Partial Success"
+        loginRemoved
+          ? 'Staff member removed. Their login no longer works.'
+          : "Worker removed from active staff. \n\nIMPORTANT: To fully revoke login access, you must also delete their account from the Supabase Authentication dashboard.",
+        loginRemoved ? 'Removed' : 'Partial Success'
       );
     },
     onError: (e) => showAlert(e.message, 'Failed to remove staff'),
@@ -154,7 +164,7 @@ export default function OwnerStaff() {
 
   const handleRemove = (id, name) => {
     showConfirm(
-      `Remove ${name} from staff list? \n\nNote: This will prevent them from opening the terminal, but their Supabase Auth account will still exist.`,
+      `Remove ${name}? Their login will stop working.`,
       () => removeStaffMutation.mutate({ id, name }),
       "Remove Staff",
       "Remove Staff",
