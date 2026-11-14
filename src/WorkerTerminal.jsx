@@ -17,7 +17,6 @@ import { useApp } from './AppContext';
 import { generateId, formatDateTime, calculateMSP, formatINR } from './utils';
 import { SCAN_TIMEOUT_MS } from './constants';
 
-import InlineContinuousScanner from './components/scanner/InlineContinuousScanner';
 import CheckoutCameraScanner from './components/scanner/CheckoutCameraScanner';
 import { ScanLine } from 'lucide-react';
 import CartTable from './components/cart/CartTable';
@@ -101,7 +100,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     cancelHeldCart
   } = useCart();
   const [manualBarcode, setManualBarcode] = useState('');
-  const [isMobileScannerOpen, setIsMobileScannerOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   // Synchronous guard: React state updates are async, so a fast double-click/Enter could start two sales
   const checkoutInFlightRef = useRef(false);
@@ -160,7 +158,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
   const [isInputFocused, setIsInputFocused] = useState(false);
 
-  // Phone checkout: scan barcodes with the phone camera. The camera closes as soon as an item has
+  // Phone checkout / receive / transfer: scan barcodes with the phone camera. The camera closes as soon as an item has
   // been added (one scan = one item); tap the camera button again to scan the next one.
   const [isCheckoutCameraOpen, setIsCheckoutCameraOpen] = useState(false);
   const prevCartForCameraRef = useRef(cart);
@@ -2233,8 +2231,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
   const activeTotal = checkoutModal.negotiatedTotal !== '' ? Number(checkoutModal.negotiatedTotal) : cartTotal;
 
-  const isMobileScannerTab = window.innerWidth < 1024 && (activeTab === 'receive' || activeTab === 'transfer');
-
   return (
     <>
       {/* Decomposed Terminal Modals */}
@@ -2293,105 +2289,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         isUpdate={cart.some(i => i.is_screw || i.barcode === 'SCREWS')}
       />
 
-      {isMobileScannerTab ? (
-        <div className="flex flex-col flex-1 bg-[var(--bg-primary)] overflow-hidden" style={{ minHeight: (typeof CSS !== 'undefined' && CSS.supports?.('height', '100dvh')) ? 'calc(100dvh - 160px)' : 'calc(100vh - 160px)' }}>
-          {cart.length > 0 && (
-            <div className="p-4 flex-shrink-0 flex gap-2" style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-medium)' }}>
-              <button 
-                onClick={() => {
-                  if (activeCartTab.startsWith('held_')) {
-                    handleCancelHeldCart(activeCartTab);
-                  } else {
-                    showConfirm("Clear cart?", handleCancelSale, 'Clear Cart', 'Clear Cart', 'Keep Cart', true);
-                  }
-                }}
-                className="w-1/3 py-4 text-white font-black text-xs md:text-sm shadow-lg rounded-lg transition-all active:scale-95 flex items-center justify-center text-center"
-                style={{ backgroundColor: 'var(--color-error-solid)' }}
-              >
-                {activeCartTab.startsWith('held_') ? 'CANCEL HELD' : 'CLEAR'}
-              </button>
-              <button onClick={handleCompleteTransaction} className="w-2/3 py-4 text-white font-black text-lg shadow-lg rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2" style={{ backgroundColor: 'var(--color-accent-solid)' }}>
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                COMPLETE {cart.length}
-              </button>
-            </div>
-          )}
-          {isMobileScannerOpen && (
-            <div className="p-4 w-full flex justify-center bg-[var(--bg-primary)] flex-shrink-0" style={{ borderBottom: '1px solid var(--border-medium)' }}>
-              <div className="w-full max-w-md rounded-xl overflow-hidden border-4 flex flex-col justify-center relative" style={{ minHeight: '200px', maxHeight: '300px', borderColor: 'var(--color-success)', backgroundColor: 'var(--bg-secondary)' }}>
-                <InlineContinuousScanner onScan={async (barcode) => { await processScan(barcode); }} />
-              </div>
-            </div>
-          )}
-          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-            {cart.length === 0 ? (
-              activeCartTab && activeCartTab.startsWith('held_') ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-6 my-auto">
-                  <div className="w-14 h-14 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: 'var(--color-error-bg)', color: 'var(--color-error)' }}>
-                    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                  </div>
-                  <p className="text-lg font-bold uppercase tracking-wider" style={{ color: 'var(--text-primary)' }}>This Held Cart is Empty</p>
-                  <p className="text-sm mt-1 mb-5 font-medium" style={{ color: 'var(--text-tertiary)' }}>All items have been removed from this held cart.</p>
-                  <div className="flex flex-col w-full max-w-xs gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => handleCancelHeldCart(activeCartTab)}
-                      className="w-full py-3.5 text-white font-bold text-xs shadow-md rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2"
-                      style={{ backgroundColor: 'var(--color-error-solid)' }}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                      Cancel & Delete Held Cart
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => switchCartTab('local')}
-                      className="w-full py-3.5 font-bold text-xs rounded-lg transition-all active:scale-95"
-                      style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
-                    >
-                      ← Back to Local Cart
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center text-center p-6">
-                  <svg className="w-20 h-20 mb-6 opacity-30" fill="currentColor" viewBox="0 0 20 20" style={{ color: 'var(--text-secondary)' }}><path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" /></svg>
-                  <p className="text-xl font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>List is Empty</p>
-                  <p className="text-base mt-2 font-medium" style={{ color: 'var(--text-tertiary)' }}>Tap the green button below to start.</p>
-                </div>
-              )
-            ) : (
-              <CartMobileView
-                cart={cart}
-                activeTab={activeTab}
-                onUpdateQuantity={updateQuantity}
-                onUpdateDimensions={updateDimensions}
-                onRemoveItem={handleRemoveItem}
-                onCancelHeldCart={() => handleCancelHeldCart(activeCartTab)}
-                onBackToLocal={() => switchCartTab('local')}
-              />
-            )}
-          </div>
-          <div className="p-4 shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1)] flex-shrink-0" style={{ backgroundColor: 'var(--bg-secondary)', borderTop: '2px solid var(--border-medium)' }}>
-            <button 
-              onClick={() => setIsMobileScannerOpen(!isMobileScannerOpen)}
-              className="w-full py-5 font-bold text-lg text-white shadow-md rounded-md transition-all active:scale-95 flex items-center justify-center gap-2"
-              style={{ backgroundColor: isMobileScannerOpen ? 'var(--color-error)' : 'var(--color-success)' }}
-            >
-              {isMobileScannerOpen ? (
-                <>
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                  STOP CAMERA
-                </>
-              ) : (
-                <>
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                  START SCANNING
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      ) : (
         <div className="flex flex-col flex-1 h-full min-h-0 shadow-sm print:hidden relative overflow-hidden [@media(max-height:500px)]:overflow-y-auto" style={{ border: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
           
           {/* Offline Banner */}
@@ -2504,7 +2401,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           </div>
         )}
 
-        <div className={`p-3 md:p-4 shrink-0 flex flex-col md:flex-row justify-between gap-3 md:gap-4 ${(activeTab === 'receive' || activeTab === 'transfer') ? 'hidden md:flex' : ''}`} style={{ borderBottom: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}>
+        <div className="p-3 md:p-4 shrink-0 flex flex-col md:flex-row justify-between gap-3 md:gap-4" style={{ borderBottom: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}>
           <div className="flex flex-col w-full md:w-auto flex-1 md:flex-none">
             <h2 className="hidden md:block text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>
               {activeTab === 'receive' ? 'Receive Stock' : activeTab === 'transfer' ? 'Move Stock to Store' : 'Checkout Counter'}
@@ -2517,7 +2414,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   <input id="manual-barcode" type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} onFocus={() => { setIsInputFocused(true); manualBarcode.trim().length >= 2 && setShowSuggestions(true); }} onBlur={() => { setIsInputFocused(false); setTimeout(() => setShowSuggestions(false), 200); }} placeholder="Search barcode or name..." className="compact-field h-full w-full px-3 text-sm focus:outline-none flex-1 bg-transparent border-none outline-none rounded-none focus:ring-0 focus:border-transparent focus:shadow-none" style={{ color: 'var(--text-input)', outline: 'none', border: 'none', boxShadow: 'none' }} autoComplete="off" />
                   <button type="submit" className="tap-area relative h-full px-3 text-sm font-bold focus:outline-none transition-colors border-none rounded-none bg-transparent hover:bg-[var(--bg-hover)] focus:ring-0 focus:outline-none shrink-0" style={{ color: 'var(--color-accent)', outline: 'none', border: 'none' }}>ADD</button>
                 </div>
-                {activeTab === 'checkout' && (
+                {(activeTab === 'checkout' || activeTab === 'receive' || activeTab === 'transfer') && (
                   <button
                     type="button"
                     onClick={() => setIsCheckoutCameraOpen(v => !v)}
@@ -2670,7 +2567,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           />
         </div>
 
-        {activeTab === 'checkout' && isCheckoutCameraOpen && (
+        {(activeTab === 'checkout' || activeTab === 'receive' || activeTab === 'transfer') && isCheckoutCameraOpen && (
           <CheckoutCameraScanner
             onScan={async (code) => { await processScan(code); }}
             onClose={() => setIsCheckoutCameraOpen(false)}
@@ -2769,7 +2666,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
           </div>
         )}
       </div>
-      )}
       {/* Hidden Receipt Template for actual browser printing */}
       <ReceiptTemplate lastReceipt={lastReceipt} shopSettings={shopSettings} formatDateTime={formatDateTime} />
 

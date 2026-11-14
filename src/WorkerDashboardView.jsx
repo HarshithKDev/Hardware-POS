@@ -624,7 +624,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
             style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)', colorScheme: 'dark' }}
           >
             <option value="ALL" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
-              {availableSubcategories.length === 0 && selectedCategory !== 'ALL' ? 'No Sub-Categories' : 'All Sub-Categories'}
+              {availableSubcategories.length === 0 && selectedCategory !== 'ALL' ? (isPhone ? 'No Sub Cat' : 'No Sub-Categories') : (isPhone ? 'All Sub Cat' : 'All Sub-Categories')}
             </option>
             {availableSubcategories.map((sub) => (
               <option key={sub.name} value={sub.name} style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
