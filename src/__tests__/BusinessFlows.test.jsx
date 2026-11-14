@@ -1,6 +1,6 @@
 // End-to-end checks of the counter flows on the real WorkerTerminal screen,
 // with the database replaced by an in-memory fake.
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import WorkerTerminal from '../WorkerTerminal';
 import { CartProvider } from '../contexts/CartContext';
@@ -17,6 +17,11 @@ vi.mock('../services/db', () => ({
 }));
 vi.mock('../services/sync', () => ({
   syncInventoryToLocal: vi.fn().mockResolvedValue()
+}));
+// The phone camera cannot run in tests: stand in a fake that hands us its onScan callback
+const cameraHook = vi.hoisted(() => ({ onScan: null }));
+vi.mock('../components/scanner/InlineContinuousScanner', () => ({
+  default: (props) => { cameraHook.onScan = props.onScan; return <div data-testid="camera-view" />; },
 }));
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() }))
@@ -163,6 +168,26 @@ describe('Counter business flows (end to end)', () => {
         p_items: [expect.objectContaining({ barcode: '2001', actual_quantity: 200, num_rolls: 1, default_length: 200 })]
       }));
     }, { timeout: 5000 });
+  });
+
+  it('phone camera closes after one item is added, and stays open for an unknown barcode', async () => {
+    render(<Wrapper tab="checkout"><WorkerTerminal activeTab="checkout" shopSettings={{ id: 'shop1' }} cashierName="Raju" /></Wrapper>);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Scan barcode with camera' }));
+    expect(await screen.findByTestId('camera-view')).toBeInTheDocument();
+
+    // Unknown barcode: nothing added, so the camera stays open to try again
+    await act(async () => { await cameraHook.onScan('9999'); });
+    expect(screen.getByTestId('camera-view')).toBeInTheDocument();
+
+    // Known barcode: the item is added and the camera closes
+    await act(async () => { await cameraHook.onScan('1001'); });
+    await waitFor(() => expect(screen.queryByTestId('camera-view')).toBeNull(), { timeout: 5000 });
+    expect(screen.getAllByText('Door Hinge').length).toBeGreaterThan(0);
+
+    // The owner can open it again for the next item
+    fireEvent.click(screen.getByRole('button', { name: 'Scan barcode with camera' }));
+    expect(await screen.findByTestId('camera-view')).toBeInTheDocument();
   });
 
   it('cannot sell more cut-length stock than the store has', async () => {

@@ -244,7 +244,7 @@ export default function OwnerStaff() {
         </form>
       </div>
 
-      <div className="flex-1 overflow-auto rounded-lg border border-[var(--border-light)] shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}>
+      <div className="flex-1 overflow-auto rounded-lg border border-[var(--border-light)] shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)' }}>
         {/* Mobile View: Card List */}
         <div className="md:hidden flex flex-col divide-y divide-[var(--border-medium)]">
           {isLoading ? (

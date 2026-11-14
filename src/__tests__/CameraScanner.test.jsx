@@ -74,26 +74,26 @@ describe('CheckoutCameraScanner', () => {
   });
   afterAll(() => { vi.doUnmock('../components/scanner/InlineContinuousScanner'); });
 
-  it('shows the live camera, what was last added, and passes scans through', () => {
+  it('shows the live camera, passes scans through, and can be closed', () => {
     const onScan = vi.fn(); const onClose = vi.fn();
-    const { rerender } = render(<CheckoutCameraScanner onScan={onScan} onClose={onClose} paused={false} lastAdded={null} />);
+    const { rerender } = render(<CheckoutCameraScanner onScan={onScan} onClose={onClose} paused={false} />);
     expect(screen.getByTestId('camera-view')).toBeInTheDocument();
     expect(screen.getByText('Point the camera at a barcode')).toBeInTheDocument();
     expect(h.panelProps.sameCodeCooldownMs).toBeGreaterThan(0);
     h.panelProps.onScan('1223');
     expect(onScan).toHaveBeenCalledWith('1223');
 
-    rerender(<CheckoutCameraScanner onScan={onScan} onClose={onClose} paused lastAdded={{ name: 'Pad Lock', qty: 2, unit: 'PCS', key: 1 }} />);
+    expect(screen.getByText(/camera closes once the item is added/)).toBeInTheDocument();
+
+    rerender(<CheckoutCameraScanner onScan={onScan} onClose={onClose} paused />);
     expect(screen.getByText('Paused while a popup is open')).toBeInTheDocument();
-    expect(screen.getByText('Pad Lock')).toBeInTheDocument();
-    expect(screen.getByText('· 2 pcs in cart')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Close camera' }));
     expect(onClose).toHaveBeenCalled();
   });
 
   it('explains camera problems in plain words and can try again', () => {
-    render(<CheckoutCameraScanner onScan={() => {}} onClose={() => {}} paused={false} lastAdded={null} />);
+    render(<CheckoutCameraScanner onScan={() => {}} onClose={() => {}} paused={false} />);
     act(() => { h.panelProps.onError(Object.assign(new Error('x'), { name: 'NotAllowedError' })); });
     expect(screen.getByText(/Camera access is blocked/)).toBeInTheDocument();
     expect(screen.queryByTestId('camera-view')).toBeNull();

@@ -694,7 +694,7 @@ export default function OwnerLedger({ isActive }) {
         </div>
 
         {/* Ledger Table */}
-        <div className="flex-1 overflow-x-hidden overflow-y-auto max-md:flex-none max-md:overflow-y-visible shadow-sm min-h-[260px] md:min-h-[400px] md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent', overscrollBehavior: 'none' }}>
+        <div className="flex-1 overflow-x-hidden overflow-y-auto max-md:flex-none max-md:overflow-clip shadow-sm min-h-[260px] md:min-h-[400px] md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent' }}>
           <div className="w-full max-w-full h-full">
             <table className={`block md:table w-full md:table-fixed text-left md:text-center border-collapse ${(isLoadingBills && bills.length === 0 || bills.length === 0) ? 'h-full' : ''}`}>
             <colgroup className="hidden md:table-column-group">
