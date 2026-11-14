@@ -1191,7 +1191,7 @@ export default function OwnerStats({ isActive }) {
         <StatCard title="Revenue" value={`₹${formatINR(tfTrueRevenue, 2)}`} borderColor="var(--color-success)">
           {tfScrews > 0 && (
             <p className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--text-tertiary)' }} title="Screws are counted in Cash/UPI received but not in Revenue or Profit">
-              + ₹{formatINR(tfScrews, 0)} screws (not included)
+              + ₹{formatINR(tfScrews, 0)} screws
             </p>
           )}
         </StatCard>

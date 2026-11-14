@@ -578,7 +578,7 @@ function App() {
         className="w-full min-h-[100vh] supports-[height:100dvh]:min-h-[100dvh] flex flex-col items-center justify-center"
         style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}
       >
-        <PageLoader text="Initializing Subsystems" />
+        <PageLoader text="Loading your shop" />
       </div>
     );
   }
