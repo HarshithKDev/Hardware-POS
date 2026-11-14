@@ -23,8 +23,11 @@ import { STALE_TIME_5MIN } from './constants';
 import InventoryRow from './InventoryRow';
 import BatchDetailsModal from './BatchDetailsModal';
 import { buttonClass, TableSkeleton } from './components/ui';
+import { usePhoneLayout } from './hooks/useMediaQuery';
 
 export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
+  // Phones: short dropdown labels so they are not cut off ("All Sub Cat")
+  const isPhone = usePhoneLayout();
   const { showAlert, showConfirm, shopSettings, isWarehouseDisabled } = useApp();
   const shopId = shopSettings?.id || localStorage.getItem('shop_id');
 
@@ -717,7 +720,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
                   disabled={availableSubcategories.length === 0}
                 >
                   <option value="">
-                    {availableSubcategories.length === 0 && filterCategory ? 'No Subcategories' : 'All Subcategories'}
+                    {availableSubcategories.length === 0 && filterCategory ? (isPhone ? 'No Sub Cat' : 'No Subcategories') : (isPhone ? 'All Sub Cat' : 'All Subcategories')}
                   </option>
                   {availableSubcategories.map((s) => {
                     const name = typeof s === 'string' ? s : (s?.name || '');
