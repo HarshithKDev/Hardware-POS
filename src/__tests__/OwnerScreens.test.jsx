@@ -100,8 +100,6 @@ describe('Overview chart and date filter', () => {
     expect(screen.getByRole('tab', { name: 'Date Range' })).toBeInTheDocument();
     expect(screen.queryByText('Choose Date')).toBeNull();
 
-    // Not enough history yet: say so instead of showing a pattern
-    expect(screen.getByText(/Customer rush: not enough sales yet/)).toBeInTheDocument();
   });
 });
 

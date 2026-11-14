@@ -13,15 +13,14 @@ import {
   DEAD_STOCK_ALARM_VALUE,
   STALE_TIME_5MIN,
 } from './constants';
-import { AlertTriangle, Calendar, ArrowUpRight, RotateCcw, Users } from 'lucide-react';
+import { AlertTriangle, Calendar, ArrowUpRight, RotateCcw } from 'lucide-react';
 import { useSessionState } from './hooks/useSessionState';
 import PageTitleReset from './components/PageTitleReset';
 import { billPaymentSplit } from './services/dayClosing';
 import { fetchAllRows, chunk, mapWithLimit } from './services/fetchAll';
 import { buttonClass, useSort, SortTh } from './components/ui';
 import {
-  billPoints, lineFigures, isScrewItem, resolveSelection, hourlyBuckets, dailyBuckets,
-  insightWindow, buildInsights, INSIGHT_WEEKS,
+  billPoints, lineFigures, isScrewItem, resolveSelection, hourlyBuckets, dailyBuckets, compactINR,
 } from './services/salesAnalytics';
 
 const PROFIT_SORT = {
@@ -174,13 +173,6 @@ function StatCard({ title, value, accentColor, onClick, clickLabel, children, cl
   );
 }
 
-/** Short rupee label for chart bars: ₹850, ₹2.5k, ₹1.2L */
-function compactINR(n) {
-  const v = Number(n) || 0;
-  if (v >= 99950) return `₹${(v / 100000).toFixed(v >= 1000000 ? 0 : 1).replace(/\.0$/, '')}L`;
-  if (v >= 999.5) return `₹${(v / 1000).toFixed(v >= 10000 ? 0 : 1).replace(/\.0$/, '')}k`;
-  return `₹${Math.round(v)}`;
-}
 
 /** Small two-option switch (Revenue | Profit, By hour | By day) */
 function Segmented({ label, options, value, onChange, activeColor = 'var(--color-accent-solid)' }) {
@@ -274,8 +266,8 @@ function SalesTrendChart({ buckets, isLoading, metric, setMetric, view, setView,
                 </span>
               </div>
               <span
-                className={`absolute -bottom-4 left-1/2 -translate-x-1/2 text-[11px] uppercase whitespace-nowrap text-center ${point.highlight ? 'font-bold' : 'font-semibold'} ${thinLabels && i % 2 === 1 ? 'max-sm:invisible' : ''}`}
-                style={{ color: point.highlight ? 'var(--color-accent)' : 'var(--text-tertiary)', opacity: point.future ? 0.5 : 1 }}
+                className={`absolute -bottom-4 left-1/2 -translate-x-1/2 text-[11px] uppercase whitespace-nowrap text-center font-semibold ${thinLabels && i % 2 === 1 ? 'max-sm:invisible' : ''}`}
+                style={{ color: 'var(--text-tertiary)', opacity: point.future ? 0.5 : 1 }}
               >
                 {point.label}
               </span>
@@ -292,41 +284,6 @@ function SalesTrendChart({ buckets, isLoading, metric, setMetric, view, setView,
   );
 }
 
-
-const oneDecimal = (n) => (Math.round(n * 10) / 10).toLocaleString('en-IN', { maximumFractionDigits: 1 });
-
-
-/** Customer rush: busiest hour and day over the last 4 full weeks, as one short line */
-function CustomerFlowInsights({ insights, isLoading, error, className = '' }) {
-  if (isLoading && !insights) return null;
-  const muted = { color: 'var(--text-tertiary)' };
-  let content;
-  let detail;
-  if (error) {
-    content = <span style={muted}>Customer rush could not be loaded.</span>;
-  } else if (!insights?.enough) {
-    content = <span style={muted}>Customer rush: not enough sales yet.</span>;
-  } else {
-    const { peakHour, peakDay } = insights;
-    detail = `Last ${INSIGHT_WEEKS} full weeks (${insights.bills} bills). Busiest hour ${peakHour.fullLabel}: ${oneDecimal(peakHour.avg)} customers a day. `
-      + `Busiest day ${peakDay.name}: ${oneDecimal(peakDay.avg)} customers and ₹${formatINR(peakDay.avgRev, 0)} in sales on average.`;
-    const strong = { color: 'var(--text-primary)' };
-    content = (
-      <>
-        <span style={muted}>Busiest</span> <strong style={strong}>{peakHour.fullLabel}</strong>
-        <span style={muted}> · </span>
-        <strong style={strong}>{peakDay.name}</strong>
-        <span style={muted}> (last {INSIGHT_WEEKS} weeks)</span>
-      </>
-    );
-  }
-  return (
-    <p className={`text-sm min-w-0 ${className}`} style={{ color: 'var(--text-secondary)' }} title={detail} aria-label={detail}>
-      <Users className="w-4 h-4 inline -mt-0.5 mr-1.5 text-[var(--color-accent)]" aria-hidden="true" />
-      {content}
-    </p>
-  );
-}
 
 /** Top products list */
 function TopProductsList({ products }) {
@@ -936,13 +893,6 @@ export default function OwnerStats({ isActive }) {
     };
   }, [shopId, globalTimeframe, customDate, startDate, endDate]);
 
-  // "When customers come": the last 4 full weeks, independent of the chosen date
-  const fetchInsights = useCallback(async () => {
-    const win = insightWindow();
-    const { bills, items } = await loadSalesData(shopId, win.startIso, win.endIso);
-    return buildInsights(billPoints(bills, items), win);
-  }, [shopId]);
-
   // 2. Separate Inventory Query — runs ONCE on load, never re-runs on date change
   const fetchInventoryStats = useCallback(async () => {
     const now = new Date();
@@ -1100,13 +1050,6 @@ export default function OwnerStats({ isActive }) {
     refetchOnWindowFocus: true,
   });
 
-  const { data: insights, isLoading: isInsightsLoading, error: insightsError } = useQuery({
-    queryKey: ['dashboard-insights', shopId, isActive, todayKey],
-    queryFn: fetchInsights,
-    staleTime: 1000 * 60 * 30,
-    enabled: isActive,
-  });
-
   // Chart bars for the chosen figure and grouping (no reload when switching)
   const chart = useMemo(() => {
     const sel = salesData?.selection;
@@ -1126,7 +1069,8 @@ export default function OwnerStats({ isActive }) {
       return {
         buckets: hourlyBuckets(inPeriod, metricKey),
         title: `${figure} by hour`,
-        subtitle: sel.kind === 'day' ? periodLabel : `Total for ${periodLabel}`,
+        // For a range each bar is that hour's sales on all the days added together
+        subtitle: sel.kind === 'day' ? periodLabel : `${periodLabel} · each bar adds up that hour across all days`,
       };
     }
     if (sel.kind === 'day') {
@@ -1211,12 +1155,6 @@ export default function OwnerStats({ isActive }) {
           title="Business Overview"
           onReset={handleResetStats}
           tooltip="Click title to reset overview timeframe to Today"
-        />
-        <CustomerFlowInsights
-          insights={insights}
-          isLoading={isInsightsLoading}
-          error={insightsError}
-          className="order-last w-full lg:order-none lg:w-auto lg:flex-1 lg:text-center lg:px-2 truncate"
         />
         <div className="flex items-center gap-2.5 flex-wrap">
           <DashboardDateFilter
