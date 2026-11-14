@@ -8,7 +8,8 @@ import { useApp } from './AppContext';
 import { startBackgroundSync, stopBackgroundSync } from './services/sync';
 import { startLiveRefresh, stopLiveRefresh } from './services/liveRefresh';
 import { logActivity } from './services/auditLog';
-import { isRoleConsistentWithEmail, isNetworkishError } from './services/roleGuard';
+import { isRoleConsistentWithEmail } from './services/roleGuard';
+import { readStoredSession, isTemporaryAuthFailure } from './services/authSession';
 import { escapeIlike } from './utils';
 import { stripOwnerOnlyDataFromLocalInventory, getOfflineQueue } from './services/db';
 import { WifiOff, Moon, Sun, LogOut, Wifi, RefreshCw, CloudUpload } from 'lucide-react';
@@ -79,6 +80,7 @@ function App() {
       setCashierName('');
       sessionStorage.removeItem('posUserRole');
       localStorage.removeItem('posUserRole');
+      expectedSignOutRef.current = true;
       supabase.auth.signOut({ scope: 'local' }).catch(() => {});
       navigate('/');
       setTimeout(() => showAlert("Your staff account was removed by the owner. You have been logged out.", "Session Expired"), 100);
@@ -140,6 +142,46 @@ function App() {
       window.removeEventListener('queue_sync_end', handleSyncEnd);
     };
   }, [showToast]);
+
+  // Sign-outs the app starts itself (Log out, removed staff, failed check) set this first, so the
+  // listener below only reacts to the server ending the session on its own.
+  const expectedSignOutRef = useRef(false);
+  const userRoleRef = useRef(userRole);
+  useEffect(() => { userRoleRef.current = userRole; }, [userRole]);
+  useEffect(() => {
+    // Data requests failed because the sign-in could not be refreshed (see supabaseClient.js)
+    let refreshWasDelayed = false;
+    const onAuthUnreachable = () => { refreshWasDelayed = true; };
+    window.addEventListener('pos_auth_unreachable', onAuthUnreachable);
+
+    const sub = supabase.auth?.onAuthStateChange?.((event) => {
+      if (event === 'TOKEN_REFRESHED' && refreshWasDelayed) {
+        // Connection is back: reload the screens that could not load meanwhile
+        refreshWasDelayed = false;
+        setTimeout(() => queryClient.invalidateQueries(), 0);
+        return;
+      }
+      if (event !== 'SIGNED_OUT') return;
+      if (expectedSignOutRef.current) { expectedSignOutRef.current = false; return; }
+      if (!userRoleRef.current) return;
+      // The server no longer accepts this login (it expired or was revoked). Go to the login
+      // page right away instead of leaving a screen full of zeros.
+      setTimeout(() => {
+        stopBackgroundSync();
+        queryClient.clear();
+        setUserRole(null);
+        setCashierName('');
+        sessionStorage.removeItem('posUserRole');
+        localStorage.removeItem('posUserRole');
+        navigate('/');
+        showAlert('Your sign-in has expired. Please sign in again.', 'Signed Out');
+      }, 0);
+    });
+    return () => {
+      window.removeEventListener('pos_auth_unreachable', onAuthUnreachable);
+      sub?.data?.subscription?.unsubscribe();
+    };
+  }, [queryClient, navigate, setUserRole, setCashierName, showAlert]);
 
   useEffect(() => {
     if (userRole) {
@@ -376,14 +418,35 @@ function App() {
       setIsSetupNeeded(!shopIsRegistered);
 
       // 2. Check active Supabase authentication session
-      const { data: { session } } = await supabase.auth.getSession();
+      // If the token needs refreshing and the server can't be reached, the library keeps retrying
+      // for about 30 seconds. Don't keep the counter waiting that long when a saved login exists.
+      const hasStoredLogin = Boolean(readStoredSession(supabase.auth.storageKey));
+      const sessionResult = await Promise.race([
+        supabase.auth.getSession(),
+        ...(hasStoredLogin
+          ? [new Promise(resolve => setTimeout(() => resolve({ data: { session: null }, error: new Error('Sign-in check timed out') }), 6000))]
+          : []),
+      ]);
+      const { data: { session: liveSession }, error: sessionError } = sessionResult;
+      let session = liveSession;
+      // The sign-in token expires after an hour. If refreshing it failed only because the server
+      // could not be reached (phone just woke up, weak signal, offline), the saved login is still
+      // valid: keep the user signed in instead of sending them back to the login page.
+      let sessionUnreachable = false;
+      if (!session && isTemporaryAuthFailure(sessionError)) {
+        const stored = readStoredSession(supabase.auth.storageKey);
+        if (stored) {
+          session = stored;
+          sessionUnreachable = true;
+        }
+      }
       let currentShop = cachedShop;
 
       if (session) {
         // If authenticated and we have a shopId, refresh shop settings from database in background
         let settingsRow = null;
-        let settingsUnreachable = false;
-        if (savedShopId) {
+        let settingsUnreachable = sessionUnreachable;
+        if (savedShopId && !sessionUnreachable) {
           try {
             let settingsQuery = supabase
               .from('shop_settings')
@@ -396,7 +459,9 @@ function App() {
             const { data: settingsData, error: settingsError } = await settingsQuery.maybeSingle();
 
             if (settingsError) {
-              settingsUnreachable = isNetworkishError(settingsError);
+              // Could not check with the server (network, timeout, server error): use the cached
+              // copy. Only a successful answer that disagrees with the login signs the user out.
+              settingsUnreachable = true;
               console.warn('Could not refresh shop settings from server:', settingsError);
             }
             if (settingsData) {
@@ -409,7 +474,7 @@ function App() {
               } catch (e) {}
             }
           } catch (settingsErr) {
-            settingsUnreachable = isNetworkishError(settingsErr);
+            settingsUnreachable = true;
             console.warn('Could not refresh shop settings from server:', settingsErr);
           }
         }
@@ -440,6 +505,7 @@ function App() {
             setUserRole(null);
             setCashierName('');
             queryClient.clear();
+            expectedSignOutRef.current = true;
             try { await supabase.auth.signOut({ scope: 'local' }); } catch (e) {}
             setTimeout(() => showAlert('Your session could not be verified. Please log in again.', 'Session Expired'), 100);
           }
@@ -495,6 +561,7 @@ function App() {
         console.warn('Could not clear owner-only data from this device:', e);
       }
     }
+    expectedSignOutRef.current = true;
     await supabase.auth.signOut();
     queryClient.clear();
     setUserRole(null);
