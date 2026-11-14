@@ -20,6 +20,18 @@ import { beginCriticalWork } from './busyGuard';
 import { routeReceivedStockToStore } from './atomicStock';
 import { processSaleAtomic, saleArgsFromPayload } from './posRpc';
 import { POS_EVENT } from './posEvents';
+import { readStoredSession } from './authSession';
+
+/**
+ * Nothing to sync without a signed-in login on this device. A copy of the app left open after
+ * its sign-in ended used to keep asking the database every minute as a signed-out visitor,
+ * which the database refuses (logged as errors: "permission denied", "invalid column for filter").
+ */
+const hasSignedInLogin = () => {
+  const key = supabase?.auth?.storageKey;
+  if (!key) return true; // no real client (tests): don't block
+  return Boolean(readStoredSession(key));
+};
 
 const PAGE_SIZE = 500;
 const BATCH_CHUNK_SIZE = 200;
@@ -74,6 +86,7 @@ export const requestInventorySync = (userRole, delayMs = 1500) => {
 };
 
 const runInventorySync = async (userRole = 'worker', options = {}) => {
+  if (!hasSignedInLogin()) return;
   const { forceFull = false } = options;
   // Use the time the sync STARTED as the next watermark: anything changed while a long
   // (full) sync was downloading is then picked up by the next delta sync.
@@ -406,6 +419,8 @@ const UNCERTAIN_SYNC_MESSAGE =
 
 export const flushOfflineQueue = (userRole = 'worker') => {
   if (flushInFlight) return flushInFlight;
+  // Queued sales wait (they are not marked failed) until someone is signed in again
+  if (!hasSignedInLogin()) return Promise.resolve();
   flushInFlight = (async () => {
     const endCriticalWork = beginCriticalWork(); // holds back app auto-update reloads
     try {
@@ -657,6 +672,7 @@ export const reconcileDeletedItems = async (userRole = 'owner') => {
 export const startRealtimeSync = (userRole = 'worker') => {
   if (typeof window === 'undefined' || !supabase) return;
   if (realtimeSyncChannel || posEventsChannel) return;
+  if (!hasSignedInLogin()) return;
 
   const currentShopId = localStorage.getItem('shop_id');
 

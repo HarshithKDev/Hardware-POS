@@ -36,3 +36,30 @@ describe('live subscriptions', () => {
     expect(seen.mock.calls[0][0].detail).toMatchObject({ kind: 'bill' });
   });
 });
+
+describe('signed-out copies of the app stay quiet', () => {
+  beforeEach(() => { subs.length = 0; localStorage.clear(); localStorage.setItem('shop_id', 'shop-1'); });
+  afterEach(async () => {
+    const { supabase } = await import('../supabaseClient');
+    delete supabase.auth;
+    stopRealtimeSync();
+    localStorage.clear();
+  });
+
+  it('no live subscription and no sync without a signed-in login on the device', async () => {
+    const { supabase } = await import('../supabaseClient');
+    supabase.auth = { storageKey: 'sb-test-auth-token' }; // real client, nobody signed in
+    supabase.from = vi.fn();
+    startRealtimeSync('owner');
+    expect(subs).toHaveLength(0);
+    const { syncInventoryToLocal, flushOfflineQueue } = await import('../services/sync');
+    await syncInventoryToLocal('owner');
+    await flushOfflineQueue('owner');
+    expect(supabase.from).not.toHaveBeenCalled();
+
+    // signed in: subscribes as usual
+    localStorage.setItem('sb-test-auth-token', JSON.stringify({ refresh_token: 'r', user: { email: 'o@x.com' } }));
+    startRealtimeSync('owner');
+    expect(subs).toHaveLength(1);
+  });
+});

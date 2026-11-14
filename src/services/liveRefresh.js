@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { POS_EVENT } from './posEvents';
+import { readStoredSession } from './authSession';
 
 // When any device records a sale, return, showroom dispatch, expense or other logged
 // action, refresh the screens that show that data on every other open device (owner
@@ -42,6 +43,8 @@ let onPosEvent = null;
 
 export function startLiveRefresh(queryClient, shopId) {
   if (channel || !supabase?.channel || !shopId) return;
+  // Signed-out copies of the app must not subscribe: the database refuses and logs an error
+  if (supabase.auth?.storageKey && !readStoredSession(supabase.auth.storageKey)) return;
   const invalidate = (keys) => keys.forEach(k => queryClient.invalidateQueries({ queryKey: [k] }));
   const filter = `shop_id=eq.${shopId}`;
   const onBillChanged = () => {
