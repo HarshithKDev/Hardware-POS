@@ -9,7 +9,7 @@ vi.mock('../supabaseClient', () => ({
   supabase: { channel: vi.fn(() => channelObj), removeChannel: vi.fn() },
 }));
 
-import { startLiveRefresh, stopLiveRefresh, EXPENSES_CHANGED_EVENT } from '../services/liveRefresh';
+import { startLiveRefresh, stopLiveRefresh, EXPENSES_CHANGED_EVENT, INVENTORY_REFRESH_MS } from '../services/liveRefresh';
 
 describe('Live refresh of sales / dashboard / expenses across devices', () => {
   let queryClient;
@@ -35,6 +35,23 @@ describe('Live refresh of sales / dashboard / expenses across devices', () => {
     const keys = queryClient.invalidateQueries.mock.calls.map(c => c[0].queryKey[0]);
     expect(keys).toEqual(expect.arrayContaining(['bills', 'dashboard-sales-stats', 'showroom-sales', 'unifiedAuditLogs']));
     expect(keys.filter(k => k === 'bills')).toHaveLength(1);
+  });
+
+  it('stock figures (capital, low stock, dead stock) refresh at most once a minute after sales', () => {
+    const stockRefreshes = () => queryClient.invalidateQueries.mock.calls.filter(c => c[0].queryKey[0] === 'dashboard-inventory-stats').length;
+    handlers.bills.cb({});
+    vi.advanceTimersByTime(1300);
+    expect(stockRefreshes()).toBe(1); // first sale: soon
+
+    // a busy minute of sales: no reload for each one, one at the end of the minute
+    for (let i = 0; i < 10; i++) { handlers.bills.cb({}); vi.advanceTimersByTime(5000); }
+    expect(stockRefreshes()).toBe(1);
+    vi.advanceTimersByTime(INVENTORY_REFRESH_MS);
+    expect(stockRefreshes()).toBe(2);
+
+    // sales figures still refresh after every sale
+    const salesRefreshes = queryClient.invalidateQueries.mock.calls.filter(c => c[0].queryKey[0] === 'dashboard-sales-stats').length;
+    expect(salesRefreshes).toBeGreaterThanOrEqual(10);
   });
 
   it('an expense change tells the Expenses screen to reload', () => {

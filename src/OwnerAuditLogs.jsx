@@ -298,7 +298,8 @@ export default function OwnerAuditLogs() {
         totalCount: count !== null && count !== undefined ? count : normalizedAudit.length
       };
     },
-    refetchInterval: 30000, // refresh every 30s
+    // New entries arrive through live updates; this is only a safety net if those drop
+    refetchInterval: 2 * 60 * 1000,
   });
 
   const rawLogs = useMemo(() => auditResult?.logs || [], [auditResult]);

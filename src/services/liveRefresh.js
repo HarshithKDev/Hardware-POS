@@ -7,7 +7,7 @@ import { supabase } from '../supabaseClient';
 
 const BILL_QUERY_KEYS = [
   'bills', 'billAvailableDates', 'bill_items',
-  'dashboard-stats', 'dashboard-sales-stats', 'dashboard-inventory-stats',
+  'dashboard-stats', 'dashboard-sales-stats',
   'sales-trend', 'owner-reports', 'stats', 'lowStockCounts',
   'showroom-sales', 'showroom-sales-total', 'showroom_bill_items',
 ];
@@ -24,6 +24,20 @@ const debounce = (key, fn, ms = 1200) => {
   timers[key] = setTimeout(fn, ms);
 };
 
+// Stock figures on the Overview (capital, low stock, dead stock) read the whole catalog, so
+// after sales they refresh at most once a minute instead of after every single bill.
+export const INVENTORY_REFRESH_MS = 60 * 1000;
+let lastInventoryRefresh = 0;
+const refreshInventoryStats = (invalidate) => {
+  if (timers.inventory) return; // a refresh is already on its way
+  const wait = Math.max(1200, lastInventoryRefresh + INVENTORY_REFRESH_MS - Date.now());
+  timers.inventory = setTimeout(() => {
+    timers.inventory = null;
+    lastInventoryRefresh = Date.now();
+    invalidate(['dashboard-inventory-stats']);
+  }, wait);
+};
+
 export function startLiveRefresh(queryClient, shopId) {
   if (channel || !supabase?.channel || !shopId) return;
   const invalidate = (keys) => keys.forEach(k => queryClient.invalidateQueries({ queryKey: [k] }));
@@ -32,7 +46,10 @@ export function startLiveRefresh(queryClient, shopId) {
   channel = supabase
     .channel(`pos_live_${shopId}`)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'bills', filter },
-      () => debounce('bills', () => invalidate([...BILL_QUERY_KEYS, ...AUDIT_QUERY_KEYS])))
+      () => {
+        debounce('bills', () => invalidate([...BILL_QUERY_KEYS, ...AUDIT_QUERY_KEYS]));
+        refreshInventoryStats(invalidate);
+      })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'audit_logs', filter },
       () => debounce('audit', () => invalidate(AUDIT_QUERY_KEYS)))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses', filter },
@@ -49,7 +66,10 @@ export function startLiveRefresh(queryClient, shopId) {
     .channel(`pos_events_live_${shopId}`)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pos_events', filter },
       (payload) => {
-        if (payload?.new?.kind === 'bill') debounce('bills', () => invalidate([...BILL_QUERY_KEYS, ...AUDIT_QUERY_KEYS]));
+        if (payload?.new?.kind === 'bill') {
+          debounce('bills', () => invalidate([...BILL_QUERY_KEYS, ...AUDIT_QUERY_KEYS]));
+          refreshInventoryStats(invalidate);
+        }
       })
     .subscribe();
 }
@@ -57,6 +77,7 @@ export function startLiveRefresh(queryClient, shopId) {
 export function stopLiveRefresh() {
   Object.values(timers).forEach(clearTimeout);
   timers = {};
+  lastInventoryRefresh = 0;
   if (channel) {
     try { supabase.removeChannel(channel); } catch (e) { /* ignore */ }
     channel = null;
