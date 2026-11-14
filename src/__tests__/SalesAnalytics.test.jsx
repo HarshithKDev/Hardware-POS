@@ -1,9 +1,7 @@
-// Dashboard chart and "When customers come" figures: every bill lands in exactly one bar,
-// screws stay out, and patterns are only shown when there is enough data to trust them.
+// Dashboard chart figures: every bill lands in exactly one bar and screws stay out.
 import { describe, it, expect } from 'vitest';
 import {
-  billPoints, hourlyBuckets, dailyBuckets, buildInsights, insightWindow, resolveSelection,
-  weekStartOf, hourRangeLabel, INSIGHT_MIN_BILLS,
+  billPoints, hourlyBuckets, dailyBuckets, resolveSelection, weekStartOf, hourRangeLabel, compactINR,
 } from '../services/salesAnalytics';
 
 const at = (isoDate, h, m = 0) => new Date(`${isoDate}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`).toISOString();
@@ -38,6 +36,7 @@ describe('chart bars', () => {
   it('one bar per hour; early and late sales get their own hour instead of being lumped in', () => {
     const bars = hourlyBuckets(points.slice(0, 4), 'rev');
     expect(bars[0]).toMatchObject({ label: '7a', fullLabel: '7–8 AM', value: 100 });
+    expect(hourRangeLabel(11)).toBe('11 AM–12 PM');
     expect(bars.find(b => b.fullLabel === '9–10 AM').value).toBe(250);
     expect(bars.find(b => b.fullLabel === '8–9 AM').value).toBe(0);
     expect(bars[bars.length - 1]).toMatchObject({ fullLabel: '10–11 PM', value: 300 });
@@ -86,45 +85,13 @@ describe('date filter meaning', () => {
   });
 });
 
-describe('when customers come', () => {
-  const win = { startIso: '2026-10-17', endIso: '2026-11-13' }; // 4 full weeks
-
-  it('uses the last 4 full weeks, ending yesterday', () => {
-    expect(insightWindow(new Date('2026-11-14T16:00:00'))).toEqual(win);
-    expect(hourRangeLabel(11)).toBe('11 AM–12 PM');
-  });
-
-  it('says there is not enough data instead of guessing', () => {
-    const few = Array.from({ length: INSIGHT_MIN_BILLS - 1 }, (_, i) => ({ t: new Date(at('2026-10-20', 10, i)).getTime(), rev: 100 }));
-    const res = buildInsights(few, win);
-    expect(res.enough).toBe(false);
-    expect(res).toMatchObject({ bills: 19, openDays: 1 });
-  });
-
-  it('finds the busiest hour and day from real averages; sales outside the window are ignored', () => {
-    const points = [];
-    // Every day for 4 weeks: 1 customer at 10 AM and 3 at 6 PM; closed on Sundays
-    for (let i = 0; i < 28; i++) {
-      const d = new Date('2026-10-17T00:00:00'); d.setDate(d.getDate() + i);
-      if (d.getDay() === 0) continue;
-      const iso = d.toLocaleDateString('en-CA');
-      points.push({ t: new Date(at(iso, 10)).getTime(), rev: 100 });
-      for (let k = 0; k < 3; k++) points.push({ t: new Date(at(iso, 18, k * 10)).getTime(), rev: 50 });
-      // Saturdays are busier: 4 extra customers at 4 PM
-      if (d.getDay() === 6) for (let k = 0; k < 4; k++) points.push({ t: new Date(at(iso, 16, k)).getTime(), rev: 25 });
-    }
-    points.push({ t: new Date(at('2026-11-14', 12)).getTime(), rev: 9999 }); // today: not in the window
-
-    const res = buildInsights(points, win);
-    expect(res.enough).toBe(true);
-    expect(res.openDays).toBe(24);
-    expect(res.bills).toBe(24 * 4 + 4 * 4);
-    expect(res.peakHour).toMatchObject({ hour: 18, count: 72, avg: 3 });
-    expect(res.hours[0].hour).toBe(10);
-    expect(res.hours[res.hours.length - 1].hour).toBe(18);
-    expect(res.peakDay).toMatchObject({ name: 'Saturday', count: 32, avg: 8, avgRev: 350 });
-    expect(res.quietDay).toMatchObject({ name: 'Sunday', count: 0, avg: 0 });
-    expect(res.days.map(d => d.label)).toEqual(['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']);
-    expect(res.avgSalePerCustomer).toBeCloseTo((24 * 250 + 16 * 25) / 112, 6);
+describe('bar labels', () => {
+  it('never show more than was sold', () => {
+    expect(compactINR(10830.01)).toBe('₹10.8k');
+    expect(compactINR(9999)).toBe('₹9.9k');
+    expect(compactINR(15000)).toBe('₹15k');
+    expect(compactINR(2190)).toBe('₹2.1k');
+    expect(compactINR(865)).toBe('₹865');
+    expect(compactINR(125000)).toBe('₹1.2L');
   });
 });

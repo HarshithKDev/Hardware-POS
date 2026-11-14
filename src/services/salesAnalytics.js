@@ -1,5 +1,5 @@
-// Sales figures for the Overview dashboard: per-bill revenue and profit, chart buckets, and the
-// "when do customers come" insights. Everything here is pure (no database), so it can be tested.
+// Sales figures for the Overview dashboard: per-bill revenue and profit, and chart buckets.
+// Everything here is pure (no database), so it can be tested.
 //
 // Same rules as the Revenue and Profit cards:
 //  - screws are tracked in sales history but left out of dashboard revenue and profit;
@@ -176,86 +176,12 @@ export function dailyBuckets(points, metric, startIso, endIso, todayIso, highlig
   return out;
 }
 
-// --------------------------------------------------------------------------------------
-// Insights: when customers come
-// --------------------------------------------------------------------------------------
-
-export const INSIGHT_WEEKS = 4;
-export const INSIGHT_MIN_BILLS = 20;
-export const INSIGHT_MIN_OPEN_DAYS = 7;
-
-/** The last INSIGHT_WEEKS full weeks ending yesterday: every weekday appears exactly that many times. */
-export function insightWindow(now = new Date()) {
-  const today = new Date(now); today.setHours(0, 0, 0, 0);
-  const start = addDays(today, -7 * INSIGHT_WEEKS);
-  const end = addDays(today, -1);
-  return { startIso: iso(start), endIso: iso(end) };
-}
-
-const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-/**
- * Customer flow from bills in the insight window. Each bill counts as one customer visit.
- * Returns { enough: false, ... } when there is too little data to show a fair pattern.
- */
-export function buildInsights(points, { startIso, endIso }) {
-  const startMs = atMidnight(startIso).getTime();
-  const endMs = addDays(atMidnight(endIso), 1).getTime();
-  const inWindow = points.filter(p => p.t >= startMs && p.t < endMs);
-  const totalDays = Math.round((endMs - startMs) / DAY_MS);
-  const weeks = totalDays / 7;
-
-  const openDays = new Set(inWindow.map(p => iso(new Date(p.t))));
-  const bills = inWindow.length;
-  const revCents = inWindow.reduce((s, p) => s + Math.round(p.rev * 100), 0);
-  const base = { startIso, endIso, bills, openDays: openDays.size, totalDays };
-
-  if (bills < INSIGHT_MIN_BILLS || openDays.size < INSIGHT_MIN_OPEN_DAYS) {
-    return { ...base, enough: false };
-  }
-
-  // Time of day: average customers in each hour on a day the shop was open
-  const hourCount = new Array(24).fill(0);
-  inWindow.forEach(p => { hourCount[new Date(p.t).getHours()] += 1; });
-  const activeHours = hourCount.map((c, h) => (c > 0 ? h : -1)).filter(h => h >= 0);
-  const firstHour = Math.min(...activeHours);
-  const lastHour = Math.max(...activeHours);
-  const hours = [];
-  for (let h = firstHour; h <= lastHour; h++) {
-    hours.push({ hour: h, label: hourTick(h), fullLabel: hourRangeLabel(h), count: hourCount[h], avg: hourCount[h] / openDays.size });
-  }
-  const peakHour = hours.reduce((a, b) => (b.count > a.count ? b : a));
-  const quietHour = hours.reduce((a, b) => (b.count < a.count ? b : a));
-
-  // Day of week: each weekday occurs exactly `weeks` times in the window, closed days count as 0
-  const dayCount = new Array(7).fill(0);
-  const dayRev = new Array(7).fill(0);
-  inWindow.forEach(p => {
-    const wd = new Date(p.t).getDay();
-    dayCount[wd] += 1;
-    dayRev[wd] += Math.round(p.rev * 100);
-  });
-  const days = [1, 2, 3, 4, 5, 6, 0].map(wd => ({
-    weekday: wd,
-    name: WEEKDAYS[wd],
-    label: WEEKDAYS[wd].slice(0, 3).toUpperCase(),
-    count: dayCount[wd],
-    avg: dayCount[wd] / weeks,
-    avgRev: dayRev[wd] / 100 / weeks,
-  }));
-  const peakDay = days.reduce((a, b) => (b.count > a.count ? b : a));
-  const quietDay = days.reduce((a, b) => (b.count < a.count ? b : a));
-
-  return {
-    ...base,
-    enough: true,
-    hours,
-    days,
-    peakHour,
-    quietHour: quietHour.hour !== peakHour.hour ? quietHour : null,
-    peakDay,
-    quietDay: quietDay.weekday !== peakDay.weekday ? quietDay : null,
-    avgCustomersPerOpenDay: bills / openDays.size,
-    avgSalePerCustomer: revCents / 100 / bills,
-  };
+/** Short rupee label for chart bars: ₹850, ₹2.5k, ₹1.2L */
+export function compactINR(n) {
+  const v = Number(n) || 0;
+  // One decimal, rounded DOWN, so a label never shows more than was sold (₹10,830 -> ₹10.8k)
+  const short = (x) => (Math.floor(x * 10) / 10).toFixed(1).replace(/\.0$/, '');
+  if (v >= 100000) return `₹${short(v / 100000)}L`;
+  if (v >= 1000) return `₹${short(v / 1000)}k`;
+  return `₹${Math.round(v)}`;
 }
