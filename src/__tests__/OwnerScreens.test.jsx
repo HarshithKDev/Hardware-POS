@@ -31,7 +31,10 @@ beforeEach(() => {
 });
 
 describe('Overview (OwnerStats)', () => {
-  it("counts every bill of a busy day in Revenue, Cash Received and UPI Received, past the 1,000-row limit", async () => {
+  it.each([
+    ['with the pos_sold_since function', false],
+    ['before the speed-up SQL is run (falls back to reading every bill)', true],
+  ])("counts every bill of a busy day in Revenue, Cash Received and UPI Received, past the 1,000-row limit (%s)", async (_label, withoutSoldFunction) => {
     const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
     const span = Math.max(1000, Date.now() - midnight.getTime() - 1000);
     const bills = []; const items = [];
@@ -51,6 +54,14 @@ describe('Overview (OwnerStats)', () => {
       bills, bill_items: items, expenses: [], returns: [], workers: [],
       product_master: [product('1223', 'Pad Lock', 2, 60), product('5001', 'Recent Seller', 10, 50), product('5002', 'Never Sold', 4, 25)],
     });
+
+    if (withoutSoldFunction) {
+      // database before the speed-up SQL: the function does not exist yet
+      const realRpc = h.db.rpc;
+      h.db.rpc = (name, args) => (name === 'pos_sold_since'
+        ? Promise.resolve({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.pos_sold_since' } })
+        : realRpc(name, args));
+    }
 
     renderWith(<OwnerStats isActive />);
 

@@ -19,6 +19,7 @@ import PageTitleReset from './components/PageTitleReset';
 import { billPaymentSplit } from './services/dayClosing';
 import { fetchAllRows, chunk, mapWithLimit } from './services/fetchAll';
 import { buttonClass, useSort, SortTh } from './components/ui';
+import { isMissingFunctionError } from './services/posRpc';
 import {
   billPoints, lineFigures, isScrewItem, resolveSelection, hourlyBuckets, dailyBuckets, compactINR,
 } from './services/salesAnalytics';
@@ -729,6 +730,52 @@ function DashboardDateFilter({
 // ---------------------------------------------------------------
 
 /**
+ * Barcodes and (cleaned, lower-case) names of everything sold since a time, for dead stock.
+ * Uses the pos_sold_since database function; falls back to reading every bill and line.
+ */
+async function loadSoldSince(shopId, sinceUtcIso) {
+  const barcodes = new Set();
+  const names = new Set();
+  const { data, error } = await supabase.rpc('pos_sold_since', { p_since: sinceUtcIso });
+  if (!error) {
+    (data || []).forEach(r => {
+      if (r.barcode) barcodes.add(r.barcode);
+      if (r.name) names.add(r.name);
+    });
+    return { barcodes, names };
+  }
+  if (!isMissingFunctionError(error, 'pos_sold_since')) {
+    console.warn('[Stats] Products sold this year could not be loaded:', error.message);
+  }
+  const { data: bills, error: billsErr } = await fetchAllRows(() => {
+    let q = supabase
+      .from('bills')
+      .select('id')
+      .gte('created_at', sinceUtcIso)
+      .eq('location', 'Store')
+      .neq('status', 'voided')
+      .neq('status', 'showroom_pending')
+      .neq('status', 'showroom')
+      .neq('payment_method', 'SHOWROOM');
+    if (shopId) q = q.eq('shop_id', shopId);
+    return q.order('created_at', { ascending: true }).order('id', { ascending: true });
+  });
+  if (billsErr) console.warn('[Stats] Past-year bills could not be fully loaded:', billsErr.message);
+  const ids = (bills || []).map(b => b.id);
+  const results = await mapWithLimit(chunk(ids, 100), 6, (batch) => fetchAllRows(() => {
+    let q = supabase.from('bill_items').select('id, barcode, name').in('bill_id', batch);
+    if (shopId) q = q.eq('shop_id', shopId);
+    return q.order('id', { ascending: true });
+  }));
+  results.flatMap(r => r.data || []).forEach(it => {
+    if (it.barcode) barcodes.add(it.barcode);
+    const clean = (it.name || '').split(' (Cut from ')[0].trim().toLowerCase();
+    if (clean) names.add(clean);
+  });
+  return { barcodes, names };
+}
+
+/**
  * Every completed store sale between two dates and its lines. Throws if anything could not be
  * read, so the dashboard shows an error instead of totals that are silently too low.
  */
@@ -900,23 +947,9 @@ export default function OwnerStats({ isActive }) {
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
     const deadStockStartIso = `${oneYearAgo.toLocaleDateString('en-CA')}T00:00:00`;
 
-    // Every bill of the past year (paged: a busy shop has far more than 1,000), so items sold in
-    // any of them are not counted as dead stock
-    const dsBillsPromise = fetchAllRows(() => {
-      let dsBillsQuery = supabase
-        .from('bills')
-        .select('id')
-        .gte('created_at', localToUtcIso(deadStockStartIso))
-        .eq('location', 'Store')
-        .neq('status', 'voided')
-        .neq('status', 'showroom_pending')
-        .neq('status', 'showroom')
-        .neq('payment_method', 'SHOWROOM');
-      if (shopId) {
-        dsBillsQuery = dsBillsQuery.eq('shop_id', shopId);
-      }
-      return dsBillsQuery.order('created_at', { ascending: true }).order('id', { ascending: true });
-    });
+    // Products sold in the past year (so they are not dead stock): one small answer from the
+    // database. Before the speed-up SQL is run, fall back to reading every bill and line.
+    const soldPromise = loadSoldSince(shopId, localToUtcIso(deadStockStartIso));
 
     // Capital and dead stock need real batch costs. This device's local catalog can be
     // missing them (a staff login on the same device downloads it without costs, and owner
@@ -959,28 +992,7 @@ export default function OwnerStats({ isActive }) {
       }
     }
 
-    const { data: dsBillsData, error: dsBillsErr } = await dsBillsPromise;
-    if (dsBillsErr) console.warn('[Stats] Past-year bills could not be fully loaded:', dsBillsErr.message);
-
-    let deadStockSoldNames = new Set();
-    if (dsBillsData && dsBillsData.length > 0) {
-      const dsBillIds = dsBillsData.map(b => b.id);
-      const batchResults = await mapWithLimit(chunk(dsBillIds, 100), 6, (batch) => fetchAllRows(() => {
-        let q = supabase.from('bill_items')
-          .select('id, name')
-          .in('bill_id', batch);
-        if (shopId) {
-          q = q.eq('shop_id', shopId);
-        }
-        return q.order('id', { ascending: true });
-      }));
-      const items = batchResults.flatMap(r => r.data || []);
-      items.forEach(it => {
-        const rawName = it.name || it.item_name || '';
-        const cleanName = rawName ? rawName.split(' (Cut from ')[0].trim().toLowerCase() : '';
-        if (cleanName) deadStockSoldNames.add(cleanName);
-      });
-    }
+    const sold = await soldPromise;
 
     let lowStoreItems = [], lowWarehouseItems = [], deadStockItems = [];
     let totalInventoryValue = 0, warehouseCapital = 0, storeCapital = 0, deadStockValue = 0;
@@ -1019,8 +1031,9 @@ export default function OwnerStats({ isActive }) {
       warehouseCapital += wCap;
       storeCapital += sCap;
 
-      const inventoryItemCleanName = item.name.trim().toLowerCase();
-      if (totalQty > 0 && !deadStockSoldNames.has(inventoryItemCleanName)) {
+      const inventoryItemCleanName = (item.name || '').trim().toLowerCase();
+      const soldThisYear = sold.barcodes.has(item.barcode) || sold.names.has(inventoryItemCleanName);
+      if (totalQty > 0 && !soldThisYear) {
         const itemDeadValue = wCap + sCap;
         deadStockValue += itemDeadValue;
         deadStockItems.push({ ...item, totalQty, deadValue: itemDeadValue });

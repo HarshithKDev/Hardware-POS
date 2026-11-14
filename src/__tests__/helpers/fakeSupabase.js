@@ -64,7 +64,23 @@ export function createFakeSupabase(tables) {
 
   return {
     from,
-    rpc: () => Promise.resolve({ data: null, error: null }),
+    rpc: (name, args = {}) => {
+      // Products sold since a time (same rules as the SQL function in 20261116_dashboard_speed.sql)
+      if (name === 'pos_sold_since') {
+        const since = args.p_since;
+        const sales = new Set((tables.bills || [])
+          .filter(b => b.created_at >= since && b.location === 'Store'
+            && !['voided', 'showroom_pending', 'showroom'].includes(b.status) && b.payment_method !== 'SHOWROOM')
+          .map(b => b.id));
+        const seen = new Map();
+        (tables.bill_items || []).filter(it => sales.has(it.bill_id)).forEach(it => {
+          const name_ = String(it.name || '').split(' (Cut from ')[0].trim().toLowerCase();
+          seen.set(`${it.barcode}|${name_}`, { barcode: it.barcode, name: name_ });
+        });
+        return Promise.resolve({ data: [...seen.values()], error: null });
+      }
+      return Promise.resolve({ data: null, error: null });
+    },
     auth: { getUser: () => Promise.resolve({ data: { user: { email: 'owner@example.com' } } }) },
     channel: () => ({ on() { return this; }, subscribe() { return this; } }),
     removeChannel: () => {},
