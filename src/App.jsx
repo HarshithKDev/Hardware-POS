@@ -9,6 +9,7 @@ import { startBackgroundSync, stopBackgroundSync } from './services/sync';
 import { startLiveRefresh, stopLiveRefresh } from './services/liveRefresh';
 import { logActivity } from './services/auditLog';
 import { isRoleConsistentWithEmail } from './services/roleGuard';
+import { setLoginNotice, clearLoginNotice } from './services/loginNotice';
 import { readStoredSession, isTemporaryAuthFailure } from './services/authSession';
 import { escapeIlike } from './utils';
 import { stripOwnerOnlyDataFromLocalInventory, getOfflineQueue } from './services/db';
@@ -26,7 +27,7 @@ function App() {
     userRole, setUserRole,
     cashierName, setCashierName,
     isDarkMode, toggleDarkMode,
-    alertConfig, showAlert, closeAlert,
+    alertConfig, closeAlert,
     confirmConfig, handleConfirm, closeConfirm,
     showToast,
   } = useApp();
@@ -83,9 +84,9 @@ function App() {
       expectedSignOutRef.current = true;
       supabase.auth.signOut({ scope: 'local' }).catch(() => {});
       navigate('/');
-      setTimeout(() => showAlert("Your staff account was removed by the owner. You have been logged out.", "Session Expired"), 100);
+      setLoginNotice('Your staff account was removed by the owner.');
     }
-  }, [workerExists, userRole, navigate, setUserRole, setCashierName, showAlert, queryClient]);
+  }, [workerExists, userRole, navigate, setUserRole, setCashierName, queryClient]);
 
 
 
@@ -174,14 +175,14 @@ function App() {
         sessionStorage.removeItem('posUserRole');
         localStorage.removeItem('posUserRole');
         navigate('/');
-        showAlert('Your sign-in has expired. Please sign in again.', 'Signed Out');
+        setLoginNotice('Your sign-in has expired. Please sign in again.');
       }, 0);
     });
     return () => {
       window.removeEventListener('pos_auth_unreachable', onAuthUnreachable);
       sub?.data?.subscription?.unsubscribe();
     };
-  }, [queryClient, navigate, setUserRole, setCashierName, showAlert]);
+  }, [queryClient, navigate, setUserRole, setCashierName]);
 
   useEffect(() => {
     if (userRole) {
@@ -507,7 +508,7 @@ function App() {
             queryClient.clear();
             expectedSignOutRef.current = true;
             try { await supabase.auth.signOut({ scope: 'local' }); } catch (e) {}
-            setTimeout(() => showAlert('Your session could not be verified. Please log in again.', 'Session Expired'), 100);
+            setLoginNotice('Your sign-in could not be verified. Please sign in again.');
           }
         }
       } else {
@@ -520,13 +521,15 @@ function App() {
     } finally {
       setIsInitialLoad(false);
     }
-  }, [setShopSettings, setUserRole, setCashierName, queryClient, showAlert]);
+  }, [setShopSettings, setUserRole, setCashierName, queryClient]);
 
   useEffect(() => { fetchInitialData(); }, [fetchInitialData]);
 
   const closeMobileScanner = useCallback(() => setIsMobileScannerOpen(false), []);
 
   const handleLoginSuccess = (role, rememberMe = false) => {
+    clearLoginNotice();
+    if (alertConfig?.isOpen) closeAlert();
     setUserRole(role);
     if (rememberMe) {
       localStorage.setItem('posUserRole', role);
@@ -562,7 +565,9 @@ function App() {
       }
     }
     expectedSignOutRef.current = true;
-    await supabase.auth.signOut();
+    // This device only: the default ("global") also signed out every other phone and
+    // counter using the same account
+    await supabase.auth.signOut({ scope: 'local' });
     queryClient.clear();
     setUserRole(null);
     setCashierName('');
