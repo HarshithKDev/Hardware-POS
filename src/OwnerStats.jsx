@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect, useRef } from 'react';
+import { useCallback, useState, useEffect, useRef, useMemo } from 'react';
 import { localToUtcIso, formatINR } from './utils';
 import { createPortal } from 'react-dom';
 import { supabase } from './supabaseClient';
@@ -13,12 +13,16 @@ import {
   DEAD_STOCK_ALARM_VALUE,
   STALE_TIME_5MIN,
 } from './constants';
-import { AlertTriangle, Calendar, ArrowUpRight } from 'lucide-react';
+import { AlertTriangle, Calendar, ArrowUpRight, RotateCcw, Clock, CalendarDays, Users } from 'lucide-react';
 import { useSessionState } from './hooks/useSessionState';
 import PageTitleReset from './components/PageTitleReset';
 import { billPaymentSplit } from './services/dayClosing';
 import { fetchAllRows, chunk, mapWithLimit } from './services/fetchAll';
 import { buttonClass, useSort, SortTh } from './components/ui';
+import {
+  billPoints, lineFigures, isScrewItem, resolveSelection, hourlyBuckets, dailyBuckets,
+  insightWindow, buildInsights, INSIGHT_WEEKS,
+} from './services/salesAnalytics';
 
 const PROFIT_SORT = {
   name: { get: (i) => i.name || '', textual: true },
@@ -178,62 +182,233 @@ function compactINR(n) {
   return `₹${Math.round(v)}`;
 }
 
-/** Sales trend bar chart */
-function SalesTrendChart({ trend, isLoading }) {
-  // Amount labels above every bar when there is room (week / day views); month view keeps hover only
-  const showBarLabels = (trend || []).length <= 12;
+/** Small two-option switch (Revenue | Profit, By hour | By day) */
+function Segmented({ label, options, value, onChange }) {
+  return (
+    <div className="inline-flex p-0.5 rounded-lg text-xs font-semibold" style={{ backgroundColor: 'var(--bg-tertiary)' }} role="group" aria-label={label}>
+      {options.map(o => {
+        const active = o.value === value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onChange(o.value)}
+            aria-pressed={active}
+            className="tap-area relative px-2.5 py-1 rounded-md transition-colors cursor-pointer whitespace-nowrap"
+            style={{
+              backgroundColor: active ? 'var(--color-accent-solid)' : 'transparent',
+              color: active ? 'var(--text-on-solid)' : 'var(--text-secondary)',
+            }}
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Revenue / profit bar chart, by hour or by day */
+function SalesTrendChart({ buckets, isLoading, metric, setMetric, view, setView, title, subtitle }) {
+  const bars = buckets || [];
+  // Amount labels above every bar when there is room (wide screens fit up to 16 bars);
+  // otherwise tap / hover a bar
+  const showBarLabels = bars.length <= 16;
+  const labelsOnWideOnly = bars.length > 12;
+  const thinLabels = bars.length > 12;
+  const maxAbs = bars.reduce((m, b) => Math.max(m, Math.abs(b.value)), 0);
+  const hasHighlight = bars.some(b => b.highlight);
+  const isEmpty = !isLoading && bars.every(b => !b.value);
   const [isAnimated, setIsAnimated] = useState(false);
 
   useEffect(() => {
-    if (trend && trend.length > 0) {
+    if (bars.length > 0) {
       queueMicrotask(() => setIsAnimated(false));
       const timer = setTimeout(() => setIsAnimated(true), 50);
       return () => clearTimeout(timer);
     }
-  }, [trend]);
+  }, [buckets]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const money = (v) => `${v < 0 ? '−' : ''}₹${formatINR(Math.abs(v), 0)}`;
 
   return (
     <div className="p-4 sm:p-5 rounded-lg border border-[var(--border-light)] flex flex-col h-full xl:col-span-2 min-w-0" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-      <div className="flex justify-between items-center mb-4">
-        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>Sales Trend</p>
+      <div className="flex flex-wrap justify-between items-start gap-3 mb-4">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>{title}</p>
+          {subtitle && <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{subtitle}</p>}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Segmented label="Chart figure" value={metric} onChange={setMetric} options={[{ value: 'rev', label: 'Revenue' }, { value: 'profit', label: 'Profit' }]} />
+          <Segmented label="Chart grouping" value={view} onChange={setView} options={[{ value: 'hours', label: 'By hour' }, { value: 'days', label: 'By day' }]} />
+        </div>
       </div>
 
-      <div className={`flex flex-1 items-end min-h-[8rem] gap-1 md:gap-3 w-full px-2 mb-4 ${showBarLabels ? 'pt-6' : ''}`} role="img" aria-label="sales trend chart">
+      <div className={`relative flex flex-1 items-end min-h-[8rem] gap-1 ${bars.length > 16 ? 'md:gap-1.5' : 'md:gap-3'} w-full px-2 mb-4 ${showBarLabels ? 'pt-6' : 'pt-2'}`} role="img" aria-label={`${title}${subtitle ? `, ${subtitle}` : ''}`}>
         {isLoading ? (
           <div className="w-full h-full flex items-center justify-center">
             <div className="premium-wave-loader scale-75">
               <span></span><span></span><span></span><span></span><span></span>
             </div>
           </div>
-        ) : (trend || []).map((point, i) => (
-          <div key={i} tabIndex={-1} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group cursor-crosshair relative outline-none">
-            <div
-              className={`w-full relative rounded-t-sm transition-all duration-300 opacity-80 group-hover:opacity-100 ${!isAnimated ? 'ease-in' : 'ease-out'}`}
-              style={{
-                height: isAnimated ? `${point.heightPct}%` : '0%',
-                minHeight: (isAnimated && point.rev > 0) ? '4px' : '0px',
-                backgroundColor: 'var(--color-accent-solid)',
-              }}
-            >
-              {showBarLabels && point.rev > 0 && (
-                <span className={`absolute -top-5 left-1/2 -translate-x-1/2 text-xs font-semibold tabular-nums whitespace-nowrap pointer-events-none transition-opacity group-hover:opacity-0 group-focus:opacity-0 ${isAnimated ? 'opacity-100' : 'opacity-0'}`} style={{ color: 'var(--text-secondary)' }}>
-                  {compactINR(point.rev)}
+        ) : bars.map((point, i) => {
+          const heightPct = maxAbs === 0 ? 0 : (Math.abs(point.value) / maxAbs) * 85;
+          const negative = point.value < 0;
+          return (
+            <div key={point.key} tabIndex={0} aria-label={`${point.fullLabel || point.label}: ${point.future ? 'not yet' : money(point.value)}`} className="flex-1 min-w-0 flex flex-col items-center gap-2 h-full justify-end group cursor-crosshair relative outline-none">
+              <div
+                className={`w-full relative rounded-t-sm transition-all duration-300 group-hover:opacity-100 group-focus:opacity-100 ${!isAnimated ? 'ease-in' : 'ease-out'} ${hasHighlight && !point.highlight ? 'opacity-45' : 'opacity-85'}`}
+                style={{
+                  height: isAnimated ? `${heightPct}%` : '0%',
+                  minHeight: (isAnimated && point.value !== 0) ? '4px' : '0px',
+                  backgroundColor: negative ? 'var(--color-error)' : 'var(--color-accent-solid)',
+                }}
+              >
+                {showBarLabels && point.value !== 0 && (
+                  <span className={`${labelsOnWideOnly ? 'hidden xl:block' : ''} absolute -top-5 left-1/2 -translate-x-1/2 text-xs font-semibold tabular-nums whitespace-nowrap pointer-events-none transition-opacity group-hover:opacity-0 group-focus:opacity-0 ${isAnimated ? 'opacity-100' : 'opacity-0'}`} style={{ color: negative ? 'var(--color-error)' : 'var(--text-secondary)' }}>
+                    {negative ? '−' : ''}{compactINR(Math.abs(point.value))}
+                  </span>
+                )}
+                <span className={`absolute -top-6 text-xs font-bold opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm flex items-center gap-1 pointer-events-none ${i < bars.length / 3 ? 'left-0' : i > (bars.length * 2) / 3 ? 'right-0' : 'left-1/2 -translate-x-1/2'}`} style={{ color: 'var(--text-primary)', backgroundColor: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-light)' }}>
+                  {point.future ? 'Not yet' : money(point.value)} <span className="font-medium text-xs" style={{ color: 'var(--text-tertiary)' }}>({point.fullLabel || point.label})</span>
                 </span>
-              )}
-              <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm flex items-center gap-1 pointer-events-none" style={{ color: 'var(--text-primary)', backgroundColor: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-light)' }}>
-                ₹{formatINR(point.rev, 0)} <span className="font-medium text-xs" style={{ color: 'var(--text-tertiary)' }}>({point.label})</span>
+              </div>
+              <span
+                className={`absolute -bottom-4 left-1/2 -translate-x-1/2 text-[11px] uppercase whitespace-nowrap text-center ${point.highlight ? 'font-bold' : 'font-semibold'} ${thinLabels && i % 2 === 1 ? 'max-sm:invisible' : ''}`}
+                style={{ color: point.highlight ? 'var(--color-accent)' : 'var(--text-tertiary)', opacity: point.future ? 0.5 : 1 }}
+              >
+                {point.label}
               </span>
             </div>
-            <span className={`absolute -bottom-4 left-1/2 -translate-x-1/2 text-[11px] font-semibold uppercase whitespace-nowrap text-center`} style={{ color: 'var(--text-tertiary)' }}>
-              {point.label}
-            </span>
-          </div>
-        ))}
+          );
+        })}
+        {isEmpty && (
+          <p className="absolute inset-0 flex items-center justify-center text-sm pointer-events-none" style={{ color: 'var(--text-tertiary)' }}>
+            No sales in this period
+          </p>
+        )}
       </div>
     </div>
   );
 }
 
+
+const oneDecimal = (n) => (Math.round(n * 10) / 10).toLocaleString('en-IN', { maximumFractionDigits: 1 });
+
+/** Small bar chart for the customer-flow insights; the busiest bar is highlighted */
+function MiniBars({ items, peakKey, ariaLabel }) {
+  const max = items.reduce((m, it) => Math.max(m, it.avg), 0);
+  const thin = items.length > 12;
+  return (
+    <div className="relative flex items-end gap-1 h-28 pt-2 pb-5 px-1" role="img" aria-label={ariaLabel}>
+      {items.map((it, i) => {
+        const peak = it.key === peakKey;
+        return (
+          <div key={it.key} tabIndex={0} aria-label={it.tooltip} className="flex-1 min-w-0 h-full flex flex-col justify-end items-center group relative outline-none">
+            <div
+              className="w-full rounded-t-sm transition-opacity group-hover:opacity-100 group-focus:opacity-100"
+              style={{
+                height: max === 0 ? '0%' : `${(it.avg / max) * 100}%`,
+                minHeight: it.avg > 0 ? '3px' : '0px',
+                backgroundColor: 'var(--color-accent-solid)',
+                opacity: peak ? 1 : 0.4,
+              }}
+            />
+            <span className={`absolute -top-6 text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity z-10 pointer-events-none ${i < items.length / 3 ? 'left-0' : i > (items.length * 2) / 3 ? 'right-0' : 'left-1/2 -translate-x-1/2'}`} style={{ color: 'var(--text-primary)', backgroundColor: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-light)' }}>
+              {it.tooltip}
+            </span>
+            <span className={`absolute -bottom-5 text-[11px] uppercase whitespace-nowrap ${peak ? 'font-bold' : 'font-semibold'} ${thin && i % 2 === 1 ? 'max-sm:invisible' : ''}`} style={{ color: peak ? 'var(--color-accent)' : 'var(--text-tertiary)' }}>
+              {it.label}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function InsightLine({ icon: Icon, label, value, detail }) {
+  return (
+    <p className="text-sm flex items-start gap-2 min-w-0" style={{ color: 'var(--text-secondary)' }}>
+      <Icon className="w-4 h-4 mt-0.5 shrink-0 text-[var(--color-accent)]" aria-hidden="true" />
+      <span className="min-w-0">
+        {label}: <strong style={{ color: 'var(--text-primary)' }}>{value}</strong>
+        {detail && <span style={{ color: 'var(--text-tertiary)' }}> · {detail}</span>}
+      </span>
+    </p>
+  );
+}
+
+const customers = (n) => `${oneDecimal(n)} customer${Math.round(n * 10) === 10 ? '' : 's'}`;
+
+/** When customers come: busiest hours and days over the last 4 full weeks */
+function CustomerFlowInsights({ insights, isLoading, error }) {
+  const windowLabel = insights
+    ? `Last ${INSIGHT_WEEKS} full weeks · ${formatDateLabel(insights.startIso, false)} – ${formatDateLabel(insights.endIso, true)}`
+    : `Last ${INSIGHT_WEEKS} full weeks`;
+
+  let body;
+  if (isLoading && !insights) {
+    body = <p className="text-sm py-6 text-center" style={{ color: 'var(--text-tertiary)' }}>Looking at the last {INSIGHT_WEEKS} weeks of sales…</p>;
+  } else if (error) {
+    body = <p className="text-sm py-6 text-center" style={{ color: 'var(--color-error)' }}>Customer patterns could not be loaded. Please try again.</p>;
+  } else if (!insights?.enough) {
+    body = (
+      <p className="text-sm py-6 text-center max-w-xl mx-auto" style={{ color: 'var(--text-tertiary)' }}>
+        Not enough sales yet to show a reliable pattern. This needs at least 20 bills on 7 different days in the last {INSIGHT_WEEKS} weeks
+        {insights ? ` (so far: ${insights.bills} bill${insights.bills === 1 ? '' : 's'} on ${insights.openDays} day${insights.openDays === 1 ? '' : 's'})` : ''}.
+      </p>
+    );
+  } else {
+    const { hours, days, peakHour, quietHour, peakDay, quietDay } = insights;
+    body = (
+      <>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-8">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-tertiary)' }}>Time of day</p>
+            <MiniBars
+              ariaLabel="Average customers by hour of day"
+              peakKey={`h${peakHour.hour}`}
+              items={hours.map(h => ({ key: `h${h.hour}`, label: h.label, avg: h.avg, tooltip: `${h.fullLabel}: ${customers(h.avg)} a day` }))}
+            />
+            <div className="mt-3 space-y-1.5">
+              <InsightLine icon={Clock} label="Busiest hour" value={peakHour.fullLabel} detail={`about ${customers(peakHour.avg)} on a typical open day`} />
+              {quietHour && <InsightLine icon={Clock} label="Quietest hour" value={quietHour.fullLabel} detail={`about ${customers(quietHour.avg)}`} />}
+            </div>
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-tertiary)' }}>Day of week</p>
+            <MiniBars
+              ariaLabel="Average customers by day of week"
+              peakKey={`d${peakDay.weekday}`}
+              items={days.map(d => ({ key: `d${d.weekday}`, label: d.label, avg: d.avg, tooltip: `${d.name}: ${customers(d.avg)} · ₹${formatINR(d.avgRev, 0)}` }))}
+            />
+            <div className="mt-3 space-y-1.5">
+              <InsightLine icon={CalendarDays} label="Busiest day" value={peakDay.name} detail={`about ${customers(peakDay.avg)} and ₹${formatINR(peakDay.avgRev, 0)} in sales`} />
+              {quietDay && <InsightLine icon={CalendarDays} label="Quietest day" value={quietDay.name} detail={quietDay.count === 0 ? 'no sales' : `about ${customers(quietDay.avg)} and ₹${formatINR(quietDay.avgRev, 0)} in sales`} />}
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 pt-3 border-t border-[var(--border-light)] flex flex-wrap gap-x-6 gap-y-1.5">
+          <InsightLine icon={Users} label="Customers on a typical open day" value={oneDecimal(insights.avgCustomersPerOpenDay)} detail={`${insights.openDays} of ${insights.totalDays} days had sales`} />
+          <InsightLine icon={Users} label="Average sale per customer" value={`₹${formatINR(insights.avgSalePerCustomer, 0)}`} />
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <section className="p-4 sm:p-5 rounded-lg border border-[var(--border-light)] mb-4 shrink-0 min-w-0" style={{ backgroundColor: 'var(--bg-secondary)' }} aria-labelledby="customer-flow-title">
+      <div className="mb-3">
+        <h3 id="customer-flow-title" className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>When customers come</h3>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+          {windowLabel}{insights?.enough ? ` · ${insights.bills} bills` : ''}. Each bill counts as one customer; averages are per day, so busy and quiet weeks even out.
+        </p>
+      </div>
+      {body}
+    </section>
+  );
+}
 
 /** Top products list */
 function TopProductsList({ products }) {
@@ -278,7 +453,9 @@ function DashboardDateFilter({
   setEndDate,
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState(timeframe); // 'today' | 'date' | 'range'
+  // Two tabs: a single day (today is just the default day) or a date range
+  const tabFor = (tf) => (tf === 'range' ? 'range' : 'date');
+  const [activeTab, setActiveTab] = useState(tabFor(timeframe));
   const popoverRef = useRef(null);
 
   // Calendar view navigation (month and year)
@@ -296,7 +473,7 @@ function DashboardDateFilter({
   // Sync internal state when opened
   useEffect(() => {
     if (isOpen) {
-      setActiveTab(prev => (prev === timeframe ? prev : timeframe));
+      setActiveTab(prev => (prev === tabFor(timeframe) ? prev : tabFor(timeframe)));
       setRangeStart(prev => (prev === startDate ? prev : startDate));
       setRangeEnd(prev => (prev === endDate ? prev : endDate));
       setRangeSelecting(false);
@@ -320,9 +497,15 @@ function DashboardDateFilter({
 
   const todayIso = new Date().toLocaleDateString('en-CA');
 
+  const selectedDay = timeframe === 'today' ? todayIso : (customDate || todayIso);
+  const isTodaySelected = timeframe !== 'range' && selectedDay === todayIso;
+
   const getTriggerLabel = () => {
-    if (timeframe === 'today') return 'Today';
-    if (timeframe === 'date') return formatDateLabel(customDate, true) || 'Choose Date';
+    if (timeframe !== 'range') {
+      if (isTodaySelected) return 'Today';
+      const [y, m, d] = selectedDay.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    }
     if (timeframe === 'range') {
       const s = formatDateLabel(startDate, false);
       const e = formatDateLabel(endDate, true);
@@ -393,8 +576,12 @@ function DashboardDateFilter({
   const handleDayClick = (dateIso) => {
     if (dateIso > todayIso) return;
     if (activeTab === 'date') {
-      setCustomDate(dateIso);
-      setTimeframe('date');
+      if (dateIso === todayIso) {
+        setTimeframe('today');
+      } else {
+        setCustomDate(dateIso);
+        setTimeframe('date');
+      }
       setIsOpen(false);
     } else if (activeTab === 'range') {
       if (!rangeSelecting || !rangeStart) {
@@ -426,7 +613,19 @@ function DashboardDateFilter({
   };
 
   return (
-    <div className="relative inline-block self-start sm:self-auto" ref={popoverRef}>
+    <div className="relative inline-flex items-center gap-2 self-start sm:self-auto" ref={popoverRef}>
+      {!isTodaySelected && (
+        <button
+          type="button"
+          onClick={handleSelectToday}
+          className={buttonClass({ variant: 'ghost', size: 'md' })}
+          title="Back to today"
+          aria-label="Back to today"
+        >
+          <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
+          <span className="hidden sm:inline">Today</span>
+        </button>
+      )}
       {/* Trigger Button: ALWAYS ONE SINGLE BOX */}
       <button
         type="button"
@@ -457,48 +656,31 @@ function DashboardDateFilter({
             color: 'var(--text-primary)',
           }}
         >
-          {/* Top 3 Options */}
+          {/* Day or date range */}
           <div
-            className="grid grid-cols-3 p-1 rounded-lg gap-1 text-xs font-semibold"
+            className="grid grid-cols-2 p-1 rounded-lg gap-1 text-xs font-semibold"
             style={{ backgroundColor: 'var(--bg-tertiary)' }}
+            role="tablist"
           >
-            <button
-              type="button"
-              onClick={handleSelectToday}
-              className={`tap-area relative py-1.5 px-2 rounded-md transition-all cursor-pointer text-center ${activeTab === 'today' ? 'shadow-sm text-white' : 'hover:text-[var(--text-primary)]'}`}
-              style={{
-                backgroundColor: activeTab === 'today' ? 'var(--color-accent-solid)' : 'transparent',
-                color: activeTab === 'today' ? 'var(--text-on-solid)' : 'var(--text-secondary)',
-              }}
-            >
-              Today
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('date')}
-              className={`tap-area relative py-1.5 px-2 rounded-md transition-all cursor-pointer text-center ${activeTab === 'date' ? 'shadow-sm text-white' : 'hover:text-[var(--text-primary)]'}`}
-              style={{
-                backgroundColor: activeTab === 'date' ? 'var(--color-accent-solid)' : 'transparent',
-                color: activeTab === 'date' ? 'var(--text-on-solid)' : 'var(--text-secondary)',
-              }}
-            >
-              Choose Date
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('range')}
-              className={`tap-area relative py-1.5 px-2 rounded-md transition-all cursor-pointer text-center ${activeTab === 'range' ? 'shadow-sm text-white' : 'hover:text-[var(--text-primary)]'}`}
-              style={{
-                backgroundColor: activeTab === 'range' ? 'var(--color-accent-solid)' : 'transparent',
-                color: activeTab === 'range' ? 'var(--text-on-solid)' : 'var(--text-secondary)',
-              }}
-            >
-              Date Range
-            </button>
+            {[{ key: 'date', label: 'Day' }, { key: 'range', label: 'Date Range' }].map(t => (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === t.key}
+                onClick={() => setActiveTab(t.key)}
+                className="tap-area relative py-1.5 px-2 rounded-md transition-all cursor-pointer text-center"
+                style={{
+                  backgroundColor: activeTab === t.key ? 'var(--color-accent-solid)' : 'transparent',
+                  color: activeTab === t.key ? 'var(--text-on-solid)' : 'var(--text-secondary)',
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
 
-          {/* Interactive Calendar for Choose Date & Date Range */}
-          {activeTab !== 'today' && (
+          {/* Calendar for a day or a date range */}
             <div className="flex flex-col gap-2.5">
               {/* Calendar Month Header & Nav */}
               <div className="flex items-center justify-between px-1">
@@ -506,6 +688,16 @@ function DashboardDateFilter({
                   {monthName}
                 </span>
                 <div className="flex items-center gap-1">
+                  {activeTab === 'date' && !isTodaySelected && (
+                    <button
+                      type="button"
+                      onClick={handleSelectToday}
+                      className="px-2 py-1 rounded text-xs font-semibold hover:bg-[var(--bg-tertiary)] cursor-pointer"
+                      style={{ color: 'var(--color-accent)' }}
+                    >
+                      Today
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={prevMonth}
@@ -556,7 +748,7 @@ function DashboardDateFilter({
                   let isRangeEnd = false;
 
                   if (activeTab === 'date') {
-                    isSelected = dateIso === customDate;
+                    isSelected = dateIso === selectedDay;
                   } else if (activeTab === 'range') {
                     const s = rangeStart;
                     const e = rangeEnd;
@@ -651,11 +843,53 @@ function DashboardDateFilter({
                 </div>
               )}
             </div>
-          )}
         </div>
       )}
     </div>
   );
+}
+
+// ---------------------------------------------------------------
+// Loading sales for a period
+// ---------------------------------------------------------------
+
+/**
+ * Every completed store sale between two dates and its lines. Throws if anything could not be
+ * read, so the dashboard shows an error instead of totals that are silently too low.
+ */
+async function loadSalesData(shopId, startIso, endIso) {
+  const { data: bills, error: billsErr } = await fetchAllRows(() => {
+    let q = supabase
+      .from('bills')
+      .select('id, total_amount, total_profit, cash_amount, upi_amount, payment_method, created_at')
+      .gte('created_at', localToUtcIso(`${startIso}T00:00:00`))
+      .lte('created_at', localToUtcIso(`${endIso}T23:59:59.999`))
+      .eq('location', 'Store')
+      .neq('status', 'voided')
+      .neq('status', 'showroom_pending')
+      .neq('status', 'showroom')
+      .neq('payment_method', 'SHOWROOM');
+    if (shopId) q = q.eq('shop_id', shopId);
+    return q.order('created_at', { ascending: true }).order('id', { ascending: true });
+  });
+  if (billsErr) throw new Error(`Sales could not be loaded: ${billsErr.message}`);
+
+  const ids = Array.from(new Set((bills || []).map(b => b.id)));
+  let items = [];
+  if (ids.length > 0) {
+    // 100 bills per request, at most 6 requests at a time
+    const results = await mapWithLimit(chunk(ids, 100), 6, (batch) => fetchAllRows(() => {
+      let q = supabase.from('bill_items')
+        .select('name, barcode, quantity, price_at_sale, cost_at_sale, unit, bill_id, profit, cost_allocated, billable_quantity, system_price')
+        .in('bill_id', batch);
+      if (shopId) q = q.eq('shop_id', shopId);
+      return q.order('id', { ascending: true });
+    }));
+    const failed = results.find(r => r.error);
+    if (failed) throw new Error(`Sale details could not be loaded: ${failed.error.message}`);
+    items = results.flatMap(r => r.data || []);
+  }
+  return { bills: bills || [], items };
 }
 
 // ---------------------------------------------------------------
@@ -672,6 +906,9 @@ export default function OwnerStats({ isActive }) {
     return d.toLocaleDateString('en-CA');
   });
   const [endDate, setEndDate] = useSessionState(`pos_stats_end_${shopId}`, () => new Date().toLocaleDateString('en-CA'));
+  // Chart: Revenue or Profit, grouped by hour or by day
+  const [chartMetric, setChartMetric] = useSessionState(`pos_stats_chart_metric_${shopId}`, 'rev');
+  const [chartView, setChartView] = useSessionState(`pos_stats_chart_view_${shopId}`, 'days');
 
   const handleResetStats = () => {
     setGlobalTimeframe('today');
@@ -689,222 +926,22 @@ export default function OwnerStats({ isActive }) {
     } catch (e) {}
   };
 
-  // 1. FAST Sales & Trend Query (~40ms) — only queries bills for the chosen date/range
+  // 1. Sales for the chosen day / range (plus the rest of that week, for the "By day" chart)
   const fetchSalesStats = useCallback(async () => {
-    const now = new Date();
-    let queryStart;
-    let queryEnd;
-    let tfStart;
-    let tfEnd;
-    let trendData = {};
+    const sel = resolveSelection(globalTimeframe, customDate, startDate, endDate);
+    const { bills: billsData, items: rawItemsData } = await loadSalesData(shopId, sel.loadStart, sel.loadEnd);
+    const points = billPoints(billsData, rawItemsData);
 
-    if (globalTimeframe === 'today') {
-      const todayStr = now.toLocaleDateString('en-CA');
-      tfStart = `${todayStr}T00:00:00`;
-      tfEnd = `${todayStr}T23:59:59.999`;
-
-      const dayOfWeek = now.getDay();
-      const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-      const monday = new Date(now);
-      monday.setDate(monday.getDate() - diffToMonday);
-      queryStart = `${monday.toLocaleDateString('en-CA')}T00:00:00`;
-      queryEnd = `${todayStr}T23:59:59.999`;
-
-      for (let i = 0; i < 7; i++) {
-        const dt = new Date(monday);
-        dt.setDate(dt.getDate() + i);
-        const key = dt.toLocaleDateString('en-CA');
-        trendData[key] = { label: dt.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(), rev: 0 };
-      }
-    } else if (globalTimeframe === 'date') {
-      const d = customDate || now.toLocaleDateString('en-CA');
-      queryStart = `${d}T00:00:00`;
-      queryEnd = `${d}T23:59:59.999`;
-      tfStart = queryStart;
-      tfEnd = queryEnd;
-
-      const buckets = [
-        { key: '08-10', label: '8-10 AM' },
-        { key: '10-12', label: '10-12 PM' },
-        { key: '12-14', label: '12-2 PM' },
-        { key: '14-16', label: '2-4 PM' },
-        { key: '16-18', label: '4-6 PM' },
-        { key: '18-20', label: '6-8 PM' },
-        { key: '20-22', label: '8-10 PM' }
-      ];
-      buckets.forEach(b => {
-        trendData[b.key] = { label: b.label, rev: 0 };
-      });
-    } else if (globalTimeframe === 'range') {
-      let s = startDate || now.toLocaleDateString('en-CA');
-      let e = endDate || now.toLocaleDateString('en-CA');
-      if (s > e) [s, e] = [e, s];
-      queryStart = `${s}T00:00:00`;
-      queryEnd = `${e}T23:59:59.999`;
-      tfStart = queryStart;
-      tfEnd = queryEnd;
-
-      const sDate = new Date(`${s}T00:00:00`);
-      const eDate = new Date(`${e}T00:00:00`);
-      const diffDays = Math.max(1, Math.round((eDate.getTime() - sDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-
-      if (diffDays <= 1) {
-        const buckets = [
-          { key: '08-10', label: '8-10 AM' },
-          { key: '10-12', label: '10-12 PM' },
-          { key: '12-14', label: '12-2 PM' },
-          { key: '14-16', label: '2-4 PM' },
-          { key: '16-18', label: '4-6 PM' },
-          { key: '18-20', label: '6-8 PM' },
-          { key: '20-22', label: '8-10 PM' }
-        ];
-        buckets.forEach(b => {
-          trendData[b.key] = { label: b.label, rev: 0 };
-        });
-      } else if (diffDays <= 14) {
-        for (let i = 0; i < diffDays; i++) {
-          const dt = new Date(sDate);
-          dt.setDate(dt.getDate() + i);
-          const key = dt.toLocaleDateString('en-CA');
-          const label = diffDays <= 7 
-            ? dt.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()
-            : `${dt.getDate()} ${dt.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}`;
-          trendData[key] = { label, rev: 0 };
-        }
-      } else if (diffDays <= 31) {
-        for (let i = 0; i < diffDays; i++) {
-          const dt = new Date(sDate);
-          dt.setDate(dt.getDate() + i);
-          const key = dt.toLocaleDateString('en-CA');
-          trendData[key] = { label: dt.getDate().toString(), rev: 0 };
-        }
-      } else {
-        const numBuckets = Math.min(12, Math.ceil(diffDays / 7));
-        const daysPerBucket = Math.ceil(diffDays / numBuckets);
-        for (let b = 0; b < numBuckets; b++) {
-          const dt = new Date(sDate);
-          dt.setDate(dt.getDate() + b * daysPerBucket);
-          const key = `B_${b}`;
-          trendData[key] = { 
-            label: `${dt.getDate()} ${dt.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}`, 
-            rev: 0,
-            startMs: dt.getTime(),
-            endMs: dt.getTime() + daysPerBucket * 24 * 60 * 60 * 1000
-          };
-        }
-      }
-    }
-
-    const shopId = localStorage.getItem('shop_id');
-    // Every bill in the period (paged: the database returns at most 1,000 rows per request)
-    const { data: allBills, error: billsErr } = await fetchAllRows(() => {
-      let billsQuery = supabase
-        .from('bills')
-        .select('id, total_amount, cash_amount, upi_amount, payment_method, created_at')
-        .gte('created_at', localToUtcIso(queryStart))
-        .lte('created_at', localToUtcIso(queryEnd))
-        .eq('location', 'Store')
-        .neq('status', 'voided')
-        .neq('status', 'showroom_pending')
-        .neq('status', 'showroom')
-        .neq('payment_method', 'SHOWROOM');
-      if (shopId) {
-        billsQuery = billsQuery.eq('shop_id', shopId);
-      }
-      return billsQuery.order('created_at', { ascending: true }).order('id', { ascending: true });
-    });
-    if (billsErr) console.warn('[Stats] Bills could not be fully loaded:', billsErr.message);
-
-    const billsData = allBills || [];
-
-    // Fetch bill items for billsData to accurately compute revenue & profit without screws
-    // (Screws are tracked in sales history, but excluded from dashboard revenue and profit)
-    const allBillIdArray = Array.from(new Set(billsData.map(b => b.id)));
-    let rawItemsData = [];
-    if (allBillIdArray.length > 0) {
-      // Items of those bills, 100 bills per request, at most 6 requests at a time
-      const batchResults = await mapWithLimit(chunk(allBillIdArray, 100), 6, (batch) => fetchAllRows(() => {
-        let q = supabase.from('bill_items')
-          .select('name, barcode, quantity, price_at_sale, cost_at_sale, unit, bill_id, profit, cost_allocated, billable_quantity, system_price')
-          .in('bill_id', batch);
-        if (shopId) {
-          q = q.eq('shop_id', shopId);
-        }
-        return q.order('id', { ascending: true });
-      }));
-      rawItemsData = batchResults.flatMap(r => r.data || []);
-    }
-
-    // Map each bill to its non-screw revenue
-    const billItemsByBillId = new Map();
-    rawItemsData.forEach(item => {
-      const list = billItemsByBillId.get(item.bill_id) || [];
-      list.push(item);
-      billItemsByBillId.set(item.bill_id, list);
-    });
-
-    const getBillNonScrewRevenue = (bill) => {
-      const items = billItemsByBillId.get(bill.id);
-      if (items && items.length > 0) {
-        // Sum only non-screw items
-        return items
-          .filter(it => it.barcode !== 'SCREWS' && it.name !== 'Screws' && !it.is_screw)
-          .reduce((sum, it) => sum + (Number(it.price_at_sale || 0) * Number(it.billable_quantity || it.quantity || 1)), 0);
-      }
-      return Number(bill.total_amount || 0);
-    };
-
-    // Calculate trend bars (excluding screws revenue)
-    let maxRev = 0;
-    const sDate = startDate ? new Date(`${startDate}T00:00:00`) : new Date();
-    const eDate = endDate ? new Date(`${endDate}T00:00:00`) : new Date();
-    const diffDays = Math.max(1, Math.round((eDate.getTime() - sDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-
-    billsData.forEach(bill => {
-      let key;
-      if (globalTimeframe === 'date' || (globalTimeframe === 'range' && diffDays <= 1)) {
-        const billDate = new Date(bill.created_at);
-        const hour = billDate.getHours();
-        if (hour < 10) key = '08-10';
-        else if (hour < 12) key = '10-12';
-        else if (hour < 14) key = '12-14';
-        else if (hour < 16) key = '14-16';
-        else if (hour < 18) key = '16-18';
-        else if (hour < 20) key = '18-20';
-        else key = '20-22';
-      } else if (globalTimeframe === 'range' && diffDays > 31) {
-        const bTime = new Date(bill.created_at).getTime();
-        const foundBucket = Object.keys(trendData).find(k => {
-          const b = trendData[k];
-          return bTime >= b.startMs && bTime < b.endMs;
-        });
-        key = foundBucket;
-      } else {
-        key = new Date(bill.created_at).toLocaleDateString('en-CA');
-      }
-
-      const nonScrewRev = getBillNonScrewRevenue(bill);
-      if (key && trendData[key]) {
-        trendData[key].rev += nonScrewRev;
-        if (trendData[key].rev > maxRev) maxRev = trendData[key].rev;
-      }
-    });
-
-    const trend = Object.values(trendData).map(item => ({
-      ...item,
-      heightPct: maxRev === 0 ? 0 : (item.rev / maxRev) * 85
-    }));
-
-    // Filter bills for the timeframe metrics
-    const tfStartMs = new Date(tfStart).getTime();
-    const tfEndMs = new Date(tfEnd).getTime();
+    // Bills of the chosen period (the loaded window can be wider: the whole week of the day)
+    const tfStartMs = new Date(`${sel.start}T00:00:00`).getTime();
+    const tfEndMs = new Date(`${sel.end}T23:59:59.999`).getTime();
     const tfBills = billsData.filter(b => {
       const t = new Date(b.created_at).getTime();
       return t >= tfStartMs && t <= tfEndMs;
     });
     const tfBillIds = new Set(tfBills.map(b => b.id));
+    const tfPoints = points.filter(p => tfBillIds.has(p.id));
 
-    let tfTrueRevenue = 0, tfGrossProfit = 0, tfTotalCost = 0, tfTotalDiscount = 0;
     // Money received by payment mode (same split as the day closing report)
     let tfCashCents = 0, tfUpiCents = 0;
     tfBills.forEach(bill => {
@@ -912,63 +949,34 @@ export default function OwnerStats({ isActive }) {
       tfCashCents += Math.round(cash * 100);
       tfUpiCents += Math.round(upi * 100);
     });
-    let tfSalesDetails = [];
-    let topProducts = [];
 
-    if (tfBills.length > 0) {
-      // Exclude screws from dashboard total revenue
-      const tfTotalRevCents = tfBills.reduce((sum, bill) => sum + Math.round(getBillNonScrewRevenue(bill) * 100), 0);
-      tfTrueRevenue = tfTotalRevCents / 100;
+    // Revenue (screws left out), same per-bill figures as the chart
+    const tfTrueRevenue = tfPoints.reduce((s, p) => s + Math.round(p.rev * 100), 0) / 100;
 
-      let tProfitCents = 0, tCostCents = 0, tSystemRevCents = 0, tFinalRevCents = 0;
-      const salesMap = {};
-      const productStats = {};
+    let tProfitCents = 0, tCostCents = 0, tSystemRevCents = 0, tFinalRevCents = 0;
+    const salesMap = {};
+    rawItemsData.filter(it => tfBillIds.has(it.bill_id)).forEach(item => {
+      // Screws are left out of dashboard profit, discount and the leaderboard
+      if (isScrewItem(item)) return;
+      const cleanName = (item.name || item.item_name || 'Item').split(' (Cut from ')[0];
+      const { qty, price, rev: lineRev, cost: lineCost, profit: lineProfit } = lineFigures(item);
+      const lineSystemRev = Number(item.selling_price || item.system_price || price) * qty;
+      tProfitCents += Math.round(lineProfit * 100);
+      tCostCents += Math.round(lineCost * 100);
+      tSystemRevCents += Math.round(lineSystemRev * 100);
+      tFinalRevCents += Math.round(lineRev * 100);
+      const row = salesMap[cleanName] || (salesMap[cleanName] = { name: cleanName, unit: item.unit, qty: 0, lineCost: 0, lineRev: 0, lineProfit: 0 });
+      row.qty += qty;
+      row.lineCost += lineCost;
+      row.lineRev += lineRev;
+      row.lineProfit += lineProfit;
+    });
+    // Bills saved without line details: their profit is on the bill itself
+    const billsWithLines = new Set(rawItemsData.map(it => it.bill_id));
+    tfPoints.filter(p => !billsWithLines.has(p.id)).forEach(p => { tProfitCents += Math.round(p.profit * 100); });
 
-      const tfItems = rawItemsData.filter(it => tfBillIds.has(it.bill_id));
-
-      tfItems.forEach(item => {
-        // Exclude screws from dashboard profit, revenue, discount, and leaderboard
-        if (item.barcode === 'SCREWS' || item.name === 'Screws' || item.is_screw) {
-          return;
-        }
-
-        const rawName = item.name || item.item_name || 'Item';
-        const cleanName = rawName.split(' (Cut from ')[0];
-        const qty = Number(item.billable_quantity || item.quantity || 0);
-        const price = Number(item.price_at_sale || 0);
-        const lineCost = item.cost_allocated !== undefined && item.cost_allocated !== null ? Number(item.cost_allocated) : (Number(item.cost_at_sale || 0) * Number(item.quantity || 0));
-        const lineRev = price * qty;
-        const lineSystemRev = Number(item.selling_price || item.system_price || price) * qty;
-        const lineProfit = item.profit !== undefined && item.profit !== null ? Number(item.profit) : (lineRev - lineCost);
-
-        if (productStats[cleanName]) {
-          productStats[cleanName].profit += lineProfit;
-          productStats[cleanName].qty += qty;
-        } else {
-          productStats[cleanName] = { name: cleanName, profit: lineProfit, qty, unit: item.unit };
-        }
-
-        tProfitCents += Math.round(lineProfit * 100);
-        tCostCents += Math.round(lineCost * 100);
-        tSystemRevCents += Math.round(lineSystemRev * 100);
-        tFinalRevCents += Math.round(lineRev * 100);
-
-        if (salesMap[cleanName]) {
-          salesMap[cleanName].qty += qty;
-          salesMap[cleanName].lineCost += lineCost;
-          salesMap[cleanName].lineRev += lineRev;
-          salesMap[cleanName].lineProfit += lineProfit;
-        } else {
-          salesMap[cleanName] = { name: cleanName, unit: item.unit, qty, lineCost, lineRev, lineProfit };
-        }
-      });
-
-      tfTotalDiscount = Math.max(0, (tSystemRevCents - tFinalRevCents) / 100);
-      tfGrossProfit = tProfitCents / 100;
-      tfTotalCost = tCostCents / 100;
-      tfSalesDetails = Object.values(salesMap).sort((a, b) => b.lineProfit - a.lineProfit);
-      topProducts = Object.values(productStats).sort((a, b) => b.profit - a.profit).slice(0, 10);
-    }
+    const tfSalesDetails = Object.values(salesMap).sort((a, b) => b.lineProfit - a.lineProfit);
+    const topProducts = tfSalesDetails.slice(0, 10).map(r => ({ name: r.name, profit: r.lineProfit, qty: r.qty, unit: r.unit }));
 
     // Expenses for the same period, so profit can be shown after expenses (best effort)
     let tfExpenses = 0;
@@ -976,8 +984,8 @@ export default function OwnerStats({ isActive }) {
       const { data: expData, error: expErr } = await fetchAllRows(() => supabase
         .from('expenses')
         .select('*')
-        .gte('created_at', localToUtcIso(tfStart))
-        .lte('created_at', localToUtcIso(tfEnd))
+        .gte('created_at', localToUtcIso(`${sel.start}T00:00:00`))
+        .lte('created_at', localToUtcIso(`${sel.end}T23:59:59.999`))
         .order('created_at', { ascending: true })
         .order('id', { ascending: true }));
       if (!expErr && expData) {
@@ -996,19 +1004,26 @@ export default function OwnerStats({ isActive }) {
 
     return {
       tfTrueRevenue,
-      tfGrossProfit,
-      tfTotalCost,
-      tfTotalDiscount,
+      tfGrossProfit: tProfitCents / 100,
+      tfTotalCost: tCostCents / 100,
+      tfTotalDiscount: Math.max(0, (tSystemRevCents - tFinalRevCents) / 100),
       tfCash: tfCashCents / 100,
       tfUpi: tfUpiCents / 100,
+      tfBillCount: tfBills.length,
       tfExpenses: Math.round(tfExpenses * 100) / 100,
       tfSalesDetails,
       topProducts,
-      trend,
+      points,
+      selection: sel,
     };
-    // shopId kept so the figures reload when the shop changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopId, globalTimeframe, customDate, startDate, endDate]);
+
+  // "When customers come": the last 4 full weeks, independent of the chosen date
+  const fetchInsights = useCallback(async () => {
+    const win = insightWindow();
+    const { bills, items } = await loadSalesData(shopId, win.startIso, win.endIso);
+    return buildInsights(billPoints(bills, items), win);
+  }, [shopId]);
 
   // 2. Separate Inventory Query — runs ONCE on load, never re-runs on date change
   const fetchInventoryStats = useCallback(async () => {
@@ -1156,14 +1171,60 @@ export default function OwnerStats({ isActive }) {
     };
   }, [shopId]);
 
+  // "Today" follows the clock: a new day loads fresh figures
+  const todayKey = new Date().toLocaleDateString('en-CA');
   const { data: salesData, isLoading: isSalesLoading, error: salesError } = useQuery({
-    queryKey: ['dashboard-sales-stats', shopId, isActive, globalTimeframe, customDate, startDate, endDate],
+    queryKey: ['dashboard-sales-stats', shopId, isActive, globalTimeframe, customDate, startDate, endDate, todayKey],
     queryFn: fetchSalesStats,
     placeholderData: keepPreviousData,
     staleTime: STALE_TIME_5MIN,
     enabled: isActive,
     refetchOnWindowFocus: true,
   });
+
+  const { data: insights, isLoading: isInsightsLoading, error: insightsError } = useQuery({
+    queryKey: ['dashboard-insights', shopId, isActive, todayKey],
+    queryFn: fetchInsights,
+    staleTime: 1000 * 60 * 30,
+    enabled: isActive,
+  });
+
+  // Chart bars for the chosen figure and grouping (no reload when switching)
+  const chart = useMemo(() => {
+    const sel = salesData?.selection;
+    const points = salesData?.points || [];
+    if (!sel) return { buckets: [], title: '', subtitle: '' };
+    const figure = chartMetric === 'profit' ? 'Profit' : 'Revenue';
+    const metricKey = chartMetric === 'profit' ? 'profit' : 'rev';
+    const label = (iso, withYear) => formatDateLabel(iso, withYear);
+    const startMs = new Date(`${sel.start}T00:00:00`).getTime();
+    const endMs = new Date(`${sel.end}T23:59:59.999`).getTime();
+    const inPeriod = points.filter(p => p.t >= startMs && p.t <= endMs);
+    const periodLabel = sel.kind === 'day'
+      ? (sel.isToday ? 'Today' : label(sel.day, true))
+      : `${label(sel.start, false)} – ${label(sel.end, true)}`;
+
+    if (chartView === 'hours') {
+      return {
+        buckets: hourlyBuckets(inPeriod, metricKey),
+        title: `${figure} by hour`,
+        subtitle: sel.kind === 'day' ? periodLabel : `Total for ${periodLabel}`,
+      };
+    }
+    if (sel.kind === 'day') {
+      return {
+        buckets: dailyBuckets(points, metricKey, sel.weekStart, sel.weekEnd, sel.todayIso, sel.day),
+        title: `${figure} by day`,
+        subtitle: `Week of ${label(sel.weekStart, false)} – ${label(sel.weekEnd, true)}`,
+      };
+    }
+    const days = Math.round((new Date(`${sel.end}T00:00:00`) - new Date(`${sel.start}T00:00:00`)) / 86400000) + 1;
+    return {
+      buckets: dailyBuckets(inPeriod, metricKey, sel.start, sel.end, sel.todayIso),
+      title: `${figure} by ${days > 31 ? 'week' : 'day'}`,
+      subtitle: periodLabel,
+    };
+  }, [salesData, chartMetric, chartView]);
 
   const { data: invData, isLoading: isInvLoading, error: invError } = useQuery({
     queryKey: ['dashboard-inventory-stats', shopId, isActive],
@@ -1215,7 +1276,6 @@ export default function OwnerStats({ isActive }) {
   const tfUpi = salesData?.tfUpi ?? 0;
   const tfSalesDetails = salesData?.tfSalesDetails ?? [];
   const topProducts = salesData?.topProducts ?? [];
-  const tfTrend = salesData?.trend ?? [];
 
   const lowStoreItems = invData?.lowStoreItems ?? [];
   const lowWarehouseItems = invData?.lowWarehouseItems ?? [];
@@ -1306,12 +1366,21 @@ export default function OwnerStats({ isActive }) {
 
       {/* ROW 2: TRENDS & LEADERBOARD */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 lg:gap-4 mb-4 flex-1 min-h-[420px] xl:min-h-[300px] min-w-0">
-        <SalesTrendChart 
-          trend={tfTrend}
+        <SalesTrendChart
+          buckets={chart.buckets}
+          title={chart.title}
+          subtitle={chart.subtitle}
           isLoading={isSalesLoading}
+          metric={chartMetric}
+          setMetric={setChartMetric}
+          view={chartView}
+          setView={setChartView}
         />
         <TopProductsList products={topProducts} />
       </div>
+
+      {/* ROW 2b: WHEN CUSTOMERS COME (last 4 full weeks) */}
+      <CustomerFlowInsights insights={insights} isLoading={isInsightsLoading} error={insightsError} />
 
       {/* ROW 3: MONEY RECEIVED (for the chosen period) + CAPITAL */}
       {isWarehouseDisabled ? (
