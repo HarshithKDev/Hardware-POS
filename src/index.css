@@ -281,19 +281,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-#root,
-main,
-[data-virtuoso-scroller],
-div[data-viewport-type="element"],
-.overflow-y-auto,
-.overflow-auto,
-.overflow-scroll,
-.overflow-x-hidden,
-.overflow-x-auto {
-  overscroll-behavior: none !important;
-  overscroll-behavior-y: none !important;
-  overscroll-behavior-x: none !important;
-}
+/* Only the page itself (html/body above) blocks overscroll, which stops pull-to-refresh and the
+   rubber-band bounce. Inner scroll areas must NOT set overscroll-behavior: none: on phones a list box
+   that has nothing to scroll would then swallow the swipe instead of passing it to the page, and the
+   page could not be scrolled at all (Sales History, Showroom Dispatches and Audit Logs had this bug). */
 
 /* Prevent unwanted automatic zoom jumps on mobile iOS devices when inputs are focused.
    Phones and tablets (touch, no mouse) both need 16px: iOS zooms into smaller fields. */

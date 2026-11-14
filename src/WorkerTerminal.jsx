@@ -160,23 +160,22 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
   const [isInputFocused, setIsInputFocused] = useState(false);
 
-  // Phone checkout: scan barcodes with the phone camera
+  // Phone checkout: scan barcodes with the phone camera. The camera closes as soon as an item has
+  // been added (one scan = one item); tap the camera button again to scan the next one.
   const [isCheckoutCameraOpen, setIsCheckoutCameraOpen] = useState(false);
-  const [cameraLastAdded, setCameraLastAdded] = useState(null);
   const prevCartForCameraRef = useRef(cart);
   useEffect(() => {
     const prev = prevCartForCameraRef.current || [];
     prevCartForCameraRef.current = cart;
     if (!isCheckoutCameraOpen) return;
-    // Show which item the scan added (new line, or a higher quantity)
-    for (const item of cart) {
+    // An item was added (new line, or a higher quantity): close the camera
+    const added = cart.some(item => {
       const before = prev.find(p => p.id === item.id);
-      const qty = Number(item.quantity) || 0;
-      if (!before || qty > (Number(before.quantity) || 0)) {
-        setCameraLastAdded({ name: item.name || 'Item', qty, unit: item.unit, key: `${item.id}-${qty}-${Date.now()}` });
-        try { navigator.vibrate?.(40); } catch { /* not supported */ }
-        break;
-      }
+      return !before || (Number(item.quantity) || 0) > (Number(before.quantity) || 0);
+    });
+    if (added) {
+      try { navigator.vibrate?.(40); } catch { /* not supported */ }
+      setIsCheckoutCameraOpen(false);
     }
   }, [cart, isCheckoutCameraOpen]);
   // Pause the camera while any popup needs the cashier's attention
@@ -2521,7 +2520,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                 {activeTab === 'checkout' && (
                   <button
                     type="button"
-                    onClick={() => { setCameraLastAdded(null); setIsCheckoutCameraOpen(v => !v); }}
+                    onClick={() => setIsCheckoutCameraOpen(v => !v)}
                     aria-pressed={isCheckoutCameraOpen}
                     aria-label={isCheckoutCameraOpen ? 'Close camera scanner' : 'Scan barcode with camera'}
                     title={isCheckoutCameraOpen ? 'Close camera scanner' : 'Scan barcode with camera'}
@@ -2676,7 +2675,6 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
             onScan={async (code) => { await processScan(code); }}
             onClose={() => setIsCheckoutCameraOpen(false)}
             paused={isCheckoutCameraPaused}
-            lastAdded={cameraLastAdded}
           />
         )}
 

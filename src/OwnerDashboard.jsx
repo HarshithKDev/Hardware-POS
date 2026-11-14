@@ -163,7 +163,7 @@ export default function OwnerDashboard() {
       {/* MAIN CONTENT */}
       <main
         className="flex-1 min-w-0 min-h-0 flex flex-col p-3 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:p-4 overflow-y-auto overflow-x-hidden relative m-0 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm"
-        style={{ backgroundColor: 'var(--bg-secondary)', overscrollBehavior: 'none' }}
+        style={{ backgroundColor: 'var(--bg-secondary)' }}
         role="main"
         aria-label="Dashboard content"
       >

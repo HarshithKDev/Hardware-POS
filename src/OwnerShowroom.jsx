@@ -105,7 +105,7 @@ export default function OwnerShowroom() {
 
       {/* Bills list container */}
       <div className="flex-1 flex flex-col min-h-0">
-        <div className="flex-1 overflow-x-hidden overflow-y-auto max-md:flex-none max-md:overflow-y-visible shadow-sm min-h-[300px] max-md:min-h-0 rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] mb-4" style={{ overscrollBehavior: 'none' }}>
+        <div className="flex-1 overflow-x-hidden overflow-y-auto max-md:flex-none max-md:overflow-clip shadow-sm min-h-[300px] max-md:min-h-0 rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] mb-4">
           {isLoading ? (
             <TableSkeleton rows={8} cols={5} label="Loading showroom dispatches…" />
           ) : bills.length === 0 ? (

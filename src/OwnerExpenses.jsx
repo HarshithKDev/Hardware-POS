@@ -415,7 +415,7 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
             </div>
 
             {/* Desktop Table */}
-            <div className="hidden md:block flex-1 overflow-x-hidden overflow-y-auto shadow-sm min-h-[300px] md:rounded-lg border border-[var(--border-medium)]" style={{ backgroundColor: 'transparent', overscrollBehavior: 'none' }}>
+            <div className="hidden md:block flex-1 overflow-x-hidden overflow-y-auto shadow-sm min-h-[300px] md:rounded-lg border border-[var(--border-medium)]" style={{ backgroundColor: 'transparent' }}>
               <table className="w-full text-center border-collapse">
                 <thead className="sticky top-0 z-20" style={{ backgroundColor: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-medium)' }}>
                   <tr className="h-10 text-[11px] font-semibold uppercase tracking-wider text-center" style={{ color: 'var(--text-secondary)' }}>

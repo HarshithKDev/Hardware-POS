@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, CheckCircle2, CameraOff, RotateCcw, Pause } from 'lucide-react';
+import { X, CameraOff, RotateCcw, Pause } from 'lucide-react';
 import InlineContinuousScanner from './InlineContinuousScanner';
 
 const READER_ID = 'checkout-camera-reader';
@@ -20,12 +20,10 @@ const friendlyError = (err) => {
 };
 
 /**
- * Phone checkout: live camera panel that adds items as their barcodes are scanned.
- * Keeps scanning until closed; pauses while a popup is open.
- *
- * lastAdded: { name, qty, unit, key } of the item most recently added, shown as feedback.
+ * Phone checkout: live camera panel that adds the scanned item to the cart.
+ * The parent closes it once the item has been added; it pauses while a popup is open.
  */
-export default function CheckoutCameraScanner({ onScan, onClose, paused, lastAdded }) {
+export default function CheckoutCameraScanner({ onScan, onClose, paused }) {
   const [error, setError] = useState(null);
   const [attempt, setAttempt] = useState(0);
 
@@ -101,18 +99,9 @@ export default function CheckoutCameraScanner({ onScan, onClose, paused, lastAdd
         </button>
       </div>
 
-      {/* What the last scan did */}
-      <div className="min-h-[36px] flex items-center pt-2 pb-1" aria-live="polite">
-        {lastAdded ? (
-          <p key={lastAdded.key} className="flex items-center gap-2 text-sm min-w-0 animate-fade-in">
-            <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: 'var(--color-success)' }} aria-hidden="true" />
-            <span className="truncate font-semibold text-[var(--text-primary)]">{lastAdded.name}</span>
-            <span className="shrink-0 tabular-nums text-[var(--text-secondary)]">· {lastAdded.qty}{lastAdded.unit ? ` ${String(lastAdded.unit).toLowerCase()}` : ''} in cart</span>
-          </p>
-        ) : (
-          <p className="text-xs text-[var(--text-tertiary)]">Each barcode is added once. For another of the same item, move the camera away and back, or tap + in the cart.</p>
-        )}
-      </div>
+      <p className="text-xs text-[var(--text-tertiary)] pt-2 pb-2">
+        The camera closes once the item is added. Tap the camera button to scan the next one.
+      </p>
     </div>
   );
 }
