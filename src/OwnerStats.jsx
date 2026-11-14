@@ -295,73 +295,29 @@ function SalesTrendChart({ buckets, isLoading, metric, setMetric, view, setView,
 
 const oneDecimal = (n) => (Math.round(n * 10) / 10).toLocaleString('en-IN', { maximumFractionDigits: 1 });
 
-/** Small bar chart for the customer-flow insights; the busiest bar is highlighted */
-function MiniBars({ items, peakKey, ariaLabel }) {
-  const max = items.reduce((m, it) => Math.max(m, it.avg), 0);
-  const thin = items.length > 12;
-  return (
-    <div className="relative flex items-end gap-1 h-28 pt-2 pb-5 px-1" role="img" aria-label={ariaLabel}>
-      {items.map((it, i) => {
-        const peak = it.key === peakKey;
-        return (
-          <div key={it.key} tabIndex={0} aria-label={it.tooltip} className="flex-1 min-w-0 h-full flex flex-col justify-end items-center group relative outline-none">
-            <div
-              className="w-full rounded-t-sm transition-opacity group-hover:opacity-100 group-focus:opacity-100"
-              style={{
-                height: max === 0 ? '0%' : `${(it.avg / max) * 100}%`,
-                minHeight: it.avg > 0 ? '3px' : '0px',
-                backgroundColor: 'var(--color-accent-solid)',
-                opacity: peak ? 1 : 0.4,
-              }}
-            />
-            <span className={`absolute -top-6 text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity z-10 pointer-events-none ${i < items.length / 3 ? 'left-0' : i > (items.length * 2) / 3 ? 'right-0' : 'left-1/2 -translate-x-1/2'}`} style={{ color: 'var(--text-primary)', backgroundColor: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-light)' }}>
-              {it.tooltip}
-            </span>
-            <span className={`absolute -bottom-5 text-[11px] uppercase whitespace-nowrap ${peak ? 'font-bold' : 'font-semibold'} ${thin && i % 2 === 1 ? 'max-sm:invisible' : ''}`} style={{ color: peak ? 'var(--color-accent)' : 'var(--text-tertiary)' }}>
-              {it.label}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 const customers = (n) => `${oneDecimal(n)} customer${Math.round(n * 10) === 10 ? '' : 's'}`;
 
-/** When customers come: busiest hour and day over the last 4 full weeks */
+/** When customers come: busiest hour and day over the last 4 full weeks, in words */
 function CustomerFlowInsights({ insights, isLoading, error }) {
   let body;
   if (isLoading && !insights) {
-    body = <p className="text-sm py-4" style={{ color: 'var(--text-tertiary)' }}>Loading…</p>;
+    body = <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Loading…</p>;
   } else if (error) {
-    body = <p className="text-sm py-4" style={{ color: 'var(--color-error)' }}>Could not load. Please try again.</p>;
+    body = <p className="text-sm" style={{ color: 'var(--color-error)' }}>Could not load. Please try again.</p>;
   } else if (!insights?.enough) {
-    body = <p className="text-sm py-4" style={{ color: 'var(--text-tertiary)' }}>Not enough sales yet to show a pattern.</p>;
+    body = <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Not enough sales yet to show a pattern.</p>;
   } else {
-    const { hours, days, peakHour, peakDay } = insights;
+    const { peakHour, peakDay } = insights;
+    const line = (label, value, detail) => (
+      <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+        {label}: <strong style={{ color: 'var(--text-primary)' }}>{value}</strong>
+        <span style={{ color: 'var(--text-tertiary)' }}> · {detail}</span>
+      </p>
+    );
     body = (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-8">
-        <div className="min-w-0">
-          <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>
-            Busiest hour: <strong style={{ color: 'var(--text-primary)' }}>{peakHour.fullLabel}</strong>
-          </p>
-          <MiniBars
-            ariaLabel="Average customers by hour of day"
-            peakKey={`h${peakHour.hour}`}
-            items={hours.map(h => ({ key: `h${h.hour}`, label: h.label, avg: h.avg, tooltip: `${h.fullLabel}: ${customers(h.avg)} a day` }))}
-          />
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>
-            Busiest day: <strong style={{ color: 'var(--text-primary)' }}>{peakDay.name}</strong>
-          </p>
-          <MiniBars
-            ariaLabel="Average customers by day of week"
-            peakKey={`d${peakDay.weekday}`}
-            items={days.map(d => ({ key: `d${d.weekday}`, label: d.label, avg: d.avg, tooltip: `${d.name}: ${customers(d.avg)} · ₹${formatINR(d.avgRev, 0)}` }))}
-          />
-        </div>
+      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-x-10 gap-y-1.5">
+        {line('Busiest hour', peakHour.fullLabel, `about ${customers(peakHour.avg)} a day`)}
+        {line('Busiest day', peakDay.name, `about ${customers(peakDay.avg)} and ₹${formatINR(peakDay.avgRev, 0)} in sales`)}
       </div>
     );
   }
@@ -370,7 +326,7 @@ function CustomerFlowInsights({ insights, isLoading, error }) {
     <section className="p-4 sm:p-5 rounded-lg border border-[var(--border-light)] mb-4 shrink-0 min-w-0" style={{ backgroundColor: 'var(--bg-secondary)' }} aria-labelledby="customer-flow-title">
       <h3
         id="customer-flow-title"
-        className="text-xs font-semibold uppercase tracking-wider mb-3"
+        className="text-xs font-semibold uppercase tracking-wider mb-2"
         style={{ color: 'var(--text-secondary)' }}
         title="Average customers (bills) per day over the last 4 full weeks"
       >
