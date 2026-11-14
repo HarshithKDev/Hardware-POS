@@ -152,7 +152,7 @@ export default function OwnerLedger({ isActive }) {
       if (shopId) query = query.eq('shop_id', shopId);
       return query;
     }, { owner: isOwner }),
-    { enabled: isActive, currentIndex: datePageIndex }
+    { enabled: isActive, currentIndex: datePageIndex, daysKind: 'sales' }
   );
 
   const isSearching = Boolean(searchQuery.trim());

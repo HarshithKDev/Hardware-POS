@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 import ReceiptTemplate from './ReceiptTemplate';
@@ -17,7 +17,6 @@ import { useApp } from './AppContext';
 import { generateId, formatDateTime, calculateMSP, formatINR } from './utils';
 import { SCAN_TIMEOUT_MS } from './constants';
 
-import CheckoutCameraScanner from './components/scanner/CheckoutCameraScanner';
 import { ScanLine } from 'lucide-react';
 import CartTable from './components/cart/CartTable';
 import CartMobileView from './components/cart/CartMobileView';
@@ -33,6 +32,10 @@ import { broadcastStockUpdate, subscribeToStockUpdates } from './services/realti
 import { buttonClass } from './components/ui';
 import { readRows } from './services/secureRead';
 import { logActivity } from './services/auditLog';
+
+// The phone camera scanner (a large barcode library) loads only when the camera is opened,
+// so a counter that never uses the camera never downloads it
+const CheckoutCameraScanner = lazy(() => import('./components/scanner/CheckoutCameraScanner'));
 
 // Dynamic smart denomination suggestions for rapid cash checkout
 function getQuickTenderOptions(total) {
@@ -316,8 +319,12 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         
         let finalSuggestions = parentData || [];
 
-        // Online fallback if local IndexedDB doesn't have the newly created item yet
+        // Online fallback if local IndexedDB doesn't have the newly created item yet.
+        // Only once typing pauses: a barcode typed or scanned key by key would otherwise
+        // send one server request per character.
         if (finalSuggestions.length === 0 && navigator.onLine) {
+          await new Promise(r => setTimeout(r, 350));
+          if (!isCurrent) return;
           try {
             const shopId = localStorage.getItem('shop_id');
             let q = supabase
@@ -2568,11 +2575,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         </div>
 
         {(activeTab === 'checkout' || activeTab === 'receive' || activeTab === 'transfer') && isCheckoutCameraOpen && (
-          <CheckoutCameraScanner
-            onScan={async (code) => { await processScan(code); }}
-            onClose={() => setIsCheckoutCameraOpen(false)}
-            paused={isCheckoutCameraPaused}
-          />
+          <Suspense fallback={<div className="md:hidden h-[250px] flex items-center justify-center text-sm" style={{ color: 'var(--text-tertiary)' }}>Starting camera…</div>}>
+            <CheckoutCameraScanner
+              onScan={async (code) => { await processScan(code); }}
+              onClose={() => setIsCheckoutCameraOpen(false)}
+              paused={isCheckoutCameraPaused}
+            />
+          </Suspense>
         )}
 
         {/* Mobile View for Checkout */}

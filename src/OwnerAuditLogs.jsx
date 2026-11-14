@@ -10,6 +10,25 @@ import { buttonClass, DateField, TableSkeleton } from './components/ui';
 import { groupTransactionLogs } from './services/auditGrouping';
 import { useActiveDays, ACTIVE_DAYS_STEP } from './hooks/useActiveDays';
 import AuditLogDetailsModal from './components/audit/AuditLogDetailsModal';
+import { getInventoryByQuery } from './services/db';
+
+/** barcode -> unit from the catalog kept on this device (falls back to the server if it is empty). */
+async function loadUnitMap(shopId) {
+  const map = {};
+  try {
+    const [active, removed] = await Promise.all([
+      getInventoryByQuery({ limit: 1000000, status: 'active' }),
+      getInventoryByQuery({ limit: 1000000, status: 'deactivated' }),
+    ]);
+    [...(active?.data || []), ...(removed?.data || [])].forEach(i => { if (i?.barcode) map[i.barcode] = i.unit; });
+  } catch { /* use the server below */ }
+  if (Object.keys(map).length > 0) return map;
+  let q = supabase.from('product_master').select('barcode, unit');
+  if (shopId) q = q.eq('shop_id', shopId);
+  const { data } = await q;
+  (data || []).forEach(i => { map[i.barcode] = i.unit; });
+  return map;
+}
 
 /** Every action that is written to the audit log, with a plain name for the filter. */
 const ACTION_LABELS = {
@@ -185,7 +204,7 @@ export default function OwnerAuditLogs() {
       if (shopId) query = query.eq('shop_id', shopId);
       return query;
     },
-    { currentIndex: datePageIndex }
+    { currentIndex: datePageIndex, daysKind: 'audit' }
   );
 
   const isSearching = Boolean(debouncedSearch.trim());
@@ -228,22 +247,14 @@ export default function OwnerAuditLogs() {
           .order('created_at', { ascending: sortOrder === 'oldest' });
       }
 
-      let prodQuery = supabase.from('product_master').select('barcode, unit');
-      if (shopId) {
-        prodQuery = prodQuery.eq('shop_id', shopId);
-      }
-
-      const [{ data: auditData, count, error: auditError }, { data: inventoryData }] = await Promise.all([
+      // Units (pcs, ft...) come from this device's copy of the catalog, not a download of every
+      // product on each load
+      const [{ data: auditData, count, error: auditError }, unitMap] = await Promise.all([
         auditQuery,
-        prodQuery
+        loadUnitMap(shopId),
       ]);
       
       if (auditError) throw auditError;
-
-      const unitMap = (inventoryData || []).reduce((acc, item) => {
-        acc[item.barcode] = item.unit;
-        return acc;
-      }, {});
 
       const formatChangesText = (changesStr, unit) => {
         const u = unit ? ` ${unit}` : '';
