@@ -101,7 +101,7 @@ describe('Overview chart and date filter', () => {
     expect(screen.queryByText('Choose Date')).toBeNull();
 
     // Not enough history yet: say so instead of showing a pattern
-    expect(screen.getByText(/Not enough sales yet to show a pattern/)).toBeInTheDocument();
+    expect(screen.getByText(/Customer rush: not enough sales yet/)).toBeInTheDocument();
   });
 });
 
