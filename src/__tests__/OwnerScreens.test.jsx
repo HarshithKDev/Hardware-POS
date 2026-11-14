@@ -64,6 +64,47 @@ describe('Overview (OwnerStats)', () => {
   });
 });
 
+describe('Overview chart and date filter', () => {
+  it('shows Today by default, switches Revenue/Profit and By hour/By day, and offers Day / Date Range only', async () => {
+    const at = (h) => { const d = new Date(); d.setHours(h, 5, 0, 0); return d.toISOString(); };
+    const h1 = Math.min(new Date().getHours(), 9); // earlier today, never in the future
+    h.db = createFakeSupabase({
+      bills: [
+        { id: 'x1', shop_id: SHOP, location: 'Store', status: 'completed', created_at: at(h1), total_amount: 300, payment_method: 'CASH', cash_amount: 300, upi_amount: 0 },
+        { id: 'x2', shop_id: SHOP, location: 'Store', status: 'completed', created_at: at(h1), total_amount: 200, payment_method: 'UPI', cash_amount: 0, upi_amount: 200 },
+      ],
+      bill_items: [
+        { id: 1, bill_id: 'x1', shop_id: SHOP, barcode: '1', name: 'Pad Lock', quantity: 3, billable_quantity: 3, price_at_sale: 100, cost_allocated: 180, profit: 120, system_price: 100 },
+        { id: 2, bill_id: 'x2', shop_id: SHOP, barcode: '2', name: 'Hinge', quantity: 2, billable_quantity: 2, price_at_sale: 100, cost_allocated: 150, profit: 50, system_price: 100 },
+      ],
+      expenses: [], returns: [], workers: [], product_master: [],
+    });
+
+    renderWith(<OwnerStats isActive />);
+
+    expect(await screen.findByText('Revenue by day', {}, { timeout: 5000 })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Today/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Back to today' })).toBeNull();
+
+    // The hour of the sales holds the same totals as the cards (₹500 revenue, ₹170 profit)
+    fireEvent.click(screen.getByRole('button', { name: 'By hour' }));
+    expect(screen.getByText('Revenue by hour')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByLabelText(/₹500$/).length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByRole('button', { name: 'Profit', exact: true }));
+    expect(screen.getByText('Profit by hour')).toBeInTheDocument();
+    expect(screen.getAllByLabelText(/₹170$/).length).toBeGreaterThan(0);
+
+    // The picker has two tabs; Today is just the default day
+    fireEvent.click(screen.getByRole('button', { name: /^Today/ }));
+    expect(screen.getByRole('tab', { name: 'Day' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Date Range' })).toBeInTheDocument();
+    expect(screen.queryByText('Choose Date')).toBeNull();
+
+    // Not enough history yet: say so instead of showing a pattern
+    expect(screen.getByText(/Not enough sales yet to show a reliable pattern/)).toBeInTheDocument();
+  });
+});
+
 describe('Categories page', () => {
   beforeEach(() => {
     h.db = createFakeSupabase({

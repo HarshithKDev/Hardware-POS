@@ -460,12 +460,17 @@ export default function OwnerLedger({ isActive }) {
             } else {
               // Update quantity for partial return
               const newQty = currentQty - qtyToRestore;
-              const actQty = Number(item.actual_quantity || item.quantity) - qtyToRestore;
-              let updateItem = supabase.from('bill_items').update({
-                  quantity: newQty,
-                  billable_quantity: newQty,
-                  actual_quantity: actQty
-              }).eq('id', item.id);
+              const oldActual = Number(item.actual_quantity || item.quantity);
+              const actQty = oldActual - qtyToRestore;
+              const lineUpdate = { quantity: newQty, billable_quantity: newQty, actual_quantity: actQty };
+              // The line's cost and profit shrink with it, or the dashboard keeps the returned profit
+              if (item.cost_allocated !== undefined && item.cost_allocated !== null && oldActual > 0) {
+                lineUpdate.cost_allocated = Number(item.cost_allocated) * Math.max(0, actQty) / oldActual;
+              }
+              if (item.profit !== undefined && item.profit !== null) {
+                lineUpdate.profit = Number(item.price_at_sale || 0) * newQty - Number(lineUpdate.cost_allocated ?? item.cost_allocated ?? 0);
+              }
+              let updateItem = supabase.from('bill_items').update(lineUpdate).eq('id', item.id);
               if (shopId) {
                 updateItem = updateItem.eq('shop_id', shopId);
               }
