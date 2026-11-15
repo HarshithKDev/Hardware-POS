@@ -1,9 +1,27 @@
-import { defineConfig } from 'vite'
+import process from 'node:process'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-export default defineConfig({
+// Start connecting to the database while the app is still loading. The address comes from the
+// same setting the app uses (VITE_SUPABASE_URL), so it is always the database actually in use.
+function preconnectDatabase(mode) {
+  return {
+    name: 'preconnect-database',
+    transformIndexHtml() {
+      const env = { ...loadEnv(mode, process.cwd(), 'VITE_'), ...process.env };
+      let origin = '';
+      try { origin = new URL(env.VITE_SUPABASE_URL).origin; } catch { return []; }
+      return [
+        { tag: 'link', attrs: { rel: 'preconnect', href: origin, crossorigin: '' }, injectTo: 'head' },
+        { tag: 'link', attrs: { rel: 'dns-prefetch', href: origin }, injectTo: 'head' },
+      ];
+    },
+  };
+}
+
+export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
@@ -15,6 +33,7 @@ export default defineConfig({
     }
   },
   plugins: [
+    preconnectDatabase(mode),
     react(),
     tailwindcss(),
     VitePWA({
@@ -89,4 +108,4 @@ export default defineConfig({
       VITE_SUPABASE_ANON_KEY: 'test-anon-key',
     },
   }
-})
+}))

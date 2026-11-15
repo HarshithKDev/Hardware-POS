@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 import { supabase } from './supabaseClient';
-import { EmptyState } from './SharedUI';
+import { EmptyState, LoadFailed } from './SharedUI';
 import { useQuery } from '@tanstack/react-query';
 import { formatDateTime, useSessionState, formatINR } from './utils';
 import { ChevronRight, Phone } from 'lucide-react';
@@ -24,7 +24,7 @@ export default function OwnerShowroom() {
     } catch (e) {}
   };
 
-  const { data: bills = [], isLoading } = useQuery({
+  const { data: bills = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['showroom-sales', shopId, page],
     queryFn: async () => {
       const from = page * SHOWROOM_PAGE_SIZE;
@@ -48,7 +48,7 @@ export default function OwnerShowroom() {
   const hasMore = bills.length === SHOWROOM_PAGE_SIZE;
 
   // Total across ALL dispatches (previously only the current page was summed)
-  const { data: totalValue = 0 } = useQuery({
+  const { data: totalValue, isError: totalFailed } = useQuery({
     queryKey: ['showroom-sales-total', shopId],
     queryFn: async () => {
       let sum = 0;
@@ -97,7 +97,7 @@ export default function OwnerShowroom() {
               Total Dispatched (at MRP)
             </span>
             <span className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)] tabular-nums">
-              ₹{formatINR(totalValue, 2)}
+              {totalValue === undefined ? (totalFailed ? 'Not loaded' : '…') : `₹${formatINR(totalValue, 2)}`}
             </span>
           </div>
         )}
@@ -108,6 +108,8 @@ export default function OwnerShowroom() {
         <div className="flex-1 overflow-x-hidden overflow-y-auto max-md:flex-none max-md:overflow-clip shadow-sm min-h-[300px] max-md:min-h-0 rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] mb-4">
           {isLoading ? (
             <TableSkeleton rows={8} cols={5} label="Loading showroom dispatches…" />
+          ) : isError && bills.length === 0 ? (
+            <LoadFailed what="the showroom dispatches" onRetry={() => refetch()} />
           ) : bills.length === 0 ? (
             <EmptyState message="No showroom dispatches recorded. Items dispatched to showroom will appear here." />
           ) : (

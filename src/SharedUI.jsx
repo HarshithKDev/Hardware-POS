@@ -44,6 +44,27 @@ export const EmptyState = ({ message = "No items found", icon = "search" }) => (
   </div>
 );
 
+/**
+ * A list could not be loaded (no connection, server busy). Shown instead of the "nothing here"
+ * message, so a failed load never looks like the shop has no sales, staff or items.
+ */
+export const LoadFailed = ({ what = 'this list', onRetry }) => (
+  <div className="flex flex-col items-center justify-center gap-3 p-12 text-center h-full" role="alert">
+    <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+      Could not load {what}. Check the internet connection and try again.
+    </p>
+    {onRetry && (
+      <button
+        type="button"
+        onClick={onRetry}
+        className="inline-flex items-center justify-center gap-2 h-9 px-4 rounded-md text-sm font-semibold border border-[var(--border-medium)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
+      >
+        Try again
+      </button>
+    )}
+  </div>
+);
+
 export const EyeIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
     <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
