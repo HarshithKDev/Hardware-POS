@@ -153,7 +153,10 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
             )
           ) : activeTab === 'expenses' ? (
             isBillable ? (
-              <OwnerExpenses isOwner={false} cashierName={cashierName} />
+              // Same page margins as the other staff screens (it had none on phones)
+              <div className="h-full min-h-0 flex-1 flex flex-col p-3 md:p-4 overflow-y-auto">
+                <OwnerExpenses isOwner={false} cashierName={cashierName} />
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full flex-1">
                 <h2 className="text-xl font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--color-error)' }}>Access Denied</h2>
@@ -162,7 +165,7 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
             )
           ) : (activeTab === 'sales' || activeTab === 'returns') ? (
             isBillable ? (
-              <div className="h-full p-2 md:p-4 overflow-y-auto">
+              <div className="h-full p-3 md:p-4 overflow-y-auto">
                 <OwnerLedger isActive={true} />
               </div>
             ) : (
@@ -173,7 +176,7 @@ export default function WorkerBilling({ defaultTab = 'dashboard', hideNav = fals
             )
           ) : activeTab === 'print-barcode' ? (
             isBillable ? (
-              <div className="h-full p-2 md:p-4 overflow-hidden flex flex-col flex-1 min-h-0">
+              <div className="h-full p-3 md:p-4 overflow-hidden flex flex-col flex-1 min-h-0">
                 <WorkerPrintBarcode />
               </div>
             ) : (

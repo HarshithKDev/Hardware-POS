@@ -2412,14 +2412,14 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         <div className="p-3 md:p-4 shrink-0 flex flex-col md:flex-row justify-between gap-3 md:gap-4" style={{ borderBottom: '1px solid var(--border-medium)', backgroundColor: 'var(--bg-tertiary)' }}>
           <div className="flex flex-col w-full md:w-auto flex-1 md:flex-none">
             <h2 className="hidden md:block text-2xl font-medium" style={{ color: 'var(--text-primary)' }}>
-              {activeTab === 'receive' ? 'Receive Stock' : activeTab === 'transfer' ? 'Move Stock to Store' : 'Checkout Counter'}
+              {activeTab === 'receive' ? 'Receive Stock' : activeTab === 'transfer' ? 'Move Stock to Store' : 'Checkout'}
             </h2>
             
             <div className="md:mt-3 flex flex-wrap items-center gap-2.5">
               <form onSubmit={(e) => { e.preventDefault(); processScan(manualBarcode); setManualBarcode(''); setShowSuggestions(false); }} className="relative w-full md:w-auto flex items-center gap-2 md:block">
                 <div className="flex items-center w-full md:w-72 h-11 md:h-9 rounded-md overflow-hidden transition-colors focus-within:border-[var(--color-accent)] focus-within:ring-1 focus-within:ring-[var(--color-accent)]" style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)' }}>
                   <label htmlFor="manual-barcode" className="sr-only">Barcode</label>
-                  <input id="manual-barcode" type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} onFocus={() => { setIsInputFocused(true); manualBarcode.trim().length >= 2 && setShowSuggestions(true); }} onBlur={() => { setIsInputFocused(false); setTimeout(() => setShowSuggestions(false), 200); }} placeholder="Search barcode or name..." className="compact-field h-full w-full px-3 text-sm focus:outline-none flex-1 bg-transparent border-none outline-none rounded-none focus:ring-0 focus:border-transparent focus:shadow-none" style={{ color: 'var(--text-input)', outline: 'none', border: 'none', boxShadow: 'none' }} autoComplete="off" />
+                  <input id="manual-barcode" type="text" value={manualBarcode} onChange={(e) => setManualBarcode(e.target.value)} onFocus={() => { setIsInputFocused(true); manualBarcode.trim().length >= 2 && setShowSuggestions(true); }} onBlur={() => { setIsInputFocused(false); setTimeout(() => setShowSuggestions(false), 200); }} placeholder="Search barcode or name..." className="compact-field h-full w-full px-3 text-sm text-ellipsis placeholder:text-ellipsis focus:outline-none flex-1 min-w-0 bg-transparent border-none outline-none rounded-none focus:ring-0 focus:border-transparent focus:shadow-none" style={{ color: 'var(--text-input)', outline: 'none', border: 'none', boxShadow: 'none' }} autoComplete="off" />
                   <button type="submit" className="tap-area relative h-full px-3 text-sm font-bold focus:outline-none transition-colors border-none rounded-none bg-transparent hover:bg-[var(--bg-hover)] focus:ring-0 focus:outline-none shrink-0" style={{ color: 'var(--color-accent)', outline: 'none', border: 'none' }}>ADD</button>
                 </div>
                 {(activeTab === 'checkout' || activeTab === 'receive' || activeTab === 'transfer') && (

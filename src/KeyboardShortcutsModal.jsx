@@ -55,8 +55,8 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }) {
       icon: <Navigation className="w-4 h-4 text-[var(--color-accent)]" />,
       shortcuts: [
         { keys: ['F1', '?'], description: 'Open this Keyboard Shortcuts Cheatsheet' },
-        { keys: ['Alt', 'D'], description: 'Return to Staff Dashboard' },
-        { keys: ['Alt', '1'], description: 'Switch to Billing / Checkout Counter' },
+        { keys: ['Alt', 'D'], description: 'Return to Dashboard' },
+        { keys: ['Alt', '1'], description: 'Switch to Checkout' },
         { keys: ['Alt', '2'], description: 'Switch to Receive Stock' },
         { keys: ['Alt', '3'], description: 'Switch to Move Stock (Transfer)' },
         { keys: ['Esc'], description: 'Close any modal / clear current focus' },

@@ -5,8 +5,9 @@ import { RotateCcw } from 'lucide-react';
  * Reusable page title with an integrated reset action.
  * Allows users to reset page filters, searches, and states to their initial defaults by clicking the title.
  *
- * @param {string} title - The title text (e.g. "Store Inventory Actions", "Sales History")
- * @param {Function} onReset - Callback invoked to reset page state
+ * @param {string} title - The title text (e.g. "Store Inventory", "Sales & Returns"): the same words as the menu entry
+ * @param {Function} [onReset] - Callback invoked to reset page state. Leave it out on pages with
+ *   nothing to reset: the title then looks the same, without the ↻ button.
  * @param {string} [subtitle] - Optional subtitle text rendered underneath
  * @param {string} [className] - Optional custom CSS classes for the container
  * @param {string} [tag="h1"] - HTML heading tag ("h1" or "h2")
@@ -32,7 +33,13 @@ export default function PageTitleReset({
 
   return (
     <div className={`flex flex-col ${className}`}>
-      <div className="flex items-center gap-3">
+      {/* Same row height on every page, so titles line up whether or not a button sits beside them */}
+      <div className="flex items-center gap-3 min-h-10">
+        {!onReset ? (
+          <HeadingTag className="text-xl sm:text-2xl font-semibold m-0 leading-tight" style={{ color: 'var(--text-primary)' }}>
+            {title}
+          </HeadingTag>
+        ) : (
         <div className="group inline-flex items-center gap-2.5 transition-all hover:opacity-85">
           {/* The title resets on click with a mouse (desktop habit). On phones a tap on the
               title does nothing, so filters are never reset by accident; the ↻ button does it. */}
@@ -62,6 +69,7 @@ export default function PageTitleReset({
             <RotateCcw className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
+        )}
         {extra}
       </div>
       {subtitle && (

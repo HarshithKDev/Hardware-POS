@@ -121,7 +121,7 @@ describe('OwnerCatalog Barcode Assignment', () => {
     renderComponent();
 
     await waitFor(() => {
-      expect(screen.getByText(/Register New Item/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Add Items' })).toBeInTheDocument();
     });
   });
 });

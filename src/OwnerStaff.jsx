@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { getWorkerEmail, getAdminEmail } from './constants';
 import { Spinner, LoadFailed } from './SharedUI';
+import { Trash2 } from 'lucide-react';
 import PageTitleReset from './components/PageTitleReset';
 import { buttonClass, Modal, Button, Input, TableSkeleton } from './components/ui';
 
@@ -292,7 +293,7 @@ export default function OwnerStaff() {
                 className={buttonClass({ variant: 'danger-outline', size: 'sm', className: 'shrink-0' })}
                 aria-label={`Remove ${staff.name}`}
               >
-                Remove
+                <Trash2 className="w-3.5 h-3.5" aria-hidden="true" /> Remove
               </button>
             </div>
           ))}
@@ -329,26 +330,15 @@ export default function OwnerStaff() {
                   )}
                 </td>
                 <td className="p-4 text-center">
+                  {/* Same look as every other delete button in the app */}
                   <button
+                    type="button"
                     onClick={() => handleRemove(staff.id, staff.name)}
                     disabled={removeStaffMutation.isPending}
-                    className="h-8 px-4 text-xs font-semibold focus:outline-none transition-colors disabled:opacity-50 rounded-md"
-                    style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--color-error)', border: '1px solid var(--color-error)' }}
-                    onMouseEnter={(e) => {
-                      if (!removeStaffMutation.isPending) {
-                        e.target.style.backgroundColor = 'var(--color-error-solid)';
-                        e.target.style.color = 'var(--text-on-solid)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!removeStaffMutation.isPending) {
-                        e.target.style.backgroundColor = 'var(--bg-secondary)';
-                        e.target.style.color = 'var(--color-error)';
-                      }
-                    }}
+                    className={buttonClass({ variant: 'danger-outline', size: 'sm' })}
                     aria-label={`Remove ${staff.name}`}
                   >
-                    Remove
+                    <Trash2 className="w-3.5 h-3.5" aria-hidden="true" /> Remove
                   </button>
                 </td>
               </tr>
