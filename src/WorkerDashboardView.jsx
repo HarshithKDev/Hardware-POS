@@ -11,6 +11,7 @@ import { escapeIlike, debounce, useSessionState, formatINR } from './utils';
 import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD, INV_PER_PAGE, STALE_TIME_5MIN } from './constants';
 import { getInventoryByQuery, getLocalCategories, setLocalCategories, getLocalSubcategories, setLocalSubcategories, savedListSeed } from './services/db';
 import PageTitleReset from './components/PageTitleReset';
+import { useDialogFocus } from './hooks/useDialogFocus';
 import { buttonClass } from './components/ui';
 
 export default function WorkerDashboardView({ isBillable = true }) {
@@ -22,6 +23,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
   const [selectedCategory, setSelectedCategory] = useSessionState(`pos_worker_dash_cat_${shopId}`, 'ALL');
   const [selectedSubcategory, setSelectedSubcategory] = useSessionState(`pos_worker_dash_subcat_${shopId}`, 'ALL');
   const [lowStockModal, setLowStockModal] = useState({ isOpen: false, type: null });
+  const lowStockModalRef = useDialogFocus(lowStockModal.isOpen);
 
   const handleResetWorkerDashboard = () => {
     setInventorySearch('');
@@ -586,6 +588,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
             id="dashboard-inventory-search"
             type="text" 
             placeholder="Search Barcode or Name..." 
+            aria-label="Search products by barcode or name"
             value={inventorySearch}
             onChange={(e) => {
               setInventorySearch(e.target.value);
@@ -600,6 +603,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
           <select
             value={selectedCategory}
             onChange={(e) => handleCategoryChange(e.target.value)}
+            aria-label="Filter by category"
             className="w-full h-10 pl-2.5 sm:pl-3 pr-7 sm:pr-8 text-xs sm:text-xs md:text-sm border shadow-sm focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]/30 rounded-lg cursor-pointer font-medium leading-normal truncate"
             style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)', colorScheme: 'dark' }}
           >
@@ -616,6 +620,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
           <select
             value={selectedSubcategory}
             onChange={(e) => setSelectedSubcategory(e.target.value)}
+            aria-label="Filter by sub-category"
             disabled={availableSubcategories.length === 0}
             className="w-full h-10 pl-2.5 sm:pl-3 pr-7 sm:pr-8 text-xs sm:text-xs md:text-sm border shadow-sm focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]/30 rounded-lg cursor-pointer font-medium leading-normal truncate disabled:opacity-50"
             style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-medium)', color: 'var(--text-primary)', colorScheme: 'dark' }}
@@ -731,12 +736,15 @@ export default function WorkerDashboardView({ isBillable = true }) {
         <div
           className="fixed inset-0 flex items-end sm:items-center justify-center z-[10001] p-0 sm:p-6 md:p-8 bg-[var(--overlay-bg)] backdrop-blur-sm animate-fade-in"
           onClick={() => setLowStockModal({ isOpen: false, type: null })}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="low-stock-modal-title"
+          role="presentation"
         >
           <div
-            className="w-full max-w-3xl flex flex-col h-[85vh] supports-[height:100dvh]:h-[85dvh] sm:h-[70vh] sm:supports-[height:100dvh]:h-[70dvh] sm:max-h-[620px] rounded-t-2xl sm:rounded-[14px] overflow-hidden shadow-2xl border border-[var(--border-light)] animate-scale-in sm:my-auto"
+            ref={lowStockModalRef}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="low-stock-modal-title"
+            className="outline-none w-full max-w-3xl flex flex-col h-[85vh] supports-[height:100dvh]:h-[85dvh] sm:h-[70vh] sm:supports-[height:100dvh]:h-[70dvh] sm:max-h-[620px] rounded-t-2xl sm:rounded-[14px] overflow-hidden shadow-2xl border border-[var(--border-light)] animate-scale-in sm:my-auto"
             style={{ backgroundColor: 'var(--bg-secondary)' }}
             onClick={(e) => e.stopPropagation()}
           >

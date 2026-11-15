@@ -182,6 +182,7 @@ export default function WorkerPrintBarcode() {
                 value={searchTerm}
                 onChange={handleSearchChange}
                 placeholder="Search barcode or name..."
+              aria-label="Search products by barcode or name"
                 className="w-full h-10 text-xs sm:text-sm rounded-lg focus:outline-none focus:border-[var(--color-accent)] transition-all font-medium shadow-xs"
                 style={{
                   backgroundColor: 'var(--bg-input)',

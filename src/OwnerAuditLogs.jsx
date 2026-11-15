@@ -378,6 +378,7 @@ export default function OwnerAuditLogs() {
             <input
               type="text"
               placeholder="Search barcode, item, or user..."
+              aria-label="Search audit logs by barcode, item or user"
               value={searchTerm}
               onChange={handleSearchChange}
               className="w-full h-10 pr-9 text-sm focus:outline-none shadow-sm rounded-md"

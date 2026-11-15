@@ -17,6 +17,7 @@ import { readRows } from './services/secureRead';
 import { withLegacyScrews } from './services/legacyScrews';
 import { useActiveDays, ACTIVE_DAYS_STEP } from './hooks/useActiveDays';
 import PageTitleReset from './components/PageTitleReset';
+import { activatableRow } from './hooks/rowActivation';
 import DayClosingModal from './components/reports/DayClosingModal';
 
 // Day closing report: hidden for now at the owner's request. Set to true to bring the button back.
@@ -120,7 +121,12 @@ export default function OwnerLedger({ isActive }) {
   const [selectedBill, setSelectedBill] = useSessionState(`pos_ledger_selected_${shopId}`, null);
   const [billItemsCache, setBillItemsCache] = useState({});
   const [, setIsLoadingItems] = useState(false);
-  const [returnModalState, setReturnModalState] = useSessionState(`pos_ledger_return_modal_${shopId}`, null);
+  // Not kept across a page reload: it holds a copy of the bill's lines, which another counter may
+  // have changed meanwhile. (Older versions saved it; that saved copy is dropped here.)
+  const [returnModalState, setReturnModalState] = useState(() => {
+    try { window.sessionStorage.removeItem(`pos_ledger_return_modal_${shopId}`); } catch { /* storage unavailable */ }
+    return null;
+  });
 
   const handleResetLedger = () => {
     setSearchQuery('');
@@ -588,6 +594,7 @@ export default function OwnerLedger({ isActive }) {
                 }}
                 onFocus={() => setShowCustomerDropdown(true)}
                 placeholder="Search Phone, Name, or Bill #..."
+                aria-label="Search sales by phone, name or bill number"
                 className="w-full h-10 text-sm rounded-lg focus:outline-none shadow-sm transition-all"
                 style={{
                   paddingLeft: '2.5rem',
@@ -726,6 +733,7 @@ export default function OwnerLedger({ isActive }) {
                 <tr
                   key={bill.id}
                   onClick={() => setSelectedBill(bill)}
+                  {...activatableRow(() => setSelectedBill(bill), `Open bill ${billLabel(bill)}, ${formatDateTime(bill.created_at).full}`)}
                   className="cursor-pointer premium-hover block md:table-row bg-[var(--bg-secondary)] md:bg-transparent rounded-lg md:rounded-none border md:border-b md:border-t-0 md:border-l-0 md:border-r-0 border-[var(--border-medium)] md:border-[var(--border-medium)] mb-3 md:mb-0 relative md:static transition-colors"
                   style={{
                     borderBottom: '1px solid var(--border-medium)',
@@ -1111,6 +1119,7 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
                       </button>
                       <input
                         type="number" inputMode="decimal"
+                        aria-label={`Quantity of ${item.name} to return`}
                         min="0"
                         max={maxQty}
                         value={returnQty}

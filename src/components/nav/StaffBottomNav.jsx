@@ -36,14 +36,14 @@ export default function StaffBottomNav({ tabs, activeTab, onSelect }) {
       style={{ color: active ? 'var(--color-accent)' : 'var(--text-secondary)' }}
     >
       <Icon size={19} strokeWidth={active ? 2.5 : 2} />
-      <span className="text-xs font-semibold tracking-tight truncate max-w-full">{label}</span>
+      <span className="bottom-nav-label text-xs font-semibold tracking-tight truncate max-w-full">{label}</span>
     </button>
   );
 
   return (
     <>
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-[var(--border-medium)] shadow-lg"
+        className="bottom-nav md:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-[var(--border-medium)] shadow-lg"
         style={{
           backgroundColor: 'var(--bg-secondary)',
           height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))',

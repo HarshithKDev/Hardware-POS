@@ -303,9 +303,12 @@ export default function WorkerPriceCheck() {
                   </div>
 
                   {/* Min Price (MSP) */}
-                  <div 
+                  <button
+                    type="button"
                     onClick={() => setRevealedMsp(!revealedMsp)}
-                    className="cursor-pointer text-right px-3.5 py-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)] hover:border-[var(--color-accent)] transition-all select-none"
+                    aria-pressed={revealedMsp}
+                    aria-label={revealedMsp || userRole === 'owner' ? `Minimum selling price ₹${formatINR(Number(msp), 2)}` : 'Show minimum selling price'}
+                    className="block w-full cursor-pointer text-right px-3.5 py-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-light)] hover:border-[var(--color-accent)] transition-all select-none"
                     title="Tap to reveal minimum price"
                   >
                     <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center justify-end gap-1">
@@ -315,7 +318,7 @@ export default function WorkerPriceCheck() {
                     <span className="text-base font-bold text-[var(--text-primary)] font-mono mt-0.5 block">
                       {(revealedMsp || userRole === 'owner') ? `₹${formatINR(Number(msp), 2)}` : '••••••'}
                     </span>
-                  </div>
+                  </button>
                 </div>
 
                 {/* Stock in ST & WH */}

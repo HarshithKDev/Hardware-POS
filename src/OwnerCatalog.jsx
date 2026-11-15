@@ -287,6 +287,7 @@ export default function OwnerCatalog() {
               onChange={(val) => setForm({ ...form, category: val, sub_category: '' })}
               options={(categories || []).map(c => typeof c === 'string' ? c : (c?.name || '')).filter(Boolean)}
               placeholder="Select or type to create..."
+              label="Category"
               onCreate={handleCreateCategory}
               required={true}
             />
@@ -305,6 +306,7 @@ export default function OwnerCatalog() {
                 })
                 .map(s => typeof s === 'string' ? s : (s?.name || ''))
                 .filter(Boolean)}
+              label="Sub-category"
               placeholder="Select or type to create..."
               onCreate={handleCreateSubcategory}
               disabled={!form.category}

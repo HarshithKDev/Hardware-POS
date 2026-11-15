@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { formatINR } from '../../utils';
 import { Modal, Button, Input } from '../ui';
 
@@ -14,12 +14,13 @@ export default function ScrewsModal({
   isUpdate = false
 }) {
   const [price, setPrice] = useState(initialPrice);
-
-  useEffect(() => {
-    if (isOpen) {
-      setPrice(initialPrice || '');
-    }
-  }, [isOpen, initialPrice]);
+  // Each time it opens, start from the current screws price (set while rendering, so the
+  // previous price never flashes for a frame)
+  const [wasOpen, setWasOpen] = useState(isOpen);
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen);
+    if (isOpen) setPrice(initialPrice || '');
+  }
 
   if (!isOpen) return null;
 

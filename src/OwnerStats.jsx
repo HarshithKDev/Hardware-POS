@@ -16,6 +16,7 @@ import {
 import { AlertTriangle, Calendar, ArrowUpRight, RotateCcw } from 'lucide-react';
 import { useSessionState } from './hooks/useSessionState';
 import PageTitleReset from './components/PageTitleReset';
+import { useDialogFocus } from './hooks/useDialogFocus';
 import { billPaymentSplit } from './services/dayClosing';
 import { fetchAllRows, chunk, mapWithLimit } from './services/fetchAll';
 import { buttonClass, useSort, SortTh } from './components/ui';
@@ -76,10 +77,7 @@ function AnimatedNumber({ valueStr, duration = 250 }) {
     numStr = numStr.replace(/,/g, '');
     
     const target = parseFloat(numStr);
-    if (isNaN(target)) {
-      setDisplayValue(prev => (prev === valueStr ? prev : valueStr));
-      return;
-    }
+    if (isNaN(target)) return; // shown as it is (see below)
 
     let prevNum = target;
     if (prevValueStr && prevValueStr !== valueStr) {
@@ -117,14 +115,18 @@ function AnimatedNumber({ valueStr, duration = 250 }) {
     return () => window.cancelAnimationFrame(animationFrameId);
   }, [valueStr, duration, prevValueStr]);
 
-  return <>{displayValue || valueStr}</>;
+  // Text that is not a number is never animated
+  const isNumber = !isNaN(parseFloat(String(valueStr).replace(/^₹/, '').replace(/,/g, '')));
+  return <>{isNumber ? (displayValue || valueStr) : valueStr}</>;
 }
 
 /** Reusable stat card */
-function StatCard({ title, value, accentColor, onClick, clickLabel, children, className = '' }) {
+function StatCard({ title, value, accentColor, onClick, clickLabel, children, className = '', sizeFor }) {
   const Tag = onClick ? 'button' : 'div';
   const strVal = String(value ?? '');
-  const valLen = strVal.length;
+  // Cards in one row are sized by the row's longest amount (sizeFor), so a big Revenue doesn't
+  // end up in smaller type than a ₹0.00 next to it
+  const valLen = Math.max(strVal.length, Number(sizeFor) || 0);
 
   // Responsive scalable font sizing based on character length so numbers scale cleanly without dots
   const fontSizeClass = valLen > 12
@@ -202,6 +204,21 @@ function Segmented({ label, options, value, onChange, activeColor = 'var(--color
   );
 }
 
+// Width in pixels of a chart amount label (12px semibold in the app's font), measured with a canvas
+let labelCanvas = null;
+function labelTextWidth(text) {
+  if (typeof document === 'undefined') return 0;
+  try {
+    labelCanvas = labelCanvas || document.createElement('canvas');
+    const ctx = labelCanvas.getContext('2d');
+    if (!ctx) return 0;
+    ctx.font = `600 12px ${getComputedStyle(document.body).fontFamily || 'sans-serif'}`;
+    return ctx.measureText(text).width;
+  } catch {
+    return 0;
+  }
+}
+
 /** Revenue / profit bar chart, by hour or by day */
 function SalesTrendChart({ buckets, isLoading, metric, setMetric, view, setView, title, subtitle }) {
   const bars = buckets || [];
@@ -214,6 +231,28 @@ function SalesTrendChart({ buckets, isLoading, metric, setMetric, view, setView,
   const hasHighlight = bars.some(b => b.highlight);
   const isEmpty = !isLoading && bars.every(b => !b.value);
   const [isAnimated, setIsAnimated] = useState(false);
+
+  // Amount labels must not run into each other: measure the space each bar gets. If the longest
+  // label doesn't fit, label only the tallest bar (every bar still shows its amount on hover /
+  // tap). Text is not made smaller: phones keep 12px as the smallest size.
+  const barsRef = useRef(null);
+  const [barsBox, setBarsBox] = useState({ width: 0, gap: 4 });
+  useEffect(() => {
+    const el = barsRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(([entry]) => {
+      const gap = parseFloat(getComputedStyle(el).columnGap) || 0;
+      setBarsBox(prev => (prev.width === entry.contentRect.width && prev.gap === gap ? prev : { width: entry.contentRect.width, gap }));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const barsWidth = barsBox.width;
+  const widestLabel = bars.reduce((m, b) => Math.max(m, labelTextWidth(`${b.value < 0 ? '−' : ''}${compactINR(Math.abs(b.value))}`)), 0);
+  // Neighbouring labels are centred one bar plus one gap apart; they collide when wider than that
+  const labelSpacing = bars.length ? (barsWidth + barsBox.gap) / bars.length : 0;
+  const labelFit = !barsWidth || !widestLabel || widestLabel <= labelSpacing ? 'normal' : 'tallest';
+  const tallestKey = bars.reduce((best, b) => (Math.abs(b.value) > Math.abs(best?.value ?? -1) ? b : best), null)?.key;
 
   useEffect(() => {
     if (bars.length > 0) {
@@ -238,7 +277,7 @@ function SalesTrendChart({ buckets, isLoading, metric, setMetric, view, setView,
         </div>
       </div>
 
-      <div className={`relative flex flex-1 items-end min-h-0 gap-1 ${bars.length > 16 ? 'md:gap-1.5' : 'md:gap-3'} w-full px-2 mb-4 ${showBarLabels ? 'pt-6' : 'pt-2'}`} role="img" aria-label={`${title}${subtitle ? `, ${subtitle}` : ''}`}>
+      <div ref={barsRef} className={`relative flex flex-1 items-end min-h-0 gap-1 ${bars.length > 16 ? 'md:gap-1.5' : 'md:gap-3'} w-full px-2 mb-4 ${showBarLabels ? 'pt-6' : 'pt-2'}`} role="img" aria-label={`${title}${subtitle ? `, ${subtitle}` : ''}`}>
         {isLoading ? (
           <div className="w-full h-full flex items-center justify-center">
             <div className="premium-wave-loader scale-75">
@@ -258,7 +297,7 @@ function SalesTrendChart({ buckets, isLoading, metric, setMetric, view, setView,
                   backgroundColor: negative ? 'var(--color-error)' : (metric === 'profit' ? 'var(--color-success)' : 'var(--color-accent-solid)'),
                 }}
               >
-                {showBarLabels && point.value !== 0 && (
+                {showBarLabels && point.value !== 0 && (labelFit !== 'tallest' || point.key === tallestKey) && (
                   <span className={`${labelsOnWideOnly ? 'hidden xl:block' : ''} absolute -top-5 left-1/2 -translate-x-1/2 text-xs font-semibold tabular-nums whitespace-nowrap pointer-events-none transition-opacity group-hover:opacity-0 group-focus:opacity-0 ${isAnimated ? 'opacity-100' : 'opacity-0'}`} style={{ color: negative ? 'var(--color-error)' : 'var(--text-secondary)' }}>
                     {negative ? '−' : ''}{compactINR(Math.abs(point.value))}
                   </span>
@@ -367,20 +406,21 @@ function DashboardDateFilter({
   const [rangeEnd, setRangeEnd] = useState(endDate);
   const [rangeSelecting, setRangeSelecting] = useState(false);
 
-  // Sync internal state when opened
-  useEffect(() => {
-    if (isOpen) {
-      setActiveTab(prev => (prev === tabFor(timeframe) ? prev : tabFor(timeframe)));
-      setRangeStart(prev => (prev === startDate ? prev : startDate));
-      setRangeEnd(prev => (prev === endDate ? prev : endDate));
-      setRangeSelecting(false);
-      const dStr = timeframe === 'date' ? customDate : (timeframe === 'range' ? endDate : new Date().toLocaleDateString('en-CA'));
-      const [y, m] = (dStr || '').split('-');
-      if (y && m) setViewDate(new Date(Number(y), Number(m) - 1, 1));
-    }
-  }, [isOpen, timeframe, customDate, startDate, endDate]);
+  // Opening the picker starts from the current selection (done when it opens, so the first
+  // frame already shows it)
+  const openPicker = () => {
+    setActiveTab(tabFor(timeframe));
+    setRangeStart(startDate);
+    setRangeEnd(endDate);
+    setRangeSelecting(false);
+    const dStr = timeframe === 'date' ? customDate : (timeframe === 'range' ? endDate : new Date().toLocaleDateString('en-CA'));
+    const [y, m] = (dStr || '').split('-');
+    if (y && m) setViewDate(new Date(Number(y), Number(m) - 1, 1));
+    setIsOpen(true);
+  };
 
-  // Click outside to close
+  // Click outside to close; Esc closes too and puts keyboard focus back on the date button
+  const triggerRef = useRef(null);
   useEffect(() => {
     if (!isOpen) return;
     const handleClickOutside = (e) => {
@@ -388,8 +428,18 @@ function DashboardDateFilter({
         setIsOpen(false);
       }
     };
+    const handleEscape = (e) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      setIsOpen(false);
+      triggerRef.current?.focus();
+    };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, [isOpen]);
 
   const todayIso = new Date().toLocaleDateString('en-CA');
@@ -525,10 +575,12 @@ function DashboardDateFilter({
       )}
       {/* Trigger Button: ALWAYS ONE SINGLE BOX */}
       <button
+        ref={triggerRef}
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => (isOpen ? setIsOpen(false) : openPicker())}
         className={buttonClass({ variant: 'secondary', size: 'md', className: 'bg-[var(--bg-secondary)]' })}
         aria-expanded={isOpen}
+        aria-haspopup="dialog"
       >
         <Calendar className="w-3.5 h-3.5 text-[var(--color-accent)] shrink-0" />
         <span>{getTriggerLabel()}</span>
@@ -1148,6 +1200,8 @@ export default function OwnerStats({ isActive }) {
   // Click-to-sort for the Profit and Dead stock tables (must run before the early returns below)
   const { sorted: sortedSalesDetails, sort: profitSort, toggleSort: toggleProfitSort } = useSort(salesData?.tfSalesDetails, PROFIT_SORT);
   const { sorted: sortedDeadStock, sort: deadSort, toggleSort: toggleDeadSort, setSort: setDeadSort } = useSort(invData?.deadStockItems, DEAD_STOCK_SORT);
+  // Keyboard focus moves into the breakdown window and back to the card when it closes
+  const statsModalRef = useDialogFocus(Boolean(activeModal));
   // Dead stock: narrow down by category / sub-category
   const [deadCat, setDeadCat] = useState('');
   const [deadSub, setDeadSub] = useState('');
@@ -1165,8 +1219,12 @@ export default function OwnerStats({ isActive }) {
     deadCategories.forEach((set, cat) => { if (!deadCat || cat === deadCat) set.forEach(s => subs.add(s)); });
     return [...subs].sort((a, b) => a.localeCompare(b));
   }, [deadCategories, deadCat]);
+  // A choice that is no longer in the data (e.g. after a refresh) counts as "All", so the
+  // dropdown and the list always agree
+  const activeDeadCat = deadCat && deadCategories.has(deadCat) ? deadCat : '';
+  const activeDeadSub = deadSub && deadSubOptions.includes(deadSub) ? deadSub : '';
   const filteredDeadStock = useMemo(() => sortedDeadStock.filter(i =>
-    (!deadCat || (i.category || '') === deadCat) && (!deadSub || i.sub_category === deadSub)), [sortedDeadStock, deadCat, deadSub]);
+    (!activeDeadCat || (i.category || '') === activeDeadCat) && (!activeDeadSub || i.sub_category === activeDeadSub)), [sortedDeadStock, activeDeadCat, activeDeadSub]);
   const filteredDeadValue = filteredDeadStock.reduce((s, i) => s + (Number(i.deadValue) || 0), 0);
 
   if ((!salesData && isSalesLoading) || (!invData && isInvLoading)) {
@@ -1204,6 +1262,10 @@ export default function OwnerStats({ isActive }) {
   const warehouseCapital = invData?.warehouseCapital ?? 0;
   const storeCapital = invData?.storeCapital ?? 0;
   const failedSyncs = invData?.failedSyncs ?? [];
+  // One type size per row of cards (see StatCard)
+  // (money cards that sit side by side; the full-width Dead Stock card and the Low Stock count keep their own size)
+  const topRowSize = Math.max(...[tfTrueRevenue, tfGrossProfit, tfTotalDiscount || 0].map(v => `₹${formatINR(v, 2)}`.length));
+  const bottomRowSize = Math.max(...[tfCash, tfUpi, totalInventoryValue, warehouseCapital, storeCapital].map(v => `₹${formatINR(v, 2)}`.length));
 
   return (
     <div className="flex flex-col relative lg:flex-1 lg:min-h-0">
@@ -1244,7 +1306,7 @@ export default function OwnerStats({ isActive }) {
 
       {/* ROW 1: TODAY'S VITALS */}
       <div className={`grid grid-cols-2 md:grid-cols-3 ${isWarehouseDisabled ? 'lg:grid-cols-5' : 'lg:grid-cols-6'} gap-3 lg:gap-4 mb-3 lg:mb-4 shrink-0`}>
-        <StatCard title="Revenue" value={`₹${formatINR(tfTrueRevenue, 2)}`} borderColor="var(--color-success)">
+        <StatCard title="Revenue" sizeFor={topRowSize} value={`₹${formatINR(tfTrueRevenue, 2)}`} borderColor="var(--color-success)">
           {tfScrews > 0 && (
             <p className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--text-tertiary)' }} title="Screws are counted in Cash/UPI received but not in Revenue or Profit">
               + ₹{formatINR(tfScrews, 0)} screws
@@ -1253,6 +1315,7 @@ export default function OwnerStats({ isActive }) {
         </StatCard>
         <StatCard
           title="Profit"
+          sizeFor={topRowSize}
           value={`₹${formatINR(tfGrossProfit, 2)}`}
           accentColor="var(--color-success)"
           borderColor="var(--color-success)"
@@ -1261,6 +1324,7 @@ export default function OwnerStats({ isActive }) {
         />
         <StatCard
           title="Discount Given"
+          sizeFor={topRowSize}
           value={`₹${formatINR((tfTotalDiscount || 0), 2)}`}
           borderColor="var(--color-warning)"
         />
@@ -1285,7 +1349,7 @@ export default function OwnerStats({ isActive }) {
           title="Dead Stock Value"
           value={`₹${formatINR(deadStockValue, 2)}`}
           borderColor={deadStockValue > DEAD_STOCK_ALARM_VALUE ? 'var(--color-error)' : 'var(--color-warning)'}
-          onClick={() => setActiveModal('dead-stock')}
+          onClick={() => { setDeadCat(''); setDeadSub(''); setActiveModal('dead-stock'); }}
           clickLabel="View dead stock items"
         />
       </div>
@@ -1311,21 +1375,21 @@ export default function OwnerStats({ isActive }) {
       {isWarehouseDisabled ? (
         // Without a warehouse, all stock is in the store, so asset value and stock capital are the same figure
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 lg:gap-4 shrink-0">
-          <StatCard title="Cash Received" value={`₹${formatINR(tfCash, 2)}`} borderColor="var(--color-success)" />
-          <StatCard title="UPI Received" value={`₹${formatINR(tfUpi, 2)}`} borderColor="var(--color-accent)" />
+          <StatCard title="Cash Received" sizeFor={bottomRowSize} value={`₹${formatINR(tfCash, 2)}`} borderColor="var(--color-success)" />
+          <StatCard title="UPI Received" sizeFor={bottomRowSize} value={`₹${formatINR(tfUpi, 2)}`} borderColor="var(--color-accent)" />
           <div className="col-span-2 md:col-span-1">
-            <StatCard title="Stock Capital" value={`₹${formatINR(totalInventoryValue, 2)}`} borderColor="var(--text-tertiary)" />
+            <StatCard title="Stock Capital" sizeFor={bottomRowSize} value={`₹${formatINR(totalInventoryValue, 2)}`} borderColor="var(--text-tertiary)" />
           </div>
         </div>
       ) : (
         // Phones: Cash/UPI side by side, then the capital cards; laptops/desktops: all five in one row
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4 shrink-0">
-          <StatCard title="Cash Received" value={`₹${formatINR(tfCash, 2)}`} borderColor="var(--color-success)" />
-          <StatCard title="UPI Received" value={`₹${formatINR(tfUpi, 2)}`} borderColor="var(--color-accent)" />
-          <StatCard title="Total Asset Value" value={`₹${formatINR(totalInventoryValue, 2)}`} borderColor="var(--text-tertiary)" />
-          <StatCard title="Warehouse Capital" value={`₹${formatINR(warehouseCapital, 2)}`} borderColor="var(--color-accent)" />
+          <StatCard title="Cash Received" sizeFor={bottomRowSize} value={`₹${formatINR(tfCash, 2)}`} borderColor="var(--color-success)" />
+          <StatCard title="UPI Received" sizeFor={bottomRowSize} value={`₹${formatINR(tfUpi, 2)}`} borderColor="var(--color-accent)" />
+          <StatCard title="Total Asset Value" sizeFor={bottomRowSize} value={`₹${formatINR(totalInventoryValue, 2)}`} borderColor="var(--text-tertiary)" />
+          <StatCard title="Warehouse Capital" sizeFor={bottomRowSize} value={`₹${formatINR(warehouseCapital, 2)}`} borderColor="var(--color-accent)" />
           <div className="col-span-2 md:col-span-2 lg:col-span-1">
-            <StatCard title="Store Capital" value={`₹${formatINR(storeCapital, 2)}`} borderColor="var(--color-accent)" />
+            <StatCard title="Store Capital" sizeFor={bottomRowSize} value={`₹${formatINR(storeCapital, 2)}`} borderColor="var(--color-accent)" />
           </div>
         </div>
       )}
@@ -1335,12 +1399,15 @@ export default function OwnerStats({ isActive }) {
         <div
           className="fixed inset-0 flex items-end sm:items-center justify-center z-[10001] p-0 sm:p-6 md:p-8 bg-[var(--overlay-bg)] backdrop-blur-sm animate-fade-in"
           onClick={() => setActiveModal(null)}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="stats-modal-title"
+          role="presentation"
         >
           <div
-            className="w-full max-w-4xl flex flex-col h-[85vh] supports-[height:100dvh]:h-[85dvh] sm:h-[70vh] sm:supports-[height:100dvh]:h-[70dvh] sm:max-h-[620px] rounded-t-2xl sm:rounded-[14px] overflow-hidden shadow-2xl border border-[var(--border-light)] animate-scale-in sm:my-auto"
+            ref={statsModalRef}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="stats-modal-title"
+            className="outline-none w-full max-w-4xl flex flex-col h-[85vh] supports-[height:100dvh]:h-[85dvh] sm:h-[70vh] sm:supports-[height:100dvh]:h-[70dvh] sm:max-h-[620px] rounded-t-2xl sm:rounded-[14px] overflow-hidden shadow-2xl border border-[var(--border-light)] animate-scale-in sm:my-auto"
             style={{ backgroundColor: 'var(--bg-secondary)' }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1460,7 +1527,7 @@ export default function OwnerStats({ isActive }) {
                 // where the list has no column headers to click)
                 <div className="shrink-0 p-2.5 md:px-4 md:py-3 grid grid-cols-2 md:flex md:items-center gap-2 border-b border-[var(--border-medium)]">
                   <select
-                    value={deadCat}
+                    value={activeDeadCat}
                     onChange={(e) => { setDeadCat(e.target.value); setDeadSub(''); }}
                     className="w-full md:w-52 h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md cursor-pointer truncate"
                     style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
@@ -1472,7 +1539,7 @@ export default function OwnerStats({ isActive }) {
                     ))}
                   </select>
                   <select
-                    value={deadSub}
+                    value={activeDeadSub}
                     onChange={(e) => setDeadSub(e.target.value)}
                     disabled={deadSubOptions.length === 0}
                     className="w-full md:w-52 h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md cursor-pointer truncate disabled:opacity-50"

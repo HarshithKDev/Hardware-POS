@@ -6,6 +6,7 @@ import { formatDateTime, useSessionState, formatINR } from './utils';
 import { ChevronRight, Phone } from 'lucide-react';
 import ShowroomDetailsView from './ShowroomDetailsView';
 import PageTitleReset from './components/PageTitleReset';
+import { activatableRow } from './hooks/rowActivation';
 import { buttonClass, TableSkeleton } from './components/ui';
 
 const SHOWROOM_PAGE_SIZE = 20;
@@ -130,6 +131,7 @@ export default function OwnerShowroom() {
                       className="md:hidden block p-4 border-b border-[var(--border-light)] cursor-pointer hover:bg-[var(--bg-hover)] transition-colors"
                       style={{ borderBottom: '1px solid var(--border-light)' }}
                       onClick={() => setSelectedBill(bill)}
+                      {...activatableRow(() => setSelectedBill(bill), `Open showroom dispatch for ${bill.customer_name || 'recipient'}, ${formatDateTime(bill.created_at).full}`)}
                     >
                       <td className="block p-0 border-none">
                         <div className="flex justify-between items-center gap-3">
@@ -170,6 +172,7 @@ export default function OwnerShowroom() {
                       className="hidden md:table-row cursor-pointer transition-colors hover:bg-[var(--bg-hover)] border-b border-[var(--border-medium)] group"
                       style={{ borderBottom: '1px solid var(--border-medium)' }}
                       onClick={() => setSelectedBill(bill)}
+                      {...activatableRow(() => setSelectedBill(bill), `Open showroom dispatch for ${bill.customer_name || 'recipient'}, ${formatDateTime(bill.created_at).full}`)}
                     >
                       <td className="py-4 px-5 text-sm text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
                         <span className="font-semibold text-xs text-[var(--text-primary)] whitespace-nowrap">{formatDateTime(bill.created_at).full}</span>

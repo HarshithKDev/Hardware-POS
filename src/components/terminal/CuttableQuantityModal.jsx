@@ -20,14 +20,22 @@ export default function CuttableQuantityModal({
   const [qtyInput, setQtyInput] = useState('');
   const inputRef = useRef(null);
 
+  // Each time it opens (or for another item), start from that item's quantity: set while
+  // rendering so the previous item's number never flashes
+  const [shownFor, setShownFor] = useState(isOpen ? modalData : null);
+  const current = isOpen ? modalData : null;
+  if (current !== shownFor) {
+    setShownFor(current);
+    if (current) setQtyInput(current.initialQty !== undefined && current.initialQty !== null ? String(current.initialQty) : '');
+  }
+
   useEffect(() => {
-    if (isOpen) {
-      setQtyInput(modalData?.initialQty !== undefined && modalData?.initialQty !== null ? String(modalData.initialQty) : '');
-      setTimeout(() => {
-        inputRef.current?.focus();
-        inputRef.current?.select();
-      }, 50);
-    }
+    if (!isOpen) return undefined;
+    const t = setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }, 50);
+    return () => clearTimeout(t);
   }, [isOpen, modalData]);
 
   if (!isOpen || !modalData?.item) return null;

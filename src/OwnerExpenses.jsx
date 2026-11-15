@@ -520,10 +520,11 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
             <div className="flex flex-col gap-4">
               {/* Description */}
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-secondary)]">
+                <label htmlFor="expense-description" className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-secondary)]">
                   Description <span className="text-[var(--color-error)]">*</span>
                 </label>
                 <input
+                  id="expense-description"
                   type="text"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
@@ -536,12 +537,13 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
 
               {/* Amount Input */}
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-secondary)]">
+                <label htmlFor="expense-amount" className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-secondary)]">
                   Amount (₹) <span className="text-[var(--color-error)]">*</span>
                 </label>
                 <div className="flex items-center rounded-md bg-[var(--bg-input)] border border-[var(--border-input)] focus-within:border-[var(--color-accent)] transition-colors px-3 h-11 md:h-10">
                   <span className="text-base font-bold text-[var(--color-accent)] mr-2 select-none shrink-0">₹</span>
                   <input
+                  id="expense-amount"
                     type="number" inputMode="decimal"
                     min="1"
                     step="any"
@@ -557,10 +559,11 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
 
               {/* Optional Staff / Category */}
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-secondary)]">
+                <label htmlFor="expense-paid-to" className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-secondary)]">
                   Staff / Paid To (Optional)
                 </label>
                 <select
+                  id="expense-paid-to"
                   value={selectedWorkerId}
                   onChange={(e) => setSelectedWorkerId(e.target.value)}
                   className="w-full h-10 px-3 text-sm font-medium rounded-md bg-[var(--bg-input)] text-[var(--text-input)] border border-[var(--border-input)] focus:outline-none focus:border-[var(--color-accent)] cursor-pointer"
@@ -577,8 +580,9 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
               {/* Category & payment mode */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-secondary)]">Category</label>
+                  <label htmlFor="expense-category" className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-secondary)]">Category</label>
                   <select
+                  id="expense-category"
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full h-10 px-2 text-sm font-medium rounded-md bg-[var(--bg-input)] text-[var(--text-input)] border border-[var(--border-input)] focus:outline-none focus:border-[var(--color-accent)]"
@@ -588,8 +592,9 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-secondary)]">Paid By</label>
+                  <label htmlFor="expense-paid-by" className="block text-xs font-semibold uppercase tracking-wider mb-1.5 text-[var(--text-secondary)]">Paid By</label>
                   <select
+                  id="expense-paid-by"
                     value={paymentMode}
                     onChange={(e) => setPaymentMode(e.target.value)}
                     className="w-full h-10 px-2 text-sm font-medium rounded-md bg-[var(--bg-input)] text-[var(--text-input)] border border-[var(--border-input)] focus:outline-none focus:border-[var(--color-accent)]"

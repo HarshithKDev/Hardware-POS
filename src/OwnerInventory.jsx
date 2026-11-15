@@ -558,7 +558,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
     <tr className="h-10 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
       {isSelectionMode && (
         <th className="p-3 w-12 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
-          <input type="checkbox" checked={items.length > 0 && selectedBarcodes.length === items.length} onChange={toggleSelectAll} className="w-4 h-4 rounded text-accent focus:ring-accent cursor-pointer" />
+          <input type="checkbox" checked={items.length > 0 && selectedBarcodes.length === items.length} onChange={toggleSelectAll} aria-label="Select all items" className="w-4 h-4 rounded text-accent focus:ring-accent cursor-pointer" />
         </th>
       )}
       <th 
