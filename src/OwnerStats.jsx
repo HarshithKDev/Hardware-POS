@@ -1202,29 +1202,50 @@ export default function OwnerStats({ isActive }) {
   const { sorted: sortedDeadStock, sort: deadSort, toggleSort: toggleDeadSort, setSort: setDeadSort } = useSort(invData?.deadStockItems, DEAD_STOCK_SORT);
   // Keyboard focus moves into the breakdown window and back to the card when it closes
   const statsModalRef = useDialogFocus(Boolean(activeModal));
-  // Dead stock: narrow down by category / sub-category
-  const [deadCat, setDeadCat] = useState('');
-  const [deadSub, setDeadSub] = useState('');
-  const deadCategories = useMemo(() => {
+  // Low stock lists (store / warehouse): click-to-sort, also by how far below the minimum
+  const isLowModal = activeModal === 'low-store' || activeModal === 'low-warehouse';
+  const lowIsStore = activeModal !== 'low-warehouse';
+  const lowSource = lowIsStore ? invData?.lowStoreItems : invData?.lowWarehouseItems;
+  const lowAccessors = useMemo(() => {
+    const qty = (i) => Number(lowIsStore ? i.stock_store : i.stock_warehouse) || 0;
+    const min = (i) => Number(lowIsStore ? (i.min_quantity_store ?? 10) : (i.min_quantity_warehouse ?? 50)) || 0;
+    return {
+      barcode: { get: (i) => String(i.barcode || ''), textual: true },
+      name: { get: (i) => i.name || '', textual: true },
+      category: DEAD_STOCK_SORT.category,
+      qty,
+      shortfall: (i) => min(i) - qty(i),
+    };
+  }, [lowIsStore]);
+  const { sorted: sortedLow, sort: lowSort, toggleSort: toggleLowSort, setSort: setLowSort } = useSort(lowSource, lowAccessors);
+
+  // Stock lists (low stock, dead stock): narrow down by category / sub-category
+  const [stockCat, setStockCat] = useState('');
+  const [stockSub, setStockSub] = useState('');
+  const stockListItems = isLowModal ? lowSource : invData?.deadStockItems;
+  const stockCategories = useMemo(() => {
     const cats = new Map();
-    (invData?.deadStockItems || []).forEach(i => {
+    (stockListItems || []).forEach(i => {
       const c = i.category || '';
       if (!cats.has(c)) cats.set(c, new Set());
       if (i.sub_category) cats.get(c).add(i.sub_category);
     });
     return cats;
-  }, [invData?.deadStockItems]);
-  const deadSubOptions = useMemo(() => {
+  }, [stockListItems]);
+  const stockSubOptions = useMemo(() => {
     const subs = new Set();
-    deadCategories.forEach((set, cat) => { if (!deadCat || cat === deadCat) set.forEach(s => subs.add(s)); });
+    stockCategories.forEach((set, cat) => { if (!stockCat || cat === stockCat) set.forEach(sc => subs.add(sc)); });
     return [...subs].sort((a, b) => a.localeCompare(b));
-  }, [deadCategories, deadCat]);
+  }, [stockCategories, stockCat]);
   // A choice that is no longer in the data (e.g. after a refresh) counts as "All", so the
   // dropdown and the list always agree
-  const activeDeadCat = deadCat && deadCategories.has(deadCat) ? deadCat : '';
-  const activeDeadSub = deadSub && deadSubOptions.includes(deadSub) ? deadSub : '';
-  const filteredDeadStock = useMemo(() => sortedDeadStock.filter(i =>
-    (!activeDeadCat || (i.category || '') === activeDeadCat) && (!activeDeadSub || i.sub_category === activeDeadSub)), [sortedDeadStock, activeDeadCat, activeDeadSub]);
+  const activeStockCat = stockCat && stockCategories.has(stockCat) ? stockCat : '';
+  const activeStockSub = stockSub && stockSubOptions.includes(stockSub) ? stockSub : '';
+  const inStockFilter = useCallback((i) =>
+    (!activeStockCat || (i.category || '') === activeStockCat) && (!activeStockSub || i.sub_category === activeStockSub), [activeStockCat, activeStockSub]);
+  const filteredDeadStock = useMemo(() => sortedDeadStock.filter(inStockFilter), [sortedDeadStock, inStockFilter]);
+  const filteredLowStock = useMemo(() => sortedLow.filter(inStockFilter), [sortedLow, inStockFilter]);
+  const openStockList = (kind) => { setStockCat(''); setStockSub(''); setActiveModal(kind); };
   const filteredDeadValue = filteredDeadStock.reduce((s, i) => s + (Number(i.deadValue) || 0), 0);
 
   if ((!salesData && isSalesLoading) || (!invData && isInvLoading)) {
@@ -1332,7 +1353,7 @@ export default function OwnerStats({ isActive }) {
           title={isWarehouseDisabled ? "Low Stock" : "Store Low Stock"}
           value={lowStoreItems.length}
           borderColor={lowStoreItems.length > 0 ? 'var(--color-error)' : 'var(--color-accent)'}
-          onClick={() => setActiveModal('low-store')}
+          onClick={() => openStockList('low-store')}
           clickLabel="View low stock items"
         />
         {!isWarehouseDisabled && (
@@ -1340,7 +1361,7 @@ export default function OwnerStats({ isActive }) {
             title="Warehouse Low Stock"
             value={lowWarehouseItems.length}
             borderColor={lowWarehouseItems.length > 0 ? 'var(--color-error)' : 'var(--color-accent)'}
-            onClick={() => setActiveModal('low-warehouse')}
+            onClick={() => openStockList('low-warehouse')}
             clickLabel="View warehouse low stock"
           />
         )}
@@ -1349,7 +1370,7 @@ export default function OwnerStats({ isActive }) {
           title="Dead Stock Value"
           value={`₹${formatINR(deadStockValue, 2)}`}
           borderColor={deadStockValue > DEAD_STOCK_ALARM_VALUE ? 'var(--color-error)' : 'var(--color-warning)'}
-          onClick={() => { setDeadCat(''); setDeadSub(''); setActiveModal('dead-stock'); }}
+          onClick={() => openStockList('dead-stock')}
           clickLabel="View dead stock items"
         />
       </div>
@@ -1522,57 +1543,73 @@ export default function OwnerStats({ isActive }) {
                 </>
               )}
 
-              {activeModal === 'dead-stock' && deadStockItems.length > 0 && (
+              {((activeModal === 'dead-stock' && deadStockItems.length > 0) || (isLowModal && (lowSource || []).length > 0)) && (() => {
                 // Narrow down by category / sub-category, and choose the order (also on phones,
                 // where the list has no column headers to click)
+                const isDead = activeModal === 'dead-stock';
+                const listName = isDead ? 'dead stock' : 'low stock';
+                const sortState = isDead ? deadSort : lowSort;
+                const setSortState = isDead ? setDeadSort : setLowSort;
+                const defaultSort = isDead ? 'value:desc' : 'name:asc';
+                const options = isDead ? [
+                  ['value:desc', 'Sort: Capital tied up (high first)'],
+                  ['value:asc', 'Sort: Capital tied up (low first)'],
+                  ['qty:desc', 'Sort: Locked qty (high first)'],
+                  ['category:asc', 'Sort: Category A–Z'],
+                  ['name:asc', 'Sort: Name A–Z'],
+                  ['barcode:asc', 'Sort: Barcode'],
+                ] : [
+                  ['name:asc', 'Sort: Name A–Z'],
+                  ['shortfall:desc', 'Sort: Furthest below minimum'],
+                  ['qty:asc', 'Sort: Current qty (low first)'],
+                  ['category:asc', 'Sort: Category A–Z'],
+                  ['barcode:asc', 'Sort: Barcode'],
+                ];
+                const current = sortState.key ? `${sortState.key}:${sortState.dir}` : defaultSort;
+                const shown = isDead ? filteredDeadStock : filteredLowStock;
+                return (
                 <div className="shrink-0 p-2.5 md:px-4 md:py-3 grid grid-cols-2 md:flex md:items-center gap-2 border-b border-[var(--border-medium)]">
                   <select
-                    value={activeDeadCat}
-                    onChange={(e) => { setDeadCat(e.target.value); setDeadSub(''); }}
+                    value={activeStockCat}
+                    onChange={(e) => { setStockCat(e.target.value); setStockSub(''); }}
                     className="w-full md:w-52 h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md cursor-pointer truncate"
                     style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
-                    aria-label="Filter dead stock by category"
+                    aria-label={`Filter ${listName} by category`}
                   >
                     <option value="">All Categories</option>
-                    {[...deadCategories.keys()].sort((a, b) => a.localeCompare(b)).map(c => (
+                    {[...stockCategories.keys()].sort((a, b) => a.localeCompare(b)).map(c => (
                       <option key={c || '_none'} value={c}>{c || 'No category'}</option>
                     ))}
                   </select>
                   <select
-                    value={activeDeadSub}
-                    onChange={(e) => setDeadSub(e.target.value)}
-                    disabled={deadSubOptions.length === 0}
+                    value={activeStockSub}
+                    onChange={(e) => setStockSub(e.target.value)}
+                    disabled={stockSubOptions.length === 0}
                     className="w-full md:w-52 h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md cursor-pointer truncate disabled:opacity-50"
                     style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
-                    aria-label="Filter dead stock by sub-category"
+                    aria-label={`Filter ${listName} by sub-category`}
                   >
                     <option value="">All Sub Cat</option>
-                    {deadSubOptions.map(sc => <option key={sc} value={sc}>{sc}</option>)}
+                    {stockSubOptions.map(sc => <option key={sc} value={sc}>{sc}</option>)}
                   </select>
                   <select
-                    value={deadSort.key ? `${deadSort.key}:${deadSort.dir}` : 'value:desc'}
-                    onChange={(e) => { const [key, dir] = e.target.value.split(':'); setDeadSort({ key, dir }); }}
+                    value={current}
+                    onChange={(e) => { const [key, dir] = e.target.value.split(':'); setSortState({ key, dir }); }}
                     className="col-span-2 w-full md:w-60 h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md cursor-pointer truncate"
                     style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
-                    aria-label="Sort dead stock"
+                    aria-label={`Sort ${listName}`}
                   >
-                    {[
-                      ['value:desc', 'Sort: Capital tied up (high first)'],
-                      ['value:asc', 'Sort: Capital tied up (low first)'],
-                      ['qty:desc', 'Sort: Locked qty (high first)'],
-                      ['category:asc', 'Sort: Category A–Z'],
-                      ['name:asc', 'Sort: Name A–Z'],
-                      ['barcode:asc', 'Sort: Barcode'],
-                    ].map(([v, label]) => <option key={v} value={v}>{label}</option>)}
-                    {deadSort.key && !['value:desc', 'value:asc', 'qty:desc', 'category:asc', 'name:asc', 'barcode:asc'].includes(`${deadSort.key}:${deadSort.dir}`) && (
-                      <option value={`${deadSort.key}:${deadSort.dir}`}>Sort: custom (from the table)</option>
+                    {options.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+                    {!options.some(([v]) => v === current) && (
+                      <option value={current}>Sort: custom (from the table)</option>
                     )}
                   </select>
                   <span className="col-span-2 md:ml-auto text-xs font-semibold text-[var(--text-secondary)] tabular-nums">
-                    {filteredDeadStock.length} {filteredDeadStock.length === 1 ? 'item' : 'items'} • ₹{formatINR(filteredDeadValue, 2)}
+                    {shown.length} {shown.length === 1 ? 'item' : 'items'}{isDead ? ` • ₹${formatINR(filteredDeadValue, 2)}` : ''}
                   </span>
                 </div>
-              )}
+                );
+              })()}
 
               {(activeModal === 'low-store' || activeModal === 'low-warehouse' || activeModal === 'dead-stock') && (
                 <div className="flex-1 min-h-0 overflow-y-auto w-full modal-scroll">
@@ -1583,10 +1620,18 @@ export default function OwnerStats({ isActive }) {
                         Nothing in low stock.
                       </div>
                     )}
-                    {activeModal === 'low-store' && lowStoreItems.map(item => (
+                    {activeModal === 'low-store' && lowStoreItems.length > 0 && filteredLowStock.length === 0 && (
+                      <div className="h-32 flex items-center justify-center text-sm text-[var(--text-tertiary)] text-center px-4">No low stock in this category.</div>
+                    )}
+                    {activeModal === 'low-store' && filteredLowStock.map(item => (
                       <div key={item.barcode} className="p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-light)] shadow-sm space-y-2">
                         <div className="flex items-start justify-between gap-2">
-                          <span className="font-semibold text-sm text-[var(--text-primary)] leading-tight">{item.name}</span>
+                          <div className="min-w-0">
+                            <span className="font-semibold text-sm text-[var(--text-primary)] leading-tight block">{item.name}</span>
+                            {(item.category || item.sub_category) && (
+                              <span className="text-xs text-[var(--text-secondary)]">{[item.category, item.sub_category].filter(Boolean).join(' › ')}</span>
+                            )}
+                          </div>
                           <span className="text-xs font-mono text-[var(--color-accent)] bg-[var(--bg-tertiary)] px-2 py-0.5 rounded border border-[var(--border-medium)]">
                             #{item.barcode}
                           </span>
@@ -1609,10 +1654,18 @@ export default function OwnerStats({ isActive }) {
                         Nothing in low stock.
                       </div>
                     )}
-                    {activeModal === 'low-warehouse' && lowWarehouseItems.map(item => (
+                    {activeModal === 'low-warehouse' && lowWarehouseItems.length > 0 && filteredLowStock.length === 0 && (
+                      <div className="h-32 flex items-center justify-center text-sm text-[var(--text-tertiary)] text-center px-4">No low stock in this category.</div>
+                    )}
+                    {activeModal === 'low-warehouse' && filteredLowStock.map(item => (
                       <div key={item.barcode} className="p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-light)] shadow-sm space-y-2">
                         <div className="flex items-start justify-between gap-2">
-                          <span className="font-semibold text-sm text-[var(--text-primary)] leading-tight">{item.name}</span>
+                          <div className="min-w-0">
+                            <span className="font-semibold text-sm text-[var(--text-primary)] leading-tight block">{item.name}</span>
+                            {(item.category || item.sub_category) && (
+                              <span className="text-xs text-[var(--text-secondary)]">{[item.category, item.sub_category].filter(Boolean).join(' › ')}</span>
+                            )}
+                          </div>
                           <span className="text-xs font-mono text-[var(--color-accent)] bg-[var(--bg-tertiary)] px-2 py-0.5 rounded border border-[var(--border-medium)]">
                             #{item.barcode}
                           </span>
@@ -1676,8 +1729,8 @@ export default function OwnerStats({ isActive }) {
                           </>
                         ) : (
                           <>
-                            <th className="p-3 w-32" style={{ borderRight: '1px solid var(--border-medium)' }}>Barcode</th>
-                            <th className="p-3" style={{ borderRight: '1px solid var(--border-medium)' }}>Item Name</th>
+                            <SortTh label="Barcode" sortKey="barcode" sort={lowSort} onSort={toggleLowSort} className="p-3 w-32" style={{ borderRight: '1px solid var(--border-medium)' }} />
+                            <SortTh label="Item Name" sortKey="name" sort={lowSort} onSort={toggleLowSort} className="p-3" style={{ borderRight: '1px solid var(--border-medium)' }} />
                           </>
                         )}
                         {activeModal === 'dead-stock' ? (
@@ -1688,7 +1741,7 @@ export default function OwnerStats({ isActive }) {
                         ) : (
                           <>
                             <th className="p-3 text-center w-32" style={{ borderRight: '1px solid var(--border-medium)' }}>Min Qty</th>
-                            <th className="p-3 text-center w-32">Current Qty</th>
+                            <SortTh label="Current Qty" sortKey="qty" sort={lowSort} onSort={toggleLowSort} className="p-3 text-center w-32" />
                           </>
                         )}
                       </tr>
@@ -1701,10 +1754,20 @@ export default function OwnerStats({ isActive }) {
                           </td>
                         </tr>
                       )}
-                      {activeModal === 'low-store' && lowStoreItems.map(item => (
+                      {activeModal === 'low-store' && lowStoreItems.length > 0 && filteredLowStock.length === 0 && (
+                        <tr className="border-none hover:bg-transparent">
+                          <td colSpan="4" className="h-40 align-middle text-center text-sm text-[var(--text-tertiary)]">No low stock in this category.</td>
+                        </tr>
+                      )}
+                      {activeModal === 'low-store' && filteredLowStock.map(item => (
                         <tr key={item.barcode} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                           <td className="p-3 text-sm font-semibold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-medium)' }}>{item.barcode}</td>
-                          <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.name}</td>
+                          <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>
+                            {item.name}
+                            {(item.category || item.sub_category) && (
+                              <span className="block text-xs font-normal text-[var(--text-secondary)]">{[item.category, item.sub_category].filter(Boolean).join(' › ')}</span>
+                            )}
+                          </td>
                           <td className="p-3 text-sm text-center font-bold tabular-nums" style={{ color: 'var(--text-tertiary)', borderRight: '1px solid var(--border-medium)' }}>{item.min_quantity_store ?? 10} {item.unit || 'PCS'}</td>
                           <td className="p-3 text-sm text-center font-bold tabular-nums" style={{ color: 'var(--color-warning)' }}>{item.stock_store} {item.unit || 'PCS'}</td>
                         </tr>
@@ -1716,10 +1779,20 @@ export default function OwnerStats({ isActive }) {
                           </td>
                         </tr>
                       )}
-                      {activeModal === 'low-warehouse' && lowWarehouseItems.map(item => (
+                      {activeModal === 'low-warehouse' && lowWarehouseItems.length > 0 && filteredLowStock.length === 0 && (
+                        <tr className="border-none hover:bg-transparent">
+                          <td colSpan="4" className="h-40 align-middle text-center text-sm text-[var(--text-tertiary)]">No low stock in this category.</td>
+                        </tr>
+                      )}
+                      {activeModal === 'low-warehouse' && filteredLowStock.map(item => (
                         <tr key={item.barcode} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                           <td className="p-3 text-sm font-semibold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-medium)' }}>{item.barcode}</td>
-                          <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.name}</td>
+                          <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>
+                            {item.name}
+                            {(item.category || item.sub_category) && (
+                              <span className="block text-xs font-normal text-[var(--text-secondary)]">{[item.category, item.sub_category].filter(Boolean).join(' › ')}</span>
+                            )}
+                          </td>
                           <td className="p-3 text-sm text-center font-bold tabular-nums" style={{ color: 'var(--text-tertiary)', borderRight: '1px solid var(--border-medium)' }}>{item.min_quantity_warehouse ?? 50} {item.unit || 'PCS'}</td>
                           <td className="p-3 text-sm text-center font-bold tabular-nums" style={{ color: 'var(--color-warning)' }}>{item.stock_warehouse} {item.unit || 'PCS'}</td>
                         </tr>
