@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { formatDateTime, formatINR, billLabel } from './utils';
 import { readRows } from './services/secureRead';
+import { withLegacyScrews } from './services/legacyScrews';
 import { buttonClass, TableSkeleton } from './components/ui';
 import { useApp } from './AppContext';
 import {
@@ -43,37 +44,11 @@ export default function BillDetailsView({
     staleTime: 1000 * 30
   });
 
-  // Reconcile legacy bills that had screws but were not saved to bill_items due to schema/filtering
-  const items = React.useMemo(() => {
-    const list = rawItems || [];
-    const hasScrew = list.some(it => it.barcode === 'SCREWS' || it.is_screw);
-    const billTotal = Number(currentBill?.total_amount || 0);
-    if (!hasScrew && billTotal > 0) {
-      const itemsSum = list.reduce((acc, it) => acc + (Number(it.price_at_sale || 0) * Number(it.billable_quantity || it.quantity || 1)), 0);
-      const diff = Math.round((billTotal - itemsSum) * 100) / 100;
-      if (diff > 0) {
-        return [
-          ...list,
-          {
-            id: 'screw-legacy-' + currentBill.id,
-            bill_id: currentBill.id,
-            barcode: 'SCREWS',
-            name: 'Screws',
-            quantity: 1,
-            billable_quantity: 1,
-            actual_quantity: 1,
-            price_at_sale: diff,
-            system_price: diff,
-            selling_price: diff,
-            profit: diff,
-            unit: 'SET',
-            is_screw: true
-          }
-        ];
-      }
-    }
-    return list;
-  }, [rawItems, currentBill?.total_amount, currentBill?.id]);
+  // Very old bills: their screws charge was only in the total (never a rounding gap)
+  const items = React.useMemo(
+    () => withLegacyScrews(currentBill, rawItems || []),
+    [rawItems, currentBill],
+  );
 
   const totalItemsCount = items.reduce((acc, it) => acc + Number(it.billable_quantity || it.quantity || 1), 0);
   const totalProfit = items.reduce((acc, it) => acc + Number(it.profit || 0), 0);

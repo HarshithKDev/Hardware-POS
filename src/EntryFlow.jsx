@@ -5,6 +5,7 @@ import { getWorkerEmail, getLegacyWorkerEmail } from './constants';
 import { buttonClass } from './components/ui';
 import { generateId } from './utils';
 import { readLoginNotice, clearLoginNotice } from './services/loginNotice';
+import { setAuthPersistence } from './services/authSession';
 
 export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComplete, shopSettings }) {
   const [step, setStep] = useState(1);
@@ -82,6 +83,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
     setError('');
 
     try {
+      setAuthPersistence(true); // this device is being set up for the shop: stay signed in
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password: cleanPass
@@ -128,6 +130,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
     setError('');
 
     try {
+      setAuthPersistence(true); // first-time shop setup: stay signed in on this device
       const { error: authError } = await supabase.auth.signUp({ email: cleanEmail, password: cleanPass });
 
       if (authError) {
@@ -232,6 +235,7 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
         ? (shopSettings?.admin_email || ownerEmail.trim()) 
         : getWorkerEmail(targetId, shopSettings?.id);
 
+      setAuthPersistence(rememberMe);
       let { error: authError } = await supabase.auth.signInWithPassword({
         email: targetEmail,
         password,

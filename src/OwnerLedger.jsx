@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { localToUtcIso, formatINR, billLabel } from './utils';
+import { localToUtcIso, formatINR, billLabel, offlineReceiptRef } from './utils';
 import { getPerformedBy } from './utils';
 import { supabase } from './supabaseClient';
 import { casUpdateRow } from './services/atomicStock';
@@ -15,6 +15,7 @@ import { Search, Undo2, X, Phone, Calendar } from 'lucide-react';
 import BillDetailsView from './BillDetailsView';
 import { getInventoryItemByBarcode } from './services/db';
 import { readRows } from './services/secureRead';
+import { withLegacyScrews } from './services/legacyScrews';
 import { useActiveDays, ACTIVE_DAYS_STEP } from './hooks/useActiveDays';
 import PageTitleReset from './components/PageTitleReset';
 import DayClosingModal from './components/reports/DayClosingModal';
@@ -37,10 +38,12 @@ const paymentTone = (method) => (method === 'CASH' ? 'success' : method === 'UPI
 // Searching by bill number is switched on once bills loaded from the database include
 // the bill_no column (after the bill-number SQL update); before that the query would fail.
 let billNoSearchEnabled = false;
+// Same for the sale reference (client_ref) that offline receipt numbers are made from
+let clientRefSearchEnabled = false;
 const noteBillNoColumn = (rows) => {
-  if (!billNoSearchEnabled && (rows || []).some(r => r && Object.prototype.hasOwnProperty.call(r, 'bill_no'))) {
-    billNoSearchEnabled = true;
-  }
+  const has = (col) => (rows || []).some(r => r && Object.prototype.hasOwnProperty.call(r, col));
+  if (!billNoSearchEnabled && has('bill_no')) billNoSearchEnabled = true;
+  if (!clientRefSearchEnabled && has('client_ref')) clientRefSearchEnabled = true;
 };
 
 const isItemCuttable = (item) => {
@@ -237,7 +240,9 @@ export default function OwnerLedger({ isActive }) {
         const raw = searchQuery.trim().replace(/^#/, '').replace(/[,()]/g, '');
         if (raw) {
           const cleanQ = escapeIlike(raw);
-          query = query.or(`customer_phone.ilike.%${cleanQ}%,customer_name.ilike.%${cleanQ}%,id.ilike.%${cleanQ}%${billNoSearchEnabled && /^\d{1,12}$/.test(raw) ? `,bill_no.eq.${raw}` : ''}`);
+          // A receipt printed offline ("OFFL-7F3A2B") finds the bill it became
+          const offlineRef = clientRefSearchEnabled ? offlineReceiptRef(raw) : null;
+          query = query.or(`customer_phone.ilike.%${cleanQ}%,customer_name.ilike.%${cleanQ}%,id.ilike.%${cleanQ}%${billNoSearchEnabled && /^\d{1,12}$/.test(raw) ? `,bill_no.eq.${raw}` : ''}${offlineRef ? `,client_ref.ilike.${offlineRef}%` : ''}`);
         }
         const from = salesPage * SALES_PER_PAGE;
         query = query
@@ -295,31 +300,8 @@ export default function OwnerLedger({ isActive }) {
         });
         if (error) throw error;
         let rawItems = data || [];
-        const hasScrew = rawItems.some(it => it.barcode === 'SCREWS' || it.is_screw);
-        const billTotal = Number(bill.total_amount || 0);
-        if (!hasScrew && billTotal > 0) {
-          const itemsSum = rawItems.reduce((acc, it) => acc + (Number(it.price_at_sale || 0) * Number(it.billable_quantity || it.quantity || 1)), 0);
-          const diff = Math.round((billTotal - itemsSum) * 100) / 100;
-          if (diff > 0) {
-            rawItems = [
-              ...rawItems,
-              {
-                id: 'screw-legacy-' + bill.id,
-                bill_id: bill.id,
-                barcode: 'SCREWS',
-                name: 'Screws',
-                quantity: 1,
-                billable_quantity: 1,
-                actual_quantity: 1,
-                price_at_sale: diff,
-                system_price: diff,
-                profit: diff,
-                unit: 'SET',
-                is_screw: true
-              }
-            ];
-          }
-        }
+        // Very old bills: their screws charge was only in the total (never a rounding gap)
+        rawItems = withLegacyScrews(bill, rawItems);
         items = await enrichBillItems(rawItems);
         setBillItemsCache(prev => ({ ...prev, [bill.id]: items }));
       } catch (err) {
