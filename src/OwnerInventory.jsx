@@ -5,15 +5,7 @@ import { EmptyState } from './SharedUI';
 import PrintBatchModal from './PrintBatchModal';
 import CreateBatchModal from './CreateBatchModal';
 import { supabase } from './supabaseClient';
-import { 
-  getInventoryByQuery, 
-  saveInventoryBatch, 
-  getInventoryItemByBarcode,
-  getLocalCategories,
-  setLocalCategories,
-  getLocalSubcategories,
-  setLocalSubcategories
-} from './services/db';
+import { getInventoryByQuery, saveInventoryBatch, getInventoryItemByBarcode, getLocalCategories, setLocalCategories, getLocalSubcategories, setLocalSubcategories, savedListSeed } from './services/db';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { ConfirmDialog } from './Dialog';
 import { useApp } from './AppContext';
@@ -129,7 +121,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
       if (res.length > 0) setLocalCategories(shopId, res);
       return res;
     },
-    initialData: () => getLocalCategories(shopId),
+    ...savedListSeed(() => getLocalCategories(shopId)),
     staleTime: STALE_TIME_5MIN,
   });
 
@@ -146,7 +138,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
       if (res.length > 0) setLocalSubcategories(shopId, res);
       return res;
     },
-    initialData: () => getLocalSubcategories(shopId),
+    ...savedListSeed(() => getLocalSubcategories(shopId)),
     staleTime: STALE_TIME_5MIN,
   });
 

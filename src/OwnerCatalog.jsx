@@ -9,14 +9,7 @@ import { fetchAllShopBarcodes, nextNumericBarcode } from './services/catalog';
 import { SCREW_BOX_UNIT } from './constants';
 
 import { Spinner, CreatableDropdown } from './SharedUI';
-import { 
-  saveInventoryBatch, 
-  initDB,
-  getLocalCategories,
-  setLocalCategories,
-  getLocalSubcategories,
-  setLocalSubcategories
-} from './services/db';
+import { saveInventoryBatch, initDB, getLocalCategories, setLocalCategories, getLocalSubcategories, setLocalSubcategories, savedListSeed } from './services/db';
 import PageTitleReset from './components/PageTitleReset';
 import { buttonClass } from './components/ui';
 
@@ -54,7 +47,7 @@ export default function OwnerCatalog() {
       if (res.length > 0) setLocalCategories(shopId, res);
       return res;
     },
-    initialData: () => getLocalCategories(shopId),
+    ...savedListSeed(() => getLocalCategories(shopId)),
     staleTime: STALE_TIME_5MIN,
   });
 
@@ -70,7 +63,7 @@ export default function OwnerCatalog() {
       if (res.length > 0) setLocalSubcategories(shopId, res);
       return res;
     },
-    initialData: () => getLocalSubcategories(shopId),
+    ...savedListSeed(() => getLocalSubcategories(shopId)),
     staleTime: STALE_TIME_5MIN,
   });
 

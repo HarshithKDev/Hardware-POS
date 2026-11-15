@@ -193,6 +193,20 @@ export const getInventoryItemByBarcode = async (barcode) => {
 };
 
 // Cached Categories & Subcategories helpers for instant 0ms loads
+/**
+ * React Query options for a list this device keeps a saved copy of: the saved copy shows straight
+ * away, and the server is still asked for the current list. An empty saved copy is not used: it
+ * used to count as fresh data for 5 minutes, so a page said "nothing here" while the shop had items.
+ * `read` is only called when the query has no data yet.
+ */
+export const savedListSeed = (read) => ({
+  initialData: () => {
+    const list = read();
+    return Array.isArray(list) && list.length > 0 ? list : undefined;
+  },
+  initialDataUpdatedAt: 0,
+});
+
 export const getLocalCategories = (shopId) => {
   try {
     const raw = localStorage.getItem(`cached_categories_${shopId || 'default'}`);

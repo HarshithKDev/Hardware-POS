@@ -160,6 +160,43 @@ describe('Categories page', () => {
     expect(insert.payload[0]).toMatchObject({ category_name: 'Pipes', shop_id: SHOP });
     expect(String(insert.payload[0].name).toUpperCase()).toBe('CPVC');
   });
+
+  it('says "Loading" while the list is on its way, never "No categories yet"', async () => {
+    const real = h.db.from;
+    let release;
+    const gate = new Promise(r => { release = r; });
+    h.db = { ...h.db, from: (t) => {
+      const q = real(t);
+      if (t !== 'categories') return q;
+      const then = q.then;
+      q.then = (res, rej) => gate.then(() => new Promise((ok, no) => then(ok, no))).then(res, rej);
+      return q;
+    } };
+    renderWith(<OwnerCategories />);
+    const list = screen.getByLabelText('Categories');
+    expect(within(list).getByText('Loading categories…')).toBeInTheDocument();
+    expect(screen.queryByText(/No categories yet/)).toBeNull();
+    release();
+    expect(await within(list).findByRole('button', { name: /Locks/ })).toBeInTheDocument();
+  });
+
+  it('when the list cannot be read, says so and offers to try again', async () => {
+    const real = h.db.from;
+    let fail = true;
+    h.db = { ...h.db, from: (t) => {
+      const q = real(t);
+      if (t !== 'categories') return q;
+      if (fail) q.then = (res, rej) => Promise.resolve({ data: null, error: { message: 'Failed to fetch' } }).then(res, rej);
+      return q;
+    } };
+    renderWith(<OwnerCategories />);
+    const list = screen.getByLabelText('Categories');
+    expect(await within(list).findByText(/Could not load categories/)).toBeInTheDocument();
+    expect(screen.queryByText(/No categories yet/)).toBeNull();
+    fail = false;
+    fireEvent.click(within(list).getByRole('button', { name: /Try again/ }));
+    expect(await within(list).findByRole('button', { name: /Locks/ })).toBeInTheDocument();
+  });
 });
 
 describe('Owner phone navigation', () => {

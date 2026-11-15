@@ -9,13 +9,7 @@ import { TableVirtuoso, Virtuoso } from 'react-virtuoso';
 import { usePhoneLayout } from './hooks/useMediaQuery';
 import { escapeIlike, debounce, useSessionState, formatINR } from './utils';
 import { STORE_LOW_STOCK_THRESHOLD, WAREHOUSE_LOW_STOCK_THRESHOLD, INV_PER_PAGE, STALE_TIME_5MIN } from './constants';
-import { 
-  getInventoryByQuery, 
-  getLocalCategories, 
-  setLocalCategories,
-  getLocalSubcategories,
-  setLocalSubcategories 
-} from './services/db';
+import { getInventoryByQuery, getLocalCategories, setLocalCategories, getLocalSubcategories, setLocalSubcategories, savedListSeed } from './services/db';
 import PageTitleReset from './components/PageTitleReset';
 import { buttonClass } from './components/ui';
 
@@ -287,7 +281,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
       if (res.length > 0) setLocalCategories(shopId, res.map(name => ({ name })));
       return res;
     },
-    initialData: () => getLocalCategories(shopId),
+    ...savedListSeed(() => getLocalCategories(shopId)),
     staleTime: STALE_TIME_5MIN,
   });
 
@@ -340,7 +334,7 @@ export default function WorkerDashboardView({ isBillable = true }) {
       if (res.length > 0) setLocalSubcategories(shopId, res);
       return res;
     },
-    initialData: () => getLocalSubcategories(shopId),
+    ...savedListSeed(() => getLocalSubcategories(shopId)),
     staleTime: STALE_TIME_5MIN,
   });
 

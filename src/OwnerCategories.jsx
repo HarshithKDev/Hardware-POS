@@ -6,7 +6,7 @@ import { useApp } from './AppContext';
 import { STALE_TIME_5MIN } from './constants';
 import PageTitleReset from './components/PageTitleReset';
 import { buttonClass } from './components/ui';
-import { Search, ChevronRight, Trash2, Plus, ArrowLeft, Tags } from 'lucide-react';
+import { Search, ChevronRight, Trash2, Plus, ArrowLeft, Tags, RotateCw } from 'lucide-react';
 
 export default function OwnerCategories() {
   const { showAlert, showConfirm } = useApp();
@@ -30,7 +30,9 @@ export default function OwnerCategories() {
   const shopId = localStorage.getItem('shop_id');
 
   // Fetch Categories
-  const { data: categories = [] } = useQuery({
+  const {
+    data: categories = [], isPending: categoriesLoading, isError: categoriesFailed, refetch: refetchCategories,
+  } = useQuery({
     queryKey: ['categories', shopId],
     queryFn: async () => {
       let query = supabase.from('categories').select('*').order('name', { ascending: true });
@@ -45,7 +47,9 @@ export default function OwnerCategories() {
   });
 
   // Fetch Subcategories
-  const { data: subcategories = [] } = useQuery({
+  const {
+    data: subcategories = [], isPending: subcategoriesLoading, isError: subcategoriesFailed, refetch: refetchSubcategories,
+  } = useQuery({
     queryKey: ['subcategories', shopId],
     queryFn: async () => {
       let query = supabase.from('subcategories').select('*').order('name', { ascending: true });
@@ -213,6 +217,15 @@ export default function OwnerCategories() {
     setMobileDetailOpen(true);
   };
 
+  // Only say "no categories" once the server has actually answered with none
+  const listState = categoriesLoading ? 'loading' : (categoriesFailed && categories.length === 0 ? 'failed' : 'ready');
+  const subsState = subcategoriesLoading ? 'loading' : (subcategoriesFailed && subcategories.length === 0 ? 'failed' : 'ready');
+  const retryButton = (onClick) => (
+    <button type="button" onClick={onClick} className={buttonClass({ variant: 'secondary', size: 'sm', className: 'mt-3' })}>
+      <RotateCw className="w-3.5 h-3.5" aria-hidden="true" /> Try again
+    </button>
+  );
+
   const fieldStyle = { border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' };
   const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
@@ -235,7 +248,7 @@ export default function OwnerCategories() {
           <div className="p-3 flex flex-col gap-2.5 border-b border-[var(--border-light)]" style={{ backgroundColor: 'var(--bg-tertiary)' }}>
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Categories</h2>
-              <span className="text-xs font-semibold tabular-nums text-[var(--text-tertiary)]">{categories.length}</span>
+              <span className="text-xs font-semibold tabular-nums text-[var(--text-tertiary)]">{listState === 'ready' ? categories.length : ''}</span>
             </div>
             <form onSubmit={handleAddCategory} className="flex gap-2">
               <label htmlFor="new-cat" className="sr-only">New category name</label>
@@ -254,7 +267,14 @@ export default function OwnerCategories() {
           </div>
 
           <ul className="flex-1 min-h-0 overflow-y-auto p-1.5" style={{ overscrollBehavior: 'contain' }}>
-            {visibleCategories.length === 0 ? (
+            {listState === 'loading' ? (
+              <li className="p-6 text-center text-sm text-[var(--text-tertiary)]" role="status">Loading categories…</li>
+            ) : listState === 'failed' ? (
+              <li className="p-6 text-center text-sm text-[var(--text-secondary)]" role="alert">
+                Could not load categories. Check the internet connection.
+                <div>{retryButton(() => { refetchCategories(); refetchSubcategories(); })}</div>
+              </li>
+            ) : visibleCategories.length === 0 ? (
               <li className="p-6 text-center text-sm text-[var(--text-tertiary)]">
                 {categories.length === 0 ? 'No categories yet. Add your first one above.' : 'No category matches your search.'}
               </li>
@@ -271,7 +291,7 @@ export default function OwnerCategories() {
                     style={active ? { backgroundColor: 'var(--color-accent-bg)', boxShadow: 'inset 3px 0 0 var(--color-accent)' } : undefined}
                   >
                     <span className="flex-1 min-w-0 truncate text-sm font-semibold" style={{ color: active ? 'var(--color-accent)' : 'var(--text-primary)' }} title={cat.name}>{cat.name}</span>
-                    <span className="shrink-0 text-xs tabular-nums px-2 py-0.5 rounded-full border border-[var(--border-light)] text-[var(--text-secondary)]" title={plural(count, 'sub-category', 'sub-categories')}>{count}</span>
+                    <span className="shrink-0 text-xs tabular-nums px-2 py-0.5 rounded-full border border-[var(--border-light)] text-[var(--text-secondary)]" title={subsState === 'ready' ? plural(count, 'sub-category', 'sub-categories') : undefined}>{subsState === 'ready' ? count : '·'}</span>
                     <ChevronRight className="w-4 h-4 shrink-0 text-[var(--text-tertiary)]" aria-hidden="true" />
                   </button>
                 </li>
@@ -286,7 +306,11 @@ export default function OwnerCategories() {
           className={`${mobileDetailOpen ? '' : 'max-md:hidden'} flex flex-col min-h-0 rounded-xl border border-[var(--border-light)] overflow-hidden`}
           style={{ backgroundColor: 'var(--bg-secondary)' }}
         >
-          {!activeName ? (
+          {listState !== 'ready' ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-2 p-8 text-center text-[var(--text-tertiary)]" aria-hidden="true">
+              <Tags className="w-10 h-10 opacity-40" />
+            </div>
+          ) : !activeName ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-2 p-8 text-center text-[var(--text-tertiary)]">
               <Tags className="w-10 h-10 opacity-40" aria-hidden="true" />
               <p className="text-sm font-semibold text-[var(--text-secondary)]">No categories yet</p>
@@ -301,7 +325,7 @@ export default function OwnerCategories() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="text-lg font-semibold text-[var(--text-primary)] break-words">{activeName}</h2>
-                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">{plural(activeSubs.length, 'sub-category', 'sub-categories')}</p>
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">{subsState === 'ready' ? plural(activeSubs.length, 'sub-category', 'sub-categories') : '\u00a0'}</p>
                   </div>
                   <button
                     type="button"
@@ -331,7 +355,14 @@ export default function OwnerCategories() {
               </div>
 
               <div className="flex-1 min-h-0 overflow-y-auto p-4" style={{ overscrollBehavior: 'contain' }}>
-                {activeSubs.length === 0 ? (
+                {subsState === 'loading' ? (
+                  <p className="text-sm text-[var(--text-tertiary)]" role="status">Loading sub-categories…</p>
+                ) : subsState === 'failed' ? (
+                  <div className="text-sm text-[var(--text-secondary)]" role="alert">
+                    Could not load sub-categories. Check the internet connection.
+                    <div>{retryButton(() => refetchSubcategories())}</div>
+                  </div>
+                ) : activeSubs.length === 0 ? (
                   <p className="text-sm text-[var(--text-tertiary)]">No sub-categories in {activeName} yet. Add one above.</p>
                 ) : (
                   <ul className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
