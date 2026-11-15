@@ -149,8 +149,17 @@ jobs:
                  -e '/^COMMENT ON SCHEMA public/d' \
                  -e '/ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin/d' schema.sql
           echo "Structure: $(grep -c '^CREATE' schema.sql) objects; data files: $(du -h data_public.sql | cut -f1) app data, $(du -h data_auth.sql | cut -f1) logins"
+          # New tables/functions must get exactly the old project's permissions: clear the new
+          # project's own "grant to anon/authenticated" defaults first ("Automatically expose new
+          # tables"). The old project's defaults are re-created by schema.sql afterwards.
+          cat > reset_defaults.sql <<'SQL'
+          alter default privileges for role postgres in schema public revoke all on tables from anon, authenticated, service_role;
+          alter default privileges for role postgres in schema public revoke all on sequences from anon, authenticated, service_role;
+          alter default privileges for role postgres in schema public revoke all on functions from anon, authenticated, service_role;
+          SQL
           "$PGBIN/psql" "$NEW_DB_URL" --single-transaction -v ON_ERROR_STOP=1 -q \
             -c 'set statement_timeout = 0' \
+            -f reset_defaults.sql \
             -f schema.sql \
             -c 'set session_replication_role = replica' \
             -f data_auth.sql \
@@ -203,6 +212,38 @@ jobs:
             echo "::error::Some tables differ (see above). Do not switch the app over; send a screenshot of this step."; exit 1
           fi
           echo "All tables match. Next: Part E of the plan (Vercel settings), then sign in and re-upload the logo."
+
+      - name: Compare security rules (old vs new)
+        if: inputs.mode == 'migrate'
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          cat > security.sql <<'SQL'
+          select 'table ' || c.relname || ' rls=' || c.relrowsecurity || ' ' ||
+                 coalesce((select string_agg(g, ',' order by g) from (select coalesce(nullif(a.grantee, 0)::regrole::text, 'PUBLIC') || ':' || a.privilege_type as g
+                             from aclexplode(c.relacl) a) x), 'default')
+            from pg_class c
+           where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p', 'v', 'm')
+          union all
+          select 'function ' || p.oid::regprocedure::text || ' definer=' || p.prosecdef || ' ' ||
+                 coalesce((select string_agg(g, ',' order by g) from (select coalesce(nullif(a.grantee, 0)::regrole::text, 'PUBLIC') || ':' || a.privilege_type as g
+                             from aclexplode(p.proacl) a) x), 'default')
+            from pg_proc p
+           where p.pronamespace = 'public'::regnamespace
+          union all
+          select 'policy ' || schemaname || '.' || tablename || '.' || policyname || ' ' || cmd || ' ' || array_to_string(array(select unnest(roles) order by 1), ',')
+            from pg_policies where schemaname in ('public', 'storage')
+          order by 1;
+          SQL
+          "$PGBIN/psql" "$OLD_DB_URL" -At -f security.sql > old_security.txt
+          "$PGBIN/psql" "$NEW_DB_URL" -At -f security.sql > new_security.txt
+          if diff old_security.txt new_security.txt > security_diff.txt; then
+            echo "Security rules match: $(wc -l < old_security.txt) tables, views, functions and access rules checked."
+          else
+            echo "Differences (< old, > new):"
+            cat security_diff.txt
+            echo "::error::Security rules differ between old and new. Do not switch the app over; send a screenshot of this step."; exit 1
+          fi
 
       - name: Remove temporary files
         if: always()
