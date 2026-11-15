@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { exportCompleteShopData } from '../services/dataExport';
+import { createFakeSupabase } from './helpers/fakeSupabase';
 
 const mockFrom = vi.fn();
 vi.mock('../supabaseClient', () => ({
@@ -173,4 +174,52 @@ describe('Complete Data Export Service', () => {
     expect(blobArg).toBeInstanceOf(Blob);
     expect(nameArg).toBe(fileName);
   });
+});
+
+describe('the backup is complete or not saved at all', () => {
+  const SHOP = 'test-shop-777';
+  const shopSettings = { id: SHOP, shop_name: 'Metro Hardware Store', owner_name: 'John Doe' };
+  const tables = () => ({
+    product_master: [{ barcode: '1001', name: 'Hammer', shop_id: SHOP, is_active: true }],
+    inventory_batches: [], bills: [], bill_items: [], expenses: [], categories: [], subcategories: [], workers: [],
+    audit_logs: Array.from({ length: 2493 }, (_, i) => ({
+      id: i + 1, shop_id: SHOP, created_at: new Date(Date.UTC(2026, 0, 1) + i * 60000).toISOString(),
+      action_type: 'UPDATE', item_name: `Item ${i}`, changes: 'x', performed_by: 'Owner',
+    })),
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    localStorage.setItem('shop_id', SHOP);
+  });
+
+  it('includes every audit log entry, not just the newest 1,000', async () => {
+    const db = createFakeSupabase(tables());
+    let auditRowsRead = 0;
+    mockFrom.mockImplementation((t) => {
+      const q = db.from(t);
+      if (t !== 'audit_logs') return q;
+      const then = q.then;
+      q.then = (res, rej) => then((r) => { auditRowsRead += r.data?.length || 0; return res(r); }, rej);
+      return q;
+    });
+    await exportCompleteShopData(shopSettings);
+    expect(auditRowsRead).toBe(2493);
+    expect(mockSaveAs).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['product_master', 'bills', 'bill_items', 'workers', 'audit_logs'])(
+    'stops with a clear message and saves no file when %s cannot be read',
+    async (failing) => {
+      const db = createFakeSupabase(tables());
+      mockFrom.mockImplementation((t) => {
+        const q = db.from(t);
+        if (t === failing) q.then = (res, rej) => Promise.resolve({ data: null, error: { message: 'Failed to fetch' } }).then(res, rej);
+        return q;
+      });
+      await expect(exportCompleteShopData(shopSettings)).rejects.toThrow(/Could not read the .*No file was saved/);
+      expect(mockSaveAs).not.toHaveBeenCalled();
+    },
+  );
 });

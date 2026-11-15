@@ -90,6 +90,7 @@ const fetchRemoteProductsAndBatches = async ({ shopId, configureProductQuery, li
 
   let prodRes = single ? await prodQ.maybeSingle() : await (limit ? prodQ.limit(limit) : prodQ);
   let products = single ? (prodRes?.data ? [prodRes.data] : []) : (prodRes?.data || []);
+  let readError = prodRes?.error || null;
 
   if (owner && (prodRes?.error || products.length === 0)) {
     let pubQ = configureProductQuery(supabase.from('product_master_public').select('*'));
@@ -97,8 +98,11 @@ const fetchRemoteProductsAndBatches = async ({ shopId, configureProductQuery, li
     const pubRes = single ? await pubQ.maybeSingle() : await (limit ? pubQ.limit(limit) : pubQ);
     if (!pubRes?.error) {
       products = single ? (pubRes?.data ? [pubRes.data] : []) : (pubRes?.data || []);
+      readError = null;
     }
   }
+  // A failed read is an error, not "no products" (callers tell the two apart)
+  if (readError) throw readError;
 
   if (products.length === 0) return [];
 
@@ -478,6 +482,10 @@ export const getInventoryByQuery = async ({
   if (currentShopId) {
     allItems = allItems.filter(i => !i.shop_id || i.shop_id === currentShopId);
   }
+  // This device has no products of this shop yet (new device, or browser data cleared)
+  const noLocalCatalog = allItems.length === 0;
+  // ...and the server could not be reached to fetch them: the list is unknown, not empty
+  let catalogUnavailable = false;
   
   if (status === 'deactivated') {
     allItems = allItems.filter(i => i.is_active === false);
@@ -507,7 +515,10 @@ export const getInventoryByQuery = async ({
       }
     } catch (e) {
       console.warn('[DB] Cold start fallback error:', e?.message);
+      if (noLocalCatalog) catalogUnavailable = true;
     }
+  } else if (allItems.length === 0 && noLocalCatalog) {
+    catalogUnavailable = true; // offline
   }
 
   if (category) {
@@ -579,7 +590,8 @@ export const getInventoryByQuery = async ({
   return {
     data: pageSlice,
     items: pageSlice,
-    totalCount: allItems.length
+    totalCount: allItems.length,
+    catalogUnavailable,
   };
 };
 

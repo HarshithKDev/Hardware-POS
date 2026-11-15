@@ -15,6 +15,7 @@ const EXPENSE_SORT = {
   by: { get: (e) => e.recorded_by || '', textual: true },
 };
 import PageTitleReset from './components/PageTitleReset';
+import { LoadFailed } from './SharedUI';
 import { useLatest } from './hooks/useLatest';
 
 const getLocalStorageKey = (shopId) => `hardware_pos_expenses_${shopId || 'default'}`;
@@ -58,7 +59,8 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
   const [workers, setWorkers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [, setIsDbConnected] = useState(true);
+  // false when the last load could not reach the database (the list is then this device's copy)
+  const [isDbConnected, setIsDbConnected] = useState(true);
 
   // New Expense Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -358,10 +360,19 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
         </div>
       </div>
 
+      {!isLoading && !isDbConnected && expenses.length > 0 && (
+        <div role="status" className="shrink-0 mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs font-semibold" style={{ backgroundColor: 'var(--color-warning-bg)', color: 'var(--color-warning)', border: '1px solid var(--color-warning-border)' }}>
+          <span>Could not reach the server: showing the copy saved on this device. It may be out of date.</span>
+          <button type="button" onClick={() => fetchExpenses()} className="underline underline-offset-2">Try again</button>
+        </div>
+      )}
+
       {/* Main Container */}
       <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-secondary)] rounded-[10px] border border-[var(--border-light)] shadow-sm p-4">
         {isLoading ? (
           <TableSkeleton rows={8} cols={5} label="Loading expenses…" />
+        ) : !isDbConnected && expenses.length === 0 ? (
+          <LoadFailed what="the expenses" onRetry={() => fetchExpenses()} />
         ) : expenses.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
             <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3 bg-[var(--color-accent-bg)] text-[var(--color-accent)]">

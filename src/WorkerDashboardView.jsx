@@ -4,7 +4,7 @@ import { supabase } from './supabaseClient';
 import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from './AppContext';
-import { PageLoader, EmptyState } from './SharedUI';
+import { PageLoader, EmptyState, LoadFailed } from './SharedUI';
 import { TableVirtuoso, Virtuoso } from 'react-virtuoso';
 import { usePhoneLayout } from './hooks/useMediaQuery';
 import { escapeIlike, debounce, useSessionState, formatINR } from './utils';
@@ -358,6 +358,8 @@ export default function WorkerDashboardView({ isBillable = true }) {
   const { 
     data: inventoryData, 
     isLoading,
+    isError: inventoryFailed,
+    refetch: refetchInventory,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage
@@ -408,7 +410,8 @@ export default function WorkerDashboardView({ isBillable = true }) {
         return { items: data || [], nextPage: hasMore ? pageParam + 1 : undefined };
       }
 
-      return { items: [], nextPage: undefined };
+      // Offline and this device has no saved products yet: the list is unknown, not empty
+      return { items: [], nextPage: undefined, unavailable: true };
     },
     getNextPageParam: (lastPage) => lastPage.nextPage,
     staleTime: STALE_TIME_5MIN,
@@ -637,6 +640,8 @@ export default function WorkerDashboardView({ isBillable = true }) {
           <div className="h-full flex items-center justify-center p-8">
             <PageLoader text="Loading items..." />
           </div>
+        ) : paginatedInventory.length === 0 && (inventoryFailed || inventoryData?.pages?.[0]?.unavailable) ? (
+          <LoadFailed what="the product list" onRetry={() => refetchInventory()} />
         ) : paginatedInventory.length === 0 ? (
           <EmptyState message="No items found." />
         ) : isPhone ? (

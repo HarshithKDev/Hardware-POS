@@ -128,36 +128,32 @@ function autoFitColumns(worksheet, minWidth = 14, maxWidth = 50) {
 export async function exportCompleteShopData(shopSettings, onProgress) {
   const shopId = shopSettings?.id || localStorage.getItem('shop_id');
 
+  // This file is the shop's backup: if any part cannot be read in full, stop and say so
+  // instead of saving a file that looks complete but is missing rows.
+  const mustRead = (what, result) => {
+    if (result?.error) {
+      throw new Error(`Could not read the ${what} (${result.error.message || 'connection problem'}). No file was saved. Check the internet connection and try again.`);
+    }
+    return result?.data || [];
+  };
+
   // -------------------------------------------------------------
   // Step 1: Query All Tables from Remote Supabase
   // -------------------------------------------------------------
   onProgress?.('Fetching inventory items...');
-  const { data: products = [] } = await fetchAllRowsWithExportSize(() => {
+  const products = mustRead('products', await fetchAllRowsWithExportSize(() => {
     let q = supabase.from('product_master').select('*').order('name').order('barcode');
     if (shopId) q = q.eq('shop_id', shopId);
     return q;
-  });
+  }));
   const productMap = new Map((products || []).map(p => [p.barcode, p]));
 
   onProgress?.('Fetching inventory batches...');
-  let batches = [];
-  try {
-    const { data: bData, error: bErr } = await fetchAllRowsWithExportSize(() => {
-      let q = supabase.from('inventory_batches').select('*').order('batch_id');
-      if (shopId) q = q.eq('shop_id', shopId);
-      return q;
-    });
-    if (bErr) {
-      console.warn('Batch fetch note, retrying without filter:', bErr.message);
-      const { data: allBatches } = await fetchAllRowsWithExportSize(() => supabase.from('inventory_batches').select('*').order('batch_id'));
-      // Never mix in other shops' batches (barcodes like 1001 repeat across shops)
-      if (allBatches) batches = allBatches.filter(b => !shopId || !b.shop_id || b.shop_id === shopId);
-    } else if (bData) {
-      batches = bData;
-    }
-  } catch (e) {
-    console.warn('Batch fetch error:', e);
-  }
+  const batches = mustRead('stock batches', await fetchAllRowsWithExportSize(() => {
+    let q = supabase.from('inventory_batches').select('*').order('batch_id');
+    if (shopId) q = q.eq('shop_id', shopId);
+    return q;
+  }));
 
   // Index batches by barcode
   const batchMap = new Map();
@@ -168,37 +164,19 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   });
 
   onProgress?.('Fetching sales transactions...');
-  const { data: bills = [] } = await fetchAllRowsWithExportSize(() => {
+  const bills = mustRead('sales', await fetchAllRowsWithExportSize(() => {
     let q = supabase.from('bills').select('*').order('created_at', { ascending: false }).order('id');
     if (shopId) q = q.eq('shop_id', shopId);
     return q;
-  });
+  }));
   const billMap = new Map((bills || []).map(b => [b.id, b]));
 
   onProgress?.('Fetching bill item details...');
-  let billItems = [];
-  try {
-    const { data: biData, error: biErr } = await fetchAllRowsWithExportSize(() => {
-      let q = supabase.from('bill_items').select('*').order('id');
-      if (shopId) q = q.eq('shop_id', shopId);
-      return q;
-    });
-    if (biErr) {
-      console.warn('bill_items query note:', biErr.message);
-      // Fallback: fetch items for THIS shop's bills only (never all shops' items)
-      const billIds = (bills || []).map(b => b.id);
-      for (let i = 0; i < billIds.length; i += 200) {
-        const { data: chunk } = await fetchAllRowsWithExportSize(() =>
-          supabase.from('bill_items').select('*').in('bill_id', billIds.slice(i, i + 200)).order('id')
-        );
-        if (chunk) billItems.push(...chunk);
-      }
-    } else if (biData) {
-      billItems = biData;
-    }
-  } catch (err) {
-    console.warn('Bill items fetch error:', err);
-  }
+  const billItems = mustRead('items of each sale', await fetchAllRowsWithExportSize(() => {
+    let q = supabase.from('bill_items').select('*').order('id');
+    if (shopId) q = q.eq('shop_id', shopId);
+    return q;
+  }));
 
   // Reconcile legacy bills that had screws but were missing in bill_items
   if (bills && bills.length > 0) {
@@ -248,21 +226,15 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   }
 
   onProgress?.('Fetching expenses...');
-  let expenses = [];
-  try {
-    const { data: remoteExp } = await fetchAllRowsWithExportSize(() =>
-      supabase.from('expenses').select('*').order('created_at', { ascending: false })
-    );
-    if (remoteExp) {
-      expenses = shopId ? remoteExp.filter(e => e.notes === `shop:${shopId}` || !e.notes) : remoteExp;
-    }
-  } catch (e) {
-    console.warn('Remote expense fetch failed, checking local:', e);
-  }
+  // The database only returns this shop's expenses
+  const expenses = mustRead('expenses', await fetchAllRowsWithExportSize(() =>
+    supabase.from('expenses').select('*').order('created_at', { ascending: false }).order('id')
+  ));
 
-  // Local storage expenses fallback / merge
+  // Plus expenses recorded on this device that have not reached the database yet.
+  // (Not the device's saved copy of the list: that can still hold expenses deleted since.)
   try {
-    const localRaw = localStorage.getItem(`hardware_pos_expenses_${shopId || 'default'}`);
+    const localRaw = localStorage.getItem(`hardware_pos_expenses_pending_${shopId || 'default'}`);
     if (localRaw) {
       const localExp = JSON.parse(localRaw);
       if (Array.isArray(localExp)) {
@@ -280,29 +252,31 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
   }
 
   onProgress?.('Fetching categories & sub-categories...');
-  let catQuery = supabase.from('categories').select('*').order('name');
-  if (shopId) catQuery = catQuery.eq('shop_id', shopId);
-  const { data: categories = [] } = await catQuery;
-
-  let subCatQuery = supabase.from('subcategories').select('*').order('name');
-  if (shopId) subCatQuery = subCatQuery.eq('shop_id', shopId);
-  const { data: subcategories = [] } = await subCatQuery;
+  const categories = mustRead('categories', await fetchAllRowsWithExportSize(() => {
+    let q = supabase.from('categories').select('*').order('name').order('id');
+    if (shopId) q = q.eq('shop_id', shopId);
+    return q;
+  }));
+  const subcategories = mustRead('sub-categories', await fetchAllRowsWithExportSize(() => {
+    let q = supabase.from('subcategories').select('*').order('name').order('id');
+    if (shopId) q = q.eq('shop_id', shopId);
+    return q;
+  }));
 
   onProgress?.('Fetching staff members...');
-  let workerQuery = supabase.from('workers').select('*').order('name');
-  if (shopId) workerQuery = workerQuery.eq('shop_id', shopId);
-  const { data: workers = [] } = await workerQuery;
+  const workers = mustRead('staff list', await fetchAllRowsWithExportSize(() => {
+    let q = supabase.from('workers').select('*').order('name').order('id');
+    if (shopId) q = q.eq('shop_id', shopId);
+    return q;
+  }));
 
   onProgress?.('Fetching audit logs...');
-  let auditLogs = [];
-  try {
-    let auditQuery = supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(2000);
-    if (shopId) auditQuery = auditQuery.eq('shop_id', shopId);
-    const { data: aData } = await auditQuery;
-    if (aData) auditLogs = aData;
-  } catch (e) {
-    console.warn('Audit logs fetch error:', e);
-  }
+  // The whole history, in pages: the database sends at most 1,000 rows per request
+  const auditLogs = mustRead('audit log', await fetchAllRowsWithExportSize(() => {
+    let q = supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).order('id');
+    if (shopId) q = q.eq('shop_id', shopId);
+    return q;
+  }));
 
   // -------------------------------------------------------------
   // Step 2: Initialize ExcelJS Workbook
