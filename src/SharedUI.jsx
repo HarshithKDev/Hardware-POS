@@ -78,7 +78,7 @@ export const EyeSlashIcon = () => (
   </svg>
 );
 
-export function CreatableDropdown({ value, onChange, options = [], placeholder, onCreate, disabled, required }) {
+export function CreatableDropdown({ value, onChange, options = [], placeholder, onCreate, disabled, required, label }) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState(value || '');
   const [prevValue, setPrevValue] = useState(value);
@@ -122,6 +122,7 @@ export function CreatableDropdown({ value, onChange, options = [], placeholder, 
         disabled={disabled}
         required={required}
         placeholder={placeholder}
+        aria-label={label}
         className="w-full h-10 pl-3 pr-10 text-sm focus:outline-none disabled:opacity-50 rounded-md"
         style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' }}
       />

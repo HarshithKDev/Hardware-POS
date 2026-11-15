@@ -24,15 +24,13 @@ export function useSessionState(key, defaultValue) {
   }, [key, defaultValue]);
 
   const [state, setState] = useState(getStoredValue);
-  const prevKeyRef = useRef(key);
-
-  // If key changes dynamically, synchronize state with the new key's stored value
-  useEffect(() => {
-    if (prevKeyRef.current !== key) {
-      prevKeyRef.current = key;
-      setState(getStoredValue());
-    }
-  }, [key, getStoredValue]);
+  // If the key changes (e.g. another shop), switch to that key's saved value while rendering,
+  // so the save below never writes the previous key's value under the new key
+  const [stateKey, setStateKey] = useState(key);
+  if (stateKey !== key) {
+    setStateKey(key);
+    setState(getStoredValue());
+  }
 
   const isClearingRef = useRef(false);
 

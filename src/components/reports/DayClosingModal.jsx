@@ -101,19 +101,24 @@ export default function DayClosingModal({ isOpen, onClose, day, shopId, shopName
   const [opening, setOpening] = useState('');
   const [counted, setCounted] = useState('');
 
-  useEffect(() => {
-    if (!isOpen) return;
-    try {
-      const saved = JSON.parse(localStorage.getItem(key) || '{}');
+  // Load the saved amounts when it opens (or the day changes) while rendering, so they are in
+  // place before the save below runs; it never writes another day's amounts to this day
+  const wantedKey = isOpen ? key : null;
+  const [loadedKey, setLoadedKey] = useState(null);
+  if (wantedKey !== loadedKey) {
+    setLoadedKey(wantedKey);
+    if (wantedKey) {
+      let saved = {};
+      try { saved = JSON.parse(localStorage.getItem(wantedKey) || '{}') || {}; } catch { saved = {}; }
       setOpening(saved.opening ?? '');
       setCounted(saved.counted ?? '');
-    } catch { setOpening(''); setCounted(''); }
-  }, [isOpen, key]);
+    }
+  }
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || loadedKey !== key) return;
     try { localStorage.setItem(key, JSON.stringify({ opening, counted })); } catch { /* ignore */ }
-  }, [isOpen, key, opening, counted]);
+  }, [isOpen, key, loadedKey, opening, counted]);
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ['dayClosing', shopId, day],

@@ -198,14 +198,14 @@ html.theme-light {
 
   --linear-text: #0F172A;
   --linear-text-muted: #475569;
-  --linear-text-dim: #64748B;
+  --linear-text-dim: #5E6B7F; /* 4.9:1 on the page background (was 4.3:1) */
 
   --linear-accent: #2563EB;
   --linear-accent-hover: #1D4ED8;
   --linear-accent-transparent: rgba(37, 99, 235, 0.08);
   --linear-accent-text: #1E40AF;
 
-  --linear-error: #DC2626;
+  --linear-error: #CF1F1F; /* 4.9:1 on the page background (was 4.4:1) */
   --linear-error-bg: rgba(220, 38, 38, 0.08);
   --linear-success: #15803D;
   --linear-success-bg: rgba(21, 128, 61, 0.09);
@@ -978,6 +978,23 @@ input[type="radio"]:focus-visible,
 [tabindex]:not(input):not(textarea):focus-visible {
   outline: none !important;
   box-shadow: var(--focus-ring) !important;
+}
+
+/* Phones held sideways (short screens): the bottom bar shows icons only and is shorter, so more
+   of the page fits. The buttons keep their names for screen readers (aria-label). */
+@media (max-height: 500px) and (orientation: landscape) and (max-width: 1023px) {
+  .bottom-nav { height: calc(2.75rem + env(safe-area-inset-bottom, 0px)) !important; }
+  .bottom-nav-label { display: none !important; }
+  .has-bottom-nav { padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px)) !important; }
+  .has-staff-bottom-nav { padding-bottom: calc(2.75rem + env(safe-area-inset-bottom, 0px)) !important; }
+}
+
+/* Rows that open something (Sales, Showroom): box-shadow is not drawn on table rows in every
+   browser, so they get an inset outline instead. */
+tr[tabindex]:focus-visible {
+  outline: 2px solid var(--color-accent) !important;
+  outline-offset: -2px;
+  box-shadow: none !important;
 }
 
 /* ---------------------------------------------------------------

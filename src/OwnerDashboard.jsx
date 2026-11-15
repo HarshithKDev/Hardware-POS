@@ -162,7 +162,7 @@ export default function OwnerDashboard() {
 
       {/* MAIN CONTENT */}
       <main
-        className="flex-1 min-w-0 min-h-0 flex flex-col p-3 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:p-4 overflow-y-auto overflow-x-hidden relative m-0 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm"
+        className="has-bottom-nav flex-1 min-w-0 min-h-0 flex flex-col p-3 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:p-4 overflow-y-auto overflow-x-hidden relative m-0 rounded-none md:rounded-xl border-0 md:border border-transparent md:border-[var(--border-light)] shadow-sm"
         style={{ backgroundColor: 'var(--bg-secondary)' }}
         role="main"
         aria-label="Dashboard content"
@@ -299,7 +299,7 @@ export default function OwnerDashboard() {
 
       {/* MOBILE BOTTOM NAVIGATION BAR */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-[var(--border-medium)] shadow-lg"
+        className="bottom-nav md:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-[var(--border-medium)] shadow-lg"
         style={{
           backgroundColor: 'var(--bg-secondary)',
           // 56px for the buttons, plus the iPhone home-bar area underneath them (not taken out of the 56px)
@@ -336,7 +336,7 @@ export default function OwnerDashboard() {
               aria-label={label}
             >
               <Icon size={19} strokeWidth={(isActive || (isMore && (isMoreOpen || moreIsActive))) ? 2.5 : 2} />
-              <span className="text-xs font-semibold tracking-tight whitespace-nowrap">{label}</span>
+              <span className="bottom-nav-label text-xs font-semibold tracking-tight whitespace-nowrap">{label}</span>
             </button>
           );
         })}

@@ -466,9 +466,10 @@ export default function OwnerSettings() {
                       type="checkbox" 
                       checked={disableWarehouse} 
                       onChange={(e) => handleToggleWarehouse(e.target.checked)} 
+                      aria-label="Disable warehouse (stock goes straight to the store)"
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-[var(--border-heavy)] peer-focus:outline-none rounded-full peer peer-checked:bg-[var(--color-accent-solid)] peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all cursor-pointer" />
+                    <div className="w-9 h-5 bg-[var(--border-heavy)] peer-focus:outline-none peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--color-accent)] peer-focus-visible:[outline-style:solid] rounded-full peer peer-checked:bg-[var(--color-accent-solid)] peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all cursor-pointer" />
                   </label>
                 </div>
 
@@ -506,9 +507,10 @@ export default function OwnerSettings() {
                       type="checkbox" 
                       checked={soundEnabled} 
                       onChange={(e) => handleToggleSound(e.target.checked)} 
+                      aria-label="POS sound effects"
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-[var(--border-heavy)] peer-focus:outline-none rounded-full peer peer-checked:bg-[var(--color-accent-solid)] peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all cursor-pointer" />
+                    <div className="w-9 h-5 bg-[var(--border-heavy)] peer-focus:outline-none peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--color-accent)] peer-focus-visible:[outline-style:solid] rounded-full peer peer-checked:bg-[var(--color-accent-solid)] peer-checked:after:translate-x-4 peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all cursor-pointer" />
                   </label>
                 </div>
               </div>
@@ -676,11 +678,12 @@ export default function OwnerSettings() {
               <div className="space-y-3">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
+                    <label htmlFor="settings-shop-name" className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
                       Shop Name <span className="text-[var(--color-error)]">*</span>
                     </label>
                     <input 
                       type="text" 
+                      id="settings-shop-name"
                       name="shop_name"
                       value={formData.shop_name}
                       onChange={handleInputChange}
@@ -693,11 +696,12 @@ export default function OwnerSettings() {
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
+                    <label htmlFor="settings-owner-name" className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
                       Owner / Admin Name <span className="text-[var(--color-error)]">*</span>
                     </label>
                     <input 
                       type="text" 
+                      id="settings-owner-name"
                       name="owner_name"
                       value={formData.owner_name}
                       onChange={handleInputChange}
@@ -711,10 +715,11 @@ export default function OwnerSettings() {
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
+                  <label htmlFor="settings-admin-email" className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
                     Registered Admin Email (Login ID)
                   </label>
                   <input 
+                    id="settings-admin-email"
                     type="email" 
                     value={formData.admin_email}
                     disabled
@@ -725,13 +730,14 @@ export default function OwnerSettings() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
+                    <label htmlFor="settings-phone" className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
                       Phone Number
                     </label>
                     <input 
                       type="tel" 
                       inputMode="tel"
                       autoComplete="tel"
+                      id="settings-phone"
                       name="phone"
                       value={formData.phone}
                       onChange={handleInputChange}
@@ -744,7 +750,7 @@ export default function OwnerSettings() {
 
                   <div>
                     <div className="flex justify-between items-center mb-1">
-                      <label className="block text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+                      <label htmlFor="settings-upi-id" className="block text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                         UPI ID (Digital Payment)
                       </label>
                       <label className="tap-area relative flex items-center gap-1.5 cursor-pointer">
@@ -753,6 +759,7 @@ export default function OwnerSettings() {
                           type="checkbox" 
                           checked={showUpi} 
                           onChange={(e) => setShowUpi(e.target.checked)} 
+                          aria-label="Show UPI ID on bills"
                           disabled={!isEditing} 
                           className="accent-[var(--color-accent)] w-3.5 h-3.5 cursor-pointer" 
                         />
@@ -760,6 +767,7 @@ export default function OwnerSettings() {
                     </div>
                     <input 
                       type="text" 
+                      id="settings-upi-id"
                       name="upi_id"
                       value={formData.upi_id}
                       onChange={handleInputChange}
@@ -773,11 +781,12 @@ export default function OwnerSettings() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
+                    <label htmlFor="settings-gstin" className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
                       GSTIN (printed on bills)
                     </label>
                     <input
                       type="text"
+                      id="settings-gstin"
                       name="gstin"
                       value={formData.gstin}
                       onChange={handleInputChange}
@@ -789,11 +798,12 @@ export default function OwnerSettings() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
+                    <label htmlFor="settings-bill-footer" className="block text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--text-secondary)' }}>
                       Bill Footer Message
                     </label>
                     <input
                       type="text"
+                      id="settings-bill-footer"
                       name="bill_footer"
                       value={formData.bill_footer}
                       onChange={handleInputChange}
@@ -808,7 +818,7 @@ export default function OwnerSettings() {
 
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <label className="block text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
+                    <label htmlFor="settings-shop-address" className="block text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>
                       Shop Address
                     </label>
                     <label className="tap-area relative flex items-center gap-1.5 cursor-pointer">
@@ -817,12 +827,14 @@ export default function OwnerSettings() {
                         type="checkbox" 
                         checked={showAddress} 
                         onChange={(e) => setShowAddress(e.target.checked)} 
+                        aria-label="Show shop address on bills"
                         disabled={!isEditing} 
                         className="accent-[var(--color-accent)] w-3.5 h-3.5 cursor-pointer" 
                       />
                     </label>
                   </div>
                   <textarea 
+                    id="settings-shop-address"
                     name="shop_address"
                     value={formData.shop_address}
                     onChange={handleInputChange}
@@ -845,6 +857,7 @@ export default function OwnerSettings() {
                         <input 
                           type={showPassword ? "text" : "password"} 
                           placeholder="New password"
+                          aria-label="New password"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           className="w-full py-2 px-3 pr-8 rounded-lg border outline-none focus:ring-2 focus:ring-opacity-20 text-sm transition-colors"
@@ -853,6 +866,7 @@ export default function OwnerSettings() {
                         <button 
                           type="button" 
                           onClick={() => setShowPassword(!showPassword)} 
+                          aria-label={showPassword ? 'Hide new password' : 'Show new password'}
                           className="absolute right-2.5 top-2.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
                         >
                           {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -863,6 +877,7 @@ export default function OwnerSettings() {
                         <input 
                           type={showConfirmPassword ? "text" : "password"} 
                           placeholder="Confirm password"
+                          aria-label="Confirm new password"
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
                           className="w-full py-2 px-3 pr-8 rounded-lg border outline-none focus:ring-2 focus:ring-opacity-20 text-sm transition-colors"
@@ -870,7 +885,8 @@ export default function OwnerSettings() {
                         />
                         <button 
                           type="button" 
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)} 
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          aria-label={showConfirmPassword ? 'Hide confirmed password' : 'Show confirmed password'} 
                           className="absolute right-2.5 top-2.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
                         >
                           {showConfirmPassword ? <EyeOff size={14} /> : <Eye size={14} />}

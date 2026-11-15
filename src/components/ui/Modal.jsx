@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 // Popups sit above the app's top bar (z-index 9999) but below alerts/notices (99999).
@@ -43,12 +43,23 @@ export default function Modal({
   children,
 }) {
   const panelRef = useRef(null);
+  // Who opened the pop-up, noted while it is first drawn: a field inside with autoFocus takes
+  // focus before any effect runs, so noting it later would record that field instead.
+  const [openedBy, setOpenedBy] = useState(() => ({ isOpen, el: isOpen && typeof document !== 'undefined' ? document.activeElement : null }));
+  if (openedBy.isOpen !== isOpen) {
+    setOpenedBy({ isOpen, el: isOpen && typeof document !== 'undefined' ? document.activeElement : null });
+  }
+  const opener = openedBy.isOpen ? openedBy.el : null;
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
-    const previous = document.activeElement;
+    const previous = opener && !panelRef.current?.contains(opener) ? opener : document.activeElement;
+    // A list can redraw its rows while the pop-up is open, replacing the button that opened it;
+    // its name lets us find the new copy of that button when the pop-up closes.
+    const previousLabel = previous?.getAttribute?.('aria-label') || null;
+    const previousTag = previous?.tagName || null;
     const panel = panelRef.current;
     if (focusFirst && panel && !panel.contains(document.activeElement)) {
       const first = panel.querySelector('[autofocus]') || panel.querySelector(FOCUSABLE);
@@ -73,9 +84,19 @@ export default function Modal({
     document.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      if (restoreFocus && previous && typeof previous.focus === 'function' && document.contains(previous)) previous.focus();
+      if (!restoreFocus || !previous) return;
+      const restore = () => {
+        let target = document.contains(previous) ? previous : null;
+        if (!target && previousLabel && previousTag) {
+          target = [...document.querySelectorAll(`${previousTag}[aria-label]`)].find(el => el.getAttribute('aria-label') === previousLabel) || null;
+        }
+        if (target && typeof target.focus === 'function') target.focus();
+      };
+      // Only once the pop-up has really gone. (React's development mode re-runs effects while the
+      // pop-up stays open; restoring then would pull focus out of it.)
+      setTimeout(() => { if (!panel?.isConnected) restore(); }, 0);
     };
-  }, [isOpen, closeOnEsc, focusFirst, restoreFocus]);
+  }, [isOpen, closeOnEsc, focusFirst, restoreFocus]); // eslint-disable-line react-hooks/exhaustive-deps -- opener is fixed for each opening
 
   if (!isOpen) return null;
 

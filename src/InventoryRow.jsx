@@ -364,7 +364,7 @@ export default function InventoryRow({
         <td className="md:hidden block p-4 text-left w-full border-none">
           <div className="flex justify-between items-center mb-3">
             <span className="text-xs font-bold text-[var(--color-accent)]">#{item.barcode}</span>
-            <input type="checkbox" checked={isSelected} onChange={() => onSelect(item.barcode)} className="w-5 h-5 rounded text-accent focus:ring-accent cursor-pointer" />
+            <input type="checkbox" checked={isSelected} onChange={() => onSelect(item.barcode)} onClick={e => e.stopPropagation()} aria-label={`Select ${item.name || item.barcode}`} className="w-5 h-5 rounded text-accent focus:ring-accent cursor-pointer" />
           </div>
           <div className="flex flex-col gap-2.5">
             <div>
@@ -418,7 +418,7 @@ export default function InventoryRow({
         {/* DESKTOP TABLE CELLS */}
         {isSelectionMode && (
           <td className="hidden md:table-cell p-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
-            <input type="checkbox" checked={isSelected} onChange={() => onSelect(item.barcode)} className="w-4 h-4 rounded text-accent focus:ring-accent" />
+            <input type="checkbox" checked={isSelected} onChange={() => onSelect(item.barcode)} onClick={e => e.stopPropagation()} aria-label={`Select ${item.name || item.barcode}`} className="w-4 h-4 rounded text-accent focus:ring-accent" />
           </td>
         )}
         <td className="hidden md:table-cell p-3 text-sm font-semibold tracking-wider text-center" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--color-accent)' }}>{item.barcode}</td>
@@ -552,6 +552,7 @@ export default function InventoryRow({
                   checked={isSelected} 
                   onChange={() => onSelect(item.barcode)} 
                   onClick={e => e.stopPropagation()} 
+                  aria-label={`Select ${item.name || item.barcode}`}
                   className="w-4 h-4 rounded text-accent focus:ring-accent cursor-pointer" 
                 />
               )}
@@ -608,6 +609,7 @@ export default function InventoryRow({
                 }}
                 className={buttonClass({ variant: 'secondary', size: 'sm', className: 'gap-1' })}
                 title="Create New Batch"
+                aria-label={`Add batch for ${item.name || item.barcode}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5 text-[var(--color-accent)]"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                 <span>Batch</span>
@@ -619,7 +621,7 @@ export default function InventoryRow({
         {/* DESKTOP TABLE LAYOUT */}
         {isSelectionMode && (
           <td className="hidden md:table-cell p-3 text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
-            <input type="checkbox" checked={isSelected} onChange={() => onSelect(item.barcode)} onClick={e => e.stopPropagation()} className="w-4 h-4 rounded text-accent focus:ring-accent" />
+            <input type="checkbox" checked={isSelected} onChange={() => onSelect(item.barcode)} onClick={e => e.stopPropagation()} aria-label={`Select ${item.name || item.barcode}`} className="w-4 h-4 rounded text-accent focus:ring-accent" />
           </td>
         )}
         <td className="hidden md:table-cell p-3 w-24 lg:w-28 text-sm font-semibold tracking-wider" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--color-accent)' }}>{item.barcode}</td>
@@ -686,6 +688,7 @@ export default function InventoryRow({
             }}
             className={buttonClass({ variant: 'secondary', size: 'sm', className: 'gap-1 mx-auto' })}
             title="Create New Batch"
+            aria-label={`Add batch for ${item.name || item.barcode}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-3.5 h-3.5 text-[var(--color-accent)]"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
             Batch
