@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, forwardRef } from 'react';
 import { getPerformedBy, formatINR } from './utils';
 import { TableVirtuoso } from 'react-virtuoso';
-import { EmptyState } from './SharedUI';
+import { EmptyState, LoadFailed } from './SharedUI';
 import PrintBatchModal from './PrintBatchModal';
 import CreateBatchModal from './CreateBatchModal';
 import { supabase } from './supabaseClient';
@@ -160,14 +160,14 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
     });
   }, [subcategories, filterCategory]);
 
-  const { data: inventoryData, isLoading } = useQuery({
+  const { data: inventoryData, isLoading, refetch: refetchInventory } = useQuery({
     queryKey: ['inventory', shopId, viewType, debouncedSearch, sortOption, filterCategory, filterSubcategory],
     queryFn: async () => {
       if (!navigator.onLine) {
         // Fallback or primarily use local IDB
       }
       // Actually, since we sync to local IDB in the background, we can just query IDB directly for lightning fast pagination!
-      const { data, totalCount } = await getInventoryByQuery({
+      const { data, totalCount, catalogUnavailable } = await getInventoryByQuery({
         limit: 1000000,
         offset: 0,
         search: debouncedSearch,
@@ -177,7 +177,7 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
         viewType: viewType === 'recycle' ? 'warehouse' : viewType,
         status: viewType === 'recycle' ? 'deactivated' : 'active'
       });
-      return { items: data || [], total: totalCount || 0 };
+      return { items: data || [], total: totalCount || 0, catalogUnavailable: Boolean(catalogUnavailable) };
     },
     staleTime: STALE_TIME_5MIN,
     placeholderData: keepPreviousData,
@@ -751,6 +751,8 @@ export default function OwnerInventory({ viewType, onOpenBatchDetails }) {
             <div className="flex-1 min-h-[300px] md:rounded-[10px] overflow-hidden flex flex-col md:border border-[var(--border-light)]" style={{ backgroundColor: 'transparent' }}>
         {isLoading ? (
           <TableSkeleton rows={10} cols={6} label="Loading inventory…" />
+        ) : items.length === 0 && inventoryData?.catalogUnavailable ? (
+          <LoadFailed what="the product list (this device has no saved copy yet)" onRetry={() => refetchInventory()} />
         ) : items.length === 0 ? (
           <EmptyState message="No items found matching the search." icon="search" />
         ) : (

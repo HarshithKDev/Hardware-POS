@@ -13,6 +13,7 @@ export default function WorkerPrintBarcode() {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [products, setProducts] = useState([]);
+  const [searchFailed, setSearchFailed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedBatch, setSelectedBatch] = useState(null);
@@ -79,9 +80,11 @@ export default function WorkerPrintBarcode() {
         if (!isCancelled) {
           const items = res?.data || res?.items || [];
           setProducts(items);
+          setSearchFailed(Boolean(res?.catalogUnavailable) && items.length === 0);
         }
       } catch (err) {
         console.warn('Failed to fetch products for print barcode:', err);
+        if (!isCancelled) setSearchFailed(true);
       } finally {
         if (!isCancelled) setIsLoading(false);
       }
@@ -222,6 +225,11 @@ export default function WorkerPrintBarcode() {
             ) : isLoading && products.length === 0 ? (
               <div className="flex items-center justify-center h-32 text-xs text-[var(--text-secondary)]">
                 Searching products...
+              </div>
+            ) : products.length === 0 && searchFailed ? (
+              <div className="flex flex-col items-center justify-center h-48 text-center p-4 text-[var(--text-tertiary)]" role="alert">
+                <p className="text-xs font-semibold text-[var(--text-secondary)]">Could not search the products</p>
+                <p className="text-xs mt-0.5">This device has no saved copy yet and the server could not be reached. Check the internet connection.</p>
               </div>
             ) : products.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-48 text-center p-4 text-[var(--text-tertiary)]">
