@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { fetchAllRows as fetchAllRowsPaged } from './fetchAll';
+import { withLegacyScrews } from './legacyScrews';
 const fetchAllRowsWithExportSize = (buildQuery) => fetchAllRowsPaged(buildQuery, { pageSize: EXPORT_PAGE_SIZE });
 import { formatDateTime } from '../utils';
 
@@ -178,42 +179,17 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
     return q;
   }));
 
-  // Reconcile legacy bills that had screws but were missing in bill_items
-  if (bills && bills.length > 0) {
-    const existingScrewBillIds = new Set(
-      billItems.filter(it => it.barcode === 'SCREWS' || it.name === 'Screws').map(it => it.bill_id)
-    );
-    const billItemsTotalMap = new Map();
-    billItems.forEach(it => {
-      const current = billItemsTotalMap.get(it.bill_id) || 0;
-      billItemsTotalMap.set(it.bill_id, current + (Number(it.price_at_sale || 0) * Number(it.billable_quantity || it.quantity || 1)));
-    });
-
-    bills.forEach(b => {
-      if (b.status !== 'voided' && Number(b.total_amount || 0) > 0 && !existingScrewBillIds.has(b.id)) {
-        const itemsSum = billItemsTotalMap.get(b.id) || 0;
-        const diff = Math.round((Number(b.total_amount) - itemsSum) * 100) / 100;
-        if (diff > 0) {
-          billItems.push({
-            id: 'screw-legacy-' + b.id,
-            bill_id: b.id,
-            shop_id: b.shop_id || shopId,
-            barcode: 'SCREWS',
-            name: 'Screws',
-            quantity: 1,
-            billable_quantity: 1,
-            actual_quantity: 1,
-            price_at_sale: diff,
-            system_price: diff,
-            profit: diff,
-            cost_allocated: 0,
-            unit: 'SET',
-            is_screw: true
-          });
-        }
-      }
-    });
-  }
+  // Very old bills: their screws charge was only in the total (never a rounding gap)
+  const linesByBill = new Map();
+  billItems.forEach(it => {
+    const list = linesByBill.get(it.bill_id);
+    if (list) list.push(it); else linesByBill.set(it.bill_id, [it]);
+  });
+  bills.filter(b => b.status !== 'voided').forEach(b => {
+    const lines = linesByBill.get(b.id) || [];
+    const withScrews = withLegacyScrews(b, lines, { shop_id: b.shop_id || shopId });
+    if (withScrews.length > lines.length) billItems.push(withScrews[withScrews.length - 1]);
+  });
 
   // Sort bill items in-memory by transaction date descending
   if (billItems.length > 0 && bills && bills.length > 0) {

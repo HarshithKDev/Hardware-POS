@@ -40,6 +40,21 @@ export function debounce(fn, ms) {
  *
  * @returns {string} A unique identifier
  */
+/**
+ * Receipt number for a sale saved offline: taken from the sale's own reference (client_ref),
+ * which is stored with the bill when it uploads, so the receipt can be found again later.
+ */
+export function offlineReceiptNo(clientRef) {
+  const hex = String(clientRef || '').replace(/[^0-9a-f]/gi, '').slice(0, 6).toUpperCase();
+  return `OFFL-${hex || 'PENDING'}`;
+}
+
+/** The reference part of an offline receipt number typed into a search ("OFFL-7F3A2B" -> "7f3a2b"). */
+export function offlineReceiptRef(text) {
+  const m = String(text || '').trim().match(/^#?OFFL-?([0-9a-f]{4,12})$/i);
+  return m ? m[1].toLowerCase() : null;
+}
+
 export function generateId() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();

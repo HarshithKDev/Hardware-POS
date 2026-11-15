@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { readStoredSession } from './services/authSession'
+import { readStoredSession, authStorage } from './services/authSession'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -38,6 +38,8 @@ const authAwareFetch = async (input, init) => {
 // Primary connection tunnel
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   global: { fetch: authAwareFetch },
+  // Honours "Remember me": see services/authSession.js
+  auth: { storage: authStorage },
 })
 
 // Secondary client specifically for the owner to provision workers without logging out

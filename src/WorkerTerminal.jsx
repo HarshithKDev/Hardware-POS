@@ -14,7 +14,7 @@ import { buildTransactionItems } from './services/transactionPayload';
 import { processSaleAtomic, saleArgsFromPayload, atomicSaleKnownAvailable } from './services/posRpc';
 import { isNetworkishError } from './services/roleGuard';
 import { useApp } from './AppContext';
-import { generateId, formatDateTime, calculateMSP, formatINR } from './utils';
+import { generateId, formatDateTime, calculateMSP, formatINR, offlineReceiptNo } from './utils';
 import { SCAN_TIMEOUT_MS } from './constants';
 
 import { ScanLine } from 'lucide-react';
@@ -1615,13 +1615,13 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         } catch (error) {
           if (error.message === 'Failed to fetch' || error.code === '503') {
             await queueOfflineTransaction(payload);
-            successData = { bill_id: 'OFFL-' + generateId().substring(0, 5).toUpperCase() };
+            successData = { bill_id: offlineReceiptNo(payload.client_ref) };
             setTimeout(() => showAlertRef.current("Transaction queued offline. It will sync automatically when internet returns.", "Offline Mode"), 100);
           } else if (isNetworkishError(error) && atomicSaleKnownAvailable()) {
             // The database recognises this checkout's reference, so resending it can never
             // create a second bill: queue it and let the background sync finish it.
             await queueOfflineTransaction(payload);
-            successData = { bill_id: 'OFFL-' + generateId().substring(0, 5).toUpperCase() };
+            successData = { bill_id: offlineReceiptNo(payload.client_ref) };
             setTimeout(() => showAlertRef.current("The connection dropped while saving. The sale is kept on this device and will be completed automatically (it cannot be billed twice).", "Saved Offline"), 100);
           } else if (isNetworkishError(error)) {
             // The request may or may not have reached the server, so the sale may already be
@@ -1641,7 +1641,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         }
       } else {
         await queueOfflineTransaction(payload);
-        successData = { bill_id: 'OFFL-' + generateId().substring(0, 5).toUpperCase() };
+        successData = { bill_id: offlineReceiptNo(payload.client_ref) };
         setTimeout(() => showAlertRef.current("Transaction queued offline. It will sync automatically when internet returns.", "Offline Mode"), 100);
       }
 
