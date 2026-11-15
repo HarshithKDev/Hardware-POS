@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { formatDateTime, formatINR, billLabel } from './utils';
 import { readRows } from './services/secureRead';
 import { withLegacyScrews } from './services/legacyScrews';
+import { LoadFailed } from './SharedUI';
 import { buttonClass, TableSkeleton } from './components/ui';
 import { useApp } from './AppContext';
 import {
@@ -28,7 +29,7 @@ export default function BillDetailsView({
 
   // Fetch bill items
   const shopId = currentBill.shop_id || localStorage.getItem('shop_id');
-  const { data: rawItems = cachedItems || [], isLoading: isLoadingItems } = useQuery({
+  const { data: loadedItems, isLoading: isLoadingItems, isError: itemsFailed, refetch: refetchItems } = useQuery({
     queryKey: ['bill_items', shopId, currentBill.id],
     queryFn: async () => {
       const build = (q) => {
@@ -45,9 +46,12 @@ export default function BillDetailsView({
   });
 
   // Very old bills: their screws charge was only in the total (never a rounding gap)
+  // Only when the items were actually read: with nothing loaded, the whole total would look
+  // like an unrecorded screws charge.
+  const itemsUnknown = !loadedItems && !cachedItems;
   const items = React.useMemo(
-    () => withLegacyScrews(currentBill, rawItems || []),
-    [rawItems, currentBill],
+    () => (itemsUnknown ? [] : withLegacyScrews(currentBill, loadedItems || cachedItems || [])),
+    [itemsUnknown, loadedItems, cachedItems, currentBill],
   );
 
   const totalItemsCount = items.reduce((acc, it) => acc + Number(it.billable_quantity || it.quantity || 1), 0);
@@ -172,7 +176,7 @@ export default function BillDetailsView({
           </span>
           <div className="mt-1 flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
             <span className="text-base sm:text-xl font-bold text-[var(--text-primary)] tabular-nums">
-              {items.length} {items.length === 1 ? 'item' : 'items'}
+              {itemsUnknown ? '—' : `${items.length} ${items.length === 1 ? 'item' : 'items'}`}
             </span>
             {totalItemsCount !== items.length && (
               <span className="text-xs sm:text-xs text-[var(--text-secondary)]">
@@ -188,7 +192,7 @@ export default function BillDetailsView({
           </span>
           <div className="mt-1">
             <span className="text-base sm:text-xl font-bold text-[var(--text-primary)] tabular-nums">
-              {totalDiscount > 0 ? `₹${formatINR(totalDiscount, 2)}` : '₹0.00'}
+              {itemsUnknown ? '—' : totalDiscount > 0 ? `₹${formatINR(totalDiscount, 2)}` : '₹0.00'}
             </span>
           </div>
         </div>
@@ -200,7 +204,7 @@ export default function BillDetailsView({
             </span>
             <div className="mt-1">
               <span className={`text-base sm:text-xl font-bold tabular-nums ${isVoided ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--color-success)]'}`}>
-                ₹{formatINR(isVoided ? '0.00' : totalProfit, 2)}
+                {itemsUnknown ? '—' : `₹${formatINR(isVoided ? '0.00' : totalProfit, 2)}`}
               </span>
             </div>
           </div>
@@ -211,6 +215,8 @@ export default function BillDetailsView({
       <div className="flex-1 overflow-x-hidden overflow-y-auto rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] shadow-sm min-h-0 flex flex-col">
         {isLoadingItems ? (
           <TableSkeleton rows={6} cols={6} label="Loading items…" />
+        ) : itemsUnknown && itemsFailed ? (
+          <LoadFailed what="the items of this bill" onRetry={() => refetchItems()} />
         ) : items.length === 0 ? (
           <div className="flex-1 flex items-center justify-center p-8 text-center text-sm text-[var(--text-tertiary)] font-medium">
             No items recorded for this bill.

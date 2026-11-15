@@ -53,23 +53,30 @@ export default function OwnerStaff() {
         password,
       });
 
+      let userId = authData?.user?.id || null;
       if (authError) {
-        if (authError.message.toLowerCase().includes('already registered')) {
-          throw new Error("This staff member already exists in the Auth system but failed to save to the database previously. Please delete them from the Supabase Authentication Dashboard first, and then try creating them again.");
-        } else {
-          throw new Error(authError.message);
+        if (!authError.message.toLowerCase().includes('already registered')) throw new Error(authError.message);
+        // A sign-in with this name already exists: usually an earlier attempt that created the
+        // sign-in but lost the connection before the staff list was saved. If the PIN entered
+        // now opens it, it is that same account, so finish adding it.
+        const { data: existing, error: signInError } = await provisioningClient.auth.signInWithPassword({ email, password });
+        userId = existing?.user?.id || null;
+        try { await provisioningClient.auth.signOut({ scope: 'local' }); } catch { /* nothing to clean up */ }
+        if (signInError || !userId) {
+          throw new Error(`A sign-in named "${name.trim()}" already exists with a different PIN. Enter that PIN to finish adding them, or use a different name.`);
         }
-      } else if (!authData?.user) {
+      } else if (!userId) {
         throw new Error("Failed to create worker account.");
       }
 
       const { error: dbError } = await supabase.from('workers').insert([{
-        id: authData.user.id,
+        id: userId,
         shop_id: shopId,
         name: name.trim(),
         password: isBillable ? 'SECURED_IN_AUTH:BILLABLE' : 'SECURED_IN_AUTH:NON_BILLABLE'
       }]);
 
+      if (dbError?.code === '23505') throw new Error(`"${name.trim()}" is already in the staff list.`);
       if (dbError) throw new Error(dbError.message);
 
       await supabase.from('audit_logs').insert([{

@@ -7,6 +7,7 @@ import {
   Phone
 } from 'lucide-react';
 import { buttonClass, TableSkeleton } from './components/ui';
+import { LoadFailed } from './SharedUI';
 
 export default function ShowroomDetailsView({
   bill,
@@ -21,7 +22,7 @@ export default function ShowroomDetailsView({
 
   // Fetch bill items
   const shopId = currentBill.shop_id || localStorage.getItem('shop_id');
-  const { data: items = cachedItems || [], isLoading: isLoadingItems } = useQuery({
+  const { data: loadedItems, isLoading: isLoadingItems, isError: itemsFailed, refetch: refetchItems } = useQuery({
     queryKey: ['showroom_bill_items', shopId, currentBill.id],
     queryFn: async () => {
       let query = supabase
@@ -38,6 +39,7 @@ export default function ShowroomDetailsView({
     initialData: cachedItems,
     staleTime: 1000 * 30
   });
+  const items = loadedItems || cachedItems || [];
 
   const { datePart, timePart } = formatDateTime(currentBill.created_at);
 
@@ -94,6 +96,8 @@ export default function ShowroomDetailsView({
       <div className="flex-1 overflow-x-hidden overflow-y-auto rounded-xl border border-[var(--border-light)] bg-[var(--bg-secondary)] shadow-sm min-h-0 flex flex-col">
         {isLoadingItems ? (
           <TableSkeleton rows={6} cols={5} label="Loading showroom items…" />
+        ) : itemsFailed && !loadedItems && !cachedItems ? (
+          <LoadFailed what="the items of this dispatch" onRetry={() => refetchItems()} />
         ) : items.length === 0 ? (
           <div className="flex-1 flex items-center justify-center p-8 text-center text-sm text-[var(--text-tertiary)] font-medium">
             No items recorded for this showroom dispatch.
