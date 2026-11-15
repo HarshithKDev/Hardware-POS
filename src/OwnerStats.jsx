@@ -33,6 +33,7 @@ const PROFIT_SORT = {
 };
 const DEAD_STOCK_SORT = {
   barcode: { get: (i) => String(i.barcode || ''), textual: true },
+  category: { get: (i) => `${i.category || '~'} ${i.sub_category || '~'} ${i.name || ''}`, textual: true },
   name: { get: (i) => i.name || '', textual: true },
   qty: (i) => Number(i.totalQty) || 0,
   value: (i) => Number(i.deadValue) || 0,
@@ -983,7 +984,7 @@ export default function OwnerStats({ isActive }) {
       const pageSize = 1000;
       for (let from = 0; ; from += pageSize) {
         let pageQuery = supabase.from('product_master')
-          .select('barcode, name, unit, price, cost_price, is_cuttable, stock_warehouse, stock_store, min_quantity_warehouse, min_quantity_store, inventory_batches(stock_warehouse, stock_store, purchase_cost, is_active)')
+          .select('barcode, name, category, sub_category, unit, price, cost_price, is_cuttable, stock_warehouse, stock_store, min_quantity_warehouse, min_quantity_store, inventory_batches(stock_warehouse, stock_store, purchase_cost, is_active)')
           .eq('is_active', true);
         if (shopId) {
           pageQuery = pageQuery.eq('shop_id', shopId);
@@ -1146,7 +1147,27 @@ export default function OwnerStats({ isActive }) {
 
   // Click-to-sort for the Profit and Dead stock tables (must run before the early returns below)
   const { sorted: sortedSalesDetails, sort: profitSort, toggleSort: toggleProfitSort } = useSort(salesData?.tfSalesDetails, PROFIT_SORT);
-  const { sorted: sortedDeadStock, sort: deadSort, toggleSort: toggleDeadSort } = useSort(invData?.deadStockItems, DEAD_STOCK_SORT);
+  const { sorted: sortedDeadStock, sort: deadSort, toggleSort: toggleDeadSort, setSort: setDeadSort } = useSort(invData?.deadStockItems, DEAD_STOCK_SORT);
+  // Dead stock: narrow down by category / sub-category
+  const [deadCat, setDeadCat] = useState('');
+  const [deadSub, setDeadSub] = useState('');
+  const deadCategories = useMemo(() => {
+    const cats = new Map();
+    (invData?.deadStockItems || []).forEach(i => {
+      const c = i.category || '';
+      if (!cats.has(c)) cats.set(c, new Set());
+      if (i.sub_category) cats.get(c).add(i.sub_category);
+    });
+    return cats;
+  }, [invData?.deadStockItems]);
+  const deadSubOptions = useMemo(() => {
+    const subs = new Set();
+    deadCategories.forEach((set, cat) => { if (!deadCat || cat === deadCat) set.forEach(s => subs.add(s)); });
+    return [...subs].sort((a, b) => a.localeCompare(b));
+  }, [deadCategories, deadCat]);
+  const filteredDeadStock = useMemo(() => sortedDeadStock.filter(i =>
+    (!deadCat || (i.category || '') === deadCat) && (!deadSub || i.sub_category === deadSub)), [sortedDeadStock, deadCat, deadSub]);
+  const filteredDeadValue = filteredDeadStock.reduce((s, i) => s + (Number(i.deadValue) || 0), 0);
 
   if ((!salesData && isSalesLoading) || (!invData && isInvLoading)) {
     return (
@@ -1434,6 +1455,58 @@ export default function OwnerStats({ isActive }) {
                 </>
               )}
 
+              {activeModal === 'dead-stock' && deadStockItems.length > 0 && (
+                // Narrow down by category / sub-category, and choose the order (also on phones,
+                // where the list has no column headers to click)
+                <div className="shrink-0 p-2.5 md:px-4 md:py-3 grid grid-cols-2 md:flex md:items-center gap-2 border-b border-[var(--border-medium)]">
+                  <select
+                    value={deadCat}
+                    onChange={(e) => { setDeadCat(e.target.value); setDeadSub(''); }}
+                    className="w-full md:w-52 h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md cursor-pointer truncate"
+                    style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
+                    aria-label="Filter dead stock by category"
+                  >
+                    <option value="">All Categories</option>
+                    {[...deadCategories.keys()].sort((a, b) => a.localeCompare(b)).map(c => (
+                      <option key={c || '_none'} value={c}>{c || 'No category'}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={deadSub}
+                    onChange={(e) => setDeadSub(e.target.value)}
+                    disabled={deadSubOptions.length === 0}
+                    className="w-full md:w-52 h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md cursor-pointer truncate disabled:opacity-50"
+                    style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
+                    aria-label="Filter dead stock by sub-category"
+                  >
+                    <option value="">All Sub Cat</option>
+                    {deadSubOptions.map(sc => <option key={sc} value={sc}>{sc}</option>)}
+                  </select>
+                  <select
+                    value={deadSort.key ? `${deadSort.key}:${deadSort.dir}` : 'value:desc'}
+                    onChange={(e) => { const [key, dir] = e.target.value.split(':'); setDeadSort({ key, dir }); }}
+                    className="col-span-2 w-full md:w-60 h-11 md:h-10 pl-3 pr-8 text-sm focus:outline-none rounded-md cursor-pointer truncate"
+                    style={{ border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
+                    aria-label="Sort dead stock"
+                  >
+                    {[
+                      ['value:desc', 'Sort: Capital tied up (high first)'],
+                      ['value:asc', 'Sort: Capital tied up (low first)'],
+                      ['qty:desc', 'Sort: Locked qty (high first)'],
+                      ['category:asc', 'Sort: Category A–Z'],
+                      ['name:asc', 'Sort: Name A–Z'],
+                      ['barcode:asc', 'Sort: Barcode'],
+                    ].map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+                    {deadSort.key && !['value:desc', 'value:asc', 'qty:desc', 'category:asc', 'name:asc', 'barcode:asc'].includes(`${deadSort.key}:${deadSort.dir}`) && (
+                      <option value={`${deadSort.key}:${deadSort.dir}`}>Sort: custom (from the table)</option>
+                    )}
+                  </select>
+                  <span className="col-span-2 md:ml-auto text-xs font-semibold text-[var(--text-secondary)] tabular-nums">
+                    {filteredDeadStock.length} {filteredDeadStock.length === 1 ? 'item' : 'items'} • ₹{formatINR(filteredDeadValue, 2)}
+                  </span>
+                </div>
+              )}
+
               {(activeModal === 'low-store' || activeModal === 'low-warehouse' || activeModal === 'dead-stock') && (
                 <div className="flex-1 min-h-0 overflow-y-auto w-full modal-scroll">
                   {/* MOBILE STOCK CARD VIEW */}
@@ -1495,10 +1568,18 @@ export default function OwnerStats({ isActive }) {
                         Great job! All your stock is active and moving.
                       </div>
                     )}
-                    {activeModal === 'dead-stock' && deadStockItems.map(item => (
+                    {activeModal === 'dead-stock' && deadStockItems.length > 0 && filteredDeadStock.length === 0 && (
+                      <div className="h-32 flex items-center justify-center text-sm text-[var(--text-tertiary)] text-center px-4">No dead stock in this category.</div>
+                    )}
+                    {activeModal === 'dead-stock' && filteredDeadStock.map(item => (
                       <div key={item.barcode} className="p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-light)] shadow-sm space-y-2">
                         <div className="flex items-start justify-between gap-2">
-                          <span className="font-semibold text-sm text-[var(--text-primary)] leading-tight">{item.name}</span>
+                          <div className="min-w-0">
+                            <span className="font-semibold text-sm text-[var(--text-primary)] leading-tight block">{item.name}</span>
+                            {(item.category || item.sub_category) && (
+                              <span className="text-xs text-[var(--text-secondary)]">{[item.category, item.sub_category].filter(Boolean).join(' › ')}</span>
+                            )}
+                          </div>
                           <span className="text-xs font-mono text-[var(--color-accent)] bg-[var(--bg-tertiary)] px-2 py-0.5 rounded border border-[var(--border-medium)]">
                             #{item.barcode}
                           </span>
@@ -1583,10 +1664,20 @@ export default function OwnerStats({ isActive }) {
                           </td>
                         </tr>
                       )}
-                      {activeModal === 'dead-stock' && sortedDeadStock.map(item => (
+                      {activeModal === 'dead-stock' && deadStockItems.length > 0 && filteredDeadStock.length === 0 && (
+                        <tr className="border-none hover:bg-transparent">
+                          <td colSpan="4" className="h-40 align-middle text-center text-sm text-[var(--text-tertiary)]">No dead stock in this category.</td>
+                        </tr>
+                      )}
+                      {activeModal === 'dead-stock' && filteredDeadStock.map(item => (
                         <tr key={item.barcode} className="hover:bg-[var(--bg-hover)] transition-colors" style={{ borderBottom: '1px solid var(--border-medium)' }}>
                           <td className="p-3 text-sm font-semibold" style={{ color: 'var(--color-accent)', borderRight: '1px solid var(--border-medium)' }}>{item.barcode}</td>
-                          <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.name}</td>
+                          <td className="p-3 text-sm font-medium" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>
+                            {item.name}
+                            {(item.category || item.sub_category) && (
+                              <span className="block text-xs font-normal text-[var(--text-secondary)]">{[item.category, item.sub_category].filter(Boolean).join(' › ')}</span>
+                            )}
+                          </td>
                           <td className="p-3 text-sm text-center font-semibold tabular-nums" style={{ color: 'var(--text-primary)', borderRight: '1px solid var(--border-medium)' }}>{item.totalQty}</td>
                           <td className="p-3 text-sm text-center font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>₹{formatINR(item.deadValue, 2)}</td>
                         </tr>
@@ -1596,10 +1687,10 @@ export default function OwnerStats({ isActive }) {
                       <tfoot className="sticky bottom-0" style={{ backgroundColor: 'var(--bg-tertiary)', borderTop: '1px solid var(--border-medium)' }}>
                         <tr className="h-11">
                           <td colSpan={3} className="px-3 text-right text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-secondary)', borderRight: '1px solid var(--border-medium)' }}>
-                            Total ({deadStockItems.length} {deadStockItems.length === 1 ? 'item' : 'items'})
+                            Total ({filteredDeadStock.length} {filteredDeadStock.length === 1 ? 'item' : 'items'})
                           </td>
                           <td className="px-3 text-center text-sm font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-                            ₹{formatINR(deadStockItems.reduce((s, i) => s + (Number(i.deadValue) || 0), 0), 2)}
+                            ₹{formatINR(filteredDeadValue, 2)}
                           </td>
                         </tr>
                       </tfoot>

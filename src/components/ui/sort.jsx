@@ -34,7 +34,7 @@ export function useSort(rows, accessors, initial = { key: null, dir: 'desc' }) {
       })
       .map(x => x.row);
   }, [rows, accessors, sort]);
-  return { sorted, sort, toggleSort };
+  return { sorted, sort, toggleSort, setSort };
 }
 
 /**

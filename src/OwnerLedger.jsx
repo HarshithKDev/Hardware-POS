@@ -21,7 +21,7 @@ import DayClosingModal from './components/reports/DayClosingModal';
 
 // Day closing report: hidden for now at the owner's request. Set to true to bring the button back.
 const SHOW_DAY_CLOSING = false;
-import { Badge, Button, buttonClass, DateField, useSort, SortTh, TableSkeleton, Modal } from './components/ui';
+import { Badge, Button, buttonClass, DateField, useSort, SortTh, TableSkeleton, Modal, PaymentBadge } from './components/ui';
 
 // Click-to-sort columns for the sales list (sorting happens on the loaded day/page only)
 const LEDGER_SORT = {
@@ -32,7 +32,6 @@ const LEDGER_SORT = {
   total: (b) => Number(b.total_amount) || 0,
 };
 
-const paymentTone = (method) => (method === 'CASH' ? 'success' : method === 'UPI' ? 'accent' : 'warning');
 
 // Searching by bill number is switched on once bills loaded from the database include
 // the bill_no column (after the bill-number SQL update); before that the query would fail.
@@ -734,37 +733,29 @@ export default function OwnerLedger({ isActive }) {
                 >
                   {/* Mobile Row Card */}
                   <td className="md:hidden block p-4 border-none">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <div className="text-xs font-bold text-[var(--text-secondary)]">{formatDateTime(bill.created_at).full}</div>
-                        {(bill.customer_phone || bill.customer_name) ? (
-                           <div className="text-xs font-semibold text-[var(--text-primary)] mt-1 flex items-center gap-1.5 flex-wrap">
-                            {bill.customer_phone && (
-                              <span className="font-bold flex items-center gap-1">
-                                <Phone className="w-3 h-3 text-[var(--color-accent)]" />
-                                {bill.customer_phone}
-                              </span>
-                            )}
-                            {bill.customer_name && (
-                              <span className="text-[var(--text-secondary)]">({bill.customer_name})</span>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="mt-1">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[var(--bg-hover)] text-[var(--text-secondary)] border border-[var(--border-light)]">
-                              Walk-in Customer
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <div className={`text-base font-bold tabular-nums ${bill.status === 'voided' ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--color-accent)]'}`}>₹{formatINR(Number(bill.total_amount), 2)}</div>
-                        {bill.payment_method && (
-                          <Badge tone={paymentTone(bill.payment_method)} className="mt-0.5">{bill.payment_method}</Badge>
-                        )}
+                    {/* Date on the left; how it was paid and the amount on the same line on the right */}
+                    <div className="flex justify-between items-center gap-2">
+                      <div className="text-xs font-bold text-[var(--text-secondary)] min-w-0">{formatDateTime(bill.created_at).full}</div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <PaymentBadge method={bill.payment_method} />
+                        <span className={`text-base font-bold tabular-nums ${bill.status === 'voided' ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--color-accent)]'}`}>₹{formatINR(Number(bill.total_amount), 2)}</span>
                       </div>
                     </div>
-                    <div className="flex justify-between items-center pt-2 border-t border-[var(--border-light)] mt-2">
+                    {/* Customer only when one was entered (most sales are walk-ins) */}
+                    {(bill.customer_phone || bill.customer_name) && (
+                      <div className="text-xs font-semibold text-[var(--text-primary)] mt-1.5 flex items-center gap-1.5 flex-wrap">
+                        {bill.customer_phone && (
+                          <span className="font-bold flex items-center gap-1">
+                            <Phone className="w-3 h-3 text-[var(--color-accent)]" />
+                            {bill.customer_phone}
+                          </span>
+                        )}
+                        {bill.customer_name && (
+                          <span className="text-[var(--text-secondary)]">{bill.customer_phone ? `(${bill.customer_name})` : bill.customer_name}</span>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center pt-2 border-t border-[var(--border-light)] mt-2.5">
                       <div className="text-xs font-medium capitalize" style={{ color: 'var(--text-secondary)' }}>Cashier: {bill.cashier_name}</div>
                       <div className="flex items-center gap-2">
                         {bill.status === 'voided' ? (
@@ -807,9 +798,7 @@ export default function OwnerLedger({ isActive }) {
                         )}
                       </div>
                     ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[var(--bg-hover)] text-[var(--text-secondary)] border border-[var(--border-light)]">
-                        Walk-in Customer
-                      </span>
+                      <span className="text-sm text-[var(--text-tertiary)]" title="Walk-in customer">—</span>
                     )}
                   </td>
 
@@ -821,7 +810,7 @@ export default function OwnerLedger({ isActive }) {
                     {bill.status === 'voided' ? (
                       <Badge tone="error">VOIDED</Badge>
                     ) : bill.payment_method ? (
-                      <Badge tone={paymentTone(bill.payment_method)}>{bill.payment_method}</Badge>
+                      <PaymentBadge method={bill.payment_method} />
                     ) : (
                       <span className="text-xs text-[var(--text-tertiary)]">--</span>
                     )}

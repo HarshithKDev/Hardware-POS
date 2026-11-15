@@ -141,7 +141,8 @@ describe('OwnerLedger (Sales History & Merged Returns)', () => {
 
     await waitFor(() => {
       expect(screen.getAllByText('9876543210').length).toBeGreaterThan(0);
-      expect(screen.getAllByText(/Walk-in Customer/i).length).toBeGreaterThan(0);
+      // Walk-in sales no longer carry a "Walk-in Customer" label on every row
+      expect(screen.queryByText(/Walk-in Customer/i)).toBeNull();
     });
   });
 

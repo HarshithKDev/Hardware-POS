@@ -49,3 +49,17 @@ describe('Showroom list', () => {
     expect(await screen.findByText(/Page 1/)).toHaveTextContent('3 dispatches');
   });
 });
+
+import { PaymentBadge } from '../components/ui';
+
+describe('payment badge', () => {
+  it.each([['CASH', 'Cash', 1], ['UPI', 'UPI', 1], ['SPLIT', 'Split', 2]])('%s shows "%s" with %i icon(s)', (method, label, icons) => {
+    const { container } = render(<PaymentBadge method={method} />);
+    expect(screen.getByText(label)).toBeInTheDocument();
+    expect(container.querySelectorAll('svg')).toHaveLength(icons);
+  });
+  it('shows nothing when the bill has no payment method', () => {
+    const { container } = render(<PaymentBadge method={null} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+});
