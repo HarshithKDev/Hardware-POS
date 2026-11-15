@@ -46,6 +46,11 @@ const noteBillNoColumn = (rows) => {
   if (!clientRefSearchEnabled && has('client_ref')) clientRefSearchEnabled = true;
 };
 
+// The "Screws" line rebuilt for a very old bill (its screws charge was only in the bill total).
+// It is not a saved bill line, so it is refunded only by returning the whole bill.
+const isRebuiltScrews = (item) => String(item?.id || '').startsWith('screw-legacy-');
+const fullQty = (item) => Number(item.billable_quantity || item.actual_quantity || item.quantity);
+
 const isItemCuttable = (item) => {
   return Boolean(
     item?.is_cuttable === true ||
@@ -336,11 +341,16 @@ export default function OwnerLedger({ isActive }) {
       // return record, audit log) all-or-nothing. Before the database update it isn't
       // available and the step-by-step path below is used instead.
       let atomicDone = false;
-      const allRealLines = itemsToReturn.every(i => /^[0-9a-f-]{36}$/i.test(String(i.id)));
+      // A rebuilt screws line is not a saved line: voiding the bill refunds it with the rest
+      const realLines = itemsToReturn.filter(i => !isRebuiltScrews(i));
+      if (!isAll && realLines.length < itemsToReturn.length) {
+        throw new Error('The screws charge on this old bill can only be refunded by returning the whole bill.');
+      }
+      const allRealLines = realLines.every(i => /^[0-9a-f-]{36}$/i.test(String(i.id)));
       if (allRealLines) {
         const res = await returnItemsAtomic({
           billId: bill.id,
-          items: itemsToReturn.map(i => ({ bill_item_id: i.id, quantity: Number(i.returnQuantity) })),
+          items: realLines.map(i => ({ bill_item_id: i.id, quantity: Number(i.returnQuantity) })),
           voidAll: isAll,
           performedBy
         });
@@ -442,7 +452,8 @@ export default function OwnerLedger({ isActive }) {
               if (shopId) {
                 delItem = delItem.eq('shop_id', shopId);
               }
-              await delItem;
+              const { error: delError } = await delItem;
+              if (delError) throw new Error(`The refund and stock were saved, but ${item.name} could not be removed from the bill (${delError.message}). Open the bill and check it before trying again.`);
             } else {
               // Update quantity for partial return
               const newQty = currentQty - qtyToRestore;
@@ -460,7 +471,8 @@ export default function OwnerLedger({ isActive }) {
               if (shopId) {
                 updateItem = updateItem.eq('shop_id', shopId);
               }
-              await updateItem;
+              const { error: updError } = await updateItem;
+              if (updError) throw new Error(`The refund and stock were saved, but the quantity of ${item.name} on the bill could not be updated (${updError.message}). Open the bill and check it before trying again.`);
             }
           }
         }
@@ -951,7 +963,8 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
 
   if (!isOpen || !bill) return null;
 
-  const returnableItems = items.filter(item => !isItemCuttable(item));
+  const returnableItems = items.filter(item => !isItemCuttable(item) && !isRebuiltScrews(item));
+  const hasRebuiltScrews = items.some(isRebuiltScrews);
 
   const handleQtyChange = (item, delta) => {
     setReturnQuantities(prev => {
@@ -998,8 +1011,12 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
     return { ...item, returnQuantity: returnQuantities[id] };
   }).filter(Boolean);
 
-  const refundAmount = itemsToReturn.reduce((sum, item) => sum + (Number(item.price_at_sale) * item.returnQuantity), 0);
-  const isAll = items.length > 0 && items.length === itemsToReturn.length && items.every(item => returnQuantities[item.id] === Number(item.billable_quantity || item.actual_quantity || item.quantity));
+  // Every saved line returned in full = the whole bill (an old bill's rebuilt screws line included)
+  const savedLines = items.filter(item => !isRebuiltScrews(item));
+  const isAll = savedLines.length > 0 && savedLines.length === itemsToReturn.length && savedLines.every(item => returnQuantities[item.id] === fullQty(item));
+  const refundAmount = isAll && hasRebuiltScrews
+    ? Number(bill.total_amount || 0)
+    : itemsToReturn.reduce((sum, item) => sum + (Number(item.price_at_sale) * item.returnQuantity), 0);
 
   const handleConfirm = async () => {
     setIsReturning(true);
@@ -1047,6 +1064,19 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
             const returnQty = returnQuantities[item.id] || 0;
             const isSelected = returnQty > 0;
             const isCuttable = isItemCuttable(item);
+            if (isRebuiltScrews(item)) {
+              return (
+                <div key={item.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border text-sm" style={{ backgroundColor: isAll ? 'var(--color-accent-bg)' : 'var(--bg-secondary)', borderColor: isAll ? 'var(--color-accent)' : 'var(--border-light)' }}>
+                  <div>
+                    <div className="font-semibold text-[var(--text-primary)]">{item.name}</div>
+                    <div className="text-xs text-[var(--text-secondary)]">₹{formatINR(Number(item.price_at_sale), 2)} (old bill)</div>
+                  </div>
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded bg-[var(--bg-tertiary)] border border-[var(--border-light)] text-[var(--text-secondary)] text-right">
+                    {isAll ? 'Refunded with the full bill' : 'Refunded only with the full bill'}
+                  </span>
+                </div>
+              );
+            }
 
             return (
               <div key={item.id} className="flex flex-col gap-2 p-3 rounded-lg border transition-colors" style={{ backgroundColor: isSelected ? 'var(--color-accent-bg)' : 'var(--bg-secondary)', borderColor: isSelected ? 'var(--color-accent)' : 'var(--border-light)' }}>
