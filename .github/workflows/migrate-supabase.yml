@@ -1,0 +1,209 @@
+# One-time move of the Supabase database from the old project (Sydney) to the new one (Mumbai).
+#
+# Runs ONLY when started by hand: Actions -> "Migrate Supabase (one-time)" -> Run workflow.
+# Needs two repository secrets (Settings -> Secrets and variables -> Actions):
+#   OLD_DB_URL  Session pooler URI of the OLD project, with its database password
+#   NEW_DB_URL  Session pooler URI of the NEW (Mumbai) project, with its database password
+# (Supabase -> project -> Connect -> "Session pooler". GitHub's machines have no IPv6, so the
+#  "Direct connection" address will not work.)
+#
+# Modes:
+#   check    Changes nothing. Connects to both, shows versions and row counts, and verifies the
+#            new project is empty and in Mumbai. Run this first.
+#   migrate  Copies structure, logins (with their passwords) and data in ONE all-or-nothing
+#            transaction, then live-update tables and logo storage, then compares row counts.
+#            Requires typing  COPY TO MUMBAI  in the confirm box.
+#
+# Safety: the old project is only read, never written. The new project must be empty. Nothing is
+# saved outside GitHub's temporary machine, which is deleted after the run; no data is uploaded
+# as an artifact and no addresses or passwords are printed.
+# Delete this file and the two secrets once the move is done.
+
+name: Migrate Supabase (one-time)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "check = dry run (changes nothing), migrate = copy everything"
+        type: choice
+        options: [check, migrate]
+        default: check
+      confirm:
+        description: "For migrate only: type  COPY TO MUMBAI"
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      OLD_DB_URL: ${{ secrets.OLD_DB_URL }}
+      NEW_DB_URL: ${{ secrets.NEW_DB_URL }}
+      MODE: ${{ inputs.mode }}
+      CONFIRM: ${{ inputs.confirm }}
+      PGBIN: /usr/lib/postgresql/17/bin
+      PGCONNECT_TIMEOUT: "20"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check the inputs and secrets
+        run: |
+          set -euo pipefail
+          [ -n "$OLD_DB_URL" ] || { echo "::error::Secret OLD_DB_URL is missing."; exit 1; }
+          [ -n "$NEW_DB_URL" ] || { echo "::error::Secret NEW_DB_URL is missing."; exit 1; }
+          if [ "$MODE" = "migrate" ] && [ "$CONFIRM" != "COPY TO MUMBAI" ]; then
+            echo "::error::To copy, type exactly  COPY TO MUMBAI  in the confirm box."; exit 1
+          fi
+          # project ref = the part after "postgres." in the user name; host = pooler address
+          old_ref=$(sed -E 's#^postgres(ql)?://postgres\.([^:]+):.*#\2#' <<<"$OLD_DB_URL")
+          new_ref=$(sed -E 's#^postgres(ql)?://postgres\.([^:]+):.*#\2#' <<<"$NEW_DB_URL")
+          new_host=$(sed -E 's#^.*@([^:/]+).*#\1#' <<<"$NEW_DB_URL")
+          old_host=$(sed -E 's#^.*@([^:/]+).*#\1#' <<<"$OLD_DB_URL")
+          echo "Old project pooler: $old_host"
+          echo "New project pooler: $new_host"
+          if [ "$old_ref" = "$new_ref" ]; then
+            echo "::error::OLD_DB_URL and NEW_DB_URL point to the same project."; exit 1
+          fi
+          if ! grep -q "ap-south-1" <<<"$new_host"; then
+            echo "::error::NEW_DB_URL is not a Mumbai (ap-south-1) address. Check the secret."; exit 1
+          fi
+          if ! grep -q "pooler.supabase.com" <<<"$new_host$old_host"; then
+            echo "::warning::These do not look like Session pooler addresses; GitHub needs the pooler (IPv4)."
+          fi
+
+      - name: Install PostgreSQL 17 client tools
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17 > /dev/null
+          "$PGBIN/pg_dump" --version
+          "$PGBIN/psql" --version
+
+      - name: Connect to both projects and compare versions
+        run: |
+          set -euo pipefail
+          old_v=$("$PGBIN/psql" "$OLD_DB_URL" -Atc "show server_version_num")
+          new_v=$("$PGBIN/psql" "$NEW_DB_URL" -Atc "show server_version_num")
+          echo "Old project Postgres: $old_v"
+          echo "New project Postgres: $new_v"
+          if [ "${new_v:0:2}" -lt "${old_v:0:2}" ]; then
+            echo "::error::The new project runs an OLDER Postgres than the old one. Stop and ask before continuing."; exit 1
+          fi
+          if [ "${old_v:0:2}" -gt 17 ]; then
+            echo "::error::Old project is newer than Postgres 17; the tools here need updating."; exit 1
+          fi
+
+      - name: Check the new project is empty
+        run: |
+          set -euo pipefail
+          old_tables=$("$PGBIN/psql" "$OLD_DB_URL" -Atc "select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'")
+          new_tables=$("$PGBIN/psql" "$NEW_DB_URL" -Atc "select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'")
+          new_users=$("$PGBIN/psql" "$NEW_DB_URL" -Atc "select count(*) from auth.users")
+          echo "Old project: $old_tables app tables"
+          echo "New project: $new_tables app tables, $new_users logins"
+          [ "$old_tables" -gt 0 ] || { echo "::error::The OLD project has no app tables - are the secrets swapped?"; exit 1; }
+          if [ "$new_tables" -ne 0 ] || [ "$new_users" -ne 0 ]; then
+            echo "::error::The NEW project is not empty. Delete it and create a fresh one (Part A of the plan), update NEW_DB_URL, then run again."; exit 1
+          fi
+
+      - name: Row counts in the old project
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/counts.sql" <<'SQL'
+          select table_schema || '.' || table_name,
+                 (xpath('/row/c/text()', query_to_xml(format('select count(*) as c from %I.%I', table_schema, table_name), false, true, '')))[1]::text
+            from information_schema.tables
+           where table_type = 'BASE TABLE'
+             and (table_schema = 'public' or (table_schema = 'auth' and table_name in ('users', 'identities')))
+           order by 1;
+          SQL
+          "$PGBIN/psql" "$OLD_DB_URL" -At -F ' ' -f "$RUNNER_TEMP/counts.sql" | LC_ALL=C sort -k1,1 > "$RUNNER_TEMP/old_counts.txt"
+          echo "Table  rows (old project)"
+          awk '{ printf "%-40s %s\n", $1, $2 }' "$RUNNER_TEMP/old_counts.txt"
+
+      - name: Copy the structure, logins and data (one all-or-nothing transaction)
+        if: inputs.mode == 'migrate'
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          "$PGBIN/pg_dump" "$OLD_DB_URL" --schema-only --schema=public --no-owner -f schema.sql
+          "$PGBIN/pg_dump" "$OLD_DB_URL" --data-only --schema=public --no-owner -f data_public.sql
+          "$PGBIN/pg_dump" "$OLD_DB_URL" --data-only --table=auth.users --table=auth.identities -f data_auth.sql
+          # Lines the new project already has, or that only Supabase's own admin may run
+          sed -i -e '/^CREATE SCHEMA public;$/d' \
+                 -e '/^COMMENT ON SCHEMA public/d' \
+                 -e '/ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin/d' schema.sql
+          echo "Structure: $(grep -c '^CREATE' schema.sql) objects; data files: $(du -h data_public.sql | cut -f1) app data, $(du -h data_auth.sql | cut -f1) logins"
+          "$PGBIN/psql" "$NEW_DB_URL" --single-transaction -v ON_ERROR_STOP=1 -q \
+            -c 'set statement_timeout = 0' \
+            -f schema.sql \
+            -c 'set session_replication_role = replica' \
+            -f data_auth.sql \
+            -f data_public.sql > /dev/null
+          echo "Copied."
+
+      - name: Live updates and logo storage, as in the old project
+        if: inputs.mode == 'migrate'
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          # Tables registered for live updates in the old project (plus the ones the app listens to)
+          "$PGBIN/psql" "$OLD_DB_URL" -At -c "
+            select distinct t from (
+              select tablename as t from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public'
+              union select unnest(array['pos_events', 'audit_logs', 'expenses', 'pending_carts'])
+            ) x order by 1" > realtime_tables.txt
+          while read -r t; do
+            [ -n "$t" ] || continue
+            "$PGBIN/psql" "$NEW_DB_URL" -v ON_ERROR_STOP=1 -q -c "
+              do \$\$ begin
+                if to_regclass('public.' || quote_ident('$t')) is not null and not exists (
+                  select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = '$t'
+                ) then execute format('alter publication supabase_realtime add table public.%I', '$t'); end if;
+              end \$\$;"
+          done < realtime_tables.txt
+          echo "Live updates on: $(tr '\n' ' ' < realtime_tables.txt)"
+
+          # Storage buckets (the logo files themselves are re-uploaded in Shop Settings afterwards)
+          "$PGBIN/psql" "$OLD_DB_URL" -At -c "
+            select format('insert into storage.buckets (id, name, public) values (%L, %L, %L) on conflict (id) do update set public = excluded.public;', id, name, public)
+              from storage.buckets order by id" > buckets.sql
+          # Storage access rules, recreated exactly
+          "$PGBIN/psql" "$OLD_DB_URL" -At -c "
+            select format('drop policy if exists %I on storage.objects; create policy %I on storage.objects as %s for %s to %s%s%s;',
+                          policyname, policyname, permissive, cmd, array_to_string(roles, ', '),
+                          coalesce(' using (' || qual || ')', ''), coalesce(' with check (' || with_check || ')', ''))
+              from pg_policies where schemaname = 'storage' and tablename = 'objects' order by policyname" > storage_policies.sql
+          "$PGBIN/psql" "$NEW_DB_URL" --single-transaction -v ON_ERROR_STOP=1 -q -f buckets.sql -f storage_policies.sql
+          echo "Storage: $(wc -l < buckets.sql) bucket(s), $(wc -l < storage_policies.sql) access rule(s)"
+
+      - name: Compare row counts (old vs new)
+        if: inputs.mode == 'migrate'
+        run: |
+          set -euo pipefail
+          "$PGBIN/psql" "$NEW_DB_URL" -At -F ' ' -f "$RUNNER_TEMP/counts.sql" | LC_ALL=C sort -k1,1 > "$RUNNER_TEMP/new_counts.txt"
+          echo "Table  old  new"
+          LC_ALL=C join -a1 -a2 -e MISSING -o 0,1.2,2.2 "$RUNNER_TEMP/old_counts.txt" "$RUNNER_TEMP/new_counts.txt" | tee "$RUNNER_TEMP/compare.txt" | awk '{ printf "%-40s %10s %10s\n", $1, $2, $3 }'
+          if awk '$2 != $3 { bad = 1 } END { exit !bad }' "$RUNNER_TEMP/compare.txt"; then
+            echo "::error::Some tables differ (see above). Do not switch the app over; send a screenshot of this step."; exit 1
+          fi
+          echo "All tables match. Next: Part E of the plan (Vercel settings), then sign in and re-upload the logo."
+
+      - name: Remove temporary files
+        if: always()
+        run: rm -f "$RUNNER_TEMP"/*.sql "$RUNNER_TEMP"/*.txt
