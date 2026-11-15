@@ -7,3 +7,4 @@ export { table } from './table';
 export { default as DateField, formatDayLabel } from './DateField';
 export { useSort, SortTh } from './sort';
 export { TableSkeleton } from './Skeleton';
+export { default as PaymentBadge } from './PaymentBadge';

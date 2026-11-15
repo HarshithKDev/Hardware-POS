@@ -4,7 +4,7 @@ import { formatDateTime, formatINR, billLabel } from './utils';
 import { readRows } from './services/secureRead';
 import { withLegacyScrews } from './services/legacyScrews';
 import { LoadFailed } from './SharedUI';
-import { buttonClass, TableSkeleton } from './components/ui';
+import { buttonClass, TableSkeleton, PaymentBadge } from './components/ui';
 import { useApp } from './AppContext';
 import {
   ArrowLeft,
@@ -105,26 +105,7 @@ export default function BillDetailsView({
             <span>{datePart} at {timePart}</span>
             <span>Cashier: <strong className="text-[var(--text-primary)] font-semibold capitalize">{currentBill.cashier_name || 'System'}</strong></span>
 
-            {currentBill.payment_method && (
-              <span
-                className="px-2.5 py-0.5 text-[11px] font-bold rounded uppercase tracking-wider"
-                style={{
-                  backgroundColor: currentBill.payment_method === 'CASH'
-                    ? 'var(--color-success-bg)'
-                    : currentBill.payment_method === 'UPI'
-                      ? 'var(--color-accent-bg)'
-                      : 'var(--color-warning-bg)',
-                  color: currentBill.payment_method === 'CASH'
-                    ? 'var(--color-success)'
-                    : currentBill.payment_method === 'UPI'
-                      ? 'var(--color-accent)'
-                      : 'var(--color-warning)',
-                  border: '1px solid var(--border-light)'
-                }}
-              >
-                {currentBill.payment_method}
-              </span>
-            )}
+            <PaymentBadge method={currentBill.payment_method} />
 
             {isVoided ? (
               <span className="px-2.5 py-0.5 text-[11px] font-bold uppercase rounded-full bg-[var(--color-error-bg)] text-[var(--color-error)] border border-[var(--color-error-border)]">

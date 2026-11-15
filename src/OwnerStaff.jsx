@@ -264,7 +264,8 @@ export default function OwnerStaff() {
 
       <div className="flex-1 overflow-auto rounded-lg border border-[var(--border-light)] shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)' }}>
         {/* Mobile View: Card List */}
-        <div className="md:hidden flex flex-col divide-y divide-[var(--border-medium)]">
+        {/* Every row has its own bottom line, the last one included (the list box is taller than the rows) */}
+        <div className="md:hidden flex flex-col">
           {isLoading ? (
             <TableSkeleton rows={4} cols={2} label="Loading staff…" />
           ) : staffFailed && staffList.length === 0 ? (
@@ -272,7 +273,7 @@ export default function OwnerStaff() {
           ) : staffList.length === 0 ? (
             <div className="p-8 text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No staff members added yet.</div>
           ) : staffList.map(staff => (
-            <div key={staff.id} className="p-4 flex items-center justify-between gap-3">
+            <div key={staff.id} className="p-4 flex items-center justify-between gap-3 border-b border-[var(--border-medium)]">
               <div className="flex flex-col gap-1 min-w-0">
                 <span title={String(staff.name ?? '')} className="font-bold text-base truncate" style={{ color: 'var(--text-primary)' }}>{staff.name}</span>
                 <div>
