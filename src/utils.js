@@ -76,7 +76,8 @@ export function formatDateTime(input) {
 
   const d = input instanceof Date ? input : new Date(input);
   const day = String(d.getDate()).padStart(2, '0');
-  const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  // Same style as the date buttons and day headers ("15 Nov 2026")
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const month = monthNames[d.getMonth()];
   const year = d.getFullYear();
   const datePart = `${day} ${month} ${year}`;

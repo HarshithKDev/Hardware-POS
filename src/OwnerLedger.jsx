@@ -10,7 +10,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { formatDateTime, escapeIlike, formatDayHeader, useSessionState } from './utils';
 import { SALES_PER_PAGE } from './constants';
-import { DialogOverlay } from './Dialog';
 import { Search, Undo2, X, Phone, Calendar } from 'lucide-react';
 import BillDetailsView from './BillDetailsView';
 import { getInventoryItemByBarcode } from './services/db';
@@ -22,7 +21,7 @@ import DayClosingModal from './components/reports/DayClosingModal';
 
 // Day closing report: hidden for now at the owner's request. Set to true to bring the button back.
 const SHOW_DAY_CLOSING = false;
-import { Badge, Button, buttonClass, DateField, useSort, SortTh, TableSkeleton } from './components/ui';
+import { Badge, Button, buttonClass, DateField, useSort, SortTh, TableSkeleton, Modal } from './components/ui';
 
 // Click-to-sort columns for the sales list (sorting happens on the loaded day/page only)
 const LEDGER_SORT = {
@@ -549,8 +548,7 @@ export default function OwnerLedger({ isActive }) {
     <div className="h-full flex flex-col relative w-full max-md:overflow-y-auto">
       <div className="flex flex-wrap justify-between items-end gap-3 mb-4">
         <PageTitleReset
-          title="Sales History"
-          subtitle="Search past sales by customer phone or name, view receipts, and process returns."
+          title="Sales & Returns"
           onReset={handleResetLedger}
           tooltip="Click title to reset customer search and date filters to default"
         />
@@ -790,8 +788,7 @@ export default function OwnerLedger({ isActive }) {
 
                   {/* Desktop Table Cells - Center Aligned */}
                   <td className="hidden md:table-cell py-4 px-3 w-[20%] text-sm text-center" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
-                    <div className="font-semibold text-xs text-[var(--text-primary)]">{formatDateTime(bill.created_at).datePart}</div>
-                    <div className="text-xs text-[var(--text-secondary)]">{formatDateTime(bill.created_at).timePart}</div>
+                    <span className="font-semibold text-xs text-[var(--text-primary)] whitespace-nowrap">{formatDateTime(bill.created_at).full}</span>
                   </td>
 
                   <td className="hidden md:table-cell py-4 px-3 w-[24%] text-sm text-center" style={{ borderRight: '1px solid var(--border-medium)' }}>
@@ -1028,23 +1025,33 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
   };
 
   return (
-    <DialogOverlay isOpen={isOpen} onClose={onClose} labelId="return-items-title" maxWidth="520px">
-      <div className="flex justify-between items-center px-6 pt-6 pb-4 border-b border-[var(--border-light)]">
-        <div>
-          <span id="return-items-title" className="text-base font-semibold text-[var(--text-primary)]">
-            Process Return &amp; Refund
-          </span>
-          <div className="text-xs text-[var(--text-secondary)] mt-0.5">
-            Bill #{billLabel(bill)} • {formatDateTime(bill.created_at).datePart}
-            {bill.customer_phone && ` • Phone: ${bill.customer_phone}`}
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Process Return & Refund"
+      subtitle={`Bill #${billLabel(bill)} • ${formatDateTime(bill.created_at).datePart}${bill.customer_phone ? ` • Phone: ${bill.customer_phone}` : ''}`}
+      titleId="return-items-title"
+      size="lg"
+      closeOnBackdrop
+      zIndex={200}
+      footer={(
+        <div className="w-full flex flex-col gap-3">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Total Refund Amount:</span>
+            <span className="text-2xl font-bold tabular-nums" style={{ color: 'var(--color-error)' }}>₹{formatINR(refundAmount, 2)}</span>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={onClose} disabled={isReturning}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleConfirm} disabled={itemsToReturn.length === 0} loading={isReturning} className="min-w-[140px]">
+              {isAll ? 'Void Full Bill' : 'Confirm Return'}
+            </Button>
           </div>
         </div>
-        <button type="button" onClick={onClose} aria-label="Close" title="Close (Esc)" className="p-1.5 hover:bg-[var(--bg-hover)] rounded-md transition-colors text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-
-      <div className="p-6 max-h-[60vh] supports-[height:100dvh]:max-h-[60dvh] overflow-y-auto">
+      )}
+    >
+      <div>
         <div className="flex justify-between items-center mb-3">
           <p className="text-sm text-[var(--text-secondary)]">Select items and quantities to return:</p>
           {returnableItems.length > 1 && (
@@ -1080,8 +1087,9 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
 
             return (
               <div key={item.id} className="flex flex-col gap-2 p-3 rounded-lg border transition-colors" style={{ backgroundColor: isSelected ? 'var(--color-accent-bg)' : 'var(--bg-secondary)', borderColor: isSelected ? 'var(--color-accent)' : 'var(--border-light)' }}>
-                <div className="flex items-center justify-between">
-                  <label className={`flex items-center gap-3 flex-1 ${isCuttable ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`} onClick={(e) => { e.preventDefault(); if (!isCuttable) handleCheckbox(item); }}>
+                {/* Phones: the quantity buttons go under the name, so long names keep their width */}
+                <div className="flex items-center justify-between gap-2 max-md:flex-col max-md:items-stretch">
+                  <label className={`flex items-center gap-3 flex-1 min-w-0 ${isCuttable ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`} onClick={(e) => { e.preventDefault(); if (!isCuttable) handleCheckbox(item); }}>
                     <input 
                       type="checkbox" 
                       checked={isSelected} 
@@ -1103,12 +1111,12 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
                       </span>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 max-md:self-end">
                       <button 
                         type="button"
                         onClick={() => handleQtyChange(item, -1)} 
                         disabled={returnQty <= 0} 
-                        className="w-7 h-7 rounded border border-[var(--border-medium)] flex items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-primary)] disabled:opacity-40 hover:bg-[var(--bg-hover)] transition-colors text-sm font-bold"
+                        className="tap-area relative w-7 h-7 max-md:w-10 max-md:h-10 rounded border border-[var(--border-medium)] flex items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-primary)] disabled:opacity-40 hover:bg-[var(--bg-hover)] transition-colors text-sm font-bold"
                       >
                         -
                       </button>
@@ -1127,13 +1135,13 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
                             });
                           }
                         }}
-                        className="w-12 h-7 text-center font-bold text-sm rounded border border-[var(--border-medium)] bg-[var(--bg-input)] text-[var(--text-primary)] focus:outline-none"
+                        className="w-12 h-7 max-md:h-10 text-center font-bold text-sm rounded border border-[var(--border-medium)] bg-[var(--bg-input)] text-[var(--text-primary)] focus:outline-none"
                       />
                       <button 
                         type="button"
                         onClick={() => handleQtyChange(item, 1)} 
                         disabled={returnQty >= maxQty} 
-                        className="w-7 h-7 rounded border border-[var(--border-medium)] flex items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-primary)] disabled:opacity-40 hover:bg-[var(--bg-hover)] transition-colors text-sm font-bold"
+                        className="tap-area relative w-7 h-7 max-md:w-10 max-md:h-10 rounded border border-[var(--border-medium)] flex items-center justify-center bg-[var(--bg-secondary)] text-[var(--text-primary)] disabled:opacity-40 hover:bg-[var(--bg-hover)] transition-colors text-sm font-bold"
                       >
                         +
                       </button>
@@ -1153,20 +1161,6 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
         </div>
       </div>
 
-      <div className="px-6 py-4 border-t border-[var(--border-light)] bg-[var(--bg-tertiary)] flex flex-col gap-4">
-        <div className="flex justify-between items-center">
-          <span className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Total Refund Amount:</span>
-          <span className="text-2xl font-bold tabular-nums" style={{ color: 'var(--color-error)' }}>₹{formatINR(refundAmount, 2)}</span>
-        </div>
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={onClose} disabled={isReturning}>
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={handleConfirm} disabled={itemsToReturn.length === 0} loading={isReturning} className="min-w-[140px]">
-            {isAll ? 'Void Full Bill' : 'Confirm Return'}
-          </Button>
-        </div>
-      </div>
-    </DialogOverlay>
+    </Modal>
   );
 }

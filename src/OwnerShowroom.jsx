@@ -86,7 +86,7 @@ export default function OwnerShowroom() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
         <PageTitleReset
-          title="Showroom Dispatches"
+          title="Showroom"
           subtitle="Stock sent to the showroom. Deducted from store stock and inventory value; not counted as sales."
           onReset={handleResetShowroom}
           tooltip="Click title to reset showroom dispatches to first page"
@@ -132,8 +132,8 @@ export default function OwnerShowroom() {
                       onClick={() => setSelectedBill(bill)}
                     >
                       <td className="block p-0 border-none">
-                        <div className="flex justify-between items-center">
-                          <div>
+                        <div className="flex justify-between items-center gap-3">
+                          <div className="text-left min-w-0">
                             <p className="text-xs font-semibold text-[var(--text-secondary)]">
                               {formatDateTime(bill.created_at).full}
                             </p>
@@ -147,7 +147,7 @@ export default function OwnerShowroom() {
                               </p>
                             )}
                           </div>
-                          <div className="text-right flex items-center gap-2">
+                          <div className="text-right flex items-center gap-2 shrink-0">
                             <div>
                               <p className="text-base font-bold text-[var(--text-primary)] tabular-nums">
                                 ₹{formatINR(Number(bill.total_amount), 2)}
@@ -172,8 +172,7 @@ export default function OwnerShowroom() {
                       onClick={() => setSelectedBill(bill)}
                     >
                       <td className="py-4 px-5 text-sm text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
-                        <div className="font-semibold text-sm text-[var(--text-primary)]">{formatDateTime(bill.created_at).datePart}</div>
-                        <div className="text-xs text-[var(--text-secondary)]">{formatDateTime(bill.created_at).timePart}</div>
+                        <span className="font-semibold text-xs text-[var(--text-primary)] whitespace-nowrap">{formatDateTime(bill.created_at).full}</span>
                       </td>
                       <td className="py-4 px-5 text-sm font-semibold text-center align-middle" style={{ borderRight: '1px solid var(--border-medium)', color: 'var(--text-primary)' }}>
                         {bill.customer_name || '—'}
@@ -213,6 +212,9 @@ export default function OwnerShowroom() {
             >
               <span>&larr;<span className="hidden sm:inline"> Previous</span></span>
             </button>
+            <span className="text-xs font-medium text-[var(--text-secondary)] text-center tabular-nums">
+              Page {page + 1} <span aria-hidden="true">•</span> {bills.length} {bills.length === 1 ? 'dispatch' : 'dispatches'}
+            </span>
             <button
               onClick={() => setPage(p => p + 1)}
               disabled={!hasMore}

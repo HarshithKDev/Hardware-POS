@@ -128,7 +128,7 @@ describe('useSessionState Hook', () => {
       return (
         <div>
           <PageTitleReset
-            title="Store Inventory Actions"
+            title="Store Inventory"
             onReset={handleReset}
           />
           <input
@@ -163,7 +163,7 @@ describe('useSessionState Hook', () => {
     expect(screen.getByTestId('cat-select').value).toBe('Pipes');
 
     // User clicks the Page Title to reset the page
-    const titleButton = screen.getByRole('button', { name: /Store Inventory Actions/i });
+    const titleButton = screen.getByRole('button', { name: /Store Inventory/i });
     act(() => {
       fireEvent.click(titleButton);
     });

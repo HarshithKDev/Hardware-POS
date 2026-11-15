@@ -184,7 +184,7 @@ export default function OwnerDashboard() {
           ) : (
             <div className="flex flex-col flex-1 h-full min-h-0 animate-fade-in">
               <PageTitleReset
-                title={isWarehouseDisabled ? 'Store Inventory Actions' : 'Inventory Actions'}
+                title={isWarehouseDisabled ? 'Store Inventory' : 'Inventory'}
                 onReset={handleResetWarehouse}
                 className="mb-6"
                 tooltip="Click title to reset inventory filters, search, and tabs to default"
@@ -314,7 +314,7 @@ export default function OwnerDashboard() {
           { key: 'dashboard', label: 'Overview', icon: LayoutDashboard },
           { key: 'warehouse', label: isWarehouseDisabled ? 'Store' : 'Inventory', icon: isWarehouseDisabled ? Boxes : Warehouse },
           { key: 'checkout', label: 'Checkout', icon: ShoppingCart },
-          { key: 'sales', label: 'Sales & Ret.', icon: History },
+          { key: 'sales', label: 'Sales', icon: History },
           { key: 'more', label: 'More', icon: Menu, isMore: true },
         ].map(({ key, label, icon: Icon, isMore }) => {
           const isActive = !isMore && activeTab === key;
@@ -336,7 +336,7 @@ export default function OwnerDashboard() {
               aria-label={label}
             >
               <Icon size={19} strokeWidth={(isActive || (isMore && (isMoreOpen || moreIsActive))) ? 2.5 : 2} />
-              <span className="text-xs font-semibold tracking-tight whitespace-nowrap">{label === 'Sales & Ret.' ? <><span className="max-[379px]:hidden">Sales &amp; Ret.</span><span className="hidden max-[379px]:inline">Sales</span></> : label}</span>
+              <span className="text-xs font-semibold tracking-tight whitespace-nowrap">{label}</span>
             </button>
           );
         })}

@@ -149,7 +149,7 @@ describe('OwnerLedger (Sales History & Merged Returns)', () => {
     renderComponent();
 
     await waitFor(() => {
-      const returnButtons = screen.getAllByRole('button', { name: /return/i });
+      const returnButtons = screen.getAllByRole('button', { name: /^return$/i });
       expect(returnButtons.length).toBeGreaterThan(0);
 
       const returnedBadges = screen.getAllByText(/RETURNED/i);
@@ -164,7 +164,7 @@ describe('OwnerLedger (Sales History & Merged Returns)', () => {
       expect(screen.getAllByText('9876543210').length).toBeGreaterThan(0);
     });
 
-    const returnButtons = screen.getAllByRole('button', { name: /return/i });
+    const returnButtons = screen.getAllByRole('button', { name: /^return$/i });
     fireEvent.click(returnButtons[0]);
 
     await waitFor(() => {
@@ -197,7 +197,7 @@ describe('OwnerLedger (Sales History & Merged Returns)', () => {
     fireEvent.click(backButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/sales history/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Sales & Returns' })).toBeInTheDocument();
     });
   });
 
@@ -207,7 +207,7 @@ describe('OwnerLedger (Sales History & Merged Returns)', () => {
     await waitFor(() => {
       expect(screen.getAllByText(/sales/i).length).toBeGreaterThan(0);
       // Expect day badge (e.g. 19 Oct 2026 from mockBills)
-      expect(screen.getByText(/19 Oct 2026/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/19 Oct 2026/i).length).toBeGreaterThan(0);
       // Expect Newer and Older navigation buttons
       expect(screen.getByRole('button', { name: /previous/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument();

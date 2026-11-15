@@ -8,7 +8,7 @@ const ICONS = {
   lookup: Search, scanner: ScanLine,
 };
 const SHORT = {
-  dashboard: 'Home', checkout: 'Checkout', sales: 'Sales', expenses: 'Expenses', 'print-barcode': 'Labels',
+  dashboard: 'Dashboard', checkout: 'Checkout', sales: 'Sales', expenses: 'Expenses', 'print-barcode': 'Labels',
   'screw-boxes': 'Screw Boxes', receive: 'Receive', transfer: 'Transfer', lookup: 'Lookup', scanner: 'Scanner',
 };
 // What goes on the bar first when there are more screens than fit
@@ -57,8 +57,9 @@ export default function StaffBottomNav({ tabs, activeTab, onSelect }) {
         {inMore.length > 0 && item('more', 'More', Menu, moreActive || moreOpen, () => setMoreOpen(true))}
       </nav>
 
-      <Modal isOpen={moreOpen} onClose={() => setMoreOpen(false)} title="More" titleId="staff-more-title" size="sm" closeOnBackdrop>
-        <div className="flex flex-col gap-2">
+      <Modal isOpen={moreOpen} onClose={() => setMoreOpen(false)} title="More" titleId="staff-more-title" closeOnBackdrop>
+        {/* Same tiles as the owner's More menu */}
+        <div className="grid grid-cols-3 gap-2.5">
           {inMore.map(t => {
             const Icon = ICONS[t.key] || LayoutDashboard;
             const active = activeTab === t.key;
@@ -67,10 +68,15 @@ export default function StaffBottomNav({ tabs, activeTab, onSelect }) {
                 key={t.key}
                 type="button"
                 onClick={() => { setMoreOpen(false); onSelect(t.key); }}
-                className="flex items-center gap-3 h-14 px-4 rounded-lg border text-left text-base font-semibold transition-colors hover:bg-[var(--bg-hover)]"
-                style={{ borderColor: active ? 'var(--color-accent)' : 'var(--border-medium)', color: active ? 'var(--color-accent)' : 'var(--text-primary)' }}
+                aria-current={active ? 'page' : undefined}
+                className="flex flex-col items-center justify-center gap-2 min-h-[84px] px-2 py-3 rounded-xl border text-center text-sm font-semibold leading-tight transition-colors hover:bg-[var(--bg-hover)]"
+                style={{
+                  borderColor: active ? 'var(--color-accent)' : 'var(--border-medium)',
+                  color: active ? 'var(--color-accent)' : 'var(--text-primary)',
+                  backgroundColor: active ? 'var(--color-accent-bg)' : 'var(--bg-tertiary)',
+                }}
               >
-                <Icon size={20} />
+                <Icon size={22} strokeWidth={2} />
                 <span>{t.label}</span>
               </button>
             );

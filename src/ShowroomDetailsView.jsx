@@ -50,9 +50,9 @@ export default function ShowroomDetailsView({
         <button
           type="button"
           onClick={onBack}
-          aria-label="Back to Showroom Dispatches"
+          aria-label="Back to Showroom"
           className={buttonClass({ variant: 'secondary', size: 'md' })}
-          title="Back to Showroom Dispatches"
+          title="Back to Showroom"
         >
           <ArrowLeft className="w-4 h-4 text-[var(--color-accent)]" />
           <span>Back to Showroom</span>

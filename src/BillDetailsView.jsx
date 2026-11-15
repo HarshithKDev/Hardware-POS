@@ -73,9 +73,9 @@ export default function BillDetailsView({
         <button
           type="button"
           onClick={onBack}
-          aria-label="Back to Sales History"
+          aria-label="Back to Sales & Returns"
           className={buttonClass({ variant: 'secondary', size: 'sm', className: 'gap-1.5' })}
-          title="Back to Sales History"
+          title="Back to Sales & Returns"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back</span>
@@ -98,11 +98,11 @@ export default function BillDetailsView({
       <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-light)] p-5 mb-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm shrink-0">
         <div>
           {/* Metadata chips row */}
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] mb-2 flex-wrap">
+          {/* Spacing instead of "•" separators: a bullet used to be left hanging at the end of a
+              line when the row wrapped on phones */}
+          <div className="flex items-center gap-x-4 gap-y-1 text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] mb-2 flex-wrap">
             <span>Bill #{billLabel(currentBill)}</span>
-            <span>•</span>
             <span>{datePart} at {timePart}</span>
-            <span>•</span>
             <span>Cashier: <strong className="text-[var(--text-primary)] font-semibold capitalize">{currentBill.cashier_name || 'System'}</strong></span>
 
             {currentBill.payment_method && (

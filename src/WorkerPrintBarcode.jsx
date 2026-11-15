@@ -7,6 +7,7 @@ import { debounce, formatINR } from './utils';
 import BarcodeLabelSheet, { MAX_LABELS_PER_PRINT, clampLabelQty } from './components/print/BarcodeLabelSheet';
 import { logActivity } from './services/auditLog';
 import { buttonClass } from './components/ui';
+import PageTitleReset from './components/PageTitleReset';
 
 export default function WorkerPrintBarcode() {
   const { showAlert } = useApp();
@@ -165,17 +166,7 @@ export default function WorkerPrintBarcode() {
   return (
     <div className="h-full flex flex-col flex-1 min-h-0 relative select-none">
       {/* SECTION HEADER */}
-      <div className="flex items-center justify-between pb-3 mb-3 border-b border-[var(--border-light)] shrink-0">
-        <div>
-          <h1 className="text-base sm:text-lg font-bold text-[var(--text-primary)] tracking-tight flex items-center gap-2">
-            <Printer className="w-5 h-5 text-[var(--color-accent)]" />
-            <span>Print Barcodes</span>
-          </h1>
-          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-            Search product directory, select batch, and print thermal barcode labels.
-          </p>
-        </div>
-      </div>
+      <PageTitleReset title="Print Barcodes" className="mb-4 shrink-0" />
 
       {/* TWO-COLUMN WORKSPACE */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0 overflow-hidden">

@@ -4,7 +4,7 @@ import { fetchAllRows } from './services/fetchAll';
 import { useApp } from './AppContext';
 import { EXPENSES_CHANGED_EVENT } from './services/liveRefresh';
 import { generateId, formatDateTime, formatINR } from './utils';
-import { Receipt, Plus, CheckCircle } from 'lucide-react';
+import { Receipt, Plus, CheckCircle, Trash2 } from 'lucide-react';
 import { Modal, Button, buttonClass, useSort, SortTh, TableSkeleton } from './components/ui';
 
 const EXPENSE_SORT = {
@@ -408,15 +408,16 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
-                      <span>{exp.worker_name || 'General'}{exp.category ? ` · ${exp.category}` : ''}{exp.payment_mode ? ` · ${exp.payment_mode}` : ''}</span>
-                      <span>{formatDateTime(exp.created_at).full}</span>
+                    {/* When both don't fit on one line the date moves below, instead of each wrapping in two */}
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-xs text-[var(--text-secondary)]">
+                      <span className="min-w-0">{exp.worker_name || 'General'}{exp.category ? ` · ${exp.category}` : ''}{exp.payment_mode ? ` · ${exp.payment_mode}` : ''}</span>
+                      <span className="whitespace-nowrap">{formatDateTime(exp.created_at).full}</span>
                     </div>
                     {(exp._pending || canDelete) && (
                       <div className="flex items-center justify-between text-xs">
                         {exp._pending ? <span className="font-bold" style={{ color: 'var(--color-warning)' }}>Not synced</span> : <span />}
                         {canDelete && (
-                          <button type="button" onClick={() => handleDeleteExpense(exp)} className={buttonClass({ variant: 'danger-outline', size: 'sm' })}>Delete</button>
+                          <button type="button" onClick={() => handleDeleteExpense(exp)} className={buttonClass({ variant: 'danger-outline', size: 'sm' })}><Trash2 className="w-3.5 h-3.5" aria-hidden="true" /> Delete</button>
                         )}
                       </div>
                     )}
@@ -468,7 +469,11 @@ export default function OwnerExpenses({ isOwner = false, cashierName: propCashie
                         <td className="p-3.5 text-center align-middle whitespace-nowrap text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
                           {exp.recorded_by || 'Staff'}
                           {canDelete && (
-                            <button type="button" onClick={() => handleDeleteExpense(exp)} aria-label={`Delete expense ${exp.reason || ''}`} className="block mx-auto mt-1 px-2 py-0.5 rounded-md text-xs font-semibold text-[var(--color-error)] hover:bg-[var(--color-error-bg)] transition-colors cursor-pointer">Delete</button>
+                            <div className="mt-1.5">
+                              <button type="button" onClick={() => handleDeleteExpense(exp)} aria-label={`Delete expense ${exp.reason || ''}`} className={buttonClass({ variant: 'danger-outline', size: 'sm' })}>
+                                <Trash2 className="w-3.5 h-3.5" aria-hidden="true" /> Delete
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>

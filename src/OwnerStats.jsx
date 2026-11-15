@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect, useRef, useMemo } from 'react';
+import { useCallback, useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { localToUtcIso, formatINR } from './utils';
 import { createPortal } from 'react-dom';
 import { supabase } from './supabaseClient';
@@ -333,6 +333,26 @@ function DashboardDateFilter({
   const tabFor = (tf) => (tf === 'range' ? 'range' : 'date');
   const [activeTab, setActiveTab] = useState(tabFor(timeframe));
   const popoverRef = useRef(null);
+  // Keep the calendar inside the screen: on phones the button can sit at either edge, and a
+  // calendar pinned to one side of it ran off the screen.
+  const calendarRef = useRef(null);
+  const [calendarShift, setCalendarShift] = useState(0);
+  useLayoutEffect(() => {
+    if (!isOpen) return undefined;
+    const place = () => {
+      const el = calendarRef.current;
+      const anchor = el?.offsetParent;
+      if (!el || !anchor) return;
+      // offsetLeft / offsetWidth ignore the opening animation and any shift already applied
+      const naturalLeft = anchor.getBoundingClientRect().left + el.offsetLeft;
+      const margin = 8;
+      const maxLeft = Math.max(margin, window.innerWidth - el.offsetWidth - margin);
+      setCalendarShift(Math.round(Math.min(Math.max(naturalLeft, margin), maxLeft) - naturalLeft));
+    };
+    place();
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  }, [isOpen]);
 
   // Calendar view navigation (month and year)
   const [viewDate, setViewDate] = useState(() => {
@@ -525,8 +545,10 @@ function DashboardDateFilter({
       {/* Calendar Popover Modal */}
       {isOpen && (
         <div
+          ref={calendarRef}
           className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-[320px] sm:w-84 rounded-xl shadow-2xl p-3.5 z-50 flex flex-col gap-3 animate-scale-in"
           style={{
+            translate: `${calendarShift}px 0`,
             backgroundColor: 'var(--bg-secondary)',
             border: '1px solid var(--border-medium)',
             color: 'var(--text-primary)',
@@ -1166,7 +1188,7 @@ export default function OwnerStats({ isActive }) {
     <div className="flex flex-col relative lg:flex-1 lg:min-h-0">
       <div className="flex flex-wrap justify-between items-center mb-3 lg:mb-4 shrink-0 gap-x-3 gap-y-2">
         <PageTitleReset
-          title="Business Overview"
+          title="Overview"
           onReset={handleResetStats}
           tooltip="Click title to reset overview timeframe to Today"
         />
@@ -1240,7 +1262,7 @@ export default function OwnerStats({ isActive }) {
         <StatCard
           className={isWarehouseDisabled ? 'col-span-2 md:col-span-1' : ''}
           title="Dead Stock Value"
-          value={`₹${formatINR(deadStockValue, 0)}`}
+          value={`₹${formatINR(deadStockValue, 2)}`}
           borderColor={deadStockValue > DEAD_STOCK_ALARM_VALUE ? 'var(--color-error)' : 'var(--color-warning)'}
           onClick={() => setActiveModal('dead-stock')}
           clickLabel="View dead stock items"
@@ -1356,7 +1378,7 @@ export default function OwnerStats({ isActive }) {
                           <div key={idx} className="p-3 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-light)] shadow-sm space-y-2">
                             <div className="flex items-start justify-between gap-2">
                               <span className="font-semibold text-sm text-[var(--text-primary)] leading-tight">{item.name}</span>
-                              <span className="text-xs font-bold text-[var(--color-success)] tabular-nums bg-[var(--color-success-bg)] px-2 py-0.5 rounded border border-[var(--color-success-border)]">
+                              <span className="shrink-0 whitespace-nowrap text-xs font-bold text-[var(--color-success)] tabular-nums bg-[var(--color-success-bg)] px-2 py-0.5 rounded border border-[var(--color-success-border)]">
                                 +₹{formatINR(item.lineProfit, 2)}
                               </span>
                             </div>

@@ -3,7 +3,6 @@ export { default as Button, buttonClass } from './Button';
 export { default as Input, FieldLabel } from './Input';
 export { default as Modal } from './Modal';
 export { default as Badge } from './Badge';
-export { default as PageHeader } from './PageHeader';
 export { table } from './table';
 export { default as DateField, formatDayLabel } from './DateField';
 export { useSort, SortTh } from './sort';

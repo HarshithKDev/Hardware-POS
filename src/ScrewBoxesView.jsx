@@ -4,7 +4,8 @@ import { useApp } from './AppContext';
 import { getLocalScrewBoxes } from './services/db';
 import { openScrewBox, storeBoxCount } from './services/screwBox';
 import { PageLoader } from './SharedUI';
-import { Button, PageHeader } from './components/ui';
+import { Button } from './components/ui';
+import PageTitleReset from './components/PageTitleReset';
 
 /**
  * Billable staff: list of screw boxes with store stock. "Open 1 Box" removes one box from
@@ -70,12 +71,11 @@ export default function ScrewBoxesView() {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full min-h-0 overflow-y-auto px-4 pb-6 pt-1 md:px-0 animate-fade-in">
-      <div className="max-w-3xl w-full mx-auto flex flex-col gap-4">
-        <PageHeader
+    <div className="flex-1 flex flex-col h-full min-h-0 overflow-y-auto p-3 md:p-4 animate-fade-in">
+      <div className="max-w-3xl w-full flex flex-col gap-4">
+        <PageTitleReset
           title="Screw Boxes"
           subtitle="Opening a box for loose sale removes 1 box from store stock. It is not a sale."
-          className="mb-0"
         />
 
         <input

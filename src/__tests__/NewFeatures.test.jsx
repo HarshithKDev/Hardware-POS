@@ -24,8 +24,8 @@ describe('StaffBottomNav', () => {
       tab('print-barcode', 'Print Barcodes'), tab('expenses', 'Expenses'), tab('screw-boxes', 'Screw Boxes')];
     render(<StaffBottomNav tabs={tabs} activeTab="screw-boxes" onSelect={onSelect} />);
     const nav = screen.getByRole('navigation', { name: 'Staff navigation' });
-    // Priority order: Home, Checkout, Sales, Expenses on the bar
-    expect([...nav.querySelectorAll('button')].map(b => b.getAttribute('aria-label'))).toEqual(['Home', 'Checkout', 'Sales', 'Expenses', 'More']);
+    // Priority order: Dashboard, Checkout, Sales, Expenses on the bar
+    expect([...nav.querySelectorAll('button')].map(b => b.getAttribute('aria-label'))).toEqual(['Dashboard', 'Checkout', 'Sales', 'Expenses', 'More']);
     // The active screen is under More, so More is highlighted
     expect(screen.getByRole('button', { name: 'More' })).toHaveAttribute('aria-current', 'page');
 

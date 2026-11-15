@@ -247,7 +247,7 @@ export default function OwnerCatalog() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <PageTitleReset
-            title="Register New Item"
+            title="Add Items"
             onReset={handleResetCatalog}
             className="mb-2"
             tooltip="Click title to clear registration form"

@@ -209,7 +209,7 @@ describe('Owner phone navigation', () => {
       </MemoryRouter>
     );
     const bar = screen.getByRole('navigation', { name: 'Mobile Bottom Navigation' });
-    expect([...bar.querySelectorAll('button')].map(b => b.getAttribute('aria-label'))).toEqual(['Overview', 'Inventory', 'Checkout', 'Sales & Ret.', 'More']);
+    expect([...bar.querySelectorAll('button')].map(b => b.getAttribute('aria-label'))).toEqual(['Overview', 'Inventory', 'Checkout', 'Sales', 'More']);
 
     fireEvent.click(within(bar).getByRole('button', { name: 'More' }));
     const sheet = await screen.findByRole('dialog');

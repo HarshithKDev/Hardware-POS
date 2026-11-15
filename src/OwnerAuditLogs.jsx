@@ -350,7 +350,7 @@ export default function OwnerAuditLogs() {
     <div className="flex flex-col h-full animate-fade-in w-full max-md:overflow-y-auto">
       <div className="flex flex-col gap-4 mb-6">
         <PageTitleReset
-          title="Unified Audit Logs"
+          title="Audit Logs"
           onReset={handleResetAuditLogs}
           tooltip="Click title to reset audit log filters, user selection, and date to default"
         />

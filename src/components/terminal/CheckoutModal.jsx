@@ -103,9 +103,9 @@ export default function CheckoutModal({
           {/* Showroom dispatch is a stock movement, not a sale: no negotiated amount / MSP rules */}
           {checkoutModal.paymentMethod !== 'SHOWROOM' && (
           <div className="mb-3.5">
-            <label htmlFor="negotiated-total" className="block text-xs font-bold uppercase tracking-wider mb-1.5 flex justify-between items-center" style={{ color: 'var(--text-secondary)' }}>
-              <span>Final Negotiated Amount (₹)</span>
-              <span className="font-normal normal-case tracking-normal text-xs text-[var(--text-tertiary)]">
+            <label htmlFor="negotiated-total" className="text-xs font-bold uppercase tracking-wider mb-1.5 flex flex-wrap justify-between items-baseline gap-x-3 gap-y-0.5" style={{ color: 'var(--text-secondary)' }}>
+              <span className="whitespace-nowrap">Final Negotiated Amount (₹)</span>
+              <span className="font-normal normal-case tracking-normal text-xs text-[var(--text-tertiary)] whitespace-nowrap">
                 System Total: ₹{formatINR(cartTotal, 2)}{minPossibleTotal > 0 ? ` | Min Allowed: ₹${formatINR(minPossibleTotal, 2)}` : ''}
               </span>
             </label>

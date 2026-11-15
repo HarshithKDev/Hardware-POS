@@ -249,7 +249,7 @@ export default function WorkerPriceCheck() {
   const totalStock = isWarehouseDisabled ? Number(storeStock || 0) : (Number(storeStock || 0) + Number(whseStock || 0));
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-[var(--bg-primary)] overflow-y-auto px-4 pb-6 pt-1 md:px-6 md:pb-6 md:pt-2 animate-fade-in">
+    <div className="flex-1 flex flex-col h-full bg-[var(--bg-primary)] overflow-y-auto px-3 pb-6 pt-3 md:px-6 md:pb-6 md:pt-2 animate-fade-in">
       <div className="max-w-2xl w-full mx-auto flex-1 flex flex-col gap-4">
         
         {scannedItem ? (
