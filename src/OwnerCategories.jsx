@@ -8,6 +8,8 @@ import PageTitleReset from './components/PageTitleReset';
 import { buttonClass } from './components/ui';
 import { Search, ChevronRight, Trash2, Plus, ArrowLeft, Tags, RotateCw } from 'lucide-react';
 
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
 export default function OwnerCategories() {
   const { showAlert, showConfirm } = useApp();
   const queryClient = useQueryClient();
@@ -131,11 +133,14 @@ export default function OwnerCategories() {
 
   const deleteCategoryMutation = useMutation({
     mutationFn: async ({ name }) => {
+      const subNames = subcategories.filter(sub => sub.category_name === name).map(sub => sub.name);
       // Cascade check (fixes #8)
       const shopId = localStorage.getItem('shop_id');
       let countQuery = supabase.from('product_master').select('*', { count: 'exact', head: true }).eq('category', name).eq('is_active', true);
       if (shopId) countQuery = countQuery.eq('shop_id', shopId);
-      const { count } = await countQuery;
+      const { count, error: countError } = await countQuery;
+      // Never delete without knowing: a failed check used to count as "not in use"
+      if (countError) throw new Error(`Could not check whether any items use "${name}", so nothing was deleted. Check the internet connection and try again.`);
       if (count && count > 0) throw new Error(`Cannot delete category "${name}" because it is assigned to ${count} active item(s) in the inventory.`);
 
       let delQuery = supabase.from('categories').delete().eq('name', name);
@@ -143,24 +148,34 @@ export default function OwnerCategories() {
       const { error } = await delQuery;
       if (error) throw error;
 
+      // Its sub-categories go with it; left behind, they came back under a new category
+      // with the same name
+      let subQuery = supabase.from('subcategories').delete().eq('category_name', name);
+      if (shopId) subQuery = subQuery.eq('shop_id', shopId);
+      const { error: subError } = await subQuery;
+      if (subError) console.warn(`Sub-categories of "${name}" could not be removed:`, subError);
+
       await supabase.from('audit_logs').insert([{
         shop_id: shopId,
         action_type: 'DELETE',
         barcode: 'CATEGORY',
         item_name: name,
-        changes: `Deleted Category: ${name}`,
+        changes: `Deleted Category: ${name}${subNames.length ? ` (and its sub-categories: ${subNames.join(', ')})` : ''}`,
         performed_by: getPerformedBy()
       }]);
     },
     onSuccess: (_data, { name }) => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['subcategories'] });
       if (selectedCategory === name) { setSelectedCategory(''); setMobileDetailOpen(false); }
     },
-    onError: (e) => showAlert(e.message, 'Cascade Delete Blocked')
+    onError: (e) => showAlert(e.message, 'Could not delete')
   });
 
   const handleDeleteCategory = (id, name) => {
-    showConfirm(`Delete category "${name}"?`, () => deleteCategoryMutation.mutate({ id, name }), 'Delete Category', 'Delete Category', 'Cancel', true);
+    const subCount = subcategories.filter(sub => sub.category_name === name).length;
+    const withSubs = subCount ? ` Its ${plural(subCount, 'sub-category', 'sub-categories')} will be deleted too.` : '';
+    showConfirm(`Delete category "${name}"?${withSubs}`, () => deleteCategoryMutation.mutate({ id, name }), 'Delete Category', 'Delete Category', 'Cancel', true);
   };
 
   const deleteSubcategoryMutation = useMutation({
@@ -169,7 +184,8 @@ export default function OwnerCategories() {
       const shopId = localStorage.getItem('shop_id');
       let countQuery = supabase.from('product_master').select('*', { count: 'exact', head: true }).eq('sub_category', name).eq('is_active', true);
       if (shopId) countQuery = countQuery.eq('shop_id', shopId);
-      const { count } = await countQuery;
+      const { count, error: countError } = await countQuery;
+      if (countError) throw new Error(`Could not check whether any items use "${name}", so nothing was deleted. Check the internet connection and try again.`);
       if (count && count > 0) throw new Error(`Cannot delete sub-category "${name}" because it is assigned to ${count} active item(s) in the inventory.`);
 
       let query = supabase.from('subcategories').delete().eq('name', name);
@@ -189,7 +205,7 @@ export default function OwnerCategories() {
       }]);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['subcategories'] }),
-    onError: (e) => showAlert(e.message, 'Cascade Delete Blocked')
+    onError: (e) => showAlert(e.message, 'Could not delete')
   });
 
   const handleDeleteSubcategory = (id, name, category_name) => {
@@ -227,7 +243,6 @@ export default function OwnerCategories() {
   );
 
   const fieldStyle = { border: '1px solid var(--border-input)', backgroundColor: 'var(--bg-input)', color: 'var(--text-input)' };
-  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
   return (
     <div className="flex flex-col h-full gap-4 animate-fade-in w-full min-h-0">

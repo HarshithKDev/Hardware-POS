@@ -5,7 +5,7 @@ import { supabase } from './supabaseClient';
 import { casUpdateRow } from './services/atomicStock';
 import { beginCriticalWork } from './services/busyGuard';
 import { returnItemsAtomic } from './services/posRpc';
-import { EmptyState } from './SharedUI';
+import { EmptyState, LoadFailed } from './SharedUI';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { formatDateTime, escapeIlike, formatDayHeader, useSessionState } from './utils';
@@ -265,7 +265,7 @@ export default function OwnerLedger({ isActive }) {
     return rawBills.filter(b => b.payment_method || Number(b.total_amount) > 0 || b.status === 'voided');
   }, [shopId, isSearching, salesPage, searchQuery, currentDay, isOwner]);
 
-  const { data: bills = [], isLoading: isLoadingBills } = useQuery({
+  const { data: bills = [], isLoading: isLoadingBills, isError: billsFailed, refetch: refetchBills } = useQuery({
     queryKey: ['bills', shopId, isSearching, salesPage, searchQuery, currentDay, isActive],
     queryFn: fetchBills,
     enabled: isActive,
@@ -727,6 +727,8 @@ export default function OwnerLedger({ isActive }) {
             <tbody className="block md:table-row-group p-2 md:p-0">
               {isLoadingBills && bills.length === 0 ? (
                 <tr className="block md:table-row border-none" style={{ borderBottom: 'none' }}><td colSpan="6" className="block md:table-cell p-0 border-none" style={{ borderBottom: 'none' }}><TableSkeleton rows={8} cols={6} label="Loading sales…" /></td></tr>
+              ) : billsFailed && bills.length === 0 ? (
+                <tr className="block md:table-row border-none" style={{ borderBottom: 'none' }}><td colSpan="6" className="block md:table-cell h-[300px] p-0 border-none" style={{ borderBottom: 'none' }}><LoadFailed what="the sales" onRetry={() => refetchBills()} /></td></tr>
               ) : bills.length === 0 ? (
                 <tr className="block md:table-row border-none" style={{ borderBottom: 'none' }}><td colSpan="6" className="block md:table-cell h-[300px] p-0 border-none" style={{ borderBottom: 'none' }}><EmptyState message="No sales found for this period." /></td></tr>
               ) : sortedBills.map(bill => (
@@ -887,7 +889,7 @@ export default function OwnerLedger({ isActive }) {
                 <span className="basis-full h-0 md:hidden" aria-hidden="true" />
                 <span className="max-md:hidden">•</span>
                 {/* Fully returned bills are still listed, but not counted as sales or in the total */}
-                <span className="shrink-0">{daySales.count} {daySales.count === 1 ? 'sale' : 'sales'}</span>
+                <span className="shrink-0">{billsFailed && bills.length === 0 ? 'Not loaded' : `${daySales.count} ${daySales.count === 1 ? 'sale' : 'sales'}`}</span>
                 {daySales.count > 0 && (
                   <>
                     <span>•</span>

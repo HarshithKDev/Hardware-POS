@@ -3,6 +3,7 @@ import { supabase } from './supabaseClient';
 import { Spinner, EyeIcon, EyeSlashIcon } from './SharedUI';
 import { getWorkerEmail, getLegacyWorkerEmail } from './constants';
 import { buttonClass } from './components/ui';
+import { generateId } from './utils';
 import { readLoginNotice, clearLoginNotice } from './services/loginNotice';
 
 export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComplete, shopSettings }) {
@@ -148,7 +149,8 @@ export default function EntryFlow({ onLoginSuccess, isSetupNeeded, onSetupComple
       let logoUrl = null;
       if (logoFile) {
         const fileExt = logoFile.name.split('.').pop();
-        const fileName = `${cleanEmail.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.${fileExt}`;
+        // A random name: logo links are public, so the owner's email must not be in it
+        const fileName = `logo_${generateId().replace(/[^a-z0-9]/gi, '')}.${fileExt}`;
         const { error: uploadError } = await supabase.storage
           .from('shop-logos')
           .upload(fileName, logoFile, { cacheControl: '3600', upsert: true });

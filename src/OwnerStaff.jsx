@@ -5,7 +5,7 @@ import { supabase, provisioningClient } from './supabaseClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApp } from './AppContext';
 import { getWorkerEmail, getAdminEmail } from './constants';
-import { Spinner } from './SharedUI';
+import { Spinner, LoadFailed } from './SharedUI';
 import PageTitleReset from './components/PageTitleReset';
 import { buttonClass, Modal, Button, Input, TableSkeleton } from './components/ui';
 
@@ -31,7 +31,7 @@ export default function OwnerStaff() {
 
   const shopId = localStorage.getItem('shop_id');
 
-  const { data: staffList = [], isLoading } = useQuery({
+  const { data: staffList = [], isLoading, isError: staffFailed, refetch: refetchStaff } = useQuery({
     queryKey: ['staff', shopId],
     queryFn: async () => {
       let query = supabase.from('workers').select('*').order('name', { ascending: true });
@@ -259,6 +259,8 @@ export default function OwnerStaff() {
         <div className="md:hidden flex flex-col divide-y divide-[var(--border-medium)]">
           {isLoading ? (
             <TableSkeleton rows={4} cols={2} label="Loading staff…" />
+          ) : staffFailed && staffList.length === 0 ? (
+            <LoadFailed what="the staff list" onRetry={() => refetchStaff()} />
           ) : staffList.length === 0 ? (
             <div className="p-8 text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No staff members added yet.</div>
           ) : staffList.map(staff => (
@@ -301,6 +303,8 @@ export default function OwnerStaff() {
           <tbody>
             {isLoading ? (
               <tr><td colSpan="3" className="p-0"><TableSkeleton rows={4} cols={3} label="Loading staff…" /></td></tr>
+            ) : staffFailed && staffList.length === 0 ? (
+              <tr><td colSpan="3" className="p-0"><LoadFailed what="the staff list" onRetry={() => refetchStaff()} /></td></tr>
             ) : staffList.length === 0 ? (
               <tr><td colSpan="3" className="h-full align-middle text-center text-sm font-semibold" style={{ color: 'var(--text-tertiary)' }}>No staff members added yet.</td></tr>
             ) : staffList.map(staff => (

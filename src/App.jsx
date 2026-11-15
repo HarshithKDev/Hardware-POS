@@ -215,7 +215,12 @@ function App() {
           name: shopSettings.shop_name || 'Hardware POS System',
           short_name: (shopSettings.shop_name || 'Hardware POS').slice(0, 16),
           description: 'Point of Sale & Inventory Management System',
-          start_url: '/',
+          // Full addresses: this manifest is served from a blob: link, against which a plain '/'
+          // is invalid, so the browser ignored it and the home-screen app opened on whichever
+          // page it was installed from.
+          id: `${window.location.origin}/`,
+          start_url: `${window.location.origin}/`,
+          scope: `${window.location.origin}/`,
           display: 'standalone',
           theme_color: '#121212',
           background_color: '#121212',
