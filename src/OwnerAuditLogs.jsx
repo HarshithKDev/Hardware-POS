@@ -486,7 +486,7 @@ export default function OwnerAuditLogs() {
         </div>
       )}
 
-      <div className="flex-1 overflow-x-hidden overflow-y-auto max-md:flex-none max-md:overflow-clip shadow-sm md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent' }}>
+      <div className="flex-1 overflow-x-hidden overflow-y-auto max-md:flex-[1_0_auto] max-md:overflow-clip shadow-sm md:rounded-lg border border-[var(--border-light)] mb-4" style={{ backgroundColor: 'transparent' }}>
         {isLoading && rawLogs.length === 0 ? (
           <TableSkeleton rows={10} cols={5} label="Loading logs…" />
         ) : error ? (
