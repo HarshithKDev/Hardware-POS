@@ -15,7 +15,7 @@ import {
   isLocalCatalogPartial,
   clearLocalCatalogPartial,
 } from './db';
-import { finalizeBillMetadata, flushPendingBillPatches } from './billFinalize';
+import { finalizeBillMetadata, flushPendingBillPatches, buildScrewRow } from './billFinalize';
 import { beginCriticalWork } from './busyGuard';
 import { routeReceivedStockToStore } from './atomicStock';
 import { processSaleAtomic, saleArgsFromPayload } from './posRpc';
@@ -610,23 +610,7 @@ async function flushOfflineQueueUnlocked() {
             updatePayload.location = 'Warehouse-Inbound';
           }
 
-          let screwRow = null;
-          if (tx.screw_item) {
-            const scPrice = Number(tx.screw_item.customPriceInput || tx.screw_item.price || 0);
-            screwRow = {
-              bill_id: data.bill_id,
-              shop_id: shopId || null,
-              barcode: 'SCREWS',
-              name: 'Screws',
-              quantity: 1,
-              billable_quantity: 1,
-              actual_quantity: 1,
-              price_at_sale: scPrice,
-              system_price: scPrice,
-              profit: scPrice,
-              unit: 'SET'
-            };
-          }
+          const screwRow = buildScrewRow(data.bill_id, shopId, tx.screw_item);
 
           const res = await finalizeBillMetadata({ billId: data.bill_id, updatePayload, screwRow });
           if (!res.ok) {

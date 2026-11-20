@@ -7,7 +7,7 @@ import { useCart } from './contexts/CartContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { getInventoryItemByBarcode, queueOfflineTransaction, getInventoryByQuery, saveInventoryBatch } from './services/db';
 import { syncInventoryToLocal } from './services/sync';
-import { finalizeBillMetadata } from './services/billFinalize';
+import { finalizeBillMetadata, buildScrewRow } from './services/billFinalize';
 import { routeReceivedStockToStore } from './services/atomicStock';
 import { beginCriticalWork } from './services/busyGuard';
 import { buildTransactionItems } from './services/transactionPayload';
@@ -1595,24 +1595,8 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
               updatePayload.location = 'Warehouse-Inbound';
             }
 
-            let screwRow = null;
             const screwItem = finalCart.find(i => i.is_screw || i.barcode === 'SCREWS');
-            if (activeTab === 'checkout' && screwItem) {
-              const scPrice = Number(screwItem.customPriceInput || screwItem.price || 0);
-              screwRow = {
-                bill_id: successData.bill_id,
-                shop_id: shopId || null,
-                barcode: 'SCREWS',
-                name: 'Screws',
-                quantity: 1,
-                billable_quantity: 1,
-                actual_quantity: 1,
-                price_at_sale: scPrice,
-                system_price: scPrice,
-                profit: scPrice,
-                unit: 'SET'
-              };
-            }
+            const screwRow = activeTab === 'checkout' ? buildScrewRow(successData.bill_id, shopId, screwItem) : null;
 
             // Retried automatically; if it still fails it is parked and retried by background sync.
             // The sale itself is already recorded, so this must never fail the checkout.

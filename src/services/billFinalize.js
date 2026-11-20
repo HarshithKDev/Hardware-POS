@@ -39,6 +39,35 @@ export function getPendingBillPatchCount() {
   return readPending().length;
 }
 
+/**
+ * The bill_items row for a cart's screws line. Free screws are a ₹0 line named
+ * "Screws (FREE)" with the amount given away in free_amount.
+ */
+export function buildScrewRow(billId, shopId, screwItem) {
+  if (!screwItem) return null;
+  const free = Boolean(screwItem.is_free);
+  const price = free ? 0 : Number(screwItem.customPriceInput || screwItem.price || 0);
+  const row = {
+    bill_id: billId,
+    shop_id: shopId || null,
+    barcode: 'SCREWS',
+    name: free ? 'Screws (FREE)' : 'Screws',
+    quantity: 1,
+    billable_quantity: 1,
+    actual_quantity: 1,
+    price_at_sale: price,
+    system_price: price,
+    profit: price,
+    unit: 'SET'
+  };
+  if (free && Number(screwItem.screw_value) > 0) row.free_amount = Number(screwItem.screw_value);
+  return row;
+}
+
+// free_amount column not added yet (20261120_free_screws.sql not run)
+const isMissingColumnError = (error, column) =>
+  Boolean(error) && (error.code === 'PGRST204' || error.code === '42703') && String(error.message || '').includes(column);
+
 async function applyOnce({ billId, updatePayload, screwRow }, attempt) {
   if (updatePayload && Object.keys(updatePayload).length > 0) {
     // Idempotent: safe to repeat
@@ -60,7 +89,12 @@ async function applyOnce({ billId, updatePayload, screwRow }, attempt) {
     } else if (existing && existing.length > 0) {
       return;
     }
-    const { error: insertError } = await supabase.from('bill_items').insert(screwRow);
+    let { error: insertError } = await supabase.from('bill_items').insert(screwRow);
+    if (insertError && 'free_amount' in screwRow && isMissingColumnError(insertError, 'free_amount')) {
+      // Database not updated yet: keep the ₹0 free screws line without the amount
+      const { free_amount: _omit, ...rest } = screwRow;
+      ({ error: insertError } = await supabase.from('bill_items').insert(rest));
+    }
     if (insertError) throw insertError;
   }
 }

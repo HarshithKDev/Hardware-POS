@@ -34,7 +34,7 @@ function rememberAvailability(available) {
  * @returns {Promise<{ data?: any, error?: any, unavailable?: boolean }>}
  */
 export async function processSaleAtomic(args) {
-  const { data, error } = await supabase.rpc('pos_process_sale', {
+  const params = {
     p_action: args.action,
     p_location: args.location,
     p_cashier_name: args.cashierName,
@@ -47,7 +47,17 @@ export async function processSaleAtomic(args) {
     p_customer_phone: args.customerPhone ?? null,
     p_screw_price: args.screwPrice ?? null,
     p_client_ref: args.clientRef ?? null,
-  });
+  };
+  // Free screws (20261120_free_screws.sql). Only sent when there are free screws, so the call
+  // matches the older function on databases not yet updated.
+  const freeAmount = Number(args.screwFreeAmount) || 0;
+  if (freeAmount > 0) params.p_screw_free_amount = freeAmount;
+  let { data, error } = await supabase.rpc('pos_process_sale', params);
+  if (freeAmount > 0 && isMissingFunctionError(error, 'pos_process_sale')) {
+    // Database not updated yet: save the sale anyway, the free screws line is recorded at ₹0
+    delete params.p_screw_free_amount;
+    ({ data, error } = await supabase.rpc('pos_process_sale', params));
+  }
   if (isMissingFunctionError(error, 'pos_process_sale')) {
     rememberAvailability(false);
     return { unavailable: true };
@@ -71,6 +81,7 @@ export function saleArgsFromPayload(payload) {
     customerName: payload.p_customer_name,
     customerPhone: payload.p_customer_phone,
     screwPrice: (payload.p_action === 'SALE' && screw) ? Number(screw.customPriceInput || screw.price || 0) : null,
+    screwFreeAmount: (payload.p_action === 'SALE' && screw?.is_free) ? (Number(screw.screw_value) || 0) : null,
     clientRef: payload.client_ref || null,
   };
 }

@@ -1097,7 +1097,11 @@ function ReturnItemsModal({ isOpen, onClose, bill, items, onReturnItems }) {
                     />
                     <div>
                       <div className="text-sm font-semibold text-[var(--text-primary)]">{item.name}</div>
-                      <div className="text-xs text-[var(--text-secondary)]">Sold at: ₹{formatINR(Number(item.price_at_sale), 2)}/{item.unit || 'pc'}</div>
+                      <div className="text-xs text-[var(--text-secondary)]">
+                        {Number(item.free_amount) > 0
+                          ? `Given free (₹${formatINR(Number(item.free_amount), 2)}) · nothing to refund`
+                          : `Sold at: ₹${formatINR(Number(item.price_at_sale), 2)}/${item.unit || 'pc'}`}
+                      </div>
                     </div>
                   </label>
 
