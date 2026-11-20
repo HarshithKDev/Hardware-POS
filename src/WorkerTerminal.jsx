@@ -38,6 +38,15 @@ import { logActivity } from './services/auditLog';
 const CheckoutCameraScanner = lazy(() => import('./components/scanner/CheckoutCameraScanner'));
 
 // Dynamic smart denomination suggestions for rapid cash checkout
+// Screws popup state for (re)opening it on the screws line already in the cart (or a fresh one).
+// A free line is billed at ₹0, so its entered amount comes from screw_value.
+function screwsModalStateFor(existing) {
+  if (!existing) return { isOpen: true, price: '', isFree: false };
+  if (existing.is_free) return { isOpen: true, price: String(existing.screw_value ?? ''), isFree: true };
+  const price = existing.customPriceInput !== undefined ? String(existing.customPriceInput) : String(existing.price || '');
+  return { isOpen: true, price, isFree: false };
+}
+
 function getQuickTenderOptions(total) {
   if (!total || total <= 0) return [];
   const ceilTotal = Math.ceil(total);
@@ -108,7 +117,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
   const checkoutInFlightRef = useRef(false);
   const [lastReceipt, setLastReceipt] = useState(null);
   const [checkoutModal, setCheckoutModal] = useState({ isOpen: false, cashGiven: '', negotiatedTotal: '', paymentMethod: 'CASH', splitUpi: '', splitCash: '', customerName: '', customerPhone: '', error: '' });
-  const [screwsModal, setScrewsModal] = useState({ isOpen: false, price: '' });
+  const [screwsModal, setScrewsModal] = useState({ isOpen: false, price: '', isFree: false });
   const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -368,8 +377,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
       if (activeTabRef.current === 'checkout' && cleanBarcode.toUpperCase() === 'SCREWS') {
         const existing = cartRef.current.find(i => i.is_screw || i.barcode === 'SCREWS');
-        const currentVal = existing ? (existing.customPriceInput !== undefined ? String(existing.customPriceInput) : String(existing.price || '')) : '';
-        setScrewsModal({ isOpen: true, price: currentVal });
+        setScrewsModal(screwsModalStateFor(existing));
         return;
       }
 
@@ -1125,7 +1133,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
     }
   };
 
-  const handleSaveScrews = useCallback((priceNum) => {
+  const handleSaveScrews = useCallback((priceNum, isFree = false) => {
     if (!priceNum || isNaN(priceNum) || priceNum <= 0) {
       showAlertRef.current("Please enter a valid price for the screws.", "Invalid Screws Price");
       return;
@@ -1133,17 +1141,22 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
     setCart(prev => {
       const existingIdx = prev.findIndex(i => i.is_screw);
+      // Free screws: the entered amount is kept as screw_value (shown on cart/receipt), but the
+      // line is billed at ₹0 so it is never added to the bill total.
+      const billed = isFree ? 0 : priceNum;
       const screwItem = {
         id: existingIdx >= 0 ? prev[existingIdx].id : ('screw_' + Date.now()),
         barcode: 'SCREWS',
-        name: 'Screws',
-        price: priceNum,
-        customPriceInput: priceNum.toFixed(2),
-        selling_price: priceNum.toFixed(2),
+        name: isFree ? 'Screws (FREE)' : 'Screws',
+        price: billed,
+        customPriceInput: billed.toFixed(2),
+        selling_price: billed.toFixed(2),
         purchase_cost: '0.00',
         cost_price: 0,
-        msp: priceNum,
-        msp_price: priceNum.toFixed(2),
+        msp: billed,
+        msp_price: billed.toFixed(2),
+        screw_value: priceNum,
+        is_free: Boolean(isFree),
         quantity: 1,
         billableQuantity: 1,
         unit: 'SET',
@@ -1161,7 +1174,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
       return [...prev, screwItem];
     });
 
-    setScrewsModal({ isOpen: false, price: '' });
+    setScrewsModal({ isOpen: false, price: '', isFree: false });
     playScanSuccessSound();
   }, [setCart]);
 
@@ -1834,7 +1847,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         console.warn("Could not clear localStorage cart:", err);
       }
 
-      setScrewsModal({ isOpen: false, price: '' });
+      setScrewsModal({ isOpen: false, price: '', isFree: false });
       setCheckoutModal(prev => ({ 
         ...prev, 
         isOpen: false, 
@@ -2251,6 +2264,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
         cartTotal={cartTotal}
         minPossibleTotal={minPossibleTotal}
         screwPrice={screwPriceInCart}
+        freeScrewValue={screwInCart?.is_free ? (Number(screwInCart.screw_value) || 0) : 0}
         userRole={userRole}
         cashierName={cashierName}
         isCheckingOut={isCheckingOut}
@@ -2291,9 +2305,10 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
 
       <ScrewsModal
         isOpen={screwsModal.isOpen}
-        onClose={() => setScrewsModal({ isOpen: false, price: '' })}
+        onClose={() => setScrewsModal({ isOpen: false, price: '', isFree: false })}
         onSave={handleSaveScrews}
         initialPrice={screwsModal.price}
+        initialFree={screwsModal.isFree}
         isUpdate={cart.some(i => i.is_screw || i.barcode === 'SCREWS')}
       />
 
@@ -2479,8 +2494,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                         type="button"
                         onClick={() => {
                           const existing = cart.find(i => i.is_screw || i.barcode === 'SCREWS');
-                          const currentVal = existing ? (existing.customPriceInput !== undefined ? String(existing.customPriceInput) : String(existing.price || '')) : '';
-                          setScrewsModal({ isOpen: true, price: currentVal });
+                          setScrewsModal(screwsModalStateFor(existing));
                         }}
                         className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity"
                         title="Click to edit screws price"
@@ -2488,7 +2502,11 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                         </svg>
-                        <span>Screws: ₹{formatINR(Number(cart.find(i => i.is_screw || i.barcode === 'SCREWS')?.customPriceInput !== undefined ? cart.find(i => i.is_screw || i.barcode === 'SCREWS')?.customPriceInput : (cart.find(i => i.is_screw || i.barcode === 'SCREWS')?.price || 0)), 2)}</span>
+                        <span>{(() => {
+                          const sc = cart.find(i => i.is_screw || i.barcode === 'SCREWS');
+                          if (sc?.is_free) return `Screws: FREE (₹${formatINR(Number(sc.screw_value) || 0, 2)})`;
+                          return `Screws: ₹${formatINR(Number(sc?.customPriceInput !== undefined ? sc.customPriceInput : (sc?.price || 0)), 2)}`;
+                        })()}</span>
                       </button>
                       <span className="opacity-30">|</span>
                       <button
@@ -2506,7 +2524,7 @@ export default function WorkerTerminal({ activeTab, shopSettings, cashierName })
                   ) : (
                     <button
                       type="button"
-                      onClick={() => setScrewsModal({ isOpen: true, price: '' })}
+                      onClick={() => setScrewsModal({ isOpen: true, price: '', isFree: false })}
                       className="tap-area relative h-10 md:h-9 px-3.5 rounded-md border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
                       style={{
                         borderColor: 'var(--border-input)',

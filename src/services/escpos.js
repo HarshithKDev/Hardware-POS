@@ -210,7 +210,7 @@ export function buildEscPosReceipt(receiptData, shopSettings = {}, options = {})
     const qty = isScrew ? 1 : Number(item.quantity || 1);
     const unit = isScrew ? 'SET' : (item.unit || 'PCS');
     const rate = Number(item.finalRate || item.selling_price || item.price || 0);
-    const amt = formatINR(Number(item.lineTotal || (qty * rate)), 2);
+    const amt = isScrew && item.is_free ? 'FREE' : formatINR(Number(item.lineTotal || (qty * rate)), 2);
 
     if (charsPerLine === 48) {
       const namePart = itemName.slice(0, colFormat.name).padEnd(colFormat.name);
@@ -222,7 +222,7 @@ export function buildEscPosReceipt(receiptData, shopSettings = {}, options = {})
       // 58mm wrap: Print full item name on first line, then qty & amount on second line
       addText(`${itemName}\n`);
       const qtyStr = isScrew ? `  1 SET` : `  ${qty} ${unit} @ ${rate.toFixed(2)}`;
-      const amtStr = `Rs.${amt}`;
+      const amtStr = isScrew && item.is_free ? amt : `Rs.${amt}`;
       const spaces = Math.max(1, charsPerLine - qtyStr.length - amtStr.length);
       addText(`${qtyStr}${' '.repeat(spaces)}${amtStr}\n`);
     }
