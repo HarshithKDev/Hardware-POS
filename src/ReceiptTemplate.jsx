@@ -146,7 +146,7 @@ export default function ReceiptTemplate({ lastReceipt, shopSettings, formatDateT
                 <td className="pb-1.5 pl-2 text-left text-black whitespace-nowrap" style={{ color: '#000' }}>{displayQty}</td>
                 <td className="pb-1.5 pl-2 text-right text-black whitespace-nowrap" style={{ color: '#000' }}>{displayMrp}</td>
                 <td className="pb-1.5 pl-2 text-right text-black whitespace-nowrap" style={{ color: '#000' }}>{displayRate}</td>
-                <td className="pb-1.5 pl-2 text-right text-black whitespace-nowrap" style={{ color: '#000' }}>{receiptAmount(item.lineTotal)}</td>
+                <td className="pb-1.5 pl-2 text-right text-black whitespace-nowrap" style={{ color: '#000' }}>{isScrew && item.is_free ? 'FREE' : receiptAmount(item.lineTotal)}</td>
               </tr>,
             ];
           })}

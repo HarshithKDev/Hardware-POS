@@ -930,7 +930,8 @@ export async function exportCompleteShopData(shopSettings, onProgress) {
         bill_id: it.bill_id || it.billId || '--',
         date: rowDate,
         barcode: it.barcode || '--',
-        item_name: it.item_name || it.name || pLookup?.name || 'Item Sold',
+        item_name: (it.item_name || it.name || pLookup?.name || 'Item Sold')
+          + (Number(it.free_amount) > 0 ? ` — given free, worth ₹${Number(it.free_amount).toFixed(2)}` : ''),
         quantity: qty,
         unit: (it.unit || pLookup?.unit || 'PCS').toUpperCase(),
         cost_price: cost,

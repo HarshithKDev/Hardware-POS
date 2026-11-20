@@ -12,6 +12,10 @@ import {
   Undo2
 } from 'lucide-react';
 
+// Rupees of screws given free on this line (billed at ₹0), or 0
+const freeScrewsAmount = (it) =>
+  (it?.barcode === 'SCREWS' || it?.is_screw) ? (Number(it.free_amount) || 0) : 0;
+
 export default function BillDetailsView({
   bill,
   onBack,
@@ -211,6 +215,7 @@ export default function BillDetailsView({
                 const soldPrice = Number(it.price_at_sale || 0);
                 const qty = Number(it.billable_quantity || it.quantity || 1);
                 const lineTotal = soldPrice * qty;
+                const freeAmount = freeScrewsAmount(it);
                 const discountPct = Number(it.negotiated_discount || (mrp > 0 && soldPrice < mrp ? ((mrp - soldPrice) / mrp) * 100 : 0));
                 const profit = Number(it.profit || 0);
 
@@ -245,9 +250,15 @@ export default function BillDetailsView({
                       </div>
                       <div className="text-right shrink-0">
                         <span className="text-xs text-[var(--text-tertiary)] block">Total</span>
-                        <span className="font-bold text-sm text-[var(--text-primary)] tabular-nums">
-                          ₹{formatINR(lineTotal, 2)}
-                        </span>
+                        {freeAmount > 0 ? (
+                          <span className="font-bold text-sm tabular-nums" style={{ color: 'var(--color-success)' }}>
+                            FREE <span className="font-medium text-xs">(₹{formatINR(freeAmount, 2)})</span>
+                          </span>
+                        ) : (
+                          <span className="font-bold text-sm text-[var(--text-primary)] tabular-nums">
+                            ₹{formatINR(lineTotal, 2)}
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -318,6 +329,7 @@ export default function BillDetailsView({
                     const soldPrice = Number(it.price_at_sale || 0);
                     const qty = Number(it.billable_quantity || it.quantity || 1);
                     const lineTotal = soldPrice * qty;
+                    const freeAmount = freeScrewsAmount(it);
                     const discountPct = Number(it.negotiated_discount || (mrp > 0 && soldPrice < mrp ? ((mrp - soldPrice) / mrp) * 100 : 0));
                     const profit = Number(it.profit || 0);
 
@@ -371,7 +383,11 @@ export default function BillDetailsView({
                         </td>
 
                         <td className="py-3 px-3 text-center font-bold text-sm text-[var(--text-primary)] tabular-nums" style={showProfit ? { borderRight: '1px solid var(--border-medium)' } : {}}>
-                          ₹{formatINR(lineTotal, 2)}
+                          {freeAmount > 0 ? (
+                            <span style={{ color: 'var(--color-success)' }}>
+                              FREE <span className="font-medium text-xs">(₹{formatINR(freeAmount, 2)})</span>
+                            </span>
+                          ) : `₹${formatINR(lineTotal, 2)}`}
                         </td>
 
                         {showProfit && (

@@ -10,6 +10,7 @@ export default function CheckoutModal({
   cartTotal,
   minPossibleTotal,
   screwPrice = 0,
+  freeScrewValue = 0,
   isCheckingOut,
   onCompleteTransaction,
   getQuickTenderOptions
@@ -135,6 +136,12 @@ export default function CheckoutModal({
               <div className="mt-1.5 flex items-center justify-between text-xs font-semibold px-2.5 py-1.5 rounded-md bg-[var(--bg-tertiary)] border border-[var(--border-light)]" style={{ color: 'var(--text-secondary)' }}>
                 <span>Screws: ₹{formatINR(screwPrice, 2)} (Fixed price)</span>
                 <span className="text-xs text-[var(--text-tertiary)] font-normal">Discount applies to other items only</span>
+              </div>
+            )}
+            {freeScrewValue > 0 && (
+              <div className="mt-1.5 flex items-center justify-between text-xs font-semibold px-2.5 py-1.5 rounded-md border" style={{ backgroundColor: 'var(--color-success-bg)', borderColor: 'var(--color-success)', color: 'var(--color-success)' }}>
+                <span>Screws: FREE (₹{formatINR(freeScrewValue, 2)})</span>
+                <span className="text-xs font-normal">Not added to the total</span>
               </div>
             )}
             {checkoutModal.negotiatedTotal !== '' && Number(checkoutModal.negotiatedTotal) < screwPrice && (
